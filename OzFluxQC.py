@@ -1,10 +1,4 @@
-
-import sys
-
-sys.path.append('scripts')
-
 import ast
-import cfg
 import copy
 import datetime
 import logging
@@ -13,12 +7,27 @@ matplotlib.use('TkAgg')
 import numpy
 import time
 import Tkinter
+import os
+import sys
+
+# check the scripts directory is present
+if not os.path.exists("./scripts/"):
+    print "OzFluxQC: the scripts directory is missing"
+    sys.exit()
+# since the scripts directory is there, try importing the modules
+sys.path.append('scripts')
+import cfg
 import qcgf
 import qcio
 import qcls
 import qcplot
 import qcts
 import qcutils
+# now check the logfiles and plots directories are present
+if not os.path.exists("./logfiles/"):
+    os.makedirs("./logfiles/")
+if not os.path.exists("./plots/"):
+    os.makedirs("./plots/")
 
 class qcgui(Tkinter.Frame):
     """
