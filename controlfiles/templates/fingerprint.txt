@@ -1,0 +1,136 @@
+[General]
+    PlotWidth = 15.0
+    PlotHeight = 10.0
+
+[Files]
+    file_path = ../../Sites/<site_name>/Data/Processed/<year>/
+    in_filename = <site_name>_<year>_L3.nc
+
+[Variables]
+    [[Fsd]]
+        AltVarName = "Fsd"
+        Ticks = "[0,300,600,900,1200]"
+        Lower = -10
+        Upper = 1200
+    [[Ta]]
+        AltVarName = "Ta"
+        Ticks = "[0,10,20,30]"
+        Lower = -10
+        Upper = 40
+    [[SHD]]
+        AltVarName = "SHD"
+        Ticks = "[0,0.01,0.02,0.03,0.04,0.05]"
+        Lower = 0
+        Upper = 8
+    [[Fe]]
+        AltVarName = "Fe"
+        Ticks = "[-200,0,200,400,600]"
+        Lower = -200
+        Upper = 600
+    [[Fc]]
+        AltVarName = "Fc"
+        Ticks = "[-30,-20,-10,0,10,20]"
+        Lower = -30
+        Upper = 20
+    [[Fsu]]
+        AltVarName = "Fsu"
+        Ticks = "[0,100,200,300,400]"
+        Lower = -10
+        Upper = 400
+    [[Fld]]
+        AltVarName = "Fld"
+        Ticks = "[200,300,400,500,600]"
+        Lower = 200
+        Upper = 600
+    [[Flu]]
+        AltVarName = "Flu"
+        Ticks = "[200,300,400,500,600]"
+        Lower = 200
+        Upper = 600
+    [[Fn]]
+        AltVarName = "Fn"
+        Ticks = "[-200,0,250,500,750]"
+        Lower = -200
+        Upper = 1000
+    [[H2O]]
+        AltVarName = "Ah"
+        Ticks = "[0,10,20,30]"
+        Lower = 0
+        Upper = 40
+    [[CO2]]
+        AltVarName = "Cc"
+        Ticks = "[350,400,450,600,900]"
+        Lower = 300
+        Upper = 900
+    [[Ws]]
+        AltVarName = "Ws"
+        Ticks = "[0,2.5,5,7.5,10]"
+        Lower = 0
+        Upper = 15
+    [[Wd]]
+        AltVarName = "Wd"
+        Ticks = "[0,90,180,270]"
+        Lower = 0
+        Upper = 360
+    [[ustar]]
+        AltVarName = "ustar"
+        Ticks = "[0,0.5,1.0,1.5]"
+        Lower = 0
+        Upper = 2.0
+    [[ustar_filtered]]
+        AltVarName = "ustar_filtered"
+        Ticks = "[0,0.5,1.0,1.5]"
+        Lower = 0
+        Upper = 2.0
+    [[Fh]]
+        AltVarName = "Fh"
+        Ticks = "[-150,0,150,300,450]"
+        Lower = -150
+        Upper = 500
+    [[Fg]]
+        AltVarName = "Fg"
+        Ticks = "[-300,-150,0,150,300]"
+        Lower = -300
+        Upper = 300
+    [[Ts]]
+        AltVarName = "Ts"
+        Ticks = "[-10,0,20,40,60]"
+        Lower = -10
+        Upper = 60
+    [[Sws_10cm]]
+        AltVarName = "Sws"
+        Ticks = "[0,0.2,0.4,0.6]"
+        Lower = 0
+        Upper = 0.6
+    [[Sws_40cm]]
+        AltVarName = "Sws_40cma"
+        Ticks = "[0,0.2,0.4,0.6]"
+        Lower = 0
+        Upper = 0.6
+    [[Sws_100cm]]
+        AltVarName = "Sws_100cma"
+        Ticks = "[0,0.2,0.4,0.6]"
+        Lower = 0
+        Upper = 0.6
+    [[Precip]]
+        AltVarName = "Precip"
+        Ticks = "[0,5,10,15]"
+        Lower = 0
+        Upper = 20
+
+[Plots]
+    [[1]]
+        Title = "Composite fingerprint"
+        Variables = "['Fsd','Ta','SHD','Fe','Fc']"
+    [[2]]
+        Title = "Radiation fingerprint"
+        Variables = "['Fsd','Fsu','Fld','Flu','Fn']"
+    [[3]]
+        Title = "Meteorology fingerprint"
+        Variables = "['Ta','H2O','CO2','Ws','Wd']"
+    [[4]]
+        Title = "Flux fingerprint"
+        Variables = "['ustar','ustar_filtered','Fh','Fe','Fc']"
+    [[5]]
+        Title = "Soil fingerprint"
+        Variables = "['Fg','Ts','Sws_10cm','Sws_40cm','Sws_100cm']"

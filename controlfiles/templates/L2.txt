@@ -1,0 +1,304 @@
+# AAHYWEH
+# Control file for L2 (input) to L3 (output) quality control.
+#
+# TEMPLATE VERSION
+#  To convert this template to a version that works for data output by the standard OzFlux
+#  data logger program:
+#   1) Replace the following place holders with values for your site:
+#      <site_name> - the name of the site
+#      <year>      - the year of the data
+#      <latitude>  - the latitude of the site, decimal degrees
+#      <longitude> - the longitude of the site, decimal degrees
+#      <height>    - the height of the measurement (above ground), m
+#      <depth>     - the depth of the measurement (below ground), cm for depths <= 1m, m for depths > 1m
+#      <letter>    - the letter used to distinguish sensors at the same depth or height
+#   2) Replace the default quality control limits (eg Lower, Upper etc) with site-specific values.
+#
+# [General]   - general settings
+#    PlotWidth               = 10.7          # default plot width, inches
+#    PlotHeight              = 8             # default plot height, inches
+# [Files]     - contains paths and file names
+# [Output]    - specify the variables to be written to the output file
+#               - 2 output list can be specified:
+#                 - "xl" defines which variables will be written to the Excel file output at L3
+#                 - "nc" defines which variables will be written to the netCDF file output at L3
+#               - if no list is specified, all variables are written out
+# [Variables] - variable names and quality control keys, only those variables
+#               corrected or calculated at this level need to be specified in
+#               this control file.
+#               Valid quality control sections are:
+#                RangeCheck   - reject data less than "Lower" or greater than "Upper"
+#                DiurnalCheck - reject data outside Avg(H.h)+/-NumSd*Stdev(H.h) where
+#                                Avg(H.h) is the average of all data at time H.h and
+#                                Stdev(H.h) is the standard deviation of all data at time H.h
+#                                 eg H.h = 8.5 is 0830
+#                 NOTE: The "Lower", "Upper" and "NumSd" keywords require a value for each
+#                       month of the year (12).  This can be written in shorthand as:
+#                        eg "[100]*12" (same value for each month)
+#                       or in longhand as:
+#                        eg "[100,110,120,130,140,150,150,140,130,120,110,100]" (different each month)
+#                  [[[RangeCheck]]]
+#                      Lower      = "[-100]*12"
+#                      Upper      = "[600]*12"
+#                  [[[DiurnalCheck]]]
+#                      NumSd      = "[3]*12"
+#                ExcludeDates - reject data between specified dates, multiple date ranges can be
+#                               specified on separate lines but the lines must be numbered
+#                               sequentially from 0 (eg 0, 1, 2 etc)
+#                 NOTE: The date range is specified as:
+#        [[[ExcludeDates]]]
+#            0 = "['2010-01-01 00:00','2010-01-01 00:00']"
+#                ExcludeHours - reject data at specified times between the specified date range,
+#                               multiple ranges can be specified on separate lines but the
+#                               lines must be numbered sequentially from 0 (eg 0, 1, 2, etc)
+#                 NOTE: The date range and hours to be rejected are specified as:
+#                        eg "['2010-04-22 00:00','2010-07-26 23:30',['09:30','10:00','10:30']]"
+#                Linear       - apply a linear correction to the data within a date range,
+#                               multiple ranges can be specified on separate lines but the
+#                               lines must be numbered sequentially from 0 (eg 0, 1, 2, etc)
+#                 NOTE: The date range, slope and offset are specified as:
+#                        eg "['2010-01-01 00:00','2011-01-01 00:00',1.0,0.0]"
+#                Correction   - apply an offset to a wind direction measurement to correct for alignment
+#                               multiple ranges can be specified on separate lines but the
+#                               lines must be numbered sequentially from 0 (eg 0, 1, 2, etc)
+#                 NOTE: The date range and correction are specified as follows:
+#                        eg "['2010-1-1 00:00','2010-1-1 00:00',180]"
+# [Plots]     - definition of time series plots
+#    # subsection that defines a collection of plots on a single page
+#    [[1]]
+#        # title for the page, required
+#        Title     = "Radiative fluxes"
+#        # list of series to be plotted, required
+#        Variables = "['Fsd','Fsu','Fld','Flu','Fn_NR']"
+#        # Y axis minimum limits for left time series axis, optional, must be a number or 'Auto'
+#        YLMin     = "['Auto',   0 , 250 , 250 ,'Auto']"
+#        # Y axis maximum limits for left time series axis, optional, must be a number or 'Auto'
+#        YLMax     = "['Auto', 300 , 600 , 600 ,'Auto']"
+#        # Y axis minimum limits for right time series axis, optional, must be a number or 'Auto'
+#        YRMin     = "[   0 ,   0 , 250 , 250 ,  -150 ]"
+#        # Y axis maximum limits for right time series axis, optional, must be a number or 'Auto'
+#        YRMax     = "[1200 , 300 , 600 , 600 ,   600 ]"
+#
+[General]
+    PlotWidth = 10.9
+    PlotHeight = 7.5
+
+[Files]
+    file_path = ../Sites/<site_name>/Data/Processed/<year>/
+    in_filename = <site_name>_<year>_L1.nc
+    out_filename = <site_name>_<year>_L2.nc
+
+[Output]
+    xl = "['Ah_7500_Av','Ah_HMP_<height>m','Cc_7500_Av','Tv_CSAT','Ta_HMP_<height>m']"
+
+[Variables]
+# Radiation
+    [[Fn_NR]]
+        [[[RangeCheck]]]
+            Lower      = "[-100]*12"
+            Upper      = "[1000]*12"
+    [[Fld]]
+        [[[RangeCheck]]]
+            Lower      = "[250]*12"
+            Upper      = "[700]*12"
+    [[Flu]]
+        [[[RangeCheck]]]
+            Lower      = "[300]*12"
+            Upper      = "[700]*12"
+    [[Fsu]]
+        [[[RangeCheck]]]
+            Lower      = "[-10]*12"
+            Upper      = "[500]*12"
+    [[Fsd]]
+        [[[RangeCheck]]]
+            Lower      = "[-10]*12"
+            Upper      = "[1500]*12"
+# Temperature covariances
+    [[UzT]]
+        [[[RangeCheck]]]
+            Lower      = "[-0.2]*12"
+            Upper      = "[1]*12"
+    [[UxT]]
+        [[[RangeCheck]]]
+            Lower      = "[-2]*12"
+            Upper      = "[2]*12"
+    [[UyT]]
+        [[[RangeCheck]]]
+            Lower      = "[-2]*12"
+            Upper      = "[2]*12"
+# H2O covarinaces
+    [[UzA]]
+        [[[RangeCheck]]]
+            Lower      = "[-0.01]*12"
+            Upper      = "[0.5]*12"
+    [[UxA]]
+        [[[RangeCheck]]]
+            Lower      = "[-1]*12"
+            Upper      = "[1]*12"
+    [[UyA]]
+        [[[RangeCheck]]]
+            Lower      = "[-1]*12"
+            Upper      = "[1]*12"
+# CO2 covariances
+    [[UzC]]
+        [[[RangeCheck]]]
+            Lower      = "[-2]*12"
+            Upper      = "[2]*12"
+    [[UxC]]
+        [[[RangeCheck]]]
+            Lower      = "[-4]*12"
+            Upper      = "[4]*12"
+    [[UyC]]
+        [[[RangeCheck]]]
+            Lower      = "[-4]*12"
+            Upper      = "[4]*12"
+# momentum covariances and variances
+    [[UxUz]]
+        [[[RangeCheck]]]
+            Lower      = "[-10]*12"
+            Upper      = "[10]*12"
+    [[UyUz]]
+        [[[RangeCheck]]]
+            Lower      = "[-10]*12"
+            Upper      = "[10]*12"
+    [[UxUy]]
+        [[[RangeCheck]]]
+            Lower      = "[-1]*12"
+            Upper      = "[1]*12"
+    [[UxUx]]
+        [[[RangeCheck]]]
+            Lower      = "[-10]*12"
+            Upper      = "[10]*12"
+    [[UyUy]]
+        [[[RangeCheck]]]
+            Lower      = "[-10]*12"
+            Upper      = "[10]*12"
+# Meteorology
+    [[Cc_7500_Av]]
+        [[[RangeCheck]]]
+            Lower      = "[500]*12"
+            Upper      = "[2000]*12"
+    [[Ah_7500_Av]]
+        [[[RangeCheck]]]
+            Lower      = "[0]*12"
+            Upper      = "[35]*12"
+    [[Ah_HMP_<height>m]]
+        [[[RangeCheck]]]
+            Lower      = "[0]*12"
+            Upper      = "[30]*12"
+    [[Tv_CSAT]]
+        [[[RangeCheck]]]
+            Lower      = "[0]*12"
+            Upper      = "[50]*12"
+    [[Ta_HMP_<height>m]]
+        [[[RangeCheck]]]
+            Lower      = "[0]*12"
+            Upper      = "[50]*12"
+# Variance and standard deviation of absolute humidities, used for QC checks
+    [[AhAh]]
+        [[[RangeCheck]]]
+            Lower      = "[0]*12"
+            Upper      = "[100]*12"
+    [[Ah_7500_Sd]]
+        [[[RangeCheck]]]
+            Lower      = "[0]*12"
+            Upper      = "[10]*12"
+    [[CcCc]]
+        [[[RangeCheck]]]
+            Lower      = "[0]*12"
+            Upper      = "[2500]*12"
+    [[Cc_7500_Sd]]
+        [[[RangeCheck]]]
+            Lower      = "[0]*12"
+            Upper      = "[50]*12"
+# Precipitation
+    [[Precip]]
+        [[[RangeCheck]]]
+            Lower      = "[0]*12"
+            Upper      = "[50]*12"
+# Wind speed and direction
+    [[Wd_WS4]]
+        [[[RangeCheck]]]
+            Lower      = "[0]*12"
+            Upper      = "[360]*12"
+    [[Ws_WS4]]
+        [[[RangeCheck]]]
+            Lower      = "[0]*12"
+            Upper      = "[20]*12"
+    [[Wd_CSAT]]
+        [[[RangeCheck]]]
+            Lower      = "[0]*12"
+            Upper      = "[360]*12"
+    [[Ws_CSAT]]
+        [[[RangeCheck]]]
+            Lower      = "[0]*12"
+            Upper      = "[20]*12"
+    [[Ux]]
+        [[[RangeCheck]]]
+            Lower      = "[-20]*12"
+            Upper      = "[20]*12"
+    [[Uy]]
+        [[[RangeCheck]]]
+            Lower      = "[-20]*12"
+            Upper      = "[20]*12"
+    [[Uz]]
+        [[[RangeCheck]]]
+            Lower      = "[-1]*12"
+            Upper      = "[1]*12"
+# Pressure
+    [[ps]]
+        [[[RangeCheck]]]
+            Lower      = "[95]*12"
+            Upper      = "[105]*12"
+# Soil heat flux, moisture and temperature
+# repeat the following section for as many soil moisture sensors as installed at the site
+    [[Fg_<depth><letter>]]
+        [[[RangeCheck]]]
+            Lower      = "[-100]*12"
+            Upper      = "[150]*12"
+# repeat the following section for as many soil moisture sensors as installed at the site
+    [[Sws_<depth><letter>]]
+        [[[RangeCheck]]]
+            Lower      = "[0]*12"
+            Upper      = "[0.5]*12"
+# repeat the following section for as many soil temperature sensors as installed at the site
+    [[Ts_<depth><letter>]]
+        [[[RangeCheck]]]
+            Lower      = "[0]*12"
+            Upper      = "[60]*12"
+# CSAT and IRGA diagnostics
+    [[Diag_CSAT]]
+        [[[RangeCheck]]]
+            Lower      = "[-0.5]*12"
+            Upper      = "[20.5]*12"
+    [[Diag_7500]]
+        [[[RangeCheck]]]
+            Lower      = "[-0.5]*12"
+            Upper      = "[10.5]*12"
+    [[AGC_7500]]
+        [[[RangeCheck]]]
+            Lower      = "[0]*12"
+            Upper      = "[70]*12"
+
+[Plots]
+    [[1]]
+        Title     = "Radiative fluxes"
+        Variables = "['Fsd','Fsu','Fld','Flu','Fn_NR']"
+    [[2]]
+        Title     = "Covariances (CSAT)"
+        Variables = "['UzT','UxT','UyT','UxUz','UyUz','UxUx','UyUy']"
+    [[3]]
+        Title = "Covariances (CSAT&7500)"
+        Variables = "['UzA','UxA','UyA','UzC','UxC','UyC']"
+    [[4]]
+        Title = "Air temperature, humidity and CO2"
+        Variables = "['Ta_HMP_<height>m','Tv_CSAT','Ah_HMP_<height>m''Ah_7500_Av','Cc_7500_Av']"
+    [[5]]
+        Title = "Soil temperature, water content & rain"
+        Variables = "['Ts_<depth><letter>','Sws_<depth><letter>','Precip']"
+    [[6]]
+        Title = "Soil temperature, heat flux & rain"
+        Variables = "['Ts_<depth><letter>','Fg_<depth><letter>','Precip']"
+    [[7]]
+        Title = "Pressure, wind speed, wind direction & rainfall"
+        Variables = "['ps','Ws_CSAT','Ux','Uy','Uz','Wd_CSAT','Precip']"

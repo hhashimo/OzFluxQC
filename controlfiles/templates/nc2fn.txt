@@ -1,0 +1,62 @@
+[Files]
+    file_path = ../../Sites/<site_name>/Data/Processed/<year>/
+    in_filename = <site_name>_<year>_L3.nc
+    out_filename = <site_name>_<year>_FluxNet.csv
+
+[General]
+    CanopyHeight = ""
+    SiteName = "<site_name>"
+    PIName = ""
+    PIEmail = ""
+    DataPolicy = "OzFlux (http://ozflux.its.monash.edu.au/ecosystem/site/licenceinfo.jspx)"
+    Latitude = "<latitude>"
+    Longitude = "<longitude>"
+    MeasurementHeight = ""
+    LandCover = ""
+    LandUse = ""
+    SWC1Depth = ""
+    TS1Depth = ""
+
+[Variables]
+    [[FC]]
+        ncname = "Fc"
+    [[CO2_top]]
+        ncname = "Cc"
+    [[ust]]
+        ncname = "ustar"
+    [[RG_in]]
+        ncname = "Fsd"
+    [[TA]]
+        ncname = "Ta"
+    [[H2O]]
+        ncname = "Ah"
+    [[LE]]
+        ncname = "Fe"
+    [[H]]
+        ncname = "Fh"
+    [[G1]]
+        ncname = "Fg"
+    [[PRECIP]]
+        ncname = "Precip"
+    [[SWC1]]
+        ncname = "Sws"
+    [[TS1]]
+        ncname = "Ts"
+    [[RNET]]
+        ncname = "Fn"
+    [[SWin]]
+        ncname = "Fsd"
+    [[SWout]]
+        ncname = "Fsu"
+    [[LWin]]
+        ncname = "Fld"
+    [[LWout]]
+        ncname = "Flu"
+    [[WD]]
+        ncname = "Wd"
+    [[WS]]
+        ncname = "Ws"
+    [[PA]]
+        ncname = "ps"
+    [[RH]]
+        ncname = "RH"

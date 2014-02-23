@@ -1,0 +1,312 @@
+# AAHYWEH
+# Control file for gap filling L3 data to produce L4 data.
+#
+# The techniques to be used to gap fill L3 data are still in development so there will be changes
+# to this file over time.  At present, some very basic gap filling tools based on climatology
+# have been implemented.  These are robust and will work quite well for yearly data sets that
+# have few gaps of short duration.
+#
+# The way in which this control file is interpreted by the Python script files is fundamentally
+# different to the way in which the L1, L2 and L3 control files are interpreted.
+#
+# With the L1, L2 and l3 control files, the order of the variables in the control file was not
+# important and the order of the sub-sections for each variable was not important.  With the L4
+# control file, the order of the variable in the [Variables] section determines the order in which
+# the variables are gap filled.  This is necessary because the gap filling of some variables depends
+# on other variables. For example, the method used to gap fill latent heat flux (Fe) uses the available
+# energy (Fa) so the entry for Fa in this control file must appear before the entry for Fe.  Likewise,
+# the method used to gap fill NEE (Fc) filters Fc for low ustar values as the first step, so the entry
+# for ustar must appear in the control file before the entry for Fc.
+#
+# The order of the sub-section entries for each variable determines the order in which the various
+# gap filling techniques are applied.  There are only a limited number of techniques available
+# at present but this dependence on order will become more important as other techniques are added
+# to this process (eg gap fill using Reichstein (match and replace), gap fill using Penman-Monteith
+# and light use efficiency, gap fill using neural networks etc).  As an example, in the entries for
+# the fluxes of sensible heat, latent heat and CO2 (Fh, Fe and Fc), the first gap filling method listed
+# is GapFillFluxFromDayRatio and the second is GapFillFromClimatology.  In this case, the
+# GapFillFluxFromDayRatio method will be applied first and then the GapFillFromClimatology method
+# will be used.  The order in which the methods are used depends on their characteristics.
+# GapFillFluxFromDayRatio works quite well but may still leave some gaps in the data in some rare
+# cases.  GapFillFromClimatology works less well but does not leave gaps.  To use GapFillFluxFromDayRatio
+# first and then GapFillFromClimatology second means most (usually all) of the data is gap filled
+# using the best performing technique first and then any remaining gaps are filled by schemes that
+# are more conservative but more robust.
+#
+# There are 3 gap filling techniques available at present:
+# 1) GapFillFromAlternate
+#    This method replaces missing data with data from an alternate site.  This method is able to
+#    apply a linear transform to the data from the alternate site so that it matches, on average,
+#    the data from the site being gap filled.
+#    Examples of alternate sites are:
+#    a) a near-by flux tower.
+#    b) a psuedo-tower data set derived from gridded meteorological fields:
+#       - these are usually available at daily time steps and must be interpolated
+#         down to the time step of the data set being gap filled.
+#    c) a compsite of pseudo-tower data and data from a Bureau of Meteorology Automatic
+#       Weather Station:
+#       - as an example, temperature, humidity, wind speed, wind direction and rainfall data
+#         may come from a nearby AWS with down-welling shortwave (Fsd) being derived from a daily
+#         time step, gridded product (eg AWAP, SILO) by interpolation, up-welling shortwave
+#         from Fsd and albedo, and longwave from temperature etc.
+#    d) an AWS plus radiation data from an alternate site.
+#    WARNING - at present, this method assumes the alternate site is a flux tower and that all
+#              required data (meteorological, radiation, soil) is present in the alternate site
+#              data set.  This method is still under development.
+# 2) GapFillFromClimatology
+#    This method uses the information in the Climatology_YYYY.xls Excel spreadsheet to fill gaps
+#    in the data set.  The climatology spreadsheet is produced by running the "climatology.py" script
+#    file on an L3 netCDF file.  The climatological data for basic meteorological drivers (temperature,
+#    humidity, radiation) is given as monthly averages for each time step during the day.  This method
+#    simply inserts the monthly average for the appropriate time of day into gaps in the data set.
+#    WARNING - this method will produce sudden jumps in gap filled quatities when the date changes from
+#              month to the next.  This method is still under development and will be modified to use
+#              an interpolation scheme to interpolate from monthly averages down to daily time steps
+#              to avoid the sudden jumps at month boundaries.
+# 3) GapFillFluxFromDayRatio
+#    This method is only used for gap filling the fluxes of sensible heat, latent heat and CO2 (Fh,
+#    Fe and Fc).  The method uses ratios of various fluxes based on climatological data for the site
+#    to gap fill day time data (Fsd>50 W/m2) and uses climatological data (filtered to remove low
+#    ustar values in the case of Fc) to gap fill night time data (Fsd<50 W/m2).  Both the ratios
+#    and the climatological data are derived from measurements at the site and are calculated by the
+#    climatology script ("climatology.py").
+#    The ratios used are:
+#    a) Evaporative fraction (EF=Fe/Fa) - the ratio of latent heat flux to available energy.
+#    b) Bowen ratio (BR=Fh/Fe) - the ratio of sensible to latent heat flux.
+#    c) Ecosystem water use efficiency (WUE=Fc/Fe) - the ratio of CO2 flux to latent heat.
+#    The reason for using ratios to gap fill day time fluxes is that these quantities vary less from
+#    hour to hour and from day to day than the fluxes themselves.  This means that gaps in the ratios
+#    due to gaps in the measured fluxes can be more accurately filled using interpolation than gaps
+#    in the fluxes themselves.  Once the gaps in the evaporative fraction have been filled by
+#    interpolation, the missing day time Fe data can be filled using Fe=EF*Fa.  Once the gaps in the
+#    Bowen ratio have been filled by interpolation and Fe has been gap filled as described above then
+#    the day time Fh is gap filled using Fh=BR*Fe.  Once the gaps in the ecosystem water use efficiency
+#    have been filled by interpolation and Fe has been filled as described above then the day time Fc
+#    is gap filled using Fc=WUE*Fe.  The interpolated ratios are calculated by the "climatology.py"
+#    script file and written to the climatology spreadsheet.
+#    Night time gaps are filled using monthly climatological averages of the measured fluxes.  The
+#    monthly averages at each time step through out the day are calculated by the "climatology.py" script
+#    file and written to the climatology spreadsheet.  The monthly averages are calculated without
+#    applying a ustar filetr and with a ustar filter.  The ustar threshold is specified in the
+#    control file for the "climatology.py" script and is written to the worksheet containing the
+#    climatological flux averages.  The monthly climatological averages (at each time step during the
+#    day) are interpolated onto a daily time step before being used to gap fill the missing night time
+#    fluxes.
+[Files]
+    file_path = ../Sites/<site_name>/Data/Processed/<year>/
+    in_filename = <site_name>_<year>_L3.nc
+    out_filename = <site_name>_<year>_L4.nc
+
+[Output]
+    xl = "['Ah','Cc','Fa','Fc','Fe','Fg','Fh','Fld','Flu','Fm','Fn','Fsd','Fsu','ps','Sws','Ta','Ts','ustar','Ws','Wd']"
+
+[Options]
+    UseExistingOutFile = Yes
+    UseExistingSOFMOutput = No
+
+[Params]
+    zmd = 5        # instrument height above displacement plane, m
+    z0 = 1         # roughness length, m
+    Fsd_threshold   = 10     # Fsd threshold for determining day or night time, W/m2
+    ustar_threshold = 0.30   # ustar threshold for determining turbulent or non-turbulent conditions, m/s
+
+[Drivers]
+    [[Ah]]
+        [[[GapFillFromClimatology]]]
+            FileName = ../Sites/<site_name>/Data/Processed/<year>/Climatology_<year>.xls
+        [[[RangeCheck]]]
+            Lower      = "[0]*12"
+            Upper      = [35]*12
+    [[Cc]]
+        [[[GapFillFromClimatology]]]
+            FileName = ../Sites/<site_name>/Data/Processed/<year>/Climatology_<year>.xls
+        [[[RangeCheck]]]
+            Lower      = "[300]*12"
+            Upper      = "[900]*12"
+    [[Fa]]
+        [[[GapFillFromClimatology]]]
+            FileName = ../Sites/<site_name>/Data/Processed/<year>/Climatology_<year>.xls
+        [[[RangeCheck]]]
+            Lower      = "[-300]*12"
+            Upper      = "[1000]*12"
+    [[Fg]]
+        [[[GapFillFromClimatology]]]
+            FileName = ../Sites/<site_name>/Data/Processed/<year>/Climatology_<year>.xls
+        [[[RangeCheck]]]
+            Lower      = "[-300]*12"
+            Upper      = "[300]*12"
+    [[Fld]]
+        [[[GapFillFromClimatology]]]
+            FileName = ../Sites/<site_name>/Data/Processed/<year>/Climatology_<year>.xls
+        [[[RangeCheck]]]
+            Lower      = "[250]*12"
+            Upper      = "[700]*12"
+    [[Flu]]
+        [[[GapFillFromClimatology]]]
+            FileName = ../Sites/<site_name>/Data/Processed/<year>/Climatology_<year>.xls
+        [[[RangeCheck]]]
+            Lower      = "[300]*12"
+            Upper      = "[700]*12"
+    [[Fn]]
+        [[[GapFillFromClimatology]]]
+            FileName = ../Sites/<site_name>/Data/Processed/<year>/Climatology_<year>.xls
+        [[[RangeCheck]]]
+            Lower      = [-150]*12
+            Upper      = [1100]*12
+    [[Fsd]]
+        [[[GapFillFromClimatology]]]
+            FileName = ../Sites/<site_name>/Data/Processed/<year>/Climatology_<year>.xls
+        [[[RangeCheck]]]
+            Lower      = "[-10]*12"
+            Upper      = "[1500]*12"
+    [[Fsu]]
+        [[[GapFillFromClimatology]]]
+            FileName = ../Sites/<site_name>/Data/Processed/<year>/Climatology_<year>.xls
+        [[[RangeCheck]]]
+            Lower      = "[-10]*12"
+            Upper      = "[500]*12"
+    [[ps]]
+        [[[GapFillFromClimatology]]]
+            FileName = ../Sites/<site_name>/Data/Processed/<year>/Climatology_<year>.xls
+        [[[RangeCheck]]]
+            Lower      = "[95]*12"
+            Upper      = "[105]*12"
+    [[Sws]]
+        [[[GapFillFromClimatology]]]
+            FileName = ../Sites/<site_name>/Data/Processed/<year>/Climatology_<year>.xls
+    [[Ta]]
+        [[[GapFillFromClimatology]]]
+            FileName = ../Sites/<site_name>/Data/Processed/<year>/Climatology_<year>.xls
+        [[[RangeCheck]]]
+            Lower      = [0]*12
+            Upper      = [50]*12
+    [[Ts]]
+        [[[GapFillFromClimatology]]]
+            FileName = ../Sites/<site_name>/Data/Processed/<year>/Climatology_<year>.xls
+        [[[RangeCheck]]]
+            Lower      = "[0]*12"
+            Upper      = "[60]*12"
+    [[Wd]]
+        [[[GapFillFromClimatology]]]
+            FileName = ../Sites/<site_name>/Data/Processed/<year>/Climatology_<year>.xls
+        [[[RangeCheck]]]
+            Lower      = "[0]*12"
+            Upper      = "[360]*12"
+    [[Ws]]
+        [[[GapFillFromClimatology]]]
+            FileName = ../Sites/<site_name>/Data/Processed/<year>/Climatology_<year>.xls
+        [[[RangeCheck]]]
+            Lower      = "[0]*12"
+            Upper      = "[20]*12"
+# fluxes
+[Fluxes]
+    [[ustar]]
+        [[[GapFillFromClimatology]]]
+            FileName = ../Sites/<site_name>/Data/Processed/<year>/Climatology_<year>.xls
+        [[[RangeCheck]]]
+            Lower      = "[0]*12"
+            Upper      = "[2]*12"
+    [[Fm]]
+        [[[GapFillFromClimatology]]]
+            FileName = ../Sites/<site_name>/Data/Processed/<year>/Climatology_<year>.xls
+        [[[RangeCheck]]]
+            Lower      = "[-1]*12"
+            Upper      = "[1]*12"
+    [[Fe]]
+        [[[GapFillFluxUsingSOLO]]]
+            drivers = "['Fa','SHD','Ta','Ws']"
+            ustar_filter = "Yes"
+            output = 'Fe_SOLO'
+        [[[GapFillFluxFromDayRatio]]]
+            FileName = "../Sites/<site_name>/Data/Processed/<year>/Climatology_<year>.xls"
+            drivers = "Fa"
+            ratio_xlSheet = "EFi(day)"
+            flux_xlSheet = "Fei(ustar threshold)"
+            ustar_filter = "No"
+            output = 'Fe_DR'
+        [[[MergeSeries]]]
+            Source     = "['Fe_L3','Fe_SOLO','Fe_DR']"
+        [[[RangeCheck]]]
+            Lower      = "[-100]*12"
+            Upper      = "[600]*12"
+    [[Fh]]
+        [[[GapFillFluxUsingSOLO]]]
+            drivers = "['Fa','Ta','Ws']"
+            ustar_filter = "Yes"
+            output = 'Fh_SOLO'
+        [[[GapFillFluxFromDayRatio]]]
+            FileName = "../Sites/<site_name>/Data/Processed/<year>/Climatology_<year>.xls"
+            ratio_xlSheet = "BRi(day)"
+            drivers = "Fe"
+            flux_xlSheet = "Fhi(ustar threshold)"
+            ustar_filter = "No"
+            output = 'Fh_DR'
+        [[[MergeSeries]]]
+            Source     = "['Fh_L3','Fh_SOLO','Fh_DR']"
+        [[[RangeCheck]]]
+            Lower      = "[-100]*12"
+            Upper      = "[600]*12"
+    [[Fc]]
+        [[[GapFillFluxUsingSOLO]]]
+            drivers = "['Fsd','q','Ta','Ts']"
+            ustar_filter = "Yes"
+            output = 'Fc_SOLO'
+        [[[GapFillFluxFromDayRatio]]]
+            FileName = "../Sites/<site_name>/Data/Processed/<year>/Climatology_<year>.xls"
+            ratio_xlSheet = "WUEi(day)"
+            drivers = "Fe"
+            flux_xlSheet = "Fci(ustar threshold)"
+            ustar_filter = "Yes"
+            output = 'Fc_DR'
+        [[[MergeSeries]]]
+            Source     = "['Fc_L3','Fc_SOLO','Fc_DR']"
+        [[[RangeCheck]]]
+            Lower      = "[-50]*12"
+            Upper      = "[50]*12"
+# derived quantities
+[Derived]
+    [[Reco]]
+        [[[SOLO]]]
+            drivers = "['Ts','Sws']"
+            output = Reco_SOLO
+        [[[LloydTaylor]]]
+            drivers = "['Ts']"
+            # 12 values, 1 for each month, starting with January
+            # Howard Springs 2011
+            #E0 = "[189.2]*12"
+            # 12 values, 1 for each month, starting with January
+            # Howard Springs 2011
+            #rb = "[3.7,3.5,2.9,2.9,2.1,1.4,1.4,1.2,1.2,2.2,3.7,3.5]"
+            output = 'Reco_LT'
+    [[NEE]]
+        Fc   = Fc
+        Reco = Reco_LT
+    [[GPP]]
+        NEE  = NEE
+        Reco = Reco_LT
+
+[Plots]
+    [[1]]
+        Title = "Radiative fluxes"
+        Variables = "['Fsd','Fsu','Fld','Flu','Fn']"
+    [[2]]
+        Title = "Turbulent fluxes"
+        Variables = "['Fh','Fe','Fc','ustar','Fm']"
+    [[3]]
+        Title = "Meteorology"
+        Variables = "['Ta','Ah','Cc','Ws','Wd']"
+    [[4]]
+        Title = "Soil temperature, water content and heat flux"
+        Variables = "['ps','Ts','Sws','Fg']"
+    [[5]]
+        Title = "Fe gap filling"
+        Variables = "['Fe','Fe_SOLO','Fe_DR','Fe_ic']"
+    [[6]]
+        Title = "Fh gap filling"
+        Variables = "['Fh','Fh_SOLO','Fh_DR','Fh_ic']"
+    [[7]]
+        Title = "Fc gap filling"
+        Variables = "['Fc','Fc_SOLO','Fc_DR','Fc_ic']"
+    [[8]]
+        Title = "NEE, Reco and GEP"
+        Variables = "['Fc_L3','Fc','NEE','Reco_LT','GEP']"

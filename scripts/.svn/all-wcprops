@@ -1,0 +1,89 @@
+K 25
+svn:wc:ra_dav:version-url
+V 45
+/svn/!svn/ver/200/qccode/OzFluxQCv2.0/scripts
+END
+qcts.py
+K 25
+svn:wc:ra_dav:version-url
+V 53
+/svn/!svn/ver/200/qccode/OzFluxQCv2.0/scripts/qcts.py
+END
+qcio.py
+K 25
+svn:wc:ra_dav:version-url
+V 53
+/svn/!svn/ver/190/qccode/OzFluxQCv2.0/scripts/qcio.py
+END
+l3check.py
+K 25
+svn:wc:ra_dav:version-url
+V 56
+/svn/!svn/ver/190/qccode/OzFluxQCv2.0/scripts/l3check.py
+END
+nclist.py
+K 25
+svn:wc:ra_dav:version-url
+V 55
+/svn/!svn/ver/190/qccode/OzFluxQCv2.0/scripts/nclist.py
+END
+constants.py
+K 25
+svn:wc:ra_dav:version-url
+V 58
+/svn/!svn/ver/190/qccode/OzFluxQCv2.0/scripts/constants.py
+END
+comparesites.py
+K 25
+svn:wc:ra_dav:version-url
+V 61
+/svn/!svn/ver/190/qccode/OzFluxQCv2.0/scripts/comparesites.py
+END
+meteorologicalfunctions.py
+K 25
+svn:wc:ra_dav:version-url
+V 72
+/svn/!svn/ver/190/qccode/OzFluxQCv2.0/scripts/meteorologicalfunctions.py
+END
+compare_ah.py
+K 25
+svn:wc:ra_dav:version-url
+V 59
+/svn/!svn/ver/190/qccode/OzFluxQCv2.0/scripts/compare_ah.py
+END
+qcck.py
+K 25
+svn:wc:ra_dav:version-url
+V 53
+/svn/!svn/ver/190/qccode/OzFluxQCv2.0/scripts/qcck.py
+END
+qcls.py
+K 25
+svn:wc:ra_dav:version-url
+V 53
+/svn/!svn/ver/194/qccode/OzFluxQCv2.0/scripts/qcls.py
+END
+qcplot.py
+K 25
+svn:wc:ra_dav:version-url
+V 55
+/svn/!svn/ver/190/qccode/OzFluxQCv2.0/scripts/qcplot.py
+END
+climatology.py
+K 25
+svn:wc:ra_dav:version-url
+V 60
+/svn/!svn/ver/190/qccode/OzFluxQCv2.0/scripts/climatology.py
+END
+qcutils.py
+K 25
+svn:wc:ra_dav:version-url
+V 56
+/svn/!svn/ver/190/qccode/OzFluxQCv2.0/scripts/qcutils.py
+END
+fingerprint.py
+K 25
+svn:wc:ra_dav:version-url
+V 60
+/svn/!svn/ver/190/qccode/OzFluxQCv2.0/scripts/fingerprint.py
+END
