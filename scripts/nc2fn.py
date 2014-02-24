@@ -1,30 +1,18 @@
+import copy
 import csv
 import datetime
+import dateutil
 import meteorologicalfunctions as mf
+import numpy
 import qcio
 import qcutils
 import sys
 
-def is_yearstart(ds):
-    dt = ds.series["DateTime"]["Data"]
-    ts = int(ds.globalattributes["time_step"])
-    if ts==60:
-        start_hour = 1
-        start_minute = 0
-    elif ts==30:
-        start_hour = 0
-        start_minute = 30
-    else:
-        print "is_yearstart: unrecognised time step"
-    result = (dt[0].month==1)&(dt[0].day==1)&\
-             (dt[0].hour==start_hour)&(dt[0].minute==start_minute)
-    return result
-
-def is_yearend(ds):
-    dt = ds.series["DateTime"]["Data"]
-    result = (dt[-1].month==1)&(dt[-1].day==1)&\
-             (dt[-1].hour==0)&(dt[-1].minute==0)
-    return result
+def perdelta(start, end, delta):
+    curr = start
+    while curr < end:
+        yield curr
+        curr += delta
 
 # get the control file contents
 # was there an argument on the command line?
@@ -46,10 +34,70 @@ csvfile = open(csvFileName,'wb')
 writer = csv.writer(csvfile)
 # read the netCDF file
 ds = qcio.nc_read_series(ncFileName)
+ts = int(ds.globalattributes["time_step"])
+ts_delta = datetime.timedelta(minutes=ts)
 # get the datetime series
 dt = ds.series["DateTime"]["Data"]
-start_dt - dt[0]
-end_dt = dt[-1]
+# check the start datetime of the series and adjust if necessary
+start_datetime = dateutil.parser.parse(str(cf["General"]["start_datetime"]))
+if dt[0]<start_datetime:
+    # requested start_datetime is after the start of the file
+    print "nc2fn: truncating start of file"
+    si = qcutils.GetDateIndex(dt,str(start_datetime),match="exact")
+    for thisone in ds.series.keys():
+        ds.series[thisone]["Data"] = ds.series[thisone]["Data"][si:]
+        ds.series[thisone]["Flag"] = ds.series[thisone]["Flag"][si:]
+    ds.globalattributes["nc_nrecs"] = str(len(ds.series["DateTime"]["Data"]))
+elif dt[0]>start_datetime:
+    # requested start_datetime is before the start of the file
+    print "nc2fn: padding start of file"
+    dt_patched = [ldt for ldt in perdelta(start_datetime, dt[0], ts_delta)]
+    data_patched = numpy.ones(len(dt_patched))*float(-9999)
+    flag_patched = numpy.ones(len(dt_patched))
+    # list of series in the data structure
+    series_list = ds.series.keys()
+    # ds.series["DateTime"]["Data"] is a list not a numpy array so we must treat it differently
+    ds.series["DateTime"]["Data"] = dt_patched+ds.series["DateTime"]["Data"]
+    ds.series["DateTime"]["Flag"] = numpy.concatenate((flag_patched,ds.series["DateTime"]["Flag"]))
+    series_list.remove("DateTime")
+    for thisone in series_list:
+        ds.series[thisone]["Data"] = numpy.concatenate((data_patched,ds.series[thisone]["Data"]))
+        ds.series[thisone]["Flag"] = numpy.concatenate((flag_patched,ds.series[thisone]["Flag"]))
+    ds.globalattributes["nc_nrecs"] = str(len(ds.series["DateTime"]["Data"]))
+    # refresh the year, month, day etc arrays now that we have padded the datetime series
+    qcutils.get_ymdhms_from_datetime(ds)
+# now check the end datetime of the file
+end_datetime = dateutil.parser.parse(str(cf["General"]["end_datetime"]))
+if dt[-1]>end_datetime:
+    # requested end_datetime is before the end of the file
+    print "nc2fn: truncating end of file",dt[-1],end_datetime
+    ei = qcutils.GetDateIndex(dt,str(end_datetime),match="exact")
+    for thisone in ds.series.keys():
+        ds.series[thisone]["Data"] = ds.series[thisone]["Data"][:ei+1]
+        ds.series[thisone]["Flag"] = ds.series[thisone]["Flag"][:ei+1]
+    ds.globalattributes["nc_nrecs"] = str(len(ds.series["DateTime"]["Data"]))
+elif dt[-1]<end_datetime:
+    # requested start_datetime is before the start of the file
+    print "nc2fn: padding end of file",dt[-1],end_datetime
+    dt_patched = [ldt for ldt in perdelta(dt[-1]+ts_delta, end_datetime+ts_delta, ts_delta)]
+    data_patched = numpy.ones(len(dt_patched))*float(-9999)
+    flag_patched = numpy.ones(len(dt_patched))
+    # list of series in the data structure
+    series_list = ds.series.keys()
+    # ds.series["DateTime"]["Data"] is a list not a numpy array so we must treat it differently
+    ds.series["DateTime"]["Data"] = ds.series["DateTime"]["Data"]+dt_patched
+    ds.series["DateTime"]["Flag"] = numpy.concatenate((ds.series["DateTime"]["Flag"],flag_patched))
+    series_list.remove("DateTime")
+    for thisone in series_list:
+        ds.series[thisone]["Data"] = numpy.concatenate((ds.series[thisone]["Data"],data_patched))
+        ds.series[thisone]["Flag"] = numpy.concatenate((ds.series[thisone]["Flag"],flag_patched))
+    ds.globalattributes["nc_nrecs"] = str(len(ds.series["DateTime"]["Data"]))
+    # refresh the year, month, day etc arrays now that we have padded the datetime series
+    qcutils.get_ymdhms_from_datetime(ds)
+if (int(ds.globalattributes["nc_nrecs"])!=17520) & (int(ds.globalattributes["nc_nrecs"])!=17568):
+    print "nc2fn: number of records in file does not equal 17520 or 17568"
+    print len(ds.series["DateTime"]["Data"]),ds.series["DateTime"]["Data"][0],ds.series["DateTime"]["Data"][-1]
+    sys.exit()
 # get the date and time data
 Day,flag = qcutils.GetSeries(ds,'Day')
 Month,flag = qcutils.GetSeries(ds,'Month')

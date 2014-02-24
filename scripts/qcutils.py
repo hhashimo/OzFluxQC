@@ -687,7 +687,7 @@ def get_ymdhms_from_datetime(ds):
      None
     AUTHOR: PRI
     '''
-    nRecs = ds.globalattributes["nc_nrecs"]
+    nRecs = int(ds.globalattributes["nc_nrecs"])
     dt = ds.series["DateTime"]["Data"]
     flag = numpy.zeros(nRecs,dtype=numpy.int32)
     Year = [dt[i].year for i in range(0,nRecs)]
