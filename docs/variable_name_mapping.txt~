@@ -1,0 +1,52 @@
+UltraEdit options
+ - open all control files for the year in UE
+ - set the search and replace options
+   - "all open files" so all control files done at once
+   - "match whole word" to avoid ending up with things like "Precipfall"
+ - use search and replace
+   - search for "Ta_HMP_02" and replace with "Ta_HMP_23m"
+   - hit "Replace All"
+   - repeat
+
+L1.txt
+ - change variable names as follows:
+   Ta_HMP_02 = Ta_HMP_23m 2012, 2011, 2010, 2009
+   Ta_HMP_01 = Ta_HMP_2m 2012, 2011, 2010, 2009
+   Ah_HMP_02 = Ah_HMP_23m 2012, 2011, 2010, 2009
+   Ah_HMP_01 = Ah_HMP_2m 2012, 2011, 2010, 2009
+   Fg_01a = Fg_8cma 2012, 2011, 2010, 2009
+   Fg_01b = Fg_8cmb 2012, 2011, 2010, 2009
+   Fg_01c = Fg_8cmc 2012, 2011, 2010, 2009
+   Fg_01d = Fg_8cmd 2012, 2011, 2010, 2009
+   Sws_01a = Sws_10cma 2012, 2011, 2010, 2009
+   Sws_01b = Sws_10cmb 2012, 2011, 2010, 2009
+   Sws_02a = Sws_40cma 2012, 2011, 2010, 2009
+   Sws_03a = Sws_100cma 2012, 2011, 2010, 2009
+   Ts_01a = Ts_8cma 2012, 2011, 2010, 2009
+   Rain = Precip 2012, 2011, 2010, 2009
+ - NOTE: need to change both the section names and the ancillary_variable attribute
+
+L2.txt
+ - as above for variable names
+
+L3.txt
+ - as above for variable names
+
+quickcheck.txt
+ - change "Rain" to "Precip"
+
+fingerprint.txt
+ - change "Rain" to "Precip"
+ - change "Sws" entry to "Sws_10cm"
+ - add entries for "Sws_40cm" and "Sws_100cm" by copying "Sws_10cm" entry and editing AltVarName
+ - change Sws_01 to Sws_10cm, Sws_02 to Sws_40cm
+ - change Sws_01 and Sws_02 entries in [Plots] section
+ - replace Precip with Sws_100cm in last plot
+
+climatology.txt
+ - no change needed
+
+L4.txt
+ - change [Output] series list
+   - remove "eta" and "theta"
+   - remove "Sws_02a" and "Sws_03a"

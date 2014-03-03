@@ -1,0 +1,363 @@
+OzFluxQC Change Log
+Nina's to do list
+1) calculate Fc storage using CO2 concentration in umol/mol
+   - done but needs checking
+2) implement full Lasslop et al equations in respiration.py
+   - use VPD instead of SHD
+   - use exponential form of VPD response
+
+Priority To Do List
+1) start_datetime and end_datetime read from data.
+   - done 14/6/2013 PRI
+2) replace xl_write_series with nc2xls code.
+   - done 16/6/2013 PRI
+3) following changes to the global attributes
+   - add featureType=timeseries
+   - change RunDateTime to nc_rundatetime
+   - change NumRecs to nc_nrecs
+   - change Level to nc_level
+   - write
+     coverage_radiation   Fsd, Fsu, Fld, Flu and Fn if present
+     coverage_meteorology Ta, Ah, Cc, WS, WD
+     coverage_soil        Fg, Ts, Sws
+     coverage_fluxes      Fh, Fe, Fc, Fm
+     - done PRI 24/6/2013
+4) following changes to variable attributes
+   - add value_range
+   - add coverage
+     - done PRI 24/6/2013
+5) OzFluxQC version on the gui and in the netCDF file
+   - done PRI 24/6/2013
+   - OzFluxQC name and version is now set in cfg.py which is then imported
+     as required
+6) implement 'nc' output list for L3 and L4 netCDF output
+   - done PRI 24/6/2013
+7) implement time step check at L1
+   - done PRI 2/7/2013
+8) implement SOLO/SOFM as gap filling technique
+   - get code for sofm/solo/seqsofm to compile under gcc
+     - done PRI July 2013, see changlog.txt in solo/docs
+   - write code to output input files for sofm/solo/seqsolo
+     - done PRI August 2013
+   - write code to plot seqsolo output
+     - done PRI September 2013
+   - write code to put gap filled data back into ds
+     - done PRI September 2013
+   - write code to create gap filled series if not present
+     - done PRI September 2013
+   - write code to use existing L4 nc file (qcls.l4qc)
+     - done PRI September 2013
+   - refactor GapFillUsingSOLO
+     - done PRI September 2013
+   - code to merge observations and gap filled data
+     - done PRI September 2013
+   - qc flag for gapfillfluxfromdayratio
+   - specify output name in control file for gapfillfromclimatology
+   - plot SOLO results
+     - time series
+     - diurnal
+     - XY scatter
+     - done PRI September 2013
+   - implement "Quit" button on SOLO GUI
+     - SOLO GUI quits back to OzFluxQC GUI
+   - SOFM output to log file, progress message to screen
+   - daily average soil moisture interpolated back down to 30 minute time step
+9) implement a better test for finding the last data in a column of an Excel worksheet.
+10) use time series plot code from gf
+11) new GUI
+12) implement 2D interpolation in gapfillfromclimatology
+13) implement Reichstein gap filling method (match and replace)
+14) implement creation of new series at L3 via AverageSeries or MergeSeries
+    - done PRI July 2013
+15) implement planar fit coordinate rotation
+16) implement switches for rotation and WPL so Tumbarumba data can be used
+    - done PRI October 2013
+17) climatology skips if no gaps
+18) make climatology.py handle incomplete days
+19) make respiration.py handle missing Sws
+
+To Do:
+1) get quickcheck.py to read variable names from control file.
+2) get fn2nc.py to correctly use HeaderRow and FirstDataRow in control file
+   - HeaderRow used correctly, FirstDataRow is not used at all
+3) remove "for" loop in qcio.xl_read_series
+4) put time step check into xl2nc
+5) make time step check robust
+   - gaps in time steps
+   - overlaps in time steps
+6) make fix time steps robust
+   - gaps in time series
+   - overlaps in time series
+10) Record whether Excel is using the Mac or Windows date convention
+    - done PRI 24/6/2013
+11) at L3, read control file and do all averaging/merging to create new series if required
+    - done PRI September 2013
+12) implement valid_range variable attribute
+    - done PRI 24/6/2013
+13) implement units for xldatetime, check for consistency with datemode
+    - done PRI 24/6/2013
+14) implement num2date for creating Python datetime objects from xldatetime
+    and vice versa
+15) version of QC displayed on GUI
+    - done PRI 24/6/2013
+16) ability to put plots in site folder
+17) table of Campbell program variable names to OzFlux names
+18) colour of scales to match colour of lines in QC plots
+19) write xlDateTime to column A
+    - done PRI 24/6/2013
+    - xl_write now uses nc2xls code
+20) clean up error handling in nc_write_series
+
+Contents of PetersToDo (need to rationalise with above)
+OzFluxV2.0
+1) Use CreateSeries even when series exists in ds
+   - done
+2) Make list of CF additions & contact CF working group
+3) add code for Fc stoarge & Fc ustar filter
+   - code for CorrectFcForStorage added to L3 processing
+   - switch to control correction in control file
+   - ustar filter left out, to go in climatology.py and L4 processing
+     - done
+4) add switch for Fc storage & Fc ustar filter to control file?
+   - done for Fc storage
+5) default for WS merge as Ws_CSAT only?
+   - done
+6) can prepOzFluxvars rename series in place?
+7) work with James to find out how to use SOLO/SOFM (Sws,Fn,Fg,q,Ta,VPD,Ts) (50 x 50 nodesd, 10,000 iterations)
+   - done PRI September 2013
+8) automate file production for SOLO/SOFM and call SOLO/SOFM from QC L4
+   - done PRI September 2013
+9) get flag list from James
+   - done
+10) handling of leap years at L4
+    - done
+11) night time Fc in gap fill from ratios
+    - work in progress
+    - done as at 10/8/2012
+12) interpolate 48 x 12 climatology to 48 x 365/366 for gap fill
+    - work in progress
+    - done as at 10/8/2012
+13) streamline imports from modules
+14) check if netCDF4 still broken
+    - done PRI September 2013
+15) distribute Nico's macros for Excel
+16) PlotSpec part of plots
+    - done
+17) calculate standard deviations from variances and vice versa, deprecate the "Functions" key in control file
+    - done PRI 7/7/2012
+18) fix argument number error when autonc2xl called at L2 in OzFluxQC.py
+    - done PRI 7/7/2012
+19) propagate changes to nc_read_series & nc_read_series_file to v2.0
+    - required changes to qcio.nc_read_series (nc_read_series_file deprecated)
+    - changes to OzFluxQC.py, autonc2xl, quickcheck.py
+    - done PRI 7/7/2012
+20) change nc_write_series to be consistent with nc_read_series (argument is a filename not cf & level)
+21) combine WPL and WPLcov into one routine with cov as a switch
+22) make MergeSeries robust to missing series
+
+
+Changes:
+20/11/2012 - PRI
+1) Changed xl_read_series to ignore case of sheet names in Excel workbook.
+Now use book.sheet_by_index() instead of book.sheet_by_name(), sheet name read from
+control file forced to lower case, sheet names read from Excel workbook forced to
+lower case. Also made check for series names independent of case.
+
+2) Also trapped some more errors (missing entries in control file,
+requested sheet not in Excel workbook etc).
+
+3) fixed bug in FhvtoFh that prevented QC flag from being set to 13
+when Fh data was rejected by this routine (incorrect use of GetSeriesasMA,
+no QC flag named for return value).  Changed code to set missing Fh values
+to original Fhv values if the original Fhv values were OK.  QC flag
+values for these elements are set to the value of the original Fhv QC
+flags.  I think this makes QC flag value 13 redundant but I have left
+this in for now.
+
+23/11/2012 - PRI
+Reversion back to variables with height or depth in their name.
+Routines to change:
+ compare_ah.py
+  - not done yet
+ qcls.l3qc
+  - removed default series from calls to MergeSreies and AverageSeriesByElement
+  - series to merge or average must now be listed in the control file
+  - required changes to MergeSeries and AverageSeriesByElement also made
+
+26/11/2012 - PRI
+Modifications in preparation for concatenating multiple netCDF files into a single file:
+ - modified qcio.xl_read_series to generate QC flags at the same
+   time as the data is read in from the xl file
+ - removed call to qcts.get_qcflags() from qcio.autoxl2nc()
+The changes were made so that all variables in the data structure have an associated QC
+flag.  This makes the concatenation process simpler because we don't have to trap
+those variables in ds that do not have a QC flag.  The changes are solely to the
+date and time variables.
+
+6/12/2012 - PRI
+Sundry changes in the pursuit of a homogenous data set for Howard Springs from 2001 to 2012
+inclusive.
+Major ones today (mainly for Howard Springs 2002):
+ - modified CoordRotation2D to use non-rotated covariance (eg UzA) if the rotated
+   covariance (eg wA) is missing, the QC flag of the data point is set to 20,
+ - modified Fe_wpl to propagate the QC flag for wA so Fe_wpl QC flags will be
+   20 if wA has been replaced by UzA
+
+14/12/2012 - PRI
+1) introduced relaxed coordinate rotation, Fc storage, Fg storage and Fe WPL correction
+   - good values of uncorrected data will be used when corrected data is missing
+   - done for processing of Howard Springs 2001 to 2006 data to maximise
+     the amount of useable data recovered by compromising on quality
+2) cleaned up Fe_WPL and Fc_WPL by assuming quantities required have
+   already been calculated by CalculateMeteorologicalVariables
+
+14/1/2013 - PRI
+Hmm, not much documentation for the last month.
+Couple of changes as follows:
+1) Removed explicit reference to attributes in CreateSeries (qcutils).
+   - Previously, variable attributes were passed to CreateSeries as individual
+     values in the function call (eg standard_name='specific_humidity).  This
+     was inflexible as only those attributes specified in the call were written
+     to the netCDF file.  Modified by passing attributes to CreateSeries as
+     a dictionary of values and writing a function (MakeAttributeDictionary in
+     qcutils) to create the attribute dictionary.  The default attributes and
+     their default values are:
+     - ancillary_variables = "not defined"
+       height = "not defined"
+       instrument = "not defined"
+       serial_number = "not defined"
+       standard_name = "not defined"
+       long_name = "not defined"
+       units = "not defined"
+     - the user can add an arbitrary number of attributes in the call
+       MakeAttributeDictionary.
+   This change required major editing of the source code, every call to CreateSeries
+   had to be changed and a call to MakeAttributeDictionary inserted before the call
+   to CreateSeries.
+2) Removed the code for function arguments from CalculateMeteorologicalVariables
+   and CalculateAvailableEnergy so that it is no longer necessary to pass the
+   control file object cf to these functions.
+3) Sundry changes to fn2nc.py:
+   - if absolute humidity is not present, check for relative humidity and
+     if that is present, calculate absolute humidity from that.
+   - cleaned up code a bit, still needs major re-factor
+
+17/4/2013 - PRI
+Couple of  things:
+1) The L3 netCDF file from Daintree for 2011 had gaps in the time.  Up until now,
+   the Python scripts assuked that there were no gaps in the time stamp but
+   this was not checked.
+   Wrote CheckTimeStep (qcutils) to check for missing time stamps.
+   Wrote FixTimeGaps (qcutils) to correct missing time steps by inserting
+   blank records with a time stamp into the data structure.
+   FixTimeGaps uses "get_yearmonthdayhourminutesecond" which was in qcts.  This
+   resulted in a circular import (qcutils imported qcts which tried to import
+   qcutils).  To correct this, I have moved "get_yearmonthdayhourminutesecond"
+   from qcts to qcutils.
+2) Corrected bug in CreateSeries.
+   The 'units' attribute was being changed by ConvertCO2Units but was the changed
+   attribute was being overwritten with the old value by CreateSeries.
+   Modified CreateSeries to avoid overwriting changed attribute values if these
+   are different from the originals.
+
+Also done:
+1) major re-write of l3_standard and associated routines
+   - document later (ha ha)
+2) changed all QC flags to explicit int32, normal dtype of "int" returns int64 on a 64-bit OS
+   but netCDF4 does not allow int64 with NETCDF3_CLASSIC file type.
+3) removed explicit level reference from the "Functions" global attribute:
+   - "L2Functions" and "L3Functions" changed to "Functions"
+   - processing level is already given in the global attribute "Level"
+4) changed xl_write_series to convert ds.series[ThisOne]['Flag'] to "int"
+   - xlwt generated exception when passed a numpy.int32 object
+5) quickcheck.py
+   - 24 hour average SEB plot
+     - done
+   - nocturnal Fc vs ustar binned
+     - done
+     - by temperature class
+     - by soil moisture class
+     - by temperature and soil moisture class
+6) qcls.l4qc
+   - put [Options] section in L4.txt and moved all option checks
+     into the code for the routine to leave l4qc as a sequence of
+     single line instructions
+   - removed merging of CSAT and WindSentry wind speeds, this is done in l3qc
+7) routines write their names to global attribute "Functions" if the names are not already there
+   - done
+8) GetSeries returns a copy of the data series not just a pointer to the series in ds
+   - GetSeries checks to see if the series is a list or an array
+   - done
+9) resolve different versions of MergeSeries!
+   - done
+   - bit of a saga, this one
+     - the V1.5.2 version of MergeSeries had been re-written from earlier versions to handle
+       "standard_name" more consistently and to allow the standard_name of the destination
+       series to be specified in the control file.  James' V2.0 code used an earlier version
+       of MergeSeries that was not as robust and didn't allow the standard_name to be specified
+       in the control file.  The same was also true of AverageSeriesByElements.
+     - the fix was to copy the MergerSeries and AverageSeriesByElements routines from my
+       V1.5.2 and paste them into V2.  This also meant replacing the GetMergeList and
+       GetAverageList with my routines GetMergeSeriesKeys and GetAverageSeriesKeys.  Along
+       the way I replaced CreateSeries with my version as well and changed all occurances
+       of "Descr=" to "long_name=", "Units=" to "units=" and "Standard=" to "standard_name=".
+10) testing of V2 on Wallaby Creek data led to:
+    - modified GetSeries to return a series with all elements set to -9999 and all QC flags
+      set to 1 if the series label is not is the data structure.
+    - sundry other changes, can't remember what.
+
+11/6/2013 PRI
+1) added the "fluxtype" argument to the meteorologicalfunctions.molen function so the
+   user can specify whether the input heat flux is "kinematic" (the Massman routines)
+   or "sensible" (the "ustar from Fh" routine).
+2) changed the MergeSeries message from log.error to log.info when no input series list
+   is specified.
+
+14/6/2013 PRI
+Global attributes 'start_datetime' and 'end_datetime' written when Excel file read.
+   - also renamed get_datetime to get_datetimefromymdhms and moved to qcutils
+   - wrote qcutils.get_datetimefromxldate to get Python list of datetime objects
+     from Excel date (days since 1899/12/31 or 1904/1/1)
+   - qcutils.get_datetimefromxldate called by autoxl2nc
+   - first and last datetimes written as global attributes start_datetime and end_datetime respectively
+If 'start_datetime' or 'end_datetime' are specified in the control file these values are used
+rather than the first and last values in the Excel file.
+
+16/6/2013 PRI
+Put the code for nc2xls.py in qcio.py as xl_write_series to replace the existing
+xl_write_series code.  Following modifications done at same time:
+   - arguments of new xl_write_series different so modified calling
+     routine (autonc2xl) to get the required arguments before the call
+     to xl_write_series
+   - changed the 'Output' section key from level eg "L3" to the type of
+     file being written to eg "xl" or "nc" for Excel or netCDF files
+     respectively
+   - wrote the get_xlfilename_from_cf() and get_outputlist_from_cf()
+     functions (qcio.py) to help autonc2xl
+
+2/7/2013 PRI
+Implemented the time step check at L1 in OzFluxQC:
+   - function qcutils.CheckTimeStep called from qcio.xl2nc
+   - function qcutils.CheckTimeStep now checks for:
+     - time steps that are less than the time step specified in the
+       L1 control file, this is assumed to be due to overlapping
+       time steps (ie repeated blocks of data), there is no fix
+       routine for this at present so OzFluxQC logs a critical error
+       message and exits.
+     - time steps that are not a multiple of the time step specified
+       in the L1 control file, there is no fix routine for this at
+       present so OzFluQC logs a critical error message and exits.
+     - time steps that are a multiple of the time step
+     
+Prior to 23/9/2013
+Need to properly document but there has been a huge amount of work done
+over the last couple of months after the 2013 Cairns workshop.  Major
+items are:
+ - Implement SOF/SOLO neural network
+ - simplify GUI
+ - fix bug in WPL correction due to CO2 concentration in wrong units
+ - fix bug in 2D coordinate rotation of momentum covariances
+ 
+23/9/2031 PRI
+Added 1 to calculation of Ddd in qcutils.getymdhmsfromxldate so that the first
+day of the year is Ddd=1 not Ddd=0.
