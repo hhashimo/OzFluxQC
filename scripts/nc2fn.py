@@ -94,8 +94,17 @@ elif dt[-1]<end_datetime:
     ds.globalattributes["nc_nrecs"] = str(len(ds.series["DateTime"]["Data"]))
     # refresh the year, month, day etc arrays now that we have padded the datetime series
     qcutils.get_ymdhms_from_datetime(ds)
-if (int(ds.globalattributes["nc_nrecs"])!=17520) & (int(ds.globalattributes["nc_nrecs"])!=17568):
-    print "nc2fn: number of records in file does not equal 17520 or 17568"
+if ts==30:
+    nRecs_year = 17520
+    nRecs_leapyear = 17568
+elif ts==60:
+    nRecs_year = 8760
+    nRecs_leapyear = 8784
+else:
+    print "nc2fn: unrecognised time step ("+str(ts)+")"
+    sys.exit()
+if (int(ds.globalattributes["nc_nrecs"])!=nRecs_year) & (int(ds.globalattributes["nc_nrecs"])!=nRecs_leapyear):
+    print "nc2fn: number of records in file does not equal "+str(nRecs_year)+" or "+str(nRecs_leapyear)
     print len(ds.series["DateTime"]["Data"]),ds.series["DateTime"]["Data"][0],ds.series["DateTime"]["Data"][-1]
     sys.exit()
 # get the date and time data
