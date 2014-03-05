@@ -542,6 +542,34 @@ for i in [12,1,2,3,4,5,6,7,8,9,10,11]:
 figname='../plots/'+ds.globalattributes['site_name'].replace(' ','')+'_'+ds.globalattributes['nc_level']+'_'+'DiurnalFnByMonth.png'
 fig.savefig(figname,format='png')
 
+# plot Fg
+log.info(' Doing the diurnal Fg by month plot ')
+nFig = nFig + 1
+fig = plt.figure(nFig,figsize=(PlotWidth_portrait,PlotHeight_portrait))
+plt.figtext(0.5,0.95,PlotTitle,horizontalalignment='center',size=16)
+j = 0
+for i in [12,1,2,3,4,5,6,7,8,9,10,11]:
+    j = j + 1
+    index = numpy.where(Mnth_daily==i)[0]
+    if len(index)!=0:
+        hr = Hour_daily[index]+Mnit_daily[index]/float(60)
+        Fg_hr_avg = numpy.ma.average(Fg_daily[index],axis=0)
+        Fg_hr_num = numpy.ma.count(Fg_daily[index],axis=0)
+        if j in [1,2,3,4,5,6,7,8,9]:
+            xlabel = None
+        else:
+            xlabel = 'Hour'
+        if j in [2,3,5,6,8,9,11,12]:
+            ylabel = None
+        else:
+            ylabel = 'Fg (W/m2)'
+        hrplot(hr[0],Fg_hr_avg,sub=[4,3,j],
+               title=MnthList[i-1],xlabel=xlabel,ylabel=ylabel,
+               colours=Fg_hr_num)
+#fig.show()
+figname='../plots/'+ds.globalattributes['site_name'].replace(' ','')+'_'+ds.globalattributes['nc_level']+'_'+'DiurnalFgByMonth.png'
+fig.savefig(figname,format='png')
+
 # plot Fh
 log.info(' Doing the diurnal Fh by month plot ')
 nFig = nFig + 1
