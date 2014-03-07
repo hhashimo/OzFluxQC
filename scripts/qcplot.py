@@ -4,6 +4,7 @@ import time
 import matplotlib.dates as mdt
 import matplotlib.pyplot as plt
 import numpy
+import statsmodels.api as sm
 import qcutils
 import logging
 
@@ -226,7 +227,7 @@ def xyplot(x,y,sub=[1,1,1],regr=0,title=None,xlabel=None,ylabel=None):
     if xlabel!=None: plt.xlabel(xlabel)
     if ylabel!=None: plt.ylabel(ylabel)
     if title!=None: plt.title(title)
-    if regr!=0:
+    if regr==1:
         coefs = numpy.ma.polyfit(x,y,1)
         xfit = numpy.ma.array([numpy.ma.minimum(x),numpy.ma.maximum(x)])
         yfit = numpy.polyval(coefs,xfit)
@@ -234,7 +235,18 @@ def xyplot(x,y,sub=[1,1,1],regr=0,title=None,xlabel=None,ylabel=None):
         eqnstr = 'y = %.3fx + %.3f, r = %.3f'%(coefs[0],coefs[1],r[0][1])
         plt.plot(xfit,yfit,'r--',linewidth=3)
         plt.text(0.5,0.9,eqnstr,fontsize=8,horizontalalignment='center',transform=ax.transAxes)
-
+    elif regr==2:
+        mask = (x.mask)|(y.mask)
+        x.mask = mask
+        y.mask = mask
+        x_nm = numpy.ma.compressed(x)
+        x_nm = sm.add_constant(x_nm)
+        y_nm = numpy.ma.compressed(y)
+        resrlm = sm.RLM(y_nm,x_nm).fit()
+        eqnstr = 'y = %.3fx + %.3f'%(resrlm.params[0],resrlm.params[1])
+        plt.plot(x_nm[:,0],resrlm.fittedvalues,'r--',linewidth=3)
+        plt.text(0.5,0.9,eqnstr,fontsize=8,horizontalalignment='center',transform=ax.transAxes)
+    
 def tsplot(x,y,sub=[1,1,1],title=None,xlabel=None,ylabel=None,colours=None,lineat=None):
     plt.subplot(sub[0],sub[1],sub[2])
     MTFmt = mdt.DateFormatter('%m/%Y')

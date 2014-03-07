@@ -7,6 +7,7 @@ import os
 import qcio
 import qcplot
 import qcutils
+import statsmodels.api as sm
 import sys
 import time
 
@@ -175,7 +176,7 @@ for i in [1,2,3,4,5,6,7,8,9,10,11,12]:
             ylabel = None
         else:
             ylabel = 'HMP (g/m3)'
-        qcplot.xyplot(x,y,sub=[4,3,j],regr=1,title=MnthList[i-1],xlabel=xlabel,ylabel=ylabel)
+        qcplot.xyplot(x,y,sub=[4,3,j],regr=2,title=MnthList[i-1],xlabel=xlabel,ylabel=ylabel)
 plt.tight_layout()
 
 nfig = nfig + 1
@@ -251,11 +252,25 @@ class PointBrowser:
         self.axxy.plot(x,y,'b.')
         self.axxy.set_xlabel('Ah_7500 (g/m3)')
         self.axxy.set_ylabel('Ah_HMP (g/m3)')
-        self.coefs = numpy.ma.polyfit(x,y,1)
-        xfit = numpy.ma.array([numpy.ma.minimum(x),numpy.ma.maximum(x)])
-        yfit = numpy.polyval(self.coefs,xfit)
+        
+        #self.coefs = numpy.ma.polyfit(x,y,1)
+        #xfit = numpy.ma.array([numpy.ma.minimum(x),numpy.ma.maximum(x)])
+        #yfit = numpy.polyval(self.coefs,xfit)
         self.r = numpy.ma.corrcoef(x,y)
-        self.axxy.plot(xfit,yfit,'r--',linewidth=3)
+        
+        mask = (x.mask)|(y.mask)
+        x.mask = mask
+        y.mask = mask
+        x_nm = numpy.ma.compressed(x)
+        x_nm = sm.add_constant(x_nm)
+        y_nm = numpy.ma.compressed(y)
+        resrlm = sm.RLM(y_nm,x_nm).fit()
+        self.coefs = resrlm.params
+        #eqnstr = 'y = %.3fx + %.3f'%(resrlm.params[0],resrlm.params[1])
+        #plt.plot(x_nm[:,0],resrlm.fittedvalues,'r--',linewidth=3)
+        #plt.text(0.5,0.9,eqnstr,fontsize=8,horizontalalignment='center',transform=ax.transAxes)
+        
+        self.axxy.plot(x_nm[:,0],resrlm.fittedvalues,'r--',linewidth=3)
         dtstr = str(DT_daily[self.start_ind_day]) + ' to ' + str(DT_daily[self.ind_day])
         self.axxy.text(0.5,0.925,dtstr,fontsize=8,horizontalalignment='center',transform=self.axxy.transAxes)
         eqnstr = 'y = %.3fx + %.3f, r = %.3f'%(self.coefs[0],self.coefs[1],self.r[0][1])

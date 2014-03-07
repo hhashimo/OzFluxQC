@@ -430,32 +430,32 @@ tsplot(DT_daily,Rain_daily_sum,sub=[5,1,5],colours=Rain_daily_num,ylabel='Rain (
 figname='../plots/'+ds.globalattributes['site_name'].replace(' ','')+'_'+ds.globalattributes['nc_level']+'_'+'DailyMet.png'
 fig.savefig(figname,format='png')
 
-# ... now do the nocturnal Fc and assorted drivers
-# get the soil temperature
-#Ts_daily_avg = numpy.ma.average(Ts_daily,axis=1)
-#Ts_daily_num = numpy.ma.count(Ts_daily,axis=1)
-Ts_day = numpy.ma.masked_where(Fsd_daily<10,Ts_daily)
-Ts_night = numpy.ma.masked_where(Fsd_daily>=10,Ts_daily)
-Ts_day_avg = numpy.ma.average(Ts_day,axis=1)          # get the daily average
-Ts_day_num = numpy.ma.count(Ts_day,axis=1)
-Ts_night_avg = numpy.ma.average(Ts_night,axis=1)          # get the daily average
-Ts_night_num = numpy.ma.count(Ts_night,axis=1)
-us_night = numpy.ma.masked_where(Fsd_daily>=10,us_daily)
-us_night_avg = numpy.ma.average(us_night,axis=1)          # get the daily average
-us_night_num = numpy.ma.count(us_night,axis=1)
-log.info(' Doing the daily Fc and drivers plot ')
-nFig = nFig + 1
-fig = plt.figure(nFig,figsize=(PlotWidth_landscape,PlotHeight_landscape))
-plt.figtext(0.5,0.95,PlotTitle,horizontalalignment='center',size=16)
-tsplot(DT_daily,Fc_night_avg,sub=[6,1,1],colours=Fc_night_num,ylabel='Fc ('+Fc_units+')')
-tsplot(DT_daily,us_night_avg,sub=[6,1,2],colours=us_night_num,ylabel='us (night, m/s)')
-tsplot(DT_daily,Ts_day_avg,sub=[6,1,3],colours=Ts_day_num,ylabel='Ts (day, C)')
-tsplot(DT_daily,Ts_night_avg,sub=[6,1,4],colours=Ts_night_num,ylabel='Ts (night, C)')
-tsplot(DT_daily,Sws_daily_avg,sub=[6,1,5],colours=Sws_daily_num,ylabel='Sws (%)')
-tsplot(DT_daily,Rain_daily_sum,sub=[6,1,6],colours=Rain_daily_num,ylabel='Rain (mm)')
-#fig.show()
-figname='../plots/'+ds.globalattributes['site_name'].replace(' ','')+'_'+ds.globalattributes['nc_level']+'_'+'DailyFc&Drivers.png'
-fig.savefig(figname,format='png')
+## ... now do the nocturnal Fc and assorted drivers
+## get the soil temperature
+##Ts_daily_avg = numpy.ma.average(Ts_daily,axis=1)
+##Ts_daily_num = numpy.ma.count(Ts_daily,axis=1)
+#Ts_day = numpy.ma.masked_where(Fsd_daily<10,Ts_daily)
+#Ts_night = numpy.ma.masked_where(Fsd_daily>=10,Ts_daily)
+#Ts_day_avg = numpy.ma.average(Ts_day,axis=1)          # get the daily average
+#Ts_day_num = numpy.ma.count(Ts_day,axis=1)
+#Ts_night_avg = numpy.ma.average(Ts_night,axis=1)          # get the daily average
+#Ts_night_num = numpy.ma.count(Ts_night,axis=1)
+#us_night = numpy.ma.masked_where(Fsd_daily>=10,us_daily)
+#us_night_avg = numpy.ma.average(us_night,axis=1)          # get the daily average
+#us_night_num = numpy.ma.count(us_night,axis=1)
+#log.info(' Doing the daily Fc and drivers plot ')
+#nFig = nFig + 1
+#fig = plt.figure(nFig,figsize=(PlotWidth_landscape,PlotHeight_landscape))
+#plt.figtext(0.5,0.95,PlotTitle,horizontalalignment='center',size=16)
+#tsplot(DT_daily,Fc_night_avg,sub=[6,1,1],colours=Fc_night_num,ylabel='Fc ('+Fc_units+')')
+#tsplot(DT_daily,us_night_avg,sub=[6,1,2],colours=us_night_num,ylabel='us (night, m/s)')
+#tsplot(DT_daily,Ts_day_avg,sub=[6,1,3],colours=Ts_day_num,ylabel='Ts (day, C)')
+#tsplot(DT_daily,Ts_night_avg,sub=[6,1,4],colours=Ts_night_num,ylabel='Ts (night, C)')
+#tsplot(DT_daily,Sws_daily_avg,sub=[6,1,5],colours=Sws_daily_num,ylabel='Sws (%)')
+#tsplot(DT_daily,Rain_daily_sum,sub=[6,1,6],colours=Rain_daily_num,ylabel='Rain (mm)')
+##fig.show()
+#figname='../plots/'+ds.globalattributes['site_name'].replace(' ','')+'_'+ds.globalattributes['nc_level']+'_'+'DailyFc&Drivers.png'
+#fig.savefig(figname,format='png')
 
 MnthList = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 # plot Fsd
@@ -568,6 +568,34 @@ for i in [12,1,2,3,4,5,6,7,8,9,10,11]:
                colours=Fg_hr_num)
 #fig.show()
 figname='../plots/'+ds.globalattributes['site_name'].replace(' ','')+'_'+ds.globalattributes['nc_level']+'_'+'DiurnalFgByMonth.png'
+fig.savefig(figname,format='png')
+
+# plot Ts
+log.info(' Doing the diurnal Ts by month plot ')
+nFig = nFig + 1
+fig = plt.figure(nFig,figsize=(PlotWidth_portrait,PlotHeight_portrait))
+plt.figtext(0.5,0.95,PlotTitle,horizontalalignment='center',size=16)
+j = 0
+for i in [12,1,2,3,4,5,6,7,8,9,10,11]:
+    j = j + 1
+    index = numpy.where(Mnth_daily==i)[0]
+    if len(index)!=0:
+        hr = Hour_daily[index]+Mnit_daily[index]/float(60)
+        Ts_hr_avg = numpy.ma.average(Ts_daily[index],axis=0)
+        Ts_hr_num = numpy.ma.count(Ts_daily[index],axis=0)
+        if j in [1,2,3,4,5,6,7,8,9]:
+            xlabel = None
+        else:
+            xlabel = 'Hour'
+        if j in [2,3,5,6,8,9,11,12]:
+            ylabel = None
+        else:
+            ylabel = 'Ts (C)'
+        hrplot(hr[0],Ts_hr_avg,sub=[4,3,j],
+               title=MnthList[i-1],xlabel=xlabel,ylabel=ylabel,
+               colours=Fg_hr_num)
+#fig.show()
+figname='../plots/'+ds.globalattributes['site_name'].replace(' ','')+'_'+ds.globalattributes['nc_level']+'_'+'DiurnalTsByMonth.png'
 fig.savefig(figname,format='png')
 
 # plot Fh
