@@ -222,11 +222,12 @@ def plotxy(cf,nFig,plt_cf,dsa,dsb,si,ei):
 def xyplot(x,y,sub=[1,1,1],regr=0,title=None,xlabel=None,ylabel=None):
     '''Generic XY scatter plot routine'''
     plt.subplot(sub[0],sub[1],sub[2])
-    plt.plot(x,y,'b.')
-    ax = plt.gca()
     if xlabel!=None: plt.xlabel(xlabel)
     if ylabel!=None: plt.ylabel(ylabel)
     if title!=None: plt.title(title)
+    plt.plot(x,y,'b.')
+    ax = plt.gca()
+    if (numpy.ma.count(x)==0) or (numpy.ma.count(y)==0): return
     if regr==1:
         coefs = numpy.ma.polyfit(x,y,1)
         xfit = numpy.ma.array([numpy.ma.minimum(x),numpy.ma.maximum(x)])
@@ -242,7 +243,7 @@ def xyplot(x,y,sub=[1,1,1],regr=0,title=None,xlabel=None,ylabel=None):
         x_nm = numpy.ma.compressed(x)
         x_nm = sm.add_constant(x_nm)
         y_nm = numpy.ma.compressed(y)
-        resrlm = sm.RLM(y_nm,x_nm).fit()
+        resrlm = sm.RLM(y_nm,x_nm,M=sm.robust.norms.TukeyBiweight()).fit()
         eqnstr = 'y = %.3fx + %.3f'%(resrlm.params[0],resrlm.params[1])
         plt.plot(x_nm[:,0],resrlm.fittedvalues,'r--',linewidth=3)
         plt.text(0.5,0.9,eqnstr,fontsize=8,horizontalalignment='center',transform=ax.transAxes)

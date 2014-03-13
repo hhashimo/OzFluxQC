@@ -28,7 +28,7 @@ if len(ds.series.keys())==0: print time.strftime('%X')+' netCDF file '+fname+' n
 # get the site name
 SiteName = ds.globalattributes['site_name']
 # get the time step
-ts = ds.globalattributes['time_step']
+ts = int(ds.globalattributes['time_step'])
 # get the datetime series
 DateTime = ds.series['DateTime']['Data']
 # get the initial start and end dates
@@ -44,8 +44,7 @@ Hdh = ds.series['Hdh']['Data'][si:ei+1]
 Month = ds.series['Month']['Data'][si:ei+1]
 
 nrecs = len(DateTime)
-dt = int(ds.globalattributes['time_step'])
-nperhr = int(float(60)/dt+0.5)
+nperhr = int(float(60)/ts+0.5)
 nperday = int(float(24)*nperhr+0.5)
 ndays = nrecs/nperday
 nrecs=ndays*nperday
@@ -120,19 +119,30 @@ number = numpy.zeros(ndays)
 for i in range(0,ndays-1):
     x = ah_7500_30min_2d[i,:]
     y = ah_HMP1_30min_2d[i,:]
-    coefs = numpy.ma.polyfit(x,y,1)
-    r = numpy.ma.corrcoef(x,y)
-    number[i] = numpy.ma.count(x)
-    slope[i] = coefs[0]
-    offset[i] = coefs[1]
-    correl[i] = r[0][1]
-    #print number[i],slope[i],correl[i]
+
+    mask = (x.mask)|(y.mask)
+    x.mask = mask
+    y.mask = mask
+    x_nm = numpy.ma.compressed(x)
+    x_nm = sm.add_constant(x_nm)
+    y_nm = numpy.ma.compressed(y)
+    if len(y_nm)>1:
+        resrlm = sm.RLM(y_nm,x_nm,M=sm.robust.norms.TukeyBiweight()).fit()
+        coefs = resrlm.params
+        
+        #coefs = numpy.ma.polyfit(x,y,1)
+        r = numpy.ma.corrcoef(x,y)
+        number[i] = numpy.ma.count(x)
+        slope[i] = coefs[0]
+        offset[i] = coefs[1]
+        correl[i] = r[0][1]
+        #print number[i],slope[i],correl[i]
 
 #nfig = nfig + 1
 #fig = plt.figure(nfig,figsize=(plotwidth,plotheight))
 #plt.figtext(0.5,0.95,SiteName,horizontalalignment='center',size=16)
-slope2 = numpy.ma.masked_where(correl<0.95,slope)
-offset2 = numpy.ma.masked_where(correl<0.95,offset)
+#slope2 = numpy.ma.masked_where(correl<0.95,slope)
+#offset2 = numpy.ma.masked_where(correl<0.95,offset)
 #qcplot.tsplot(DT_daily,slope,sub=[5,1,1],ylabel='Slope',colours=correl)
 #qcplot.tsplot(DT_daily,slope2,sub=[5,1,2],ylabel='Slope(r>0.95)',colours=correl)
 #qcplot.tsplot(DT_daily,offset,sub=[5,1,3],ylabel='Offset',colours=correl)
@@ -182,10 +192,25 @@ plt.tight_layout()
 nfig = nfig + 1
 figts = plt.figure(nfig,figsize=(plotwidth,plotheight))
 plt.figtext(0.5,0.95,SiteName,horizontalalignment='center',size=16)
-qcplot.tsplot(DT_daily,slope2,sub=[4,1,1],ylabel='m(r>0.95)',colours=correl)
-qcplot.tsplot(DT_daily,offset2,sub=[4,1,2],ylabel='b(r>0.95)',colours=correl)
-qcplot.tsplot(DT_daily,ah_stdratio_daily,sub=[4,1,3],ylabel='Sd(HMP)/Sd(7500)',colours=correl)
-qcplot.tsplot(DT_daily,ah_rangeratio_daily,sub=[4,1,4],ylabel='HMPr/7500r',colours=correl)
+qcplot.tsplot(DT_daily,correl,sub=[5,1,1],ylabel='Correl',colours=number)
+qcplot.tsplot(DT_daily,number,sub=[5,1,2],ylabel='Number',colours=correl)
+qcplot.tsplot(DT_daily,slope,sub=[5,1,3],ylabel='Slope',colours=correl)
+qcplot.tsplot(DT_daily,offset,sub=[5,1,4],ylabel='Offset',colours=correl)
+qcplot.tsplot(DT_daily,ah_stdratio_daily,sub=[5,1,5],ylabel='Sd(HMP)/Sd(7500)',colours=correl)
+
+correl2 = numpy.ma.masked_where((correl<0.98)|(number<30),correl)
+number2 = numpy.ma.masked_where((correl<0.98)|(number<30),number)
+slope2 = numpy.ma.masked_where((correl<0.98)|(number<30),slope)
+offset2 = numpy.ma.masked_where((correl<0.98)|(number<30),offset)
+sdratio2 = numpy.ma.masked_where((correl<0.98)|(number<30),ah_stdratio_daily)
+nfig = nfig + 1
+figts = plt.figure(nfig,figsize=(plotwidth,plotheight))
+plt.figtext(0.5,0.95,SiteName,horizontalalignment='center',size=16)
+qcplot.tsplot(DT_daily,correl2,sub=[5,1,1],ylabel='Correl',colours=number)
+qcplot.tsplot(DT_daily,number2,sub=[5,1,2],ylabel='Number',colours=correl)
+qcplot.tsplot(DT_daily,slope2,sub=[5,1,3],ylabel='Slope',colours=correl)
+qcplot.tsplot(DT_daily,offset2,sub=[5,1,4],ylabel='Offset',colours=correl)
+qcplot.tsplot(DT_daily,sdratio2,sub=[5,1,5],ylabel='Sd(HMP)/Sd(7500)',colours=correl)
 
 class PointBrowser:
     def __init__(self):
@@ -213,6 +238,7 @@ class PointBrowser:
 
     def new(self):
         print 'Creating new XY plot ...'
+        self.plotted = False
         self.nfig += 1
         self.figxy = plt.figure(self.nfig,figsize=(5,4))
         self.figxy.subplots_adjust(bottom=0.15,left=0.15)
@@ -252,30 +278,33 @@ class PointBrowser:
         self.axxy.plot(x,y,'b.')
         self.axxy.set_xlabel('Ah_7500 (g/m3)')
         self.axxy.set_ylabel('Ah_HMP (g/m3)')
-        
-        #self.coefs = numpy.ma.polyfit(x,y,1)
-        #xfit = numpy.ma.array([numpy.ma.minimum(x),numpy.ma.maximum(x)])
-        #yfit = numpy.polyval(self.coefs,xfit)
-        self.r = numpy.ma.corrcoef(x,y)
-        
         mask = (x.mask)|(y.mask)
         x.mask = mask
         y.mask = mask
         x_nm = numpy.ma.compressed(x)
         x_nm = sm.add_constant(x_nm)
         y_nm = numpy.ma.compressed(y)
-        resrlm = sm.RLM(y_nm,x_nm).fit()
-        self.coefs = resrlm.params
+        self.r = numpy.ma.corrcoef(x_nm,y_nm)
+        if (len(x_nm)>30)&(self.r[0][1]>0.98):
+            resrlm = sm.RLM(y_nm,x_nm,M=sm.robust.norms.TukeyBiweight()).fit()
+            self.coefs = resrlm.params
+            y_fit = resrlm.fittedvalues
+        else:
+            y_fit = numpy.ma.array(x_nm,mask=True)
+
+        self.axxy.plot(x_nm[:,0],y_fit,'r--',linewidth=3)
+        eqnstr = 'y = %.3fx + %.3f, r = %.3f'%(self.coefs[0],self.coefs[1],self.r[0][1])
+        self.axxy.text(0.5,0.875,eqnstr,fontsize=8,horizontalalignment='center',transform=self.axxy.transAxes)
+        dtstr = str(DT_daily[self.start_ind_day]) + ' to ' + str(DT_daily[self.ind_day])
+        self.axxy.text(0.5,0.925,dtstr,fontsize=8,horizontalalignment='center',transform=self.axxy.transAxes)
+        self.figxy.canvas.draw()
+            
+        dtstr = str(DT_daily[self.start_ind_day]) + ' to ' + str(DT_daily[self.ind_day])
+        self.axxy.text(0.5,0.925,dtstr,fontsize=8,horizontalalignment='center',transform=self.axxy.transAxes)
+        self.figxy.canvas.draw()
         #eqnstr = 'y = %.3fx + %.3f'%(resrlm.params[0],resrlm.params[1])
         #plt.plot(x_nm[:,0],resrlm.fittedvalues,'r--',linewidth=3)
         #plt.text(0.5,0.9,eqnstr,fontsize=8,horizontalalignment='center',transform=ax.transAxes)
-        
-        self.axxy.plot(x_nm[:,0],resrlm.fittedvalues,'r--',linewidth=3)
-        dtstr = str(DT_daily[self.start_ind_day]) + ' to ' + str(DT_daily[self.ind_day])
-        self.axxy.text(0.5,0.925,dtstr,fontsize=8,horizontalalignment='center',transform=self.axxy.transAxes)
-        eqnstr = 'y = %.3fx + %.3f, r = %.3f'%(self.coefs[0],self.coefs[1],self.r[0][1])
-        self.axxy.text(0.5,0.875,eqnstr,fontsize=8,horizontalalignment='center',transform=self.axxy.transAxes)
-        self.figxy.canvas.draw()
 
     def quitprog(self):
         self.start_date.append(DT_daily[self.start_ind_day])
