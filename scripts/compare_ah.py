@@ -227,6 +227,7 @@ class PointBrowser:
         self.end_date = []
         self.stdratio = []
         self.rangeratio = []
+        self.last_index = []
 
     def onpress(self, event):
         if self.ind_day is None: return
@@ -238,73 +239,78 @@ class PointBrowser:
 
     def new(self):
         print 'Creating new XY plot ...'
-        self.plotted = False
-        self.nfig += 1
-        self.figxy = plt.figure(self.nfig,figsize=(5,4))
-        self.figxy.subplots_adjust(bottom=0.15,left=0.15)
-        self.axxy = self.figxy.add_subplot(111)
-        self.axxy.set_xlabel('Ah_7500 (g/m3)')
-        self.axxy.set_ylabel('Ah_HMP (g/m3)')
+        # save the summary results from the last period
         if self.ind_day!=0:
             self.start_date.append(DT_daily[self.start_ind_day])
             self.end_date.append(DT_daily[self.ind_day])
             self.slope.append(self.coefs[0])
             self.offset.append(self.coefs[1])
             self.correl.append(self.r[0][1])
-            self.stdratio.append(numpy.ma.average(ah_stdratio_daily[self.start_ind_day:self.ind_day]))
-            self.rangeratio.append(numpy.ma.average(ah_rangeratio_daily[self.start_ind_day:self.ind_day]))
+            self.stdratio.append(numpy.ma.std(self.y_obs)/numpy.ma.std(self.x_obs))
+            self.rangeratio.append((numpy.ma.max(self.y_obs)-numpy.ma.min(self.y_obs))/(numpy.ma.max(self.x_obs)-numpy.ma.min(self.x_obs)))
             self.start_ind_day = self.ind_day
             self.ind_30min = DateTime.index(DT_daily[self.ind_day])
             self.start_ind_30min = self.ind_30min
+        # initialise some arrays
+        self.x_obs = numpy.ma.array([])
+        self.y_obs = numpy.ma.array([])
+        self.last_index = []
+        # put up the new XY plot
+        self.nfig += 1
+        self.figxy = plt.figure(self.nfig,figsize=(5,4))
+        self.figxy.subplots_adjust(bottom=0.15,left=0.15)
+        self.axxy = self.figxy.add_subplot(111)
+        self.axxy.set_xlabel('Ah_7500 (g/m3)')
+        self.axxy.set_ylabel('Ah_HMP (g/m3)')
         plt.show()
 
     def forward(self):
         self.ind_day += 1
         self.ind_day = numpy.clip(self.ind_day,0,len(DT_daily)-1)
         self.ind_30min = DateTime.index(DT_daily[self.ind_day])
+        self.ind_start = DateTime.index(DT_daily[self.ind_day-1])
+        x = ah_7500_30min_1d[self.ind_start:self.ind_30min]
+        y = ah_HMP1_30min_1d[self.ind_start:self.ind_30min]
+        mask = (x.mask)|(y.mask)
+        x.mask = mask
+        y.mask = mask
+        print DateTime[self.ind_start],DateTime[self.ind_30min],numpy.ma.count(x),numpy.ma.corrcoef(x,y)[0][1]
+        if numpy.ma.count(x)>30:
+            if (numpy.ma.corrcoef(x,y)[0][1]>0.98):
+                x_nm = numpy.ma.compressed(x)
+                y_nm = numpy.ma.compressed(y)
+                self.x_obs = numpy.ma.concatenate([self.x_obs,x_nm])
+                self.y_obs = numpy.ma.concatenate([self.y_obs,y_nm])
+                self.r = numpy.ma.corrcoef(self.x_obs,self.y_obs)
+                self.last_index.append(len(self.x_obs))
+                resrlm = sm.RLM(self.y_obs,sm.add_constant(self.x_obs),M=sm.robust.norms.TukeyBiweight()).fit()
+                self.coefs = resrlm.params
         self.update()
 
     def backward(self):
         self.ind_day += -1
         self.ind_day = numpy.clip(self.ind_day,0,len(DT_daily)-1)
         self.ind_30min = DateTime.index(DT_daily[self.ind_day])
+        self.ind_start = DateTime.index(DT_daily[self.ind_day-1])
+        self.y_obs = self.y_obs[:self.last_index[-1]]
+        self.x_obs = self.x_obs[:self.last_index[-1]]
+        self.last_index = self.last_index[:-1]
+        resrlm = sm.RLM(self.y_obs,sm.add_constant(self.x_obs),M=sm.robust.norms.TukeyBiweight()).fit()
+        self.coefs = resrlm.params
         self.update()
 
     def update(self):
-        i = self.ind_30min
-        x = ah_7500_30min_1d[self.start_ind_30min:i]
-        y = ah_HMP1_30min_1d[self.start_ind_30min:i]
         self.axxy.cla()
-        self.axxy.plot(x,y,'b.')
+        self.axxy.plot(self.x_obs,self.y_obs,'b.')
         self.axxy.set_xlabel('Ah_7500 (g/m3)')
         self.axxy.set_ylabel('Ah_HMP (g/m3)')
-        mask = (x.mask)|(y.mask)
-        x.mask = mask
-        y.mask = mask
-        x_nm = numpy.ma.compressed(x)
-        x_nm = sm.add_constant(x_nm)
-        y_nm = numpy.ma.compressed(y)
-        self.r = numpy.ma.corrcoef(x_nm,y_nm)
-        if (len(x_nm)>30)&(self.r[0][1]>0.98):
-            resrlm = sm.RLM(y_nm,x_nm,M=sm.robust.norms.TukeyBiweight()).fit()
-            self.coefs = resrlm.params
-            y_fit = resrlm.fittedvalues
-        else:
-            y_fit = numpy.ma.array(x_nm,mask=True)
-
-        self.axxy.plot(x_nm[:,0],y_fit,'r--',linewidth=3)
-        eqnstr = 'y = %.3fx + %.3f, r = %.3f'%(self.coefs[0],self.coefs[1],self.r[0][1])
-        self.axxy.text(0.5,0.875,eqnstr,fontsize=8,horizontalalignment='center',transform=self.axxy.transAxes)
+        if len(self.x_obs)!=0:
+            self.axxy.plot(self.x_obs,self.coefs[0]*self.x_obs+self.coefs[1],'r--',linewidth=3)
+            eqnstr = 'y = %.3fx + %.3f, r = %.3f'%(self.coefs[0],self.coefs[1],self.r[0][1])
+            self.axxy.text(0.5,0.875,eqnstr,fontsize=8,horizontalalignment='center',transform=self.axxy.transAxes)
         dtstr = str(DT_daily[self.start_ind_day]) + ' to ' + str(DT_daily[self.ind_day])
         self.axxy.text(0.5,0.925,dtstr,fontsize=8,horizontalalignment='center',transform=self.axxy.transAxes)
         self.figxy.canvas.draw()
-            
-        dtstr = str(DT_daily[self.start_ind_day]) + ' to ' + str(DT_daily[self.ind_day])
-        self.axxy.text(0.5,0.925,dtstr,fontsize=8,horizontalalignment='center',transform=self.axxy.transAxes)
-        self.figxy.canvas.draw()
-        #eqnstr = 'y = %.3fx + %.3f'%(resrlm.params[0],resrlm.params[1])
-        #plt.plot(x_nm[:,0],resrlm.fittedvalues,'r--',linewidth=3)
-        #plt.text(0.5,0.9,eqnstr,fontsize=8,horizontalalignment='center',transform=ax.transAxes)
 
     def quitprog(self):
         self.start_date.append(DT_daily[self.start_ind_day])
