@@ -34,14 +34,15 @@ ts = int(ds.globalattributes['time_step'])
 # get the datetime series
 DateTime = ds.series['DateTime']['Data']
 # get the initial start and end dates
-StartDate = str(DateTime[0])
-EndDate = str(DateTime[-1])
 # find the start index of the first whole day (time=00:30)
-si = qcutils.GetDateIndex(DateTime,StartDate,ts=ts,default=0,match='startnextday')
+si = qcutils.GetDateIndex(DateTime,str(DateTime[0]),ts=ts,default=0,match='startnextday')
 # find the end index of the last whole day (time=00:00)
-ei = qcutils.GetDateIndex(DateTime,EndDate,ts=ts,default=-1,match='endpreviousday')
+ei = qcutils.GetDateIndex(DateTime,str(DateTime[-1]),ts=ts,default=-1,match='endpreviousday')
+# clip the datetime series to a whole number of days
 DateTime = DateTime[si:ei+1]
-print time.strftime('%X')+' Start date; '+str(DateTime[0])+' End date; '+str(DateTime[-1])
+StartDate = DateTime[0]
+EndDate = DateTime[-1]
+print time.strftime('%X')+' Start date; '+str(StartDate)+' End date; '+str(EndDate)
 Hdh = ds.series['Hdh']['Data'][si:ei+1]
 Month = ds.series['Month']['Data'][si:ei+1]
 
@@ -53,18 +54,20 @@ nrecs=ndays*nperday
 
 Ah_7500_name = str(cf['Variables']['Ah_7500'])
 Ah_HMP_name = str(cf['Variables']['Ah_HMP'])
+# get local data series from the data structure
 ah_7500_30min_1d,flag = qcutils.GetSeriesasMA(ds,Ah_7500_name,si=si,ei=ei)
 ah_HMP1_30min_1d,flag = qcutils.GetSeriesasMA(ds,Ah_HMP_name,si=si,ei=ei)
 month_30min_1d,flag = qcutils.GetSeriesasMA(ds,'Month',si=si,ei=ei)
+# mask data points unless both 7500 and HMP present
+mask = numpy.ma.mask_or(ah_7500_30min_1d.mask,ah_HMP1_30min_1d.mask)
+ah_7500_30min_1d = numpy.ma.array(ah_7500_30min_1d,mask=mask)
+ah_HMP1_30min_1d = numpy.ma.array(ah_HMP1_30min_1d,mask=mask)
+month_30min_1d = numpy.ma.array(month_30min_1d,mask=mask)
+# reshape the 1D time series into 2D arrays
 ah_7500_30min_2d = numpy.ma.reshape(ah_7500_30min_1d,[ndays,nperday])
 ah_HMP1_30min_2d = numpy.ma.reshape(ah_HMP1_30min_1d,[ndays,nperday])
 month_30min_2d = numpy.ma.reshape(month_30min_1d,[ndays,nperday])
-
-mask = numpy.ma.mask_or(ah_7500_30min_2d.mask,ah_HMP1_30min_2d.mask)  # mask based on dependencies, set all to missing if any missing
-ah_7500_30min_2d = numpy.ma.array(ah_7500_30min_2d,mask=mask)         # apply the mask
-ah_HMP1_30min_2d = numpy.ma.array(ah_HMP1_30min_2d,mask=mask)
-month_30min_2d = numpy.ma.array(month_30min_2d,mask=mask)
-
+# get the daily statistics
 month_daily_avg = numpy.ma.average(month_30min_2d,axis=1)
 ah_7500_daily_avg = numpy.ma.average(ah_7500_30min_2d,axis=1)
 ah_HMP1_daily_avg = numpy.ma.average(ah_HMP1_30min_2d,axis=1)
@@ -143,9 +146,22 @@ qcplot.tsplot(DT_daily,slope2,sub=[5,1,3],ylabel='Slope',colours=correl)
 qcplot.tsplot(DT_daily,offset2,sub=[5,1,4],ylabel='Offset',colours=correl)
 qcplot.tsplot(DT_daily,sdratio2,sub=[5,1,5],ylabel='Sd(HMP)/Sd(7500)',colours=correl)
 
+for i in range(0,ndays-1):
+    x = ah_7500_30min_2d[i,:]
+    y = ah_HMP1_30min_2d[i,:]
+    x_nm = numpy.ma.compressed(x)
+    y_nm = numpy.ma.compressed(y)
+    nx = numpy.ma.count(x_nm)
+    ny = numpy.ma.count(y_nm)
+    r = numpy.ma.corrcoef(x_nm,y_nm)
+    if (nx<min_n) or (r[0][1]<min_r):
+        ah_7500_30min_2d[i,:].mask = True
+        ah_HMP1_30min_2d[i,:].mask = True
+
 class PointBrowser:
     def __init__(self):
-        self.ind_day = 0
+        self.si = 0
+        self.ei = 0
         self.start_ind_day = 0
         self.ind_30min = 0
         self.start_ind_30min = 0
@@ -161,7 +177,7 @@ class PointBrowser:
         self.last_index = []
 
     def onpress(self, event):
-        if self.ind_day is None: return
+        #if self.ind_day is None: return
         if event.key=='n': self.new()
         if event.key=='f': self.forward()
         if event.key=='b': self.backward()
@@ -171,21 +187,15 @@ class PointBrowser:
     def new(self):
         print 'Creating new XY plot ...'
         # save the summary results from the last period
-        if self.ind_day!=0:
-            self.start_date.append(DT_daily[self.start_ind_day])
-            self.end_date.append(DT_daily[self.ind_day])
+        if self.ei!=0:
+            self.start_date.append(DT_daily[self.si])
+            self.end_date.append(DT_daily[self.ei])
             self.slope.append(self.coefs[0])
             self.offset.append(self.coefs[1])
             self.correl.append(self.r[0][1])
-            self.stdratio.append(numpy.ma.std(self.y_obs)/numpy.ma.std(self.x_obs))
-            self.rangeratio.append((numpy.ma.max(self.y_obs)-numpy.ma.min(self.y_obs))/(numpy.ma.max(self.x_obs)-numpy.ma.min(self.x_obs)))
-            self.start_ind_day = self.ind_day
-            self.ind_30min = DateTime.index(DT_daily[self.ind_day])
-            self.start_ind_30min = self.ind_30min
-        # initialise some arrays
-        self.x_obs = numpy.ma.array([])
-        self.y_obs = numpy.ma.array([])
-        self.last_index = []
+            self.stdratio.append(self.sd)
+            self.rangeratio.append(self.rr)
+            self.si = self.ei
         # put up the new XY plot
         self.nfig += 1
         self.figxy = plt.figure(self.nfig,figsize=(5,4))
@@ -196,61 +206,47 @@ class PointBrowser:
         plt.show()
 
     def forward(self):
-        self.ind_day += 1
-        self.ind_day = numpy.clip(self.ind_day,0,len(DT_daily)-1)
-        self.ind_30min = DateTime.index(DT_daily[self.ind_day])
-        self.ind_start = DateTime.index(DT_daily[self.ind_day-1])
-        x = ah_7500_30min_1d[self.ind_start:self.ind_30min]
-        y = ah_HMP1_30min_1d[self.ind_start:self.ind_30min]
-        mask = (x.mask)|(y.mask)
-        x.mask = mask
-        y.mask = mask
-        print DateTime[self.ind_start],DateTime[self.ind_30min],numpy.ma.count(x),numpy.ma.corrcoef(x,y)[0][1]
-        if numpy.ma.count(x)>min_n:
-            if (numpy.ma.corrcoef(x,y)[0][1]>min_r):
-                x_nm = numpy.ma.compressed(x)
-                y_nm = numpy.ma.compressed(y)
-                self.x_obs = numpy.ma.concatenate([self.x_obs,x_nm])
-                self.y_obs = numpy.ma.concatenate([self.y_obs,y_nm])
-                self.r = numpy.ma.corrcoef(self.x_obs,self.y_obs)
-                self.last_index.append(len(self.x_obs))
-                resrlm = sm.RLM(self.y_obs,sm.add_constant(self.x_obs),M=sm.robust.norms.TukeyBiweight()).fit()
-                self.coefs = resrlm.params
+        self.ei += 1
         self.update()
 
     def backward(self):
-        self.ind_day += -1
-        self.ind_day = numpy.clip(self.ind_day,0,len(DT_daily)-1)
-        self.ind_30min = DateTime.index(DT_daily[self.ind_day])
-        self.ind_start = DateTime.index(DT_daily[self.ind_day-1])
-        self.y_obs = self.y_obs[:self.last_index[-1]]
-        self.x_obs = self.x_obs[:self.last_index[-1]]
-        self.last_index = self.last_index[:-1]
-        resrlm = sm.RLM(self.y_obs,sm.add_constant(self.x_obs),M=sm.robust.norms.TukeyBiweight()).fit()
-        self.coefs = resrlm.params
+        self.ei += -1
         self.update()
 
     def update(self):
-        self.axxy.cla()
-        self.axxy.plot(self.x_obs,self.y_obs,'b.')
-        self.axxy.set_xlabel('Ah_7500 (g/m3)')
-        self.axxy.set_ylabel('Ah_HMP (g/m3)')
-        if len(self.x_obs)!=0:
-            self.axxy.plot(self.x_obs,self.coefs[0]*self.x_obs+self.coefs[1],'r--',linewidth=3)
+        self.ei = numpy.clip(self.ei,self.si,len(DT_daily)-1)
+        x = ah_7500_30min_2d[self.ei,:]
+        y = ah_HMP1_30min_2d[self.ei,:]
+        print DT_daily[self.ei],numpy.ma.count(x),numpy.ma.corrcoef(x,y)[0][1]
+        x = ah_7500_30min_2d[self.si:self.ei+1,:]
+        y = ah_HMP1_30min_2d[self.si:self.ei+1,:]
+        x_nm = numpy.ma.compressed(x)
+        y_nm = numpy.ma.compressed(y)
+        if len(x_nm)!=0:
+            self.r = numpy.corrcoef(x_nm,y_nm)
+            self.sd = numpy.std(y_nm)/numpy.std(x_nm)
+            self.rr = (numpy.max(y_nm)-numpy.min(y_nm))/(numpy.max(x_nm)-numpy.min(x_nm))
+            resrlm = sm.RLM(y_nm,sm.add_constant(x_nm),M=sm.robust.norms.TukeyBiweight()).fit()
+            self.coefs = resrlm.params
+            self.axxy.cla()
+            self.axxy.plot(x_nm,y_nm,'b.')
+            self.axxy.set_xlabel('Ah_7500 (g/m3)')
+            self.axxy.set_ylabel('Ah_HMP (g/m3)')
+            self.axxy.plot(x_nm,self.coefs[0]*x_nm+self.coefs[1],'r--',linewidth=3)
             eqnstr = 'y = %.3fx + %.3f, r = %.3f'%(self.coefs[0],self.coefs[1],self.r[0][1])
             self.axxy.text(0.5,0.875,eqnstr,fontsize=8,horizontalalignment='center',transform=self.axxy.transAxes)
-        dtstr = str(DT_daily[self.start_ind_day]) + ' to ' + str(DT_daily[self.ind_day])
+        dtstr = str(DT_daily[self.si]) + ' to ' + str(DT_daily[self.ei])
         self.axxy.text(0.5,0.925,dtstr,fontsize=8,horizontalalignment='center',transform=self.axxy.transAxes)
         self.figxy.canvas.draw()
 
     def quitprog(self):
-        self.start_date.append(DT_daily[self.start_ind_day])
-        self.end_date.append(DT_daily[self.ind_day])
+        self.start_date.append(DT_daily[self.si])
+        self.end_date.append(DT_daily[self.ei])
         self.slope.append(self.coefs[0])
         self.offset.append(self.coefs[1])
         self.correl.append(self.r[0][1])
-        self.stdratio.append(numpy.ma.average(ah_stdratio_daily[self.start_ind_day:self.ind_day]))
-        self.rangeratio.append(numpy.ma.average(ah_rangeratio_daily[self.start_ind_day:self.ind_day]))
+        self.stdratio.append(self.sd)
+        self.rangeratio.append(self.rr)
         for i in range(len(self.slope)):
             eqnstr = '%.3f, %.3f, %.3f, %.3f, %.3f'%(self.slope[i],self.offset[i],self.correl[i],self.stdratio[i],self.rangeratio[i])
             print self.start_date[i], self.end_date[i], eqnstr
