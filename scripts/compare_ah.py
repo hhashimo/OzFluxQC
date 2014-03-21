@@ -122,7 +122,7 @@ for i in range(0,ndays-1):
     x = ah_7500_30min_2d[i,:]
     y = ah_HMP1_30min_2d[i,:]
     x_nm = numpy.ma.compressed(x)
-    x_nm = sm.add_constant(x_nm)
+    x_nm = sm.add_constant(x_nm,prepend=False)
     y_nm = numpy.ma.compressed(y)
     if len(y_nm)>1:
         resrlm = sm.RLM(y_nm,x_nm,M=sm.robust.norms.TukeyBiweight()).fit()
@@ -226,7 +226,7 @@ class PointBrowser:
             self.r = numpy.corrcoef(x_nm,y_nm)
             self.sd = numpy.std(y_nm)/numpy.std(x_nm)
             self.rr = (numpy.max(y_nm)-numpy.min(y_nm))/(numpy.max(x_nm)-numpy.min(x_nm))
-            resrlm = sm.RLM(y_nm,sm.add_constant(x_nm),M=sm.robust.norms.TukeyBiweight()).fit()
+            resrlm = sm.RLM(y_nm,sm.add_constant(x_nm,prepend=False),M=sm.robust.norms.TukeyBiweight()).fit()
             self.coefs = resrlm.params
             self.axxy.cla()
             self.axxy.plot(x_nm,y_nm,'b.')
