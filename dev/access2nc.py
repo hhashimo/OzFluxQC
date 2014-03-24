@@ -1,3 +1,11 @@
+import os
+import sys
+# check the scripts directory is present
+if not os.path.exists("../scripts/"):
+    print "compare_access: the scripts directory is missing"
+    sys.exit()
+# since the scripts directory is there, try importing the modules
+sys.path.append('../scripts')
 import constants as c
 import datetime
 import matplotlib.pyplot as plt
@@ -61,59 +69,90 @@ qcutils.get_ymdhms_from_datetime(ds_60minutes)
 varlist = cf["Variables"].keys()
 for label in varlist:
     access_name = cf["Variables"][label]["access_name"]
-    if len(f.variables[access_name].shape)==3:
-        series = f.variables[access_name][:,1,1]
-    elif len(f.variables[access_name].shape)==4:
-        series = f.variables[access_name][:,0,1,1]
-    else:
-        print "Unrecognised variable ("+label+") dimension in ACCESS file"
-        sys.exit()
     attr = {}
     for this_attr in f.variables[access_name].ncattrs():
         attr[this_attr] = getattr(f.variables[access_name],this_attr)
-    qcutils.CreateSeries(ds_60minutes,label,series,Flag=flag_60minutes,Attr=attr)
+    # loop over all ACCESS grids and give them standard OzFlux names with the grid idices appended
+    for i in range(0,3):
+        for j in range(0,3):
+            if len(f.variables[access_name].shape)==3:
+                series = f.variables[access_name][:,i,j]
+                label_ij = label+'_'+str(i)+str(j)
+                qcutils.CreateSeries(ds_60minutes,label_ij,series,Flag=flag_60minutes,Attr=attr)
+            elif len(f.variables[access_name].shape)==4:
+                series = f.variables[access_name][:,0,i,j]
+                label_ij = label+'_'+str(i)+str(j)
+                qcutils.CreateSeries(ds_60minutes,label_ij,series,Flag=flag_60minutes,Attr=attr)
+            else:
+                print "Unrecognised variable ("+label+") dimension in ACCESS file"
+                #sys.exit()
 
 # get derived quantities and adjust units
 # air temperature from K to C
-attr = qcutils.GetAttributeDictionary(ds_60minutes,"Ta")
+attr = qcutils.GetAttributeDictionary(ds_60minutes,"Ta_00")
 if attr["units"] == "K":
-    Ta,f = qcutils.GetSeriesasMA(ds_60minutes,"Ta")
-    Ta = Ta - c.C2K
-    attr["units"] = "C"
-    qcutils.CreateSeries(ds_60minutes,"Ta",Ta,Flag=flag_60minutes,Attr=attr)
+    for i in range(0,3):
+        for j in range(0,3):
+            label = "Ta"+"_"+str(i)+str(j)
+            Ta,f = qcutils.GetSeriesasMA(ds_60minutes,label)
+            Ta = Ta - c.C2K
+            attr["units"] = "C"
+            qcutils.CreateSeries(ds_60minutes,label,Ta,Flag=flag_60minutes,Attr=attr)
 # soil temperature from K to C
-attr = qcutils.GetAttributeDictionary(ds_60minutes,"Ts")
+attr = qcutils.GetAttributeDictionary(ds_60minutes,"Ts_00")
 if attr["units"] == "K":
-    Ts,f = qcutils.GetSeriesasMA(ds_60minutes,"Ts")
-    Ts = Ts - c.C2K
-    attr["units"] = "C"
-    qcutils.CreateSeries(ds_60minutes,"Ts",Ts,Flag=flag_60minutes,Attr=attr)
+    for i in range(0,3):
+        for j in range(0,3):
+            label = "Ts"+"_"+str(i)+str(j)
+            Ts,f = qcutils.GetSeriesasMA(ds_60minutes,label)
+            Ts = Ts - c.C2K
+            attr["units"] = "C"
+            qcutils.CreateSeries(ds_60minutes,label,Ts,Flag=flag_60minutes,Attr=attr)
 # pressure from Pa to kPa
-attr = qcutils.GetAttributeDictionary(ds_60minutes,"ps")
+attr = qcutils.GetAttributeDictionary(ds_60minutes,"ps_00")
 if attr["units"] == "Pa":
-    ps,f = qcutils.GetSeriesasMA(ds_60minutes,"ps")
-    ps = ps/float(1000)
-    attr["units"] = "kPa"
-    qcutils.CreateSeries(ds_60minutes,"ps",ps,Flag=flag_60minutes,Attr=attr)
+    for i in range(0,3):
+        for j in range(0,3):
+            label = "ps"+"_"+str(i)+str(j)
+            ps,f = qcutils.GetSeriesasMA(ds_60minutes,label)
+            ps = ps/float(1000)
+            attr["units"] = "kPa"
+            qcutils.CreateSeries(ds_60minutes,label,ps,Flag=flag_60minutes,Attr=attr)
 # wind speed
-u,f = qcutils.GetSeriesasMA(ds_60minutes,"u")
-v,f = qcutils.GetSeriesasMA(ds_60minutes,"v")
-Ws = numpy.sqrt(u*u+v*v)
-attr = qcutils.MakeAttributeDictionary(long_name="Wind speed",units="m/s",height="10m")
-qcutils.CreateSeries(ds_60minutes,'Ws',Ws,Flag=f,Attr=attr)
+for i in range(0,3):
+    for j in range(0,3):
+        u_label = "u"+"_"+str(i)+str(j)
+        v_label = "v"+"_"+str(i)+str(j)
+        Ws_label = "Ws"+"_"+str(i)+str(j)
+        u,f = qcutils.GetSeriesasMA(ds_60minutes,u_label)
+        v,f = qcutils.GetSeriesasMA(ds_60minutes,v_label)
+        Ws = numpy.sqrt(u*u+v*v)
+        attr = qcutils.MakeAttributeDictionary(long_name="Wind speed",units="m/s",height="10m")
+        qcutils.CreateSeries(ds_60minutes,Ws_label,Ws,Flag=f,Attr=attr)
 # relative humidity
-q,f = qcutils.GetSeriesasMA(ds_60minutes,"q")
-Ta,f = qcutils.GetSeriesasMA(ds_60minutes,"Ta")
-ps,f = qcutils.GetSeriesasMA(ds_60minutes,"ps")
-RH = mf.RHfromspecifichumidity(q, Ta, ps)
-attr = qcutils.MakeAttributeDictionary(long_name='Relative humidity',units='%',standard_name='not defined')
-qcutils.CreateSeries(ds_60minutes,"RH",RH,Flag=f,Attr=attr)
+for i in range(0,3):
+    for j in range(0,3):
+        q_label = "q"+"_"+str(i)+str(j)
+        Ta_label = "Ta"+"_"+str(i)+str(j)
+        ps_label = "ps"+"_"+str(i)+str(j)
+        RH_label = "RH"+"_"+str(i)+str(j)
+        q,f = qcutils.GetSeriesasMA(ds_60minutes,q_label)
+        Ta,f = qcutils.GetSeriesasMA(ds_60minutes,Ta_label)
+        ps,f = qcutils.GetSeriesasMA(ds_60minutes,ps_label)
+        RH = mf.RHfromspecifichumidity(q, Ta, ps)
+        attr = qcutils.MakeAttributeDictionary(long_name='Relative humidity',units='%',standard_name='not defined')
+        qcutils.CreateSeries(ds_60minutes,RH_label,RH,Flag=f,Attr=attr)
 # absolute humidity
-Ta,f = qcutils.GetSeriesasMA(ds_60minutes,"Ta")
-RH,f = qcutils.GetSeriesasMA(ds_60minutes,"RH")
-Ah = mf.absolutehumidityfromRH(Ta, RH)
-attr = qcutils.MakeAttributeDictionary(long_name='Absolute humidity',units='g/m3',standard_name='not defined')
-qcutils.CreateSeries(ds_60minutes,"Ah",Ah,Flag=f,Attr=attr)
+for i in range(0,3):
+    for j in range(0,3):
+        Ta_label = "Ta"+"_"+str(i)+str(j)
+        RH_label = "RH"+"_"+str(i)+str(j)
+        Ah_label = "Ah"+"_"+str(i)+str(j)
+        Ta,f = qcutils.GetSeriesasMA(ds_60minutes,Ta_label)
+        RH,f = qcutils.GetSeriesasMA(ds_60minutes,RH_label)
+        Ah = mf.absolutehumidityfromRH(Ta, RH)
+        attr = qcutils.MakeAttributeDictionary(long_name='Absolute humidity',units='g/m3',standard_name='not defined')
+        qcutils.CreateSeries(ds_60minutes,Ah_label,Ah,Flag=f,Attr=attr)
 
 # interpolate from 60 to 30 minutes if requested
 if qcutils.cfoptionskey(cf,"Interpolate"):

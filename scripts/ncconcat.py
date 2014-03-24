@@ -55,7 +55,7 @@ for n in InFile_list[1:]:
     #print dt[-1],dt[-1]+datetime.timedelta(minutes=ts),dt_n[0]
     if dt_n[0]<dt[-1]+datetime.timedelta(minutes=ts):
         log.info(' Overlapping times detected in consecutive files')
-        si = qcutils.GetDateIndex(dt_n,str(dt[-1]))+1
+        si = qcutils.GetDateIndex(dt_n,str(dt[-1]),ts=ts)+1
         ei = -1
     if dt_n[0]==dt[-1]+datetime.timedelta(minutes=ts):
         log.info(' Start and end times OK in consecutive files')

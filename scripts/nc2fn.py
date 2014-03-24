@@ -43,7 +43,7 @@ start_datetime = dateutil.parser.parse(str(cf["General"]["start_datetime"]))
 if dt[0]<start_datetime:
     # requested start_datetime is after the start of the file
     print "nc2fn: truncating start of file"
-    si = qcutils.GetDateIndex(dt,str(start_datetime),match="exact")
+    si = qcutils.GetDateIndex(dt,str(start_datetime),ts=ts,match="exact")
     for thisone in ds.series.keys():
         ds.series[thisone]["Data"] = ds.series[thisone]["Data"][si:]
         ds.series[thisone]["Flag"] = ds.series[thisone]["Flag"][si:]
@@ -71,7 +71,7 @@ end_datetime = dateutil.parser.parse(str(cf["General"]["end_datetime"]))
 if dt[-1]>end_datetime:
     # requested end_datetime is before the end of the file
     print "nc2fn: truncating end of file",dt[-1],end_datetime
-    ei = qcutils.GetDateIndex(dt,str(end_datetime),match="exact")
+    ei = qcutils.GetDateIndex(dt,str(end_datetime),ts=ts,match="exact")
     for thisone in ds.series.keys():
         ds.series[thisone]["Data"] = ds.series[thisone]["Data"][:ei+1]
         ds.series[thisone]["Flag"] = ds.series[thisone]["Flag"][:ei+1]
