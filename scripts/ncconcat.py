@@ -1,5 +1,6 @@
 import datetime
 import logging
+import meteorologicalfunctions as mf
 import numpy
 import os
 import qcio
@@ -31,6 +32,14 @@ for ThisOne in ds_n.globalattributes.keys():
     ds.globalattributes[ThisOne] = ds_n.globalattributes[ThisOne]
 # fill the variables
 for ThisOne in ds_n.series.keys():
+    if ThisOne=="Fc":
+        attr = qcutils.GetAttributeDictionary(ds_n, ThisOne)
+        if attr['units']=='mg/m2/s':
+            print "Converting Fc to umol/m2/s"
+            Fc,f = qcutils.GetSeriesasMA(ds_n, ThisOne)
+            Fc = mf.Fc_umolpm2psfrommgpm2ps(Fc)
+            attr['units'] = 'umol/m2/s'
+            qcutils.CreateSeries(ds_n,ThisOne,Fc,Flag=f,Attr=attr)
     ds.series[ThisOne] = {}
     ds.series[ThisOne]['Data'] = ds_n.series[ThisOne]['Data']
     ds.series[ThisOne]['Flag'] = ds_n.series[ThisOne]['Flag']
@@ -66,6 +75,14 @@ for n in InFile_list[1:]:
         TimeGap = True
     # loop over the data series in the concatenated file
     for ThisOne in ds.series.keys():
+        if ThisOne=="Fc":
+            attr = qcutils.GetAttributeDictionary(ds_n, ThisOne)
+            if attr['units']=='mg/m2/s':
+                print "Converting Fc to umol/m2/s"
+                Fc,f = qcutils.GetSeriesasMA(ds_n, ThisOne)
+                Fc = mf.Fc_umolpm2psfrommgpm2ps(Fc)
+                attr['units'] = 'umol/m2/s'
+                qcutils.CreateSeries(ds_n,ThisOne,Fc,Flag=f,Attr=attr)
         # does this series exist in the file being added to the concatenated file
         if ThisOne in ds_n.series.keys():
             # if so, then append this series to the concatenated series

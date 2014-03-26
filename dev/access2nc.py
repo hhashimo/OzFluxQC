@@ -93,7 +93,7 @@ attr = qcutils.GetAttributeDictionary(ds_60minutes,"Ta_00")
 if attr["units"] == "K":
     for i in range(0,3):
         for j in range(0,3):
-            label = "Ta"+"_"+str(i)+str(j)
+            label = "Ta_"+str(i)+str(j)
             Ta,f = qcutils.GetSeriesasMA(ds_60minutes,label)
             Ta = Ta - c.C2K
             attr["units"] = "C"
@@ -103,7 +103,7 @@ attr = qcutils.GetAttributeDictionary(ds_60minutes,"Ts_00")
 if attr["units"] == "K":
     for i in range(0,3):
         for j in range(0,3):
-            label = "Ts"+"_"+str(i)+str(j)
+            label = "Ts_"+str(i)+str(j)
             Ts,f = qcutils.GetSeriesasMA(ds_60minutes,label)
             Ts = Ts - c.C2K
             attr["units"] = "C"
@@ -113,46 +113,81 @@ attr = qcutils.GetAttributeDictionary(ds_60minutes,"ps_00")
 if attr["units"] == "Pa":
     for i in range(0,3):
         for j in range(0,3):
-            label = "ps"+"_"+str(i)+str(j)
+            label = "ps_"+str(i)+str(j)
             ps,f = qcutils.GetSeriesasMA(ds_60minutes,label)
             ps = ps/float(1000)
             attr["units"] = "kPa"
             qcutils.CreateSeries(ds_60minutes,label,ps,Flag=flag_60minutes,Attr=attr)
-# wind speed
+# wind speed from components
 for i in range(0,3):
     for j in range(0,3):
-        u_label = "u"+"_"+str(i)+str(j)
-        v_label = "v"+"_"+str(i)+str(j)
-        Ws_label = "Ws"+"_"+str(i)+str(j)
+        u_label = "u_"+str(i)+str(j)
+        v_label = "v_"+str(i)+str(j)
+        Ws_label = "Ws_"+str(i)+str(j)
         u,f = qcutils.GetSeriesasMA(ds_60minutes,u_label)
         v,f = qcutils.GetSeriesasMA(ds_60minutes,v_label)
         Ws = numpy.sqrt(u*u+v*v)
         attr = qcutils.MakeAttributeDictionary(long_name="Wind speed",units="m/s",height="10m")
         qcutils.CreateSeries(ds_60minutes,Ws_label,Ws,Flag=f,Attr=attr)
-# relative humidity
+# relative humidity from temperature, specific humidity and pressure
 for i in range(0,3):
     for j in range(0,3):
-        q_label = "q"+"_"+str(i)+str(j)
-        Ta_label = "Ta"+"_"+str(i)+str(j)
-        ps_label = "ps"+"_"+str(i)+str(j)
-        RH_label = "RH"+"_"+str(i)+str(j)
+        q_label = "q_"+str(i)+str(j)
+        Ta_label = "Ta_"+str(i)+str(j)
+        ps_label = "ps_"+str(i)+str(j)
+        RH_label = "RH_"+str(i)+str(j)
         q,f = qcutils.GetSeriesasMA(ds_60minutes,q_label)
         Ta,f = qcutils.GetSeriesasMA(ds_60minutes,Ta_label)
         ps,f = qcutils.GetSeriesasMA(ds_60minutes,ps_label)
         RH = mf.RHfromspecifichumidity(q, Ta, ps)
         attr = qcutils.MakeAttributeDictionary(long_name='Relative humidity',units='%',standard_name='not defined')
         qcutils.CreateSeries(ds_60minutes,RH_label,RH,Flag=f,Attr=attr)
-# absolute humidity
+# absolute humidity from temperature and relative humidity
 for i in range(0,3):
     for j in range(0,3):
-        Ta_label = "Ta"+"_"+str(i)+str(j)
-        RH_label = "RH"+"_"+str(i)+str(j)
-        Ah_label = "Ah"+"_"+str(i)+str(j)
+        Ta_label = "Ta_"+str(i)+str(j)
+        RH_label = "RH_"+str(i)+str(j)
+        Ah_label = "Ah_"+str(i)+str(j)
         Ta,f = qcutils.GetSeriesasMA(ds_60minutes,Ta_label)
         RH,f = qcutils.GetSeriesasMA(ds_60minutes,RH_label)
         Ah = mf.absolutehumidityfromRH(Ta, RH)
         attr = qcutils.MakeAttributeDictionary(long_name='Absolute humidity',units='g/m3',standard_name='not defined')
         qcutils.CreateSeries(ds_60minutes,Ah_label,Ah,Flag=f,Attr=attr)
+# soil moisture from kg/m2 to m3/m3
+attr = qcutils.GetAttributeDictionary(ds_60minutes,"Sws_00")
+for i in range(0,3):
+    for j in range(0,3):
+        label = "Sws_"+str(i)+str(j)
+        Sws,f = qcutils.GetSeriesasMA(ds_60minutes,label)
+        Sws = Sws/float(100)
+        attr["units"] = "frac"
+        qcutils.CreateSeries(ds_60minutes,label,Sws,Flag=flag_60minutes,Attr=attr)
+# net radiation and upwelling short and long wave radiation
+for i in range(0,3):
+    for j in range(0,3):
+        label_Fn = "Fn_"+str(i)+str(j)
+        label_Fsd = "Fsd_"+str(i)+str(j)
+        label_Fld = "Fld_"+str(i)+str(j)
+        label_Fsu = "Fsu_"+str(i)+str(j)
+        label_Flu = "Flu_"+str(i)+str(j)
+        label_Fn_sw = "Fn_sw_"+str(i)+str(j)
+        label_Fn_lw = "Fn_lw_"+str(i)+str(j)
+        Fsd,f = qcutils.GetSeriesasMA(ds_60minutes,label_Fsd)
+        Fld,f = qcutils.GetSeriesasMA(ds_60minutes,label_Fld)
+        Fn_sw,f = qcutils.GetSeriesasMA(ds_60minutes,label_Fn_sw)
+        Fn_lw,f = qcutils.GetSeriesasMA(ds_60minutes,label_Fn_lw)
+        Fsu = Fsd - Fn_sw
+        Flu = Fld - Fn_lw
+        Fn = (Fsd-Fsu)+(Fld-Flu)
+        attr = qcutils.MakeAttributeDictionary(long_name='Up-welling long wave',
+                             standard_name='surface_upwelling_longwave_flux_in_air',units='W/m2')
+        qcutils.CreateSeries(ds_60minutes,label_Flu,Flu,Flag=f,Attr=attr)
+        attr = qcutils.MakeAttributeDictionary(long_name='Up-welling short wave',
+                             standard_name='surface_upwelling_shortwave_flux_in_air',units='W/m2')
+        qcutils.CreateSeries(ds_60minutes,label_Fsu,Fsu,Flag=f,Attr=attr)
+        attr = qcutils.MakeAttributeDictionary(long_name='Calculated net radiation',
+                             standard_name='surface_net_allwave_radiation',units='W/m2')
+        qcutils.CreateSeries(ds_60minutes,label_Fn,Fn,Flag=f,Attr=attr)
 
 # interpolate from 60 to 30 minutes if requested
 if qcutils.cfoptionskey(cf,"Interpolate"):
@@ -194,13 +229,3 @@ else:
     # write out the ACCESS data
     ncfile = qcio.nc_open_write(outfilename)
     qcio.nc_write_series(ncfile, ds_60minutes)
-
-## now get the incoming sortwave radiation
-#Fsd_access_60minutes,f = qcutils.GetSeriesasMA(ds_60minutes,"Fsd")
-#Fsd_access_30minutes,f = qcutils.GetSeriesasMA(ds_30minutes,"Fsd")
-## plot the data
-#fig=plt.figure()
-#plt.plot(dt_loc_60minutes,Fsd_access_60minutes,'o',dt_loc_60minutes,Fsd_access_60minutes,'-')
-#plt.plot(dt_loc_30minutes,Fsd_access_30minutes,'r+')
-#plt.show()
-

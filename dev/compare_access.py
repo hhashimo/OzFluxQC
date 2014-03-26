@@ -13,18 +13,18 @@ import statsmodels.api as sm
 import qcio
 import qcutils
 
-#tow_name = qcio.get_filename_dialog()
-#acc_name = qcio.get_filename_dialog()
-
-tow_name = "../../Sites/Tumbarumba/Data/Processed/2012/Tumbarumba_2012_L3.nc"
-acc_name = "../../Sites/Tumbarumba/Data/ACCESS/2012/Tumbarumba_2012_ACCESS.nc"
-
+# load the control file
+cf = qcio.load_controlfile(path='../controlfiles')
+if len(cf)==0: sys.exit()
+tow_name = cf["Files"]["tower_filename"]
+acc_name = cf["Files"]["access_filename"]
+# read the data series
 ds_tow = qcio.nc_read_series(tow_name)
 ds_acc = qcio.nc_read_series(acc_name)
-
+# get the time step and the site name
 ts = int(ds_tow.globalattributes["time_step"])
 site_name = str(ds_tow.globalattributes["site_name"])
-
+# get the start and end indices for the first and last whole days
 dt_acc = ds_acc.series["DateTime"]["Data"]
 si_acc = qcutils.GetDateIndex(dt_acc,str(dt_acc[0]),ts=ts,match="startnextday")
 ei_acc = qcutils.GetDateIndex(dt_acc,str(dt_acc[0]),ts=ts,match="endpreviousday")
@@ -37,6 +37,14 @@ ndays = nrecs/nperday
 nrecs=ndays*nperday
 
 dt_tow = ds_tow.series["DateTime"]["Data"]
+if "Ws" not in ds_tow.series.keys() and "Ws_CSAT" in ds_tow.series.keys():
+    Ws,f = qcutils.GetSeriesasMA(ds_tow,"Ws_CSAT")
+    attr = qcutils.GetAttributeDictionary(ds_tow,"Ws_CSAT")
+    qcutils.CreateSeries(ds_tow,"Ws",Ws,Flag=f,Attr=attr)
+if "Wd" not in ds_tow.series.keys() and "Wd_CSAT" in ds_tow.series.keys():
+    Wd,f = qcutils.GetSeriesasMA(ds_tow,"Wd_CSAT")
+    attr = qcutils.GetAttributeDictionary(ds_tow,"Wd_CSAT")
+    qcutils.CreateSeries(ds_tow,"Wd",Wd,Flag=f,Attr=attr)
 if "q" not in ds_tow.series.keys():
     if "RH" not in ds_tow.series.keys():
         Ah,f = qcutils.GetSeriesasMA(ds_tow,"Ah")
@@ -61,7 +69,7 @@ dt_tow = dt_tow[si_tow:ei_tow+1]
 # margins
 margin_bottom = 0.05
 margin_top = 0.05
-margin_left = 0.05
+margin_left = 0.075
 margin_right = 0.05
 # plot heights, plot widths and spaces between plots
 xy_height = 0.25
@@ -74,7 +82,7 @@ ts_bottom = margin_bottom + xy_height + xyxy_space + xy_height + xyts_space
 #ts_height = (1.0 - margin_top - ts_bottom)/float(nDrivers+1)
 ts_height = (1.0 - margin_top - ts_bottom)
 fig_num = 0
-for label in ["Fsd","Fld","Ta","q","Ws","Ts","Sws"]:
+for label in ["Fsd","Fld","Fn","Ta","q","Ws","Ts","Sws","ps","ustar","Fh","Fe"]:
     print "compare_access: doing "+label
     fig_num = fig_num + 1
     # get the tower data
@@ -97,6 +105,12 @@ for label in ["Fsd","Fld","Ta","q","Ws","Ts","Sws"]:
     data_acc,f=qcutils.GetSeriesasMA(ds_acc,label_acc,si=si_acc,ei=ei_acc)
     # flatten the correlation array for plotting
     r_flat=r_array.flatten()
+    # mask both series when either one is missing
+    data_acc.mask = (data_acc.mask)|(data_tow.mask)
+    data_tow.mask = (data_acc.mask)|(data_tow.mask)
+    # get non-masked versions of the data
+    data_acc_nm = numpy.ma.compressed(data_acc)
+    data_tow_nm = numpy.ma.compressed(data_tow)
     # create the figure canvas
     fig=plt.figure(fig_num,figsize=(13,9))
     plt.figtext(0.5,0.96,site_name+' : Comparison of tower and ACCESS data for '+label,ha='center',size=16)
@@ -111,25 +125,25 @@ for label in ["Fsd","Fld","Ta","q","Ws","Ts","Sws"]:
     # lagged correlation
     rect2 = [0.40,margin_bottom+margin_bottom+xy_height,xy_width,xy_height]
     ax2 = plt.axes(rect2)
-    ax2.xcorr(data_tow,data_acc,maxlags=nperday)
+    l=ax2.xcorr(data_tow_nm,data_acc_nm,maxlags=nperday)
     ax2.set_ylabel('r')
     ax2.set_xlabel('Lags')
+    max_lag = ts*(numpy.argmax(l[1])-nperday)
     # bottom row of XY plots
     # scatter plot of 30 minute data
     rect3 = [0.10,margin_bottom,xy_width,xy_height]
     ax3 = plt.axes(rect3)
     ax3.plot(data_acc,data_tow,'b.')
-    ax3.set_ylabel('Tower (W/m2)')
-    ax3.set_xlabel('ACCESS (W/m2)')
-    data_acc.mask = (data_acc.mask)|(data_tow.mask)
-    data_tow.mask = (data_acc.mask)|(data_tow.mask)
-    data_acc_nm = numpy.ma.compressed(data_acc)
-    data_acc_nm = sm.add_constant(data_acc_nm)
-    data_tow_nm = numpy.ma.compressed(data_tow)
-    resrlm = sm.RLM(data_tow_nm,data_acc_nm,M=sm.robust.norms.TukeyBiweight()).fit()
+    ax3.set_ylabel('Tower ('+units+')')
+    ax3.set_xlabel('ACCESS ('+units+')')
+    resrlm = sm.RLM(data_tow_nm,sm.add_constant(data_acc_nm),M=sm.robust.norms.TukeyBiweight()).fit()
     eqnstr = 'y = %.3fx + %.3f'%(resrlm.params[0],resrlm.params[1])
-    ax3.plot(data_acc_nm[:,0],resrlm.fittedvalues,'r--',linewidth=3)
-    ax3.text(0.5,0.9,eqnstr,fontsize=8,horizontalalignment='center',transform=ax3.transAxes)
+    ax3.plot(data_acc_nm,resrlm.fittedvalues,'r--',linewidth=3)
+    ax3.text(0.5,0.915,eqnstr,fontsize=8,horizontalalignment='center',transform=ax3.transAxes,color='red')
+    resrlm = sm.OLS(data_tow_nm,sm.add_constant(data_acc_nm)).fit()
+    eqnstr = 'y = %.3fx + %.3f'%(resrlm.params[0],resrlm.params[1])
+    ax3.plot(data_acc_nm,resrlm.fittedvalues,'g--',linewidth=3)
+    ax3.text(0.5,0.85,eqnstr,fontsize=8,horizontalalignment='center',transform=ax3.transAxes,color='green')
     ax3.text(0.6,0.075,'30 minutes',fontsize=10,horizontalalignment='left',transform=ax3.transAxes)
     # scatter plot of daily averages
     rect4 = [0.40,margin_bottom,xy_width,xy_height]
@@ -139,17 +153,20 @@ for label in ["Fsd","Fld","Ta","q","Ws","Ts","Sws"]:
     data_acc_2d = numpy.ma.reshape(data_acc,[ndays,nperday])
     data_acc_daily_avg = numpy.ma.average(data_acc_2d,axis=1)
     ax4.plot(data_acc_daily_avg,data_tow_daily_avg,'b.')
-    ax4.set_ylabel('Tower (W/m2)')
-    ax4.set_xlabel('ACCESS (W/m2)')
+    ax4.set_ylabel('Tower ('+units+')')
+    ax4.set_xlabel('ACCESS ('+units+')')
     data_acc_daily_avg.mask = (data_acc_daily_avg.mask)|(data_tow_daily_avg.mask)
     data_tow_daily_avg.mask = (data_acc_daily_avg.mask)|(data_tow_daily_avg.mask)
     data_acc_daily_avg_nm = numpy.ma.compressed(data_acc_daily_avg)
-    data_acc_daily_avg_nm = sm.add_constant(data_acc_daily_avg_nm)
     data_tow_daily_avg_nm = numpy.ma.compressed(data_tow_daily_avg)
-    resrlm = sm.RLM(data_tow_daily_avg_nm,data_acc_daily_avg_nm,M=sm.robust.norms.TukeyBiweight()).fit()
+    resrlm = sm.RLM(data_tow_daily_avg_nm,sm.add_constant(data_acc_daily_avg_nm),M=sm.robust.norms.TukeyBiweight()).fit()
     eqnstr = 'y = %.3fx + %.3f'%(resrlm.params[0],resrlm.params[1])
-    ax4.plot(data_acc_daily_avg_nm[:,0],resrlm.fittedvalues,'r--',linewidth=3)
-    ax4.text(0.5,0.9,eqnstr,fontsize=8,horizontalalignment='center',transform=ax4.transAxes)
+    ax4.plot(data_acc_daily_avg_nm,resrlm.fittedvalues,'r--',linewidth=3)
+    ax4.text(0.5,0.915,eqnstr,fontsize=8,horizontalalignment='center',transform=ax4.transAxes,color='red')
+    resrlm = sm.OLS(data_tow_daily_avg_nm,sm.add_constant(data_acc_daily_avg_nm)).fit()
+    eqnstr = 'y = %.3fx + %.3f'%(resrlm.params[0],resrlm.params[1])
+    ax4.plot(data_acc_daily_avg_nm,resrlm.fittedvalues,'g--',linewidth=3)
+    ax4.text(0.5,0.85,eqnstr,fontsize=8,horizontalalignment='center',transform=ax4.transAxes,color='green')
     ax4.text(0.6,0.075,'Daily average',fontsize=10,horizontalalignment='left',transform=ax4.transAxes)
     # diurnal average plot
     rect5 = [0.70,margin_bottom,xy_width,xy_height]
@@ -169,6 +186,7 @@ for label in ["Fsd","Fld","Ta","q","Ws","Ts","Sws"]:
     axes_ts = plt.axes(rect_ts)
     axes_ts.plot(dt_tow,data_tow,'ro',label="Tower")
     axes_ts.plot(dt_acc,data_acc,'b-',label="ACCESS-A")
+    axes_ts.set_ylabel(label+' ('+units+')')
     axes_ts.legend(loc='upper right',frameon=False,prop={'size':8})
     # now get some statistics
     numpoints = numpy.ma.count(data_tow)
@@ -179,9 +197,13 @@ for label in ["Fsd","Fld","Ta","q","Ws","Ts","Sws"]:
     var_acc = numpy.ma.var(data_acc)
     text_left = 0.70
     num_left = 0.80
-    row_bottom = 0.400
+    row_bottom = 0.375
     row_space = 0.030
     i = 0
+    row_posn = row_bottom + i*row_space
+    plt.figtext(text_left,row_posn,'Lag (minutes)')
+    plt.figtext(num_left,row_posn,'%.4g'%(max_lag))
+    i = i + 1
     row_posn = row_bottom + i*row_space
     plt.figtext(text_left,row_posn,'Var (ACCESS)')
     plt.figtext(num_left,row_posn,'%.4g'%(var_acc))
