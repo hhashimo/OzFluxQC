@@ -102,12 +102,12 @@ for label in ["Fsd","Fld","Fn","Ta","q","Ws","Ts","Sws","ps","ustar","Fh","Fe"]:
     max_ij = numpy.unravel_index(r_array.argmax(), r_array.shape)
     # get data from the grid cell with highest correlation to tower data
     label_acc=label+"_"+str(max_ij[0])+str(max_ij[1])
-    data_acc,f=qcutils.GetSeriesasMA(ds_acc,label_acc,si=si_acc,ei=ei_acc)
+    data_acc_all,f=qcutils.GetSeriesasMA(ds_acc,label_acc,si=si_acc,ei=ei_acc)
     # flatten the correlation array for plotting
     r_flat=r_array.flatten()
     # mask both series when either one is missing
-    data_acc.mask = (data_acc.mask)|(data_tow.mask)
-    data_tow.mask = (data_acc.mask)|(data_tow.mask)
+    data_acc.mask = (data_acc_all.mask)|(data_tow.mask)
+    data_tow.mask = (data_acc_all.mask)|(data_tow.mask)
     # get non-masked versions of the data
     data_acc_nm = numpy.ma.compressed(data_acc)
     data_tow_nm = numpy.ma.compressed(data_tow)
@@ -137,11 +137,13 @@ for label in ["Fsd","Fld","Fn","Ta","q","Ws","Ts","Sws","ps","ustar","Fh","Fe"]:
     ax3.set_ylabel('Tower ('+units+')')
     ax3.set_xlabel('ACCESS ('+units+')')
     resrlm = sm.RLM(data_tow_nm,sm.add_constant(data_acc_nm),M=sm.robust.norms.TukeyBiweight()).fit()
-    eqnstr = 'y = %.3fx + %.3f'%(resrlm.params[0],resrlm.params[1])
+    m_rlm = resrlm.params[0]; b_rlm = resrlm.params[1]
+    eqnstr = 'y = %.3fx + %.3f'%(m_rlm,b_rlm)
     ax3.plot(data_acc_nm,resrlm.fittedvalues,'r--',linewidth=3)
     ax3.text(0.5,0.915,eqnstr,fontsize=8,horizontalalignment='center',transform=ax3.transAxes,color='red')
-    resrlm = sm.OLS(data_tow_nm,sm.add_constant(data_acc_nm)).fit()
-    eqnstr = 'y = %.3fx + %.3f'%(resrlm.params[0],resrlm.params[1])
+    resols = sm.OLS(data_tow_nm,sm.add_constant(data_acc_nm)).fit()
+    m_ols = resols.params[0]; b_ols = resols.params[1]
+    eqnstr = 'y = %.3fx + %.3f'%(m_ols,b_ols)
     ax3.plot(data_acc_nm,resrlm.fittedvalues,'g--',linewidth=3)
     ax3.text(0.5,0.85,eqnstr,fontsize=8,horizontalalignment='center',transform=ax3.transAxes,color='green')
     ax3.text(0.6,0.075,'30 minutes',fontsize=10,horizontalalignment='left',transform=ax3.transAxes)
@@ -173,9 +175,13 @@ for label in ["Fsd","Fld","Fn","Ta","q","Ws","Ts","Sws","ps","ustar","Fh","Fe"]:
     ax5 = plt.axes(rect5)
     data_tow_hourly_avg = numpy.ma.average(data_tow_2d,axis=0)
     data_acc_hourly_avg = numpy.ma.average(data_acc_2d,axis=0)
+    data_acc_hourly_rlm = numpy.ma.average(m_rlm*data_acc_2d+b_rlm,axis=0)
+    data_acc_hourly_ols = numpy.ma.average(m_ols*data_acc_2d+b_ols,axis=0)
     ind = numpy.arange(len(data_tow_hourly_avg))*float(ts)/float(60)
     ax5.plot(ind,data_tow_hourly_avg,'ro',label='Tower')
     ax5.plot(ind,data_acc_hourly_avg,'b-',label='ACCESS-A')
+    ax5.plot(ind,data_acc_hourly_rlm,'r-',label='ACCESS-A (RLM)')
+    ax5.plot(ind,data_acc_hourly_ols,'g-',label='ACCESS-A (OLS)')
     ax5.set_ylabel(label+' ('+units+')')
     ax5.set_xlim(0,24)
     ax5.xaxis.set_ticks([0,6,12,18,24])
@@ -185,7 +191,9 @@ for label in ["Fsd","Fld","Fn","Ta","q","Ws","Ts","Sws","ps","ustar","Fh","Fe"]:
     rect_ts = [margin_left,ts_bottom,ts_width,ts_height]
     axes_ts = plt.axes(rect_ts)
     axes_ts.plot(dt_tow,data_tow,'ro',label="Tower")
-    axes_ts.plot(dt_acc,data_acc,'b-',label="ACCESS-A")
+    axes_ts.plot(dt_acc,data_acc_all,'b-',label="ACCESS-A")
+    axes_ts.plot(dt_acc,m_rlm*data_acc_all+b_rlm,'r-',label="ACCESS-A (RLM)")
+    axes_ts.plot(dt_acc,m_ols*data_acc_all+b_ols,'g-',label="ACCESS-A (OLS)")
     axes_ts.set_ylabel(label+' ('+units+')')
     axes_ts.legend(loc='upper right',frameon=False,prop={'size':8})
     # now get some statistics

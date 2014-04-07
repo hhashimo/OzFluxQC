@@ -514,6 +514,18 @@ def gfSOLO_writeinffiles(solo_gui):
     f.write('solo/output/sofm_3.out'+'\n')
     f.write('solo/output/sofm_4.out'+'\n')
     f.write(str(50)+'\n')
+    f.write('### Comment lines ###\n')
+    f.write('Line 1: No. of nodes - default is the number of drivers plus 1 (changeable via GUI if used)\n')
+    f.write('Line 2: No. of training iterations - default is 500 (changeable via GUI if used)\n')
+    f.write('Line 3: No. of iterations per screen output - default is 20\n')
+    f.write('Line 4: Spacing between initial weights - default is 0.01\n')
+    f.write('Line 5: Seed for random number generator - default is 1234\n')
+    f.write('Line 6: input data filename with path relative to current directory\n')
+    f.write('Line 7: first output filename with path relative to current directory\n')
+    f.write('Line 8: second output filename with path relative to current directory\n')
+    f.write('Line 9: third output filename with path relative to current directory\n')
+    f.write('Line 10: fourth output filename with path relative to current directory (used by SOLO)\n')
+    f.write('Line 11: No. iterations per write of weights to screen - default is 50\n')
     f.close()
     # solo inf file
     f = open('solo/inf/solo.inf','w')
@@ -535,6 +547,15 @@ def gfSOLO_writeinffiles(solo_gui):
     f.write('solo/output/finResult.out'+'\n')
     f.write('solo/output/trainWin.out'+'\n')
     f.write('solo/output/trainWout.out'+'\n')
+    f.write('### Comment lines ###\n')
+    f.write('Line 1: No. of nodes - default is the number of drivers plus 1 (changeable via GUI if used)\n')
+    f.write('Line 2: multiplier for minimum number of points per node (NdaFactor) - default is 5 (ie 5*(no. of drivers+1) (changeable via GUI if used)\n')
+    f.write('Line 3: fourth output file from SOFM, used as input to SOLO\n')
+    f.write('Line 4: input data filename with path relative to current directory\n')
+    f.write('Line 5: type of run ("training" or "simulation", always "training" for SOLO)\n')
+    f.write('Line 6: seed for random number generator - default is 5678\n')
+    f.write('Line 7: "calThreshold", not used by SOLO\n')
+    f.write('Lines 8 to 18: output files from SOLO with path relative to current directory\n')
     f.close()
     # seqsolo inf file
     f = open('solo/inf/seqsolo.inf','w')
@@ -560,6 +581,18 @@ def gfSOLO_writeinffiles(solo_gui):
     f.write('solo/output/seqHidOutW.out'+'\n')
     f.write('solo/output/seqFreqMap.out'+'\n')
     f.write(str(-9999.0)+'\n')
+    f.write('### Comment lines ###\n')
+    f.write('Line 1: No. of nodes - default is the number of drivers plus 1 (changeable via GUI if used)\n')
+    f.write('Line 2: NdaFactor - not used by SEQSOLO, default value is 0\n')
+    f.write('Line 3: learning rate - default value 0.01 (must be between 0.0 1nd 1.0, changeable via GUI if used)\n')
+    f.write('Line 4: number of iterations for sequential training, default value is 500 (changeable via GUI if used)\n')
+    f.write('Line 5: fourth output file from SOFM, used as input file by SEQSOLO\n')
+    f.write('Line 6: input data filename with path relative to current directory\n')
+    f.write('Line 7: type of run ("training" or "simulation", always "simulation" for SEQSOLO)\n')
+    f.write('Line 8: seed for random number generator - default is 9100\n')
+    f.write('Line 9: "calThreshold" - minimum number of data points for SOLO node to be used in simulation, default value is 0 (use all nodes)\n')
+    f.write('Lines 10 to 21: output files from SEQSOLO with path relative to current directory\n')
+    f.write('Line 22: missing data value, default value is -9999\n')
     f.close()
 
 def gfSOLO_runsofm(cf,ds,solo_gui,driverlist,targetlabel,nRecs,si=0,ei=-1):
@@ -830,10 +863,6 @@ def gfSOLO_plotresults(cf,ds,driverlist,targetlabel,solo_gui,si=0,ei=-1):
     # calculate bottom of the first time series and the height of the time series plots
     ts_bottom = margin_bottom + xy_height + xyts_space
     ts_height = (1.0 - margin_top - ts_bottom)/float(nDrivers+1)
-    # get the diurnal stats
-    index = numpy.ma.where(obs.mask==False)[0]
-    Hr1,Av1,Sd1,Mx1,Mn1=gf_getdiurnalstats(Hdh,obs,dt)
-    Hr2,Av2,Sd2,Mx2,Mn2=gf_getdiurnalstats(Hdh[index],mod[index],dt)
     # make the figure
     plt.ion()
     fignums = plt.get_fignums()
@@ -846,11 +875,23 @@ def gfSOLO_plotresults(cf,ds,driverlist,targetlabel,solo_gui,si=0,ei=-1):
     
     rect1 = [0.10,margin_bottom,xy_width,xy_height]
     ax1 = plt.axes(rect1)
-    ax1.plot(Hr1,Av1,'b-',Hr2,Av2,'r-')
+    # get the diurnal stats of the observations
+    Hr1,Av1,Sd1,Mx1,Mn1=gf_getdiurnalstats(Hdh,obs,dt)
+    ax1.plot(Hr1,Av1,'b-',label="Obs")
+    # get the diurnal stats of all SOLO predictions
+    Hr2,Av2,Sd2,Mx2,Mn2=gf_getdiurnalstats(Hdh,mod,dt)
+    ax1.plot(Hr2,Av2,'r-',label="SOLO(all)")
+    if numpy.ma.count_masked(obs)!=0:
+        index = numpy.ma.where(obs.mask==False)[0]
+        # get the diurnal stats of SOLO predictions when observations are present
+        Hr3,Av3,Sd3,Mx3,Mn3=gf_getdiurnalstats(Hdh[index],mod[index],dt)
+        ax1.plot(Hr3,Av3,'g-',label="SOLO(obs)")
     plt.xlim(0,24)
     plt.xticks([0,6,12,18,24])
     ax1.set_ylabel(targetlabel)
     ax1.set_xlabel('Hour')
+    ax1.legend(loc='upper right',frameon=False,prop={'size':8})
+    
     rect2 = [0.40,margin_bottom,xy_width,xy_height]
     ax2 = plt.axes(rect2)
     ax2.plot(mod,obs,'b.')
