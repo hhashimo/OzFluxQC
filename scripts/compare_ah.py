@@ -217,7 +217,10 @@ class PointBrowser:
         self.ei = numpy.clip(self.ei,self.si,len(DT_daily)-1)
         x = ah_7500_30min_2d[self.ei,:]
         y = ah_HMP1_30min_2d[self.ei,:]
-        print DT_daily[self.ei],numpy.ma.count(x),numpy.ma.corrcoef(x,y)[0][1]
+        if min([numpy.ma.count(x),numpy.ma.count(y)])<=0:
+            print DT_daily[self.ei],'%g'%(numpy.ma.count(x))
+        else:
+            print DT_daily[self.ei],'%g %.3f %.3f %.3f'%(numpy.ma.count(x),numpy.ma.corrcoef(x,y)[0][1],numpy.ma.polyfit(x,y,1)[0],numpy.ma.polyfit(x,y,1)[1])
         x = ah_7500_30min_2d[self.si:self.ei+1,:]
         y = ah_HMP1_30min_2d[self.si:self.ei+1,:]
         x_nm = numpy.ma.compressed(x)
@@ -228,6 +231,7 @@ class PointBrowser:
             self.rr = (numpy.max(y_nm)-numpy.min(y_nm))/(numpy.max(x_nm)-numpy.min(x_nm))
             resrlm = sm.RLM(y_nm,sm.add_constant(x_nm,prepend=False),M=sm.robust.norms.TukeyBiweight()).fit()
             self.coefs = resrlm.params
+            m = self.coefs[0]; b = self.coefs[1]
             self.axxy.cla()
             self.axxy.plot(x_nm,y_nm,'b.')
             self.axxy.set_xlabel('Ah_7500 (g/m3)')
@@ -235,6 +239,12 @@ class PointBrowser:
             self.axxy.plot(x_nm,self.coefs[0]*x_nm+self.coefs[1],'r--',linewidth=3)
             eqnstr = 'y = %.3fx + %.3f, r = %.3f'%(self.coefs[0],self.coefs[1],self.r[0][1])
             self.axxy.text(0.5,0.875,eqnstr,fontsize=8,horizontalalignment='center',transform=self.axxy.transAxes)
+            #print DT_daily[self.ei],'%g %.3f %.3f %.3f'%(numpy.ma.count(x),numpy.ma.corrcoef(x,y)[0][1],m,b)
+        #else:
+            #print DT_daily[self.ei],numpy.ma.count(x),numpy.ma.corrcoef(x,y)[0][1]
+            #print str(DT_daily[self.ei])+'%g %.3f'%(numpy.ma.count(x),numpy.ma.corrcoef(x,y)[0][1])
+            #m = numpy.ma.zeros(1); m.mask = True; m=m[0]
+            #b = numpy.ma.zeros(1); b.mask = True; b=b[0]
         dtstr = str(DT_daily[self.si]) + ' to ' + str(DT_daily[self.ei])
         self.axxy.text(0.5,0.925,dtstr,fontsize=8,horizontalalignment='center',transform=self.axxy.transAxes)
         self.figxy.canvas.draw()
@@ -247,9 +257,24 @@ class PointBrowser:
         self.correl.append(self.r[0][1])
         self.stdratio.append(self.sd)
         self.rangeratio.append(self.rr)
+        # print everything
+        print '*** all results ***'
         for i in range(len(self.slope)):
             eqnstr = '%.3f, %.3f, %.3f, %.3f, %.3f'%(self.slope[i],self.offset[i],self.correl[i],self.stdratio[i],self.rangeratio[i])
             print self.start_date[i], self.end_date[i], eqnstr
+        # print the linear fit for correcting Ah_7500_Av
+        print '*** corrections for Ah_7500_Av ***'
+        for i in range(len(self.slope)):
+            eqnstr = '%.3f,%.3f'%(self.slope[i],self.offset[i])
+            print str(i)+'='+'"['+"'"+self.start_date[i].strftime('%Y-%m-%d %H:%M')+"'"+','\
+                      +"'"+self.end_date[i].strftime('%Y-%m-%d %H:%M')+"'"+","+eqnstr+']"'
+        # print the ratio of the standard deviations for correcting the covariances
+        print '*** corrections for covariances UxA, UyA and UzA'
+        for i in range(len(self.slope)):
+            eqnstr = '%.3f'%(self.stdratio[i])
+            print str(i)+'='+'"['+"'"+self.start_date[i].strftime('%Y-%m-%d %H:%M')+"'"+','\
+                      +"'"+self.end_date[i].strftime('%Y-%m-%d %H:%M')+"'"+","+eqnstr\
+                      +',0.0]"'
         plt.close('all')
 
 browser = PointBrowser()
