@@ -26,6 +26,7 @@ class DataStructure(object):
         self.mergeserieslist = []
         self.averageserieslist = []
         self.soloserieslist = []
+        self.climatologyserieslist = []
 
 def copy_datastructure(cf,ds_in):
     '''

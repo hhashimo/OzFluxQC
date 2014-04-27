@@ -45,8 +45,9 @@ def l2qc(cf,ds1):
     ds2 = copy.deepcopy(ds1)
     ds2.globalattributes['nc_level'] = 'L2'
     ds2.globalattributes['EPDversion'] = sys.version
-    #ds2.globalattributes['Functions'] = 'RangeCheck, CSATcheck, 7500check, diurnalcheck, excludedates, excludehours, albedo'
     ds2.globalattributes['Functions'] = ''
+    # put the control file name into the global attributes
+    ds2.globalattributes['controlfile_name'] = cf['controlfile_name']
     # apply the quality control checks (range, diurnal, exclude dates and exclude hours
     qcck.do_qcchecks(cf,ds2)
     # do the CSAT diagnostic check
@@ -109,8 +110,12 @@ def l3qc(cf,ds2):
     ds3.globalattributes['EPDversion'] = sys.version
     # initialise the global attribute to document the functions used
     ds3.globalattributes['Functions'] = ''
+    # put the control file name into the global attributes
+    ds3.globalattributes['controlfile_name'] = cf['controlfile_name']
+    # check to see if the user wants to gap fill anything
+    qcgf.GapFill_L2(cf,ds2,ds3)
     # correct measured soil water content using empirical relationship to collected samples
-    qcts.CorrectSWC(cf,ds3)
+    #qcts.CorrectSWC(cf,ds3)
     # apply linear corrections to the data
     qcck.do_linear(cf,ds3)
     # merge the HMP and corrected 7500 data
@@ -207,6 +212,8 @@ def l4qc(cf,ds3):
     # set some attributes for this level    
     ds4.globalattributes['nc_level'] = 'L4'
     ds4.globalattributes['EPDversion'] = sys.version
+    # put the control file name into the global attributes
+    ds4.globalattributes['controlfile_name'] = cf['controlfile_name']
     # now do the meteorological driver gap filling
     for ThisOne in cf['Drivers'].keys():
         # interpolate over any gaps up to 1 hour in length
@@ -224,25 +231,16 @@ def l4qc(cf,ds3):
     # re-calculate the meteorological variables
     qcts.CalculateMeteorologicalVariables(ds4)
     # now do the flux gap filling methods
-    for ThisOne in cf['Fluxes'].keys():
-        # make a copy of the fluxes (at L3) before the ustar filtering and gap filling
-#        if ThisOne+'_L3' not in ds4.series.keys() and ThisOne in ds3.series.keys():
-        # make a fresh copy of the L3 data each time in case the copy in ds4 has been modifed (ie by ustar filter)
-        if ThisOne in ds3.series.keys():
-            flux,flag = qcutils.GetSeriesasMA(ds3,ThisOne)
-            attr = qcutils.GetAttributeDictionary(ds3,ThisOne)
-            attr['long_name'] = attr['long_name']+', L3 data'
-            qcutils.CreateSeries(ds4,ThisOne+'_L3',flux,Flag=flag,Attr=attr)
-        # now do the gap filling
+    for ThisOne in cf['Targets'].keys():
         # interpolate over any gaps up to 1 hour in length
         qcts.InterpolateOverMissing(ds4,series=ThisOne,maxlen=2)
         qcgf.GapFillFluxUsingMDS(cf,ds4,series=ThisOne)
         # _namecollector will put a list of series names in ds.soloserieslist for later processing
-        qcgf.GapFillFluxUsingSOLO_namecollector(cf,ds4,series=ThisOne)
+        qcgf.GapFillUsingSOLO_namecollector(cf,ds4,series=ThisOne)
         qcgf.GapFillFluxFromDayRatio(cf,ds4,series=ThisOne)
         qcgf.GapFillFromClimatology(cf,ds4,series=ThisOne)
     # do the gap filling using SOLO on all series identified by _namecollector
-    qcgf.GapFillFluxUsingSOLO(ds4)
+    qcgf.GapFillUsingSOLO(ds3,ds4)
     # now re-apply the quality control checks
     for ThisOne in cf['Drivers'].keys():
         # re-apply the quality control checks (range, diurnal and rules)
@@ -251,7 +249,7 @@ def l4qc(cf,ds3):
         qcts.InterpolateOverMissing(ds4,series=ThisOne,maxlen=3)
         # fill any remaining gaps climatology
         qcgf.GapFillFromClimatology(cf,ds4,series=ThisOne)
-    for ThisOne in cf['Fluxes'].keys():
+    for ThisOne in cf['Targets'].keys():
         # gap fill the observations using gap fill data in the order specified in cf
         qcts.MergeSeries(cf,ds4,ThisOne,[0,10,20,30,40,50])
         # re-apply the quality control checks (range, diurnal and rules)
@@ -260,12 +258,12 @@ def l4qc(cf,ds3):
         qcts.InterpolateOverMissing(ds4,series=ThisOne,maxlen=3)
         # fill any remaining gaps climatology
         qcgf.GapFillFromClimatology(cf,ds4,series=ThisOne)
-    # estimate Reco using the methods specified in the control file
-    qcgf.EstimateReco(cf,ds4)
-    # get a single series of NEE
-    qcgf.CalculateNEE(cf,ds4)
-    # ... and partition NEE into GPP and Reco
-    qcgf.PartitionNEE(cf,ds4)
+    ## estimate Reco using the methods specified in the control file
+    #qcgf.EstimateReco(cf,ds4)
+    ## get a single series of NEE
+    #qcgf.CalculateNEE(cf,ds4)
+    ## ... and partition NEE into GPP and Reco
+    #qcgf.PartitionNEE(cf,ds4)
     # write the percentage of good data as a variable attribute
     qcutils.get_coverage_individual(ds4)
     # write the percentage of good data for groups

@@ -1,5 +1,9 @@
 version_name = "OzFluxQC"
-version_number = "V2.7.1"
+version_number = "V2.7.2"
+# V2.7.2   - several enhancements, mainly to do with gap filling
+#            - implemented "interpolated daily" metyhod of
+#              gap filling from climatology
+#            - implemented gap filling at L3
 # V2.7.1   - fixed bug in CorrectFcForStorage, Fc_storage_in typo
 # V2.7.0   - major bug fixes as for V2.6.3 above
 #          - minor bug fixes to clean up use of switches in ['Options'] section

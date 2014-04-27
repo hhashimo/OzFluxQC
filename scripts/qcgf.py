@@ -3,6 +3,7 @@ from calendar import isleap
 from configobj import ConfigObj
 import constants as c
 import csv
+import datetime
 import logging
 import numpy
 import matplotlib.dates as mdt
@@ -213,11 +214,29 @@ def GapFillFromAlternate(cf,ds,series=''):
     if 'GapFillFromAlternate' not in ds.globalattributes['Functions']:
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', GapFillFromAlternate'
 
+def GapFill_L2(cf,ds2,ds3):
+    for series in ds3.series.keys():
+        section = qcutils.get_cfsection(cf,series=series,mode='quiet')
+        if len(section)==0: continue
+        for gftype in cf[section][series].keys():
+            if gftype=="GapFillFromAlternate":
+                log.error("GapFill_L2: Gap filling from alternate data source not implemented yet")
+                pass
+            if gftype=="GapFillFromClimatology":
+                gfClimatology_oneseries(cf,ds3,series)
+            if gftype=="GapFillUsingSOLO":
+                GapFillUsingSOLO_namecollector(cf,ds3,series=series)
+    if len(ds3.soloserieslist)!=0:
+        GapFillUsingSOLO(ds2,ds3)
+        for series in ds3.soloserieslist:
+            qcts.MergeSeries(cf,ds3,series,[0,10,20,30,40,50])
+
 def GapFillFromClimatology(cf,ds,series=''):
     '''
     Gap fill missing data using data from the climatology spreadsheet produced by
     the climatology.py script.
     '''
+    if len(series)==0: return
     # check to see if the series has an entry in the config file
     section = qcutils.get_cfsection(cf,series=series,mode='quiet')
     if len(section)==0: return                    # "series" is not in the config file
@@ -228,10 +247,11 @@ def GapFillFromClimatology(cf,ds,series=''):
     # check to see if there are any gaps in "series"
     index = numpy.where(abs(ds.series[series]['Data']-float(-9999))<c.eps)[0]
     if len(index)==0: return                      # no gaps found in "series"
+    # do the gap filling
     log.info(' Gap filling '+series+' using climatology')
     alt_xlbook = {}
     open_xlfiles = []
-    Values = numpy.zeros([48,12])
+    section = qcutils.get_cfsection(cf,series=series,mode='quiet')
     alt_filename = cf[section][series]['GapFillFromClimatology']['file_name']
     if not os.path.exists(alt_filename):
         log.error(" GapFillFromClimatology: Climatology file "+alt_filename+" doesn't exist")
@@ -242,19 +262,78 @@ def GapFillFromClimatology(cf,ds,series=''):
         open_xlfiles.append(alt_filename)
     else:
         n = open_xlfiles.index(alt_filename)
-    ThisSheet = alt_xlbook[n].sheet_by_name(series)
+    # choose the gap filling method
+    if "method" in cf[section][series]['GapFillFromClimatology']:
+        if cf[section][series]['GapFillFromClimatology']['method']=='monthly':
+            gfClimatology_monthly(cf,ds,series,alt_xlbook[n])
+        elif cf[section][series]['GapFillFromClimatology']['method']=='interpolated daily':
+            gfClimatology_interpolateddaily(cf,ds,series,alt_xlbook[n])
+        else:
+            log.error(" GapFillFromClimatology: unrecognised method option for "+series)
+            return
+    else:
+        gfClimatology_monthly(cf,ds,series,alt_xlbook[n])
+    if 'GapFillFromClimatology' not in ds.globalattributes['Functions']:
+        ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', GapFillFromClimatology'
+
+def gfClimatology_monthly(cf,ds,series,xlbook):
+    thissheet = xlbook.sheet_by_name(series)
     val1d = numpy.zeros_like(ds.series[series]['Data'])
+    values = numpy.zeros([48,12])
     for month in range(1,13):
         xlCol = (month-1)*5 + 2
-        Values[:,month-1] = ThisSheet.col_values(xlCol)[2:50]
+        values[:,month-1] = thissheet.col_values(xlCol)[2:50]
     for i in range(len(ds.series[series]['Data'])):
         h = numpy.int(2*ds.series['Hdh']['Data'][i])
         m = numpy.int(ds.series['Month']['Data'][i])
-        val1d[i] = Values[h,m-1]
+        val1d[i] = values[h,m-1]
     ds.series[series]['Data'][index] = val1d[index]
     ds.series[series]['Flag'][index] = numpy.int32(32)
-    if 'GapFillFromClimatology' not in ds.globalattributes['Functions']:
-        ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', GapFillFromClimatology'
+    
+def gfClimatology_interpolateddaily(cf,ds,series,xlbook):
+    # gap fill from interpolated 30 minute data
+    ts = ds.globalattributes["time_step"]
+    ldt = ds.series["DateTime"]["Data"]
+    thissheet = xlbook.sheet_by_name(series+'i(day)')
+    datemode = xlbook.datemode
+    basedate = datetime.datetime(1899, 12, 30)
+    nts = thissheet.ncols - 1
+    ndays = thissheet.nrows - 2
+    # read the time stamp values from the climatology worksheet
+    tsteps = thissheet.row_values(1,start_colx=1,end_colx=nts+1)
+    # read the data from the climatology workbook
+    val1d = numpy.ma.zeros(ndays*nts,dtype=numpy.float64)
+    # initialise an array for the datetime of the climatological values
+    cdt = [None]*nts*ndays
+    # loop over the rows (days) of data
+    for xlRow in range(ndays):
+        # get the Excel datetime value
+        xldatenumber = thissheet.cell_value(xlRow+2,0)
+        # convert this to a Python Datetime
+        xldatetime = basedate+datetime.timedelta(days=xldatenumber+1462*datemode)
+        # fill the climatology datetime array
+        cdt[xlRow*nts:(xlRow+1)*nts] = [xldatetime+datetime.timedelta(hours=hh) for hh in tsteps]
+        # fill the climatological value array
+        val1d[xlRow*nts:(xlRow+1)*nts] = thissheet.row_values(xlRow+2,start_colx=1,end_colx=nts+1)
+    # get the data to be filled with climatological values
+    data,flag = qcutils.GetSeriesasMA(ds,series)
+    # get an index of missing values
+    idx = numpy.ma.where(data.mask==True)[0]
+    # there must be a better way to do this ...
+    # simply using the index (idx) to set a slice of the data array to the gap filled values in val1d
+    # does not seem to work (mask stays true on replaced values in data), the work around is to
+    # step through the indices, find the time of the missing value in data, find the same time in the
+    # gap filled values val1d and set the missing element of data to this element of val1d
+    li = 0
+    for ii in idx:
+        jj = cdt.index(ldt[ii],li)
+        li = jj
+        data[ii] = val1d[jj]
+        flag[ii] = numpy.int32(32)
+    # get the attribute dictionary of the series being gap filled
+    attr = qcutils.GetAttributeDictionary(ds, series)
+    # put the gap filled data back into the data structure
+    qcutils.CreateSeries(ds, series, data, Flag=flag, Attr=attr)
 
 def GapFillFluxFromDayRatio(cf,ds,series=''):
     section = qcutils.get_cfsection(cf,series=series,mode='quiet')
@@ -340,14 +419,14 @@ def GapFillFluxUsingMDS(cf,ds,series=''):
     if 'GapFillFluxUsingMDS' in cf[section][series].keys():
         log.infor(' GapFillFluxUsingMDS: not implemented yet')
         return
-    
-def GapFillFluxUsingSOLO_namecollector(cf,ds,series=''):
+
+def GapFillUsingSOLO_namecollector(cf,ds,series=''):
     section = qcutils.get_cfsection(cf,series=series,mode='quiet')
     if len(section)==0: return
-    if 'GapFillFluxUsingSOLO' in cf[section][series].keys():
+    if 'GapFillUsingSOLO' in cf[section][series].keys():
         ds.soloserieslist.append(series)
 
-def GapFillFluxUsingSOLO(ds):
+def GapFillUsingSOLO(dsa,dsb):
     '''
     This is the "Run SOLO" GUI.
     The SOLO GUI is displayed separately from the main OzFluxQC GUI.
@@ -357,11 +436,11 @@ def GapFillFluxUsingSOLO(ds):
     when we are done.  On exit, the OzFluxQC main GUI continues and eventually
     writes the gap filled data to file.
     '''
-    if len(ds.soloserieslist)==0: return
-    ldt = ds.series['DateTime']['Data']
+    if len(dsb.soloserieslist)==0: return
+    ldt = dsb.series['DateTime']['Data']
     
     solo_gui = Tkinter.Toplevel()
-    solo_gui.wm_title('SOLO GUI : '+str(ds.soloserieslist))
+    solo_gui.wm_title('SOLO GUI : '+str(dsb.soloserieslist))
     solo_gui.grid()
     # top row
     nrow = 0
@@ -419,7 +498,7 @@ def GapFillFluxUsingSOLO(ds):
     solo_gui.endEntry.grid(row=nrow,column=3,columnspan=3)
     # bottom row
     nrow = nrow + 1
-    solo_gui.runButton = Tkinter.Button (solo_gui, text='Run SOLO',command=lambda:gfSOLO_main(ds,solo_gui))
+    solo_gui.runButton = Tkinter.Button (solo_gui, text='Run SOLO',command=lambda:gfSOLO_main(dsa,dsb,solo_gui))
     solo_gui.runButton.grid(row=nrow,column=1,columnspan=2)
     solo_gui.doneButton = Tkinter.Button (solo_gui, text='End SOLO session',command=lambda:finished_solo(solo_gui))
     solo_gui.doneButton.grid(row=nrow,column=3,columnspan=2)
@@ -434,18 +513,18 @@ def finished_solo(self):
     #for i in plt.get_fignums(): plt.close(i)
     #top.destroy()
 
-def gfSOLO_main(ds,solo_gui):
+def gfSOLO_main(dsa,dsb,solo_gui):
     '''
     This is the main routine for running SOLO, an artifical neural network for gap filling fluxes.
     '''
-    log.info(' Gap filling '+str(ds.soloserieslist)+' using SOLO ANN')
+    log.info(' Gap filling '+str(dsb.soloserieslist)+' using SOLO ANN')
     # read the control file again, this allows the contents of the control file to
     # be changed with the SOLO GUI still displayed
-    cfname = ds.globalattributes['controlfile_name']
+    cfname = dsb.globalattributes['controlfile_name']
     cf = qcio.get_controlfilecontents(cfname)
     # get the time step and a local pointer to the datetime series
-    ts = ds.globalattributes['time_step']
-    ldt = ds.series['DateTime']['Data']
+    ts = dsb.globalattributes['time_step']
+    ldt = dsb.series['DateTime']['Data']
     startdate = solo_gui.startEntry.get()
     enddate = solo_gui.endEntry.get()
     # get the start and end datetime indices
@@ -457,36 +536,34 @@ def gfSOLO_main(ds,solo_gui):
         return
     if si==0 and ei==-1:
         print ' GapFillUsingSOLO: no start and end datetime specified, using all data'
-        nRecs = int(ds.globalattributes['nc_nrecs'])
+        nRecs = int(dsb.globalattributes['nc_nrecs'])
     else:
         nRecs = ei - si + 1
     # loop over the series to be gap filled using solo
-    for series in ds.soloserieslist:
+    for series in dsb.soloserieslist:
         # get the section containing series
         section = qcutils.get_cfsection(cf,series=series,mode='quiet')
         # get the list of drivers
-        driverlist = ast.literal_eval(cf[section][series]['GapFillFluxUsingSOLO']['drivers'])
+        driverlist = ast.literal_eval(cf[section][series]['GapFillUsingSOLO']['drivers'])
         # set the number of nodes for the inf files
         nodesAuto = gfSOLO_setnodesEntry(solo_gui,driverlist)
         # write the inf files for sofm, solo and seqsolo
         gfSOLO_writeinffiles(solo_gui)
         # run SOFM
-        result = gfSOLO_runsofm(cf,ds,solo_gui,driverlist,series,nRecs,si=si,ei=ei)
+        result = gfSOLO_runsofm(cf,dsa,dsb,solo_gui,driverlist,series,nRecs,si=si,ei=ei)
         if result!=1: return
         # run SOLO
-        # note that we pass in <series> but runsolo will use <series>_L3
-        result = gfSOLO_runsolo(cf,ds,driverlist,series,nRecs,si=si,ei=ei)
+        result = gfSOLO_runsolo(cf,dsa,dsb,driverlist,series,nRecs,si=si,ei=ei)
         if result!=1: return
         # run seqsolo and put the solo_modelled data into the ds series
-        # note that we pass in <series> but runseqsolo will use <series>_L3
-        result = gfSOLO_runseqsolo(cf,ds,driverlist,series,nRecs,si=si,ei=ei)
+        result = gfSOLO_runseqsolo(cf,dsa,dsb,driverlist,series,nRecs,si=si,ei=ei)
         if result!=1: return
         # plot the results
-        gfSOLO_plotresults(cf,ds,driverlist,series,solo_gui,si=si,ei=ei)
+        gfSOLO_plotresults(cf,dsa,dsb,driverlist,series,solo_gui,si=si,ei=ei)
         # reset the nodesEntry in the solo_gui
         if nodesAuto: gfSOLO_resetnodesEntry(solo_gui)
-    if 'GapFillUsingSOLO' not in ds.globalattributes['Functions']:
-        ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', GapFillUsingSOLO'
+    if 'GapFillUsingSOLO' not in dsb.globalattributes['Functions']:
+        dsb.globalattributes['Functions'] = dsb.globalattributes['Functions']+', GapFillUsingSOLO'
 
 def gfSOLO_setnodesEntry(solo_gui,driverlist):
     nodesAuto = False
@@ -595,14 +672,14 @@ def gfSOLO_writeinffiles(solo_gui):
     f.write('Line 22: missing data value, default value is -9999\n')
     f.close()
 
-def gfSOLO_runsofm(cf,ds,solo_gui,driverlist,targetlabel,nRecs,si=0,ei=-1):
+def gfSOLO_runsofm(cf,dsa,dsb,solo_gui,driverlist,targetlabel,nRecs,si=0,ei=-1):
     '''
     Run sofm, the pre-processor for SOLO.
     '''
     # check to see if we need to run sofm again
     # construct the sofm output file name
-    ldt = ds.series['DateTime']['Data']
-    sofmoutname=ds.globalattributes['site_name'].replace(' ','')      # site name
+    ldt = dsb.series['DateTime']['Data']
+    sofmoutname=dsb.globalattributes['site_name'].replace(' ','')     # site name
     for x in driverlist: sofmoutname = sofmoutname + x                # drivers
     sofmoutname = sofmoutname + ldt[si].strftime('%Y%m%d%H%M')        # start datetime
     sofmoutname = sofmoutname + ldt[ei].strftime('%Y%m%d%H%M')        # end datetime
@@ -624,7 +701,7 @@ def gfSOLO_runsofm(cf,ds,solo_gui,driverlist,targetlabel,nRecs,si=0,ei=-1):
     i = 0
     badlines = []
     for TheseOnes in driverlist:
-        driver,flag = qcutils.GetSeries(ds,TheseOnes,si=si,ei=ei)
+        driver,flag = qcutils.GetSeries(dsb,TheseOnes,si=si,ei=ei)
         index = numpy.where(abs(driver-float(-9999)<c.eps))[0]
         if len(index)!=0:
             log.error(' GapFillUsingSOLO: -9999 found in driver '+TheseOnes+' at lines '+str(index))
@@ -700,7 +777,7 @@ def gfSOLO_checkforprevioussofmrun(sofmoutname,sofminfname):
     else:
         return False
 
-def gfSOLO_runsolo(cf,ds,driverlist,targetlabel,nRecs,si=0,ei=-1):
+def gfSOLO_runsolo(cf,dsa,dsb,driverlist,targetlabel,nRecs,si=0,ei=-1):
     '''
     Run SOLO.
     Note that although we pass in <targetlabel>, we will use <targetlabel>_L3 as the
@@ -711,23 +788,14 @@ def gfSOLO_runsolo(cf,ds,driverlist,targetlabel,nRecs,si=0,ei=-1):
     ndrivers = len(driverlist)
     # add an extra column for the target data
     soloinputdata = numpy.zeros((nRecs,ndrivers+1))
-    # now fill the driver data array
+    # now fill the driver data array, drivers come from the modified ds
     i = 0
     for TheseOnes in driverlist:
-        driver,flag = qcutils.GetSeries(ds,TheseOnes,si=si,ei=ei)
+        driver,flag = qcutils.GetSeries(dsb,TheseOnes,si=si,ei=ei)
         soloinputdata[:,i] = driver[:]
         i = i + 1
-    # check that the L3 series exists in the data structure
-    if ds.globalattributes['nc_level']=='L4':
-        L3label = targetlabel+'_L3'
-    elif ds.globalattributes['nc_level']=='L3':
-        L3label = targetlabel
-    if L3label in ds.series.keys():
-        # get a copy of the L3 data
-        target,flag = qcutils.GetSeries(ds,L3label,si=si,ei=ei)
-    else:
-        log.error(' gfSOLO_runsolo: L3 series '+L3label+' not in data structure')
-        return
+    # a clean copy of the target is pulled from the unmodified ds each time
+    target,flag = qcutils.GetSeries(dsa,targetlabel,si=si,ei=ei)
     # now load the target data into the data array
     soloinputdata[:,ndrivers] = target[:]
     # now strip out the bad data
@@ -763,14 +831,14 @@ def gfSOLO_runsolo(cf,ds,driverlist,targetlabel,nRecs,si=0,ei=-1):
         log.error(' gfSOLO_runsolo: SOLO did not run correctly, check the SOLO GUI and the log files')
         return 0
 
-def gfSOLO_runseqsolo(cf,ds,driverlist,targetlabel,nRecs,si=0,ei=-1):
+def gfSOLO_runseqsolo(cf,dsa,dsb,driverlist,targetlabel,nRecs,si=0,ei=-1):
     '''
     Run SEQSOLO.
     '''
     # get the section containing series
     section = qcutils.get_cfsection(cf,series=targetlabel,mode='quiet')
     # get the output label
-    outlabel = str(cf[section][targetlabel]['GapFillFluxUsingSOLO']['output'])
+    outlabel = str(cf[section][targetlabel]['GapFillUsingSOLO']['output'])
     # get the number of drivers    
     ndrivers = len(driverlist)
     # add an extra column for the target data
@@ -778,20 +846,11 @@ def gfSOLO_runseqsolo(cf,ds,driverlist,targetlabel,nRecs,si=0,ei=-1):
     # now fill the driver data array
     i = 0
     for TheseOnes in driverlist:
-        driver,flag = qcutils.GetSeries(ds,TheseOnes,si=si,ei=ei)
+        driver,flag = qcutils.GetSeries(dsb,TheseOnes,si=si,ei=ei)
         seqsoloinputdata[:,i] = driver[:]
         i = i + 1
-    # check that the L3 series exists in the data structure
-    if ds.globalattributes['nc_level']=='L4':
-        L3label = targetlabel+'_L3'
-    elif ds.globalattributes['nc_level']=='L3':
-        L3label = targetlabel
-    if L3label in ds.series.keys():
-        # get a copy of the L3 data
-        target,flag = qcutils.GetSeries(ds,L3label,si=si,ei=ei)
-    else:
-        log.error(' gfSOLO_runseqsolo: L3 series '+L3label+' not in data structure')
-        return 1
+    # a clean copy of the target is pulled from the unmodified ds each time
+    target,flag = qcutils.GetSeries(dsa,targetlabel,si=si,ei=ei)
     # now load the target data into the data array
     seqsoloinputdata[:,ndrivers] = target[:]
     # and then write the seqsolo input file
@@ -816,39 +875,35 @@ def gfSOLO_runseqsolo(cf,ds,driverlist,targetlabel,nRecs,si=0,ei=-1):
         # seqsolo can be used via the "learning rate" and "Iterations" GUI options
         seqdata = numpy.genfromtxt('solo/output/seqOut2.out')
         # if no output series exists then create one now
-        if outlabel not in ds.series.keys():
+        if outlabel not in dsb.series.keys():
             # qcutils.GetSeriesasMA will create a blank series if it doesn't already exist
-            flux, flux_flag = qcutils.GetSeriesasMA(ds,outlabel)
+            flux, flux_flag = qcutils.GetSeriesasMA(dsb,outlabel)
             attr = qcutils.MakeAttributeDictionary(long_name=targetlabel+' modelled by SOLO',
-                                                   units=ds.series[targetlabel]['Attr']['units'])
-            qcutils.CreateSeries(ds,outlabel,flux,Flag=flux_flag,Attr=attr)
+                                                   units=dsa.series[targetlabel]['Attr']['units'])
+            qcutils.CreateSeries(dsb,outlabel,flux,Flag=flux_flag,Attr=attr)
         # put the SOLO modelled data back into the data series
         if ei==-1:
-            ds.series[outlabel]['Data'][si:] = seqdata[:,1]
-            ds.series[outlabel]['Flag'][si:] = numpy.int32(30)
+            dsb.series[outlabel]['Data'][si:] = seqdata[:,1]
+            dsb.series[outlabel]['Flag'][si:] = numpy.int32(30)
         else:
-            ds.series[outlabel]['Data'][si:ei+1] = seqdata[:,1]
-            ds.series[outlabel]['Flag'][si:ei+1] = numpy.int32(30)
+            dsb.series[outlabel]['Data'][si:ei+1] = seqdata[:,1]
+            dsb.series[outlabel]['Flag'][si:ei+1] = numpy.int32(30)
         return 1
     else:
         log.error(' gfSOLO_runseqsolo: SEQSOLO did not run correctly, check the SOLO GUI and the log files')
         return 0
 
-def gfSOLO_plotresults(cf,ds,driverlist,targetlabel,solo_gui,si=0,ei=-1):
+def gfSOLO_plotresults(cf,dsa,dsb,driverlist,targetlabel,solo_gui,si=0,ei=-1):
     # get the section containing series
     section = qcutils.get_cfsection(cf,series=targetlabel,mode='quiet')
     # get the output label
-    outlabel = str(cf[section][targetlabel]['GapFillFluxUsingSOLO']['output'])
-    dt = int(ds.globalattributes['time_step'])
-    xdt = numpy.array(ds.series['DateTime']['Data'][si:ei+1])
-    Hdh,f = qcutils.GetSeriesasMA(ds,'Hdh',si=si,ei=ei)
-    L3label = targetlabel+'_L3'
-    if L3label not in ds.series.keys():
-        log.error(' gfSOLO_plotresults: L3 series '+L3label+' not in data structure')
-        return
+    outlabel = str(cf[section][targetlabel]['GapFillUsingSOLO']['output'])
+    dt = int(dsb.globalattributes['time_step'])
+    xdt = numpy.array(dsb.series['DateTime']['Data'][si:ei+1])
+    Hdh,f = qcutils.GetSeriesasMA(dsb,'Hdh',si=si,ei=ei)
     # get the observed and modelled values
-    obs,f = qcutils.GetSeriesasMA(ds,L3label,si=si,ei=ei)
-    mod,f = qcutils.GetSeriesasMA(ds,outlabel,si=si,ei=ei)
+    obs,f = qcutils.GetSeriesasMA(dsa,targetlabel,si=si,ei=ei)
+    mod,f = qcutils.GetSeriesasMA(dsb,outlabel,si=si,ei=ei)
     nDrivers = len(driverlist)
     # margins
     margin_bottom = 0.075
@@ -895,7 +950,7 @@ def gfSOLO_plotresults(cf,ds,driverlist,targetlabel,solo_gui,si=0,ei=-1):
     rect2 = [0.40,margin_bottom,xy_width,xy_height]
     ax2 = plt.axes(rect2)
     ax2.plot(mod,obs,'b.')
-    ax2.set_ylabel(targetlabel+'_L3')
+    ax2.set_ylabel(targetlabel+'_obs')
     ax2.set_xlabel(targetlabel+'_SOLO')
 
     coefs = numpy.ma.polyfit(mod,obs,1)
@@ -938,19 +993,19 @@ def gfSOLO_plotresults(cf,ds,driverlist,targetlabel,solo_gui,si=0,ei=-1):
     ts_axes.append(plt.axes(rect))
     ts_axes[0].plot(xdt,obs,'b.',xdt,mod,'r-')
     ts_axes[0].set_xlim(xdt[0],xdt[-1])
-    TextStr = L3label+'('+ds.series[targetlabel]['Attr']['units']+')'
+    TextStr = targetlabel+'_obs ('+dsa.series[targetlabel]['Attr']['units']+')'
     ts_axes[0].text(0.05,0.85,TextStr,color='b',horizontalalignment='left',transform=ts_axes[0].transAxes)
-    TextStr = outlabel+'('+ds.series[outlabel]['Attr']['units']+')'
+    TextStr = outlabel+'('+dsb.series[outlabel]['Attr']['units']+')'
     ts_axes[0].text(0.85,0.85,TextStr,color='r',horizontalalignment='right',transform=ts_axes[0].transAxes)
     plt.draw()    
     for ThisOne,i in zip(driverlist,range(1,nDrivers+1)):
         this_bottom = ts_bottom + i*ts_height
         rect = [margin_left,this_bottom,ts_width,ts_height]
         ts_axes.append(plt.axes(rect,sharex=ts_axes[0]))
-        data, flag = qcutils.GetSeriesasMA(ds,ThisOne,si=si,ei=ei)
+        data, flag = qcutils.GetSeriesasMA(dsb,ThisOne,si=si,ei=ei)
         ts_axes[i].plot(xdt,data)
         plt.setp(ts_axes[i].get_xticklabels(),visible=False)
-        TextStr = ThisOne+'('+ds.series[ThisOne]['Attr']['units']+')'
+        TextStr = ThisOne+'('+dsb.series[ThisOne]['Attr']['units']+')'
         ts_axes[i].text(0.05,0.85,TextStr,color='b',horizontalalignment='left',transform=ts_axes[i].transAxes)
         plt.draw()    
 

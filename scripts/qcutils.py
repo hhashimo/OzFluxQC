@@ -562,7 +562,7 @@ def get_cfsection(cf,series='',mode='quiet'):
     the control file.
     '''
     section = ''
-    sectionlist = ['Variables','Drivers','Fluxes','Derived']
+    sectionlist = ['Variables','Drivers','Targets','Derived']
     if len(series)==0:
         msgtxt = ' get_cfsection: no input series specified'
         if mode!='quiet': log.info(msgtxt)

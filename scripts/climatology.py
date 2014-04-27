@@ -78,8 +78,8 @@ def write_data_1columnpertimestep(xlSheet, data, ts, year=None, format_string=''
             xlSheet.write(j+2,xlCol,j)
     else:
         d_xf = xlwt.easyxf(num_format_str='dd/mm/yyyy')
-        for j in range(nrows+1):
-            d = datetime.datetime(year, 1, 1) + datetime.timedelta(j)
+        for j in range(nrows):
+            d = datetime.datetime(year, 1, 1) + datetime.timedelta(days=j)
             xlSheet.write(j+2,xlCol,d,d_xf)
     xlCol = xlCol + 1
     if len(format_string)!=0:
@@ -153,7 +153,7 @@ def get_diurnalstats(DecHour,Data,ts):
 def get_rangecheck_limit(cf,label,upr_def=1E10,lwr_def=-1E10):
     upper = float(upr_def)
     lower = float(lwr_def)
-    for section in ['Variables','Ratios']:
+    for section in ['Variables']:
         if label in cf[section].keys():
             if 'RangeCheck' in cf[section][label].keys():
                 upper = float(cf[section][label]['RangeCheck']['Upper'])
@@ -162,7 +162,7 @@ def get_rangecheck_limit(cf,label,upr_def=1E10,lwr_def=-1E10):
 
 def get_formatstring(cf,label,fmt_def=''):
     fmt_str = fmt_def
-    for section in ['Variables','Ratios']:
+    for section in ['Variables']:
         if label in cf[section].keys():
             if 'Format' in cf[section][label].keys():
                 fmt_str = str(cf[section][label]['Format'])
@@ -172,7 +172,6 @@ cf = qcio.load_controlfile(path='../controlfiles')
 if len(cf)==0: sys.exit()
 ncFullName = qcio.get_infilename_from_cf(cf)
 xlFileName = qcio.get_outfilename_from_cf(cf)
-ustar_threshold = float(cf['General']['ustar_threshold'])
 
 xlFile = xlwt.Workbook()
 
@@ -203,131 +202,149 @@ ntsInDay = int(24.0*60.0/float(ts))
 nDays = int(len(DateTime))/ntsInDay
 
 for ThisOne in cf['Variables'].keys():
-    print time.strftime('%X')+' Doing climatology for '+ThisOne
-    fmt_str = get_formatstring(cf,ThisOne,fmt_def='')
-    xlSheet = xlFile.add_sheet(ThisOne)
-    data, f = GetSeriesasMA(ds,ThisOne,si=si,ei=ei)
-    Av_all = do_diurnalstats(Month, Hdh, data, xlSheet, format_string=fmt_str)
-
-# we do Fh, Fe and Fc separately so we can apply a ustar threshold
-print time.strftime('%X')+' Doing climatology for Fh, Fe and Fc with ustar thershold'
-us,f = GetSeriesasMA(ds,'ustar',si=si,ei=ei)
-for label in ['Fc','Fe','Fh']:
-    fmt_str = get_formatstring(cf,label,fmt_def='')
-    data,f = GetSeriesasMA(ds,label,si=si,ei=ei)
-    data = numpy.ma.masked_where(us.mask==True,data)
-    data = numpy.ma.masked_where(us<ustar_threshold,data)
-    xlSheet = xlFile.add_sheet(label+'(ustar threshold)')
-    xlSheet.write(0,0,ustar_threshold)
-    Av_all = do_diurnalstats(Month, Hdh, data, xlSheet, format_string=fmt_str)
-    Avi = do_2dinterpolation(Av_all)
-    xlSheet = xlFile.add_sheet(label+'i(ustar threshold)')
-    xlSheet.write(0,0,ustar_threshold)
-    write_data_1columnpermonth(xlSheet, Avi, ts, format_string=fmt_str)
-
-# calculate the evaporative fraction
-print time.strftime('%X')+' Doing evaporative fraction'
-EF = numpy.ma.zeros([48,12]) + float(-9999)
-Hdh, f = GetSeriesasMA(ds,'Hdh',si=si,ei=ei)
-Fa, f = GetSeriesasMA(ds,'Fa',si=si,ei=ei)
-Fe, f = GetSeriesasMA(ds,'Fe',si=si,ei=ei)
-for m in range(1,13):
-    mi = numpy.where(Month==m)[0]
-    Fa_Num,Hr,Fa_Av,Sd,Mx,Mn = get_diurnalstats(Hdh[mi],Fa[mi],ts)
-    Fe_Num,Hr,Fe_Av,Sd,Mx,Mn = get_diurnalstats(Hdh[mi],Fe[mi],ts)
-    index = numpy.ma.where((Fa_Num>4)&(Fe_Num>4))
-    EF[:,m-1][index] = Fe_Av[index]/Fa_Av[index]
-# reject EF values greater than upper limit or less than lower limit
-upr, lwr = get_rangecheck_limit(cf,'EF')
-EF = numpy.ma.filled(numpy.ma.masked_where((EF>upr)|(EF<lwr),EF),float(-9999))
-# write the EF to the Excel file
-xlSheet = xlFile.add_sheet('EF')
-write_data_1columnpermonth(xlSheet, EF, ts, format_string='0.00')
-# do the 2D interpolation to fill missing EF values
-EFi = do_2dinterpolation(EF)
-xlSheet = xlFile.add_sheet('EFi')
-write_data_1columnpermonth(xlSheet, EFi, ts, format_string='0.00')
-
-# now do EF for each day ...
-Fa, f = GetSeriesasMA(ds,'Fa',si=si,ei=ei)
-Fe, f = GetSeriesasMA(ds,'Fe',si=si,ei=ei)
-EF = Fe/Fa
-EF = numpy.ma.filled(numpy.ma.masked_where((EF>upr)|(EF<lwr),EF),float(-9999))
-EF_daily = EF.reshape(nDays,ntsInDay)
-year = DateTime[0].year
-xlSheet = xlFile.add_sheet('EF(day)')
-write_data_1columnpertimestep(xlSheet, EF_daily, ts, year=year, format_string='0.00')
-EFi = do_2dinterpolation(EF_daily)
-xlSheet = xlFile.add_sheet('EFi(day)')
-write_data_1columnpertimestep(xlSheet, EFi, ts, year=year, format_string='0.00')
-
-# calculate the Bowen ratio
-print time.strftime('%X')+' Doing Bowen ratio'
-BR = numpy.ma.zeros([48,12]) + float(-9999)
-Fe, f = GetSeriesasMA(ds,'Fe',si=si,ei=ei)
-Fh, f = GetSeriesasMA(ds,'Fh',si=si,ei=ei)
-for m in range(1,13):
-    mi = numpy.where(Month==m)[0]
-    Fh_Num,Hr,Fh_Av,Sd,Mx,Mn = get_diurnalstats(Hdh[mi],Fh[mi],ts)
-    Fe_Num,Hr,Fe_Av,Sd,Mx,Mn = get_diurnalstats(Hdh[mi],Fe[mi],ts)
-    index = numpy.ma.where((Fh_Num>4)&(Fe_Num>4))
-    BR[:,m-1][index] = Fh_Av[index]/Fe_Av[index]
-# reject BR values greater than upper limit or less than lower limit
-upr,lwr = get_rangecheck_limit(cf,'BR')
-BR = numpy.ma.filled(numpy.ma.masked_where((BR>upr)|(BR<lwr),BR),float(-9999))
-# write the BR to the Excel file
-xlSheet = xlFile.add_sheet('BR')
-write_data_1columnpermonth(xlSheet, BR, ts, format_string='0.00')
-# do the 2D interpolation to fill missing EF values
-BRi = do_2dinterpolation(BR)
-xlSheet = xlFile.add_sheet('BRi')
-write_data_1columnpermonth(xlSheet, BRi, ts, format_string='0.00')
-# now do BR for each day ...
-Fe, f = GetSeriesasMA(ds,'Fe',si=si,ei=ei)
-Fh, f = GetSeriesasMA(ds,'Fh',si=si,ei=ei)
-BR = Fh/Fe
-BR = numpy.ma.filled(numpy.ma.masked_where((BR>upr)|(BR<lwr),BR),float(-9999))
-BR_daily = BR.reshape(nDays,ntsInDay)
-year = DateTime[0].year
-xlSheet = xlFile.add_sheet('BR(day)')
-write_data_1columnpertimestep(xlSheet, BR_daily, ts, year=year, format_string='0.00')
-BRi = do_2dinterpolation(BR_daily)
-xlSheet = xlFile.add_sheet('BRi(day)')
-write_data_1columnpertimestep(xlSheet, BRi, ts, year=year, format_string='0.00')
-
-# calculate the ecosystem water use efficiency
-print time.strftime('%X')+' Doing ecosystem WUE'
-WUE = numpy.ma.zeros([48,12]) + float(-9999)
-Fe, f = GetSeriesasMA(ds,'Fe',si=si,ei=ei)
-Fc, f = GetSeriesasMA(ds,'Fc',si=si,ei=ei)
-for m in range(1,13):
-    mi = numpy.where(Month==m)[0]
-    Fc_Num,Hr,Fc_Av,Sd,Mx,Mn = get_diurnalstats(Hdh[mi],Fc[mi],ts)
-    Fe_Num,Hr,Fe_Av,Sd,Mx,Mn = get_diurnalstats(Hdh[mi],Fe[mi],ts)
-    index = numpy.ma.where((Fc_Num>4)&(Fe_Num>4))
-    WUE[:,m-1][index] = Fc_Av[index]/Fe_Av[index]
-# reject WUE values greater than upper limit or less than lower limit
-upr,lwr = get_rangecheck_limit(cf,'WUE')
-WUE = numpy.ma.filled(numpy.ma.masked_where((WUE>upr)|(WUE<lwr),WUE),float(-9999))
-# write the WUE to the Excel file
-xlSheet = xlFile.add_sheet('WUE')
-write_data_1columnpermonth(xlSheet, WUE, ts, format_string='0.00000')
-# do the 2D interpolation to fill missing EF values
-WUEi = do_2dinterpolation(WUE)
-xlSheet = xlFile.add_sheet('WUEi')
-write_data_1columnpermonth(xlSheet, WUEi, ts, format_string='0.00000')
-# now do WUE for each day ...
-Fe, f = GetSeriesasMA(ds,'Fe',si=si,ei=ei)
-Fc, f = GetSeriesasMA(ds,'Fc',si=si,ei=ei)
-WUE = Fc/Fe
-WUE = numpy.ma.filled(numpy.ma.masked_where((WUE>upr)|(WUE<lwr),WUE),float(-9999))
-WUE_daily = WUE.reshape(nDays,ntsInDay)
-year = DateTime[0].year
-xlSheet = xlFile.add_sheet('WUE(day)')
-write_data_1columnpertimestep(xlSheet, WUE_daily, ts, year=year, format_string='0.00000')
-WUEi = do_2dinterpolation(WUE_daily)
-xlSheet = xlFile.add_sheet('WUEi(day)')
-write_data_1columnpertimestep(xlSheet, WUEi, ts, year=year, format_string='0.00000')
+    if ThisOne in ds.series.keys():
+        if ThisOne in ['Fc','Fe','Fh']:
+            print time.strftime('%X')+' Doing climatology for '+ThisOne+' with ustar threshold'
+            xlSheet = xlFile.add_sheet(ThisOne)
+            xlSheeti = xlFile.add_sheet(ThisOne+'i')
+            xlSheetd = xlFile.add_sheet(ThisOne+'(day)')
+            xlSheetdi = xlFile.add_sheet(ThisOne+'i(day)')
+            fmt_str = get_formatstring(cf,ThisOne,fmt_def='')
+            data,f = GetSeriesasMA(ds,ThisOne,si=si,ei=ei)
+            if "ustar_threshold" in cf["Variables"][ThisOne]:
+                ustar_threshold = float(cf["Variables"][ThisOne]['ustar_threshold'])
+                us,f = GetSeriesasMA(ds,'ustar',si=si,ei=ei)
+                data = numpy.ma.masked_where(us.mask==True,data)
+                data = numpy.ma.masked_where(us<ustar_threshold,data)
+                xlSheet.write(0,0,ustar_threshold)
+                xlSheeti.write(0,0,ustar_threshold)
+                xlSheetd.write(0,0,ustar_threshold)
+                xlSheetdi.write(0,0,ustar_threshold)
+            Av_all = do_diurnalstats(Month, Hdh, data, xlSheet, format_string=fmt_str)
+            Avi = do_2dinterpolation(Av_all)
+            write_data_1columnpermonth(xlSheeti, Avi, ts, format_string=fmt_str)
+            # now do it for each day
+            data_daily = data.reshape(nDays,ntsInDay)
+            year = DateTime[0].year
+            write_data_1columnpertimestep(xlSheetd, data_daily, ts, year=year, format_string=fmt_str)
+            data_daily_i = do_2dinterpolation(data_daily)
+            write_data_1columnpertimestep(xlSheetdi, data_daily_i, ts, year=year, format_string=fmt_str)
+        else:
+            print time.strftime('%X')+' Doing climatology for '+ThisOne
+            fmt_str = get_formatstring(cf,ThisOne,fmt_def='')
+            xlSheet = xlFile.add_sheet(ThisOne)
+            data, f = GetSeriesasMA(ds,ThisOne,si=si,ei=ei)
+            Av_all = do_diurnalstats(Month, Hdh, data, xlSheet, format_string=fmt_str)
+            # now do it for each day
+            data_daily = data.reshape(nDays,ntsInDay)
+            year = DateTime[0].year
+            xlSheet = xlFile.add_sheet(ThisOne+'(day)')
+            write_data_1columnpertimestep(xlSheet, data_daily, ts, year=year, format_string=fmt_str)
+            data_daily_i = do_2dinterpolation(data_daily)
+            xlSheet = xlFile.add_sheet(ThisOne+'i(day)')
+            write_data_1columnpertimestep(xlSheet, data_daily_i, ts, year=year, format_string=fmt_str)
+    elif ThisOne=="EF":
+        print time.strftime('%X')+' Doing evaporative fraction'
+        EF = numpy.ma.zeros([48,12]) + float(-9999)
+        Hdh, f = GetSeriesasMA(ds,'Hdh',si=si,ei=ei)
+        Fa, f = GetSeriesasMA(ds,'Fa',si=si,ei=ei)
+        Fe, f = GetSeriesasMA(ds,'Fe',si=si,ei=ei)
+        for m in range(1,13):
+            mi = numpy.where(Month==m)[0]
+            Fa_Num,Hr,Fa_Av,Sd,Mx,Mn = get_diurnalstats(Hdh[mi],Fa[mi],ts)
+            Fe_Num,Hr,Fe_Av,Sd,Mx,Mn = get_diurnalstats(Hdh[mi],Fe[mi],ts)
+            index = numpy.ma.where((Fa_Num>4)&(Fe_Num>4))
+            EF[:,m-1][index] = Fe_Av[index]/Fa_Av[index]
+        # reject EF values greater than upper limit or less than lower limit
+        upr, lwr = get_rangecheck_limit(cf,'EF')
+        EF = numpy.ma.filled(numpy.ma.masked_where((EF>upr)|(EF<lwr),EF),float(-9999))
+        # write the EF to the Excel file
+        xlSheet = xlFile.add_sheet('EF')
+        write_data_1columnpermonth(xlSheet, EF, ts, format_string='0.00')
+        # do the 2D interpolation to fill missing EF values
+        EFi = do_2dinterpolation(EF)
+        xlSheet = xlFile.add_sheet('EFi')
+        write_data_1columnpermonth(xlSheet, EFi, ts, format_string='0.00')
+        # now do EF for each day
+        Fa, f = GetSeriesasMA(ds,'Fa',si=si,ei=ei)
+        Fe, f = GetSeriesasMA(ds,'Fe',si=si,ei=ei)
+        EF = Fe/Fa
+        EF = numpy.ma.filled(numpy.ma.masked_where((EF>upr)|(EF<lwr),EF),float(-9999))
+        EF_daily = EF.reshape(nDays,ntsInDay)
+        year = DateTime[0].year
+        xlSheet = xlFile.add_sheet('EF(day)')
+        write_data_1columnpertimestep(xlSheet, EF_daily, ts, year=year, format_string='0.00')
+        EFi = do_2dinterpolation(EF_daily)
+        xlSheet = xlFile.add_sheet('EFi(day)')
+        write_data_1columnpertimestep(xlSheet, EFi, ts, year=year, format_string='0.00')
+    elif ThisOne=="BR":
+        print time.strftime('%X')+' Doing Bowen ratio'
+        BR = numpy.ma.zeros([48,12]) + float(-9999)
+        Fe, f = GetSeriesasMA(ds,'Fe',si=si,ei=ei)
+        Fh, f = GetSeriesasMA(ds,'Fh',si=si,ei=ei)
+        for m in range(1,13):
+            mi = numpy.where(Month==m)[0]
+            Fh_Num,Hr,Fh_Av,Sd,Mx,Mn = get_diurnalstats(Hdh[mi],Fh[mi],ts)
+            Fe_Num,Hr,Fe_Av,Sd,Mx,Mn = get_diurnalstats(Hdh[mi],Fe[mi],ts)
+            index = numpy.ma.where((Fh_Num>4)&(Fe_Num>4))
+            BR[:,m-1][index] = Fh_Av[index]/Fe_Av[index]
+        # reject BR values greater than upper limit or less than lower limit
+        upr,lwr = get_rangecheck_limit(cf,'BR')
+        BR = numpy.ma.filled(numpy.ma.masked_where((BR>upr)|(BR<lwr),BR),float(-9999))
+        # write the BR to the Excel file
+        xlSheet = xlFile.add_sheet('BR')
+        write_data_1columnpermonth(xlSheet, BR, ts, format_string='0.00')
+        # do the 2D interpolation to fill missing EF values
+        BRi = do_2dinterpolation(BR)
+        xlSheet = xlFile.add_sheet('BRi')
+        write_data_1columnpermonth(xlSheet, BRi, ts, format_string='0.00')
+        # now do BR for each day ...
+        Fe, f = GetSeriesasMA(ds,'Fe',si=si,ei=ei)
+        Fh, f = GetSeriesasMA(ds,'Fh',si=si,ei=ei)
+        BR = Fh/Fe
+        BR = numpy.ma.filled(numpy.ma.masked_where((BR>upr)|(BR<lwr),BR),float(-9999))
+        BR_daily = BR.reshape(nDays,ntsInDay)
+        year = DateTime[0].year
+        xlSheet = xlFile.add_sheet('BR(day)')
+        write_data_1columnpertimestep(xlSheet, BR_daily, ts, year=year, format_string='0.00')
+        BRi = do_2dinterpolation(BR_daily)
+        xlSheet = xlFile.add_sheet('BRi(day)')
+        write_data_1columnpertimestep(xlSheet, BRi, ts, year=year, format_string='0.00')
+    elif ThisOne=="WUE":
+        print time.strftime('%X')+' Doing ecosystem WUE'
+        WUE = numpy.ma.zeros([48,12]) + float(-9999)
+        Fe, f = GetSeriesasMA(ds,'Fe',si=si,ei=ei)
+        Fc, f = GetSeriesasMA(ds,'Fc',si=si,ei=ei)
+        for m in range(1,13):
+            mi = numpy.where(Month==m)[0]
+            Fc_Num,Hr,Fc_Av,Sd,Mx,Mn = get_diurnalstats(Hdh[mi],Fc[mi],ts)
+            Fe_Num,Hr,Fe_Av,Sd,Mx,Mn = get_diurnalstats(Hdh[mi],Fe[mi],ts)
+            index = numpy.ma.where((Fc_Num>4)&(Fe_Num>4))
+            WUE[:,m-1][index] = Fc_Av[index]/Fe_Av[index]
+        # reject WUE values greater than upper limit or less than lower limit
+        upr,lwr = get_rangecheck_limit(cf,'WUE')
+        WUE = numpy.ma.filled(numpy.ma.masked_where((WUE>upr)|(WUE<lwr),WUE),float(-9999))
+        # write the WUE to the Excel file
+        xlSheet = xlFile.add_sheet('WUE')
+        write_data_1columnpermonth(xlSheet, WUE, ts, format_string='0.00000')
+        # do the 2D interpolation to fill missing EF values
+        WUEi = do_2dinterpolation(WUE)
+        xlSheet = xlFile.add_sheet('WUEi')
+        write_data_1columnpermonth(xlSheet, WUEi, ts, format_string='0.00000')
+        # now do WUE for each day ...
+        Fe, f = GetSeriesasMA(ds,'Fe',si=si,ei=ei)
+        Fc, f = GetSeriesasMA(ds,'Fc',si=si,ei=ei)
+        WUE = Fc/Fe
+        WUE = numpy.ma.filled(numpy.ma.masked_where((WUE>upr)|(WUE<lwr),WUE),float(-9999))
+        WUE_daily = WUE.reshape(nDays,ntsInDay)
+        year = DateTime[0].year
+        xlSheet = xlFile.add_sheet('WUE(day)')
+        write_data_1columnpertimestep(xlSheet, WUE_daily, ts, year=year, format_string='0.00000')
+        WUEi = do_2dinterpolation(WUE_daily)
+        xlSheet = xlFile.add_sheet('WUEi(day)')
+        write_data_1columnpertimestep(xlSheet, WUEi, ts, year=year, format_string='0.00000')
+    else:
+        print "climatology: unable to resolve entry "+ThisOne+"in control file [Variables]"
 
 print time.strftime('%X')+' Saving Excel file '+xlFileName
 xlFile.save(xlFileName)
