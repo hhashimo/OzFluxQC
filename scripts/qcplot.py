@@ -5,6 +5,7 @@ import matplotlib.dates as mdt
 import matplotlib.pyplot as plt
 import numpy
 import statsmodels.api as sm
+import qcio
 import qcutils
 import logging
 

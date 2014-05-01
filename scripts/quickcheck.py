@@ -129,6 +129,13 @@ log.info(' Getting data from data structure ')
 Mnth_30min,flag = GetSeriesasMA(ds,GetAltName(cf,ds,'Month'),si=si,ei=ei)
 Hour_30min,flag = GetSeriesasMA(ds,GetAltName(cf,ds,'Hour'),si=si,ei=ei)
 Mnit_30min,flag = GetSeriesasMA(ds,GetAltName(cf,ds,'Minute'),si=si,ei=ei)
+Fsd,flag = GetSeriesasMA(ds,GetAltName(cf,ds,'Fsd'),si=si,ei=ei)
+if 'Fsd_syn' in ds.series.keys():
+    Fsd_syn,flag = GetSeriesasMA(ds,'Fsd_syn',si=si,ei=ei)
+    index = numpy.ma.where(Fsd.mask==True)[0]
+    Fsd[index] = Fsd_syn[index]
+night_mask = (Fsd<10)
+day_mask = (Fsd>=10)
 Fsd_30min,flag = GetSeriesasMA(ds,GetAltName(cf,ds,'Fsd'),si=si,ei=ei)
 Fsu_30min,flag = GetSeriesasMA(ds,GetAltName(cf,ds,'Fsu'),si=si,ei=ei)
 Fld_30min,flag = GetSeriesasMA(ds,GetAltName(cf,ds,'Fld'),si=si,ei=ei)
@@ -195,9 +202,9 @@ Fh_daily_avg = numpy.ma.average(Fh_daily,axis=1)
 FhpFe_daily_avg = Fh_daily_avg + Fe_daily_avg
 xyplot(Fa_daily_avg,FhpFe_daily_avg,sub=[2,2,2],regr=1,thru0=1,title="Daily Average",xlabel='Fa (W/m2)',ylabel='Fh+Fe (W/m2)')
 # scatter plot of (Fh+Fe) versus Fa, day time
-Fa_day = numpy.ma.masked_where(Fsd_30min<10,Fa_30min)
-Fe_day = numpy.ma.masked_where(Fsd_30min<10,Fe_30min)
-Fh_day = numpy.ma.masked_where(Fsd_30min<10,Fh_30min)
+Fa_day = numpy.ma.masked_where(day_mask==False,Fa_30min)
+Fe_day = numpy.ma.masked_where(day_mask==False,Fe_30min)
+Fh_day = numpy.ma.masked_where(day_mask==False,Fh_30min)
 mask = numpy.ma.mask_or(Fa_day.mask,Fe_day.mask)
 mask = numpy.ma.mask_or(mask,Fh_day.mask)
 Fa_day = numpy.ma.array(Fa_day,mask=mask)         # apply the mask
@@ -206,9 +213,9 @@ Fh_day = numpy.ma.array(Fh_day,mask=mask)
 FhpFe_day = Fh_day + Fe_day
 xyplot(Fa_day,FhpFe_day,sub=[2,2,3],regr=1,title="Day",xlabel='Fa (W/m2)',ylabel='Fh+Fe (W/m2)')
 # scatter plot of (Fh+Fe) versus Fa, night time
-Fa_night = numpy.ma.masked_where(Fsd_30min>10,Fa_30min)
-Fe_night = numpy.ma.masked_where(Fsd_30min>10,Fe_30min)
-Fh_night = numpy.ma.masked_where(Fsd_30min>10,Fh_30min)
+Fa_night = numpy.ma.masked_where(night_mask==False,Fa_30min)
+Fe_night = numpy.ma.masked_where(night_mask==False,Fe_30min)
+Fh_night = numpy.ma.masked_where(night_mask==False,Fh_30min)
 mask = numpy.ma.mask_or(Fa_night.mask,Fe_night.mask)
 mask = numpy.ma.mask_or(mask,Fh_night.mask)
 Fa_night = numpy.ma.array(Fa_night,mask=mask)         # apply the mask
@@ -227,7 +234,8 @@ DT_daily = DateTime[0::ntsInDay]
 Mnth_daily = Mnth_30min.reshape(nDays,ntsInDay)
 Hour_daily = Hour_30min.reshape(nDays,ntsInDay)
 Mnit_daily = Mnit_30min.reshape(nDays,ntsInDay)
-Fsd_daily = Fsd_30min.reshape(nDays,ntsInDay)
+dm_daily = day_mask.reshape(nDays,ntsInDay)
+nm_daily = night_mask.reshape(nDays,ntsInDay)
 Fn_daily = Fn_30min.reshape(nDays,ntsInDay)
 Fa_daily = Fa_30min.reshape(nDays,ntsInDay)
 Fe_daily = Fe_30min.reshape(nDays,ntsInDay)
@@ -240,9 +248,9 @@ us_daily = us_30min.reshape(nDays,ntsInDay)
 
 # get the SEB ratio
 # get the daytime data, defined by Fsd>10 W/m2
-Fa_day = numpy.ma.masked_where(Fsd_daily<10,Fa_daily)
-Fe_day = numpy.ma.masked_where(Fsd_daily<10,Fe_daily)
-Fh_day = numpy.ma.masked_where(Fsd_daily<10,Fh_daily)
+Fa_day = numpy.ma.masked_where(nm_daily==True,Fa_daily)
+Fe_day = numpy.ma.masked_where(nm_daily==True,Fe_daily)
+Fh_day = numpy.ma.masked_where(nm_daily==True,Fh_daily)
 mask = numpy.ma.mask_or(Fa_day.mask,Fe_day.mask)  # mask based on dependencies, set all to missing if any missing
 mask = numpy.ma.mask_or(mask,Fh_day.mask)
 Fa_day = numpy.ma.array(Fa_day,mask=mask)         # apply the mask
@@ -259,8 +267,8 @@ SEB_day_num[index] = 0
 
 # get the EF
 # get the daytime data, defined by Fsd>10 W/m2
-Fa_day = numpy.ma.masked_where(Fsd_daily<10,Fa_daily)
-Fe_day = numpy.ma.masked_where(Fsd_daily<10,Fe_daily)
+Fa_day = numpy.ma.masked_where(nm_daily==True,Fa_daily)
+Fe_day = numpy.ma.masked_where(nm_daily==True,Fe_daily)
 mask = numpy.ma.mask_or(Fa_day.mask,Fe_day.mask)  # mask based on dependencies, set all to missing if any missing
 Fa_day = numpy.ma.array(Fa_day,mask=mask)         # apply the mask
 Fe_day = numpy.ma.array(Fe_day,mask=mask)
@@ -274,8 +282,8 @@ EF_day_num[index] = 0
 
 # get the BR
 # get the daytime data, defined by Fsd>10 W/m2
-Fe_day = numpy.ma.masked_where(Fsd_daily<10,Fe_daily)
-Fh_day = numpy.ma.masked_where(Fsd_daily<10,Fh_daily)
+Fe_day = numpy.ma.masked_where(nm_daily==True,Fe_daily)
+Fh_day = numpy.ma.masked_where(nm_daily==True,Fh_daily)
 mask = numpy.ma.mask_or(Fe_day.mask,Fh_day.mask)  # mask based on dependencies, set all to missing if any missing
 Fe_day = numpy.ma.array(Fe_day,mask=mask)         # apply the mask
 Fh_day = numpy.ma.array(Fh_day,mask=mask)
@@ -289,8 +297,8 @@ BR_day_num[index] = 0
 
 # get the Wue
 # get the daytime data, defined by Fsd>10 W/m2
-Fe_day = numpy.ma.masked_where(Fsd_daily<10,Fe_daily)
-Fc_day = numpy.ma.masked_where(Fsd_daily<10,Fc_daily)
+Fe_day = numpy.ma.masked_where(nm_daily==True,Fe_daily)
+Fc_day = numpy.ma.masked_where(nm_daily==True,Fc_daily)
 mask = numpy.ma.mask_or(Fe_day.mask,Fc_day.mask)  # mask based on dependencies, set all to missing if any missing
 Fe_day = numpy.ma.array(Fe_day,mask=mask)         # apply the mask
 Fc_day = numpy.ma.array(Fc_day,mask=mask)
@@ -331,12 +339,12 @@ Fld_daily = Fld_30min.reshape(nDays,ntsInDay)
 Flu_daily = Flu_30min.reshape(nDays,ntsInDay)
 Fn_daily = Fn_30min.reshape(nDays,ntsInDay)
 Fg_daily = Fg_30min.reshape(nDays,ntsInDay)
-Fsd_day = numpy.ma.masked_where(Fsd_daily<10,Fsd_daily)
-Fsu_day = numpy.ma.masked_where(Fsd_daily<10,Fsu_daily)
-Fld_day = numpy.ma.masked_where(Fsd_daily<10,Fld_daily)
-Flu_day = numpy.ma.masked_where(Fsd_daily<10,Flu_daily)
-Fn_day = numpy.ma.masked_where(Fsd_daily<10,Fn_daily)
-Fg_day = numpy.ma.masked_where(Fsd_daily<10,Fg_daily)
+Fsd_day = numpy.ma.masked_where(nm_daily==True,Fsd_daily)
+Fsu_day = numpy.ma.masked_where(nm_daily==True,Fsu_daily)
+Fld_day = numpy.ma.masked_where(nm_daily==True,Fld_daily)
+Flu_day = numpy.ma.masked_where(nm_daily==True,Flu_daily)
+Fn_day = numpy.ma.masked_where(nm_daily==True,Fn_daily)
+Fg_day = numpy.ma.masked_where(nm_daily==True,Fg_daily)
 Fsd_day_avg = numpy.ma.average(Fsd_day,axis=1)
 Fsu_day_avg = numpy.ma.average(Fsu_day,axis=1)
 Fld_day_avg = numpy.ma.average(Fld_day,axis=1)
@@ -369,12 +377,12 @@ Fe_daily = Fe_30min.reshape(nDays,ntsInDay)
 Fh_daily = Fh_30min.reshape(nDays,ntsInDay)
 Fc_daily = Fc_30min.reshape(nDays,ntsInDay)
 # ... then get the day time values only (defined by Fsd>10 W/m2)
-Fsd_day = numpy.ma.masked_where(Fsd_daily<10,Fsd_daily)
-Fa_day = numpy.ma.masked_where(Fsd_daily<10,Fa_daily)
-Fe_day = numpy.ma.masked_where(Fsd_daily<10,Fe_daily)
-Fh_day = numpy.ma.masked_where(Fsd_daily<10,Fh_daily)
-Fc_day = numpy.ma.masked_where(Fsd_daily<10,Fc_daily)
-Fc_night = numpy.ma.masked_where(Fsd_daily>=10,Fc_daily)
+Fsd_day = numpy.ma.masked_where(nm_daily==True,Fsd_daily)
+Fa_day = numpy.ma.masked_where(nm_daily==True,Fa_daily)
+Fe_day = numpy.ma.masked_where(nm_daily==True,Fe_daily)
+Fh_day = numpy.ma.masked_where(nm_daily==True,Fh_daily)
+Fc_day = numpy.ma.masked_where(nm_daily==True,Fc_daily)
+Fc_night = numpy.ma.masked_where(nm_daily==True,Fc_daily)
 # ... then get the daily averages
 Fsd_day_avg = numpy.ma.average(Fsd_day,axis=1)      # get the daily average
 Fa_day_avg = numpy.ma.average(Fa_day,axis=1)      # get the daily average
@@ -408,7 +416,7 @@ Ta_daily = Ta_30min.reshape(nDays,ntsInDay)
 H2O_daily = H2O_30min.reshape(nDays,ntsInDay)
 CO2_daily = CO2_30min.reshape(nDays,ntsInDay)
 Ws_daily = Ws_30min.reshape(nDays,ntsInDay)
-CO2_day = numpy.ma.masked_where(Fsd_daily<10,CO2_daily)
+CO2_day = numpy.ma.masked_where(nm_daily==True,CO2_daily)
 Ta_daily_avg = numpy.ma.average(Ta_daily,axis=1)      # get the daily average
 Ta_daily_num = numpy.ma.count(Ta_daily,axis=1)
 H2O_daily_avg = numpy.ma.average(H2O_daily,axis=1)      # get the daily average

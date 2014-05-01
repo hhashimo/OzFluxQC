@@ -10,7 +10,7 @@ import Tkinter
 import os
 import sys
 
-# check the scripts directory is present
+# The Lindsay Trap: check the scripts directory is present
 if not os.path.exists("./scripts/"):
     print "OzFluxQC: the scripts directory is missing"
     sys.exit()
@@ -339,6 +339,8 @@ class qcgui(Tkinter.Frame):
             self.update_startenddate(str(self.ds1.series['DateTime']['Data'][0]),
                                      str(self.ds1.series['DateTime']['Data'][-1]))
         self.do_progress(text='Plotting L1 & L2 QC ...')
+        cfname = self.ds2.globalattributes['controlfile_name']
+        self.cf = qcio.get_controlfilecontents(cfname)
         for nFig in self.cf['Plots'].keys():
             si = qcutils.GetDateIndex(self.ds1.series['DateTime']['Data'],self.plotstartEntry.get(),
                                       ts=self.ds1.globalattributes['time_step'],default=0,match='exact')
@@ -371,10 +373,11 @@ class qcgui(Tkinter.Frame):
             l3filename = qcio.get_outfilename_from_cf(self.cf)
             self.ds3 = qcio.nc_read_series(l3filename)
             if len(self.ds3.series.keys())==0: self.do_progress(text='An error occurred, check the console ...'); del self.ds3; return
-            print ' i shouldnt be here'
             self.update_startenddate(str(self.ds3.series['DateTime']['Data'][0]),
                                      str(self.ds3.series['DateTime']['Data'][-1]))
         self.do_progress(text='Plotting L3 QC ...')
+        cfname = self.ds3.globalattributes['controlfile_name']
+        self.cf = qcio.get_controlfilecontents(cfname)
         for nFig in self.cf['Plots'].keys():
             si = qcutils.GetDateIndex(self.ds3.series['DateTime']['Data'],self.plotstartEntry.get(),
                                       ts=self.ds3.globalattributes['time_step'],default=0,match='exact')
@@ -418,6 +421,8 @@ class qcgui(Tkinter.Frame):
             self.update_startenddate(str(self.ds3.series['DateTime']['Data'][0]),
                                      str(self.ds3.series['DateTime']['Data'][-1]))
         self.do_progress(text='Plotting L3 and L4 QC ...')
+        cfname = self.ds4.globalattributes['controlfile_name']
+        self.cf = qcio.get_controlfilecontents(cfname)
         for nFig in self.cf['Plots'].keys():
             si = qcutils.GetDateIndex(self.ds3.series['DateTime']['Data'],self.plotstartEntry.get(),
                                       ts=self.ds3.globalattributes['time_step'],default=0,match='exact')

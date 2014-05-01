@@ -43,8 +43,8 @@ xlcol_attrname = 1
 xlcol_attrvalue = 2
 variablelist = ds.series.keys()
 variablelist.sort()
-if 'DateTime' in variablelist:
-    variablelist.remove('DateTime')
+for ThisOne in ["DateTime","DateTime_UTC"]:
+    if ThisOne in variablelist: variablelist.remove(ThisOne)
 for ThisOne in variablelist:
     xlAttrSheet.write(xlrow,xlcol_varname,ThisOne)
     attributelist = ds.series[ThisOne]['Attr'].keys()

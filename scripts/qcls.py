@@ -152,7 +152,7 @@ def l3qc(cf,ds2):
     # merge the incoming shortwave radiation
     qcts.MergeSeries(cf,ds3,'Fsd',[0,10])
     # calculate the net radiation from the Kipp and Zonen CNR1
-    qcts.CalculateNetRadiation(ds3,'Fn_KZ','Fsd','Fsu','Fld','Flu')
+    qcts.CalculateNetRadiation(cf,ds3,'Fn_KZ','Fsd','Fsu','Fld','Flu')
     qcts.MergeSeries(cf,ds3,'Fn',[0,10])
     # combine wind speed from the Wind Sentry and  the CSAT
     qcts.MergeSeries(cf,ds3,'Ws',[0,10])

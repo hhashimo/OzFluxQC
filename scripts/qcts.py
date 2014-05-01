@@ -10,6 +10,7 @@ import datetime
 from matplotlib.dates import date2num
 import meteorologicalfunctions as mf
 import numpy
+import os
 import qcck
 import qcio
 import qcutils
@@ -19,6 +20,7 @@ import xlrd
 from matplotlib.mlab import griddata
 import xlwt
 import logging
+import pysolar
 
 log = logging.getLogger('qc.ts')
 
@@ -74,6 +76,7 @@ def ApplyLinear(cf,ds,ThisOne):
         ds: data structure
         x: input/output variable in ds.  Example: 'Cc_7500_Av'
         """
+    if ThisOne not in ds.series.keys(): return
     log.info('  Applying linear correction to '+ThisOne)
     if qcutils.incf(cf,ThisOne) and qcutils.haskey(cf,ThisOne,'Linear'):
         data = numpy.ma.masked_where(ds.series[ThisOne]['Data']==float(-9999),ds.series[ThisOne]['Data'])
@@ -437,12 +440,13 @@ def CalculateMeteorologicalVariables(ds,Ta_name='Ta',Tv_name='Tv_CSAT',ps_name='
     if 'CalculateMetVars' not in ds.globalattributes['Functions']:
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', CalculateMetVars'
 
-def CalculateNetRadiation(ds,Fn_out,Fsd_in,Fsu_in,Fld_in,Flu_in):
+def CalculateNetRadiation(cf,ds,Fn_out,Fsd_in,Fsu_in,Fld_in,Flu_in):
     """
         Calculate the net radiation from the 4 components of the surface
         radiation budget.
         
-        Usage qcts.CalculateNetRadiation(ds,Fn_out,Fsd_in,Fsu_in,Fld_in,Flu_in)
+        Usage qcts.CalculateNetRadiation(cf,ds,Fn_out,Fsd_in,Fsu_in,Fld_in,Flu_in)
+        cf: control file
         ds: data structure
         Fn_out: output net radiation variable to ds.  Example: 'Fn_KZ'
         Fsd_in: input downwelling solar radiation in ds.  Example: 'Fsd'
@@ -460,6 +464,10 @@ def CalculateNetRadiation(ds,Fn_out,Fsd_in,Fsu_in,Fld_in,Flu_in):
         attr = qcutils.MakeAttributeDictionary(long_name='Calculated net radiation using '+Fsd_in+','+Fsu_in+','+Fld_in+','+Flu_in,
                              standard_name='surface_net_allwave_radiation',units='W/m2')
         qcutils.CreateSeries(ds,Fn_out,Fn,FList=[Fsd_in,Fsu_in,Fld_in,Flu_in],Attr=attr)
+        if "Variables" in cf:
+            if Fn_out in cf["Variables"]:
+                if "Linear" in cf["Variables"][Fn_out]:
+                    ApplyLinear(cf,ds,Fn_out)
     else:
         nRecs = int(ds.globalattributes['nc_nrecs'])
         Fn = numpy.array([-9999]*nRecs,dtype=numpy.float64)
@@ -1695,6 +1703,20 @@ def get_qcflag(ds):
         ds.series[ThisOne]['Flag'] = numpy.zeros(nRecs,dtype=numpy.int32)
         index = numpy.where(ds.series[ThisOne]['Data']==-9999)[0]
         ds.series[ThisOne]['Flag'][index] = numpy.int32(1)
+
+def get_synthetic_fsd(ds):
+    log.info(' Calculating synthetic Fsd')
+    lat = float(ds.globalattributes["latitude"])
+    lon = float(ds.globalattributes["longitude"])
+    ldt_UTC = ds.series["DateTime_UTC"]["Data"]
+    alt_solar = [pysolar.GetAltitude(lat,lon,dt) for dt in ldt_UTC]
+    Fsd_syn = [pysolar.GetRadiationDirect(dt,alt) for dt,alt in zip(ldt_UTC,alt_solar)]
+    Fsd_syn = numpy.ma.array(Fsd_syn)
+    nRecs = len(Fsd_syn)
+    flag = numpy.zeros(nRecs,dtype=numpy.int32)
+    attr = qcutils.MakeAttributeDictionary(long_name='Synthetic downwelling shortwave radiation',\
+                                           units='W/m2',standard_name='not defined')
+    qcutils.CreateSeries(ds,"Fsd_syn",Fsd_syn,Flag=flag,Attr=attr)
 
 def InvertSign(ds,ThisOne):
     log.info(' Inverting sign of '+ThisOne)

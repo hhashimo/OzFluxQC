@@ -187,6 +187,8 @@ def xl2nc(cf,InLevel):
     qcts.do_attributes(cf,ds)
     # get a series of Python datetime objects from the Excel datetime
     qcutils.get_datetimefromxldate(ds)
+    # get series of UTC datetime
+    qcutils.get_UTCfromlocaltime(ds)
     #check for gaps in the Excel datetime series
     has_gaps = qcutils.CheckTimeStep(ds,fix='gaps')
     # write the processing level to a global attribute
@@ -201,6 +203,8 @@ def xl2nc(cf,InLevel):
     qcutils.get_ymdhmsfromxldate(ds)
     # do any functions to create new series
     qcts.do_functions(cf,ds)
+    # create a series of synthetic downwelling shortwave radiation
+    qcts.get_synthetic_fsd(ds)
     # write the data to the netCDF file
     outfilename = get_outfilename_from_cf(cf)
     ncFile = nc_open_write(outfilename)
@@ -424,6 +428,8 @@ def nc_read_series(ncFullName):
     ncFile.close()
     # get a series of Python datetime objects
     qcutils.get_datetimefromymdhms(ds)
+    # get series of UTC datetime
+    qcutils.get_UTCfromlocaltime(ds)
     return ds
 
 def nc_open_write(ncFullName,nctype='NETCDF4'):
@@ -458,7 +464,8 @@ def nc_write_series(ncFile,ds,outputlist=None):
             outputlist = SeriesList
     # can't write an array of Python datetime objects to a netCDF file
     # actually, this could be written as characters
-    if 'DateTime' in outputlist: SeriesList.remove('DateTime')
+    for ThisOne in ["DateTime","DateTime_UTC"]:
+        if ThisOne in outputlist: SeriesList.remove(ThisOne)
     # now make sure the date and time series are in outputlist
     for ThisOne in ['xlDateTime','Year','Month','Day','Hour','Minute','Second','Hdh']:
         if ThisOne not in outputlist: outputlist.append(ThisOne)
@@ -620,8 +627,8 @@ def xl_write_series(ds, xlfullname, outputlist=None):
         if len(outputlist)==0:
             outputlist = variablelist
     outputlist.sort()
-    if 'DateTime' in outputlist:
-        outputlist.remove('DateTime')
+    for ThisOne in ["DateTime","DateTime_UTC"]:
+        if ThisOne in outputlist: outputlist.remove(ThisOne)
     for ThisOne in outputlist:
         xlAttrSheet.write(xlrow,xlcol_varname,ThisOne)
         attributelist = ds.series[ThisOne]['Attr'].keys()

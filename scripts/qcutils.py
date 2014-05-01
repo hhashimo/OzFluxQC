@@ -7,6 +7,7 @@ import math
 import meteorologicalfunctions as mf
 import numpy
 import os
+import pytz
 import sys
 import time
 import xlrd
@@ -267,10 +268,12 @@ def FixTimeGaps(ds):
     ds.series['DateTime']['Flag'][dt_ind] = org_flag
     # replace the "gappy" year, month, day, hour, minute and second series in the data structure
     get_ymdhmsfromxldate(ds)
+    # replace the "gappy" UTC datetime
+    get_UTCfromlocaltime(ds)
     # update the global attribute containing the number of records
     ds.globalattributes['nc_nrecs'] = str(len(ds.series['xlDateTime']['Data']))
     # remove the datetime-related series from data structure
-    DateTimeList = ['xlDateTime','DateTime','Year','Month','Day','Hour','Minute','Second','Hdh','Ddd']
+    DateTimeList = ['xlDateTime','DateTime','DateTime_UTC','Year','Month','Day','Hour','Minute','Second','Hdh','Ddd']
     SeriesList = ds.series.keys()
     for item in DateTimeList:
         if item in SeriesList:
@@ -596,7 +599,8 @@ def get_coverage_groups(ds,rad=None,met=None,flux=None,soil=None):
 def get_coverage_individual(ds):
     level = str(ds.globalattributes['nc_level'])
     SeriesList = ds.series.keys()
-    if 'DateTime' in SeriesList: SeriesList.remove('DateTime')
+    for ThisOne in ["DateTime","DateTime_UTC"]:
+        if ThisOne in SeriesList: SeriesList.remove(ThisOne)
     for ThisOne in SeriesList:
         num_good = len(numpy.where(abs(ds.series[ThisOne]['Data']-float(-9999))>c.eps)[0])
         coverage = 100*float(num_good)/float(ds.globalattributes['nc_nrecs'])
@@ -618,7 +622,7 @@ def get_datetimefromxldate(ds):
         ds.series['DateTime']['Data'][i] = basedate + datetime.timedelta(days=xldate[i] + 1462 * datemode)
     ds.series['DateTime']['Flag'] = numpy.zeros(nRecs)
     ds.series['DateTime']['Attr'] = {}
-    ds.series['DateTime']['Attr']['long_name'] = 'Date-time object'
+    ds.series['DateTime']['Attr']['long_name'] = 'Datetime in local timezone'
     ds.series['DateTime']['Attr']['units'] = 'None'
 
 def get_datetimefromymdhms(ds):
@@ -653,6 +657,42 @@ def get_nrecs(ds):
         nRecs = len(ds.series[SeriesList[0]]['Data'])
     return nRecs
     
+def get_UTCfromlocaltime(ds):
+    '''
+    PURPOSE:
+     Creates a UTC datetime series in the data structure from the
+     local datetime series.
+    USAGE:
+     qcutils.get_UTCfromlocaltime(ds)
+    ASSUMPTIONS:
+     No daylight savings used in the local datetime
+    AUTHOR: PRI
+    '''
+    # check the time_zone global attribute is set, we cant continue without it
+    if "time_zone" not in ds.globalattributes.keys():
+        log.error("get_UTCfromlocaltime: time_zone not in global attributes")
+        return
+    log.info(' Getting the UTC datetime from the local datetime')
+    # get the number of records
+    nRecs = len(ds.series['xlDateTime']['Data'])
+    # get the time zone
+    tz = ds.globalattributes["time_zone"]
+    # create a timezone object
+    loc_tz = pytz.timezone(tz)
+    # local pointer to the datetime series in ds
+    ldt = ds.series["DateTime"]["Data"]
+    # localise the datetime
+    ldt_loc = [loc_tz.localize(dt) for dt in ldt]
+    # convert to UTC
+    ldt_utc = [dt.astimezone(pytz.utc) for dt in ldt_loc]
+    # put the UTC datetime into the data structure
+    ds.series[unicode("DateTime_UTC")] = {}
+    ds.series["DateTime_UTC"]["Data"] = ldt_utc
+    ds.series['DateTime_UTC']["Flag"] = numpy.zeros(nRecs)
+    ds.series['DateTime_UTC']["Attr"] = {}
+    ds.series['DateTime_UTC']["Attr"]["long_name"] = "Datetime as UTC"
+    ds.series['DateTime_UTC']["Attr"]["units"] = "None"
+
 def get_xldate_from_datetime(dt):
     '''
     PURPOSE:

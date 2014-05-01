@@ -46,6 +46,7 @@
     source         = ""
     title          = "Flux tower data set from the <site_name> site for the calendar year <year>"
     time_step      = "30"
+    time_zone      = ""
     tower_height   = ""
     vegetation     = ""
 
