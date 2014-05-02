@@ -12,15 +12,6 @@ import scipy.ndimage as ndimage
 import qcio
 from qcutils import GetAltName, GetDateIndex, GetSeriesasMA, GetSeries, startlog, GetUnitsFromds, SetUnitsInds, startlog
 
-#def SynchroniseGaps(SyncList):
-    #"""
-    #Synchronise missing data across a list of data series.
-    #"""
-#for s1 in SyncList:
-    #i = numpy.where(abs(s1-float(-9999))<c.eps)[0]
-    #for s2 in SyncList:
-        #s2[i] = -9999
-    
 def xyplot(x,y,sub=[1,1,1],regr=0,thru0=0,title=None,xlabel=None,ylabel=None,fname=None):
     '''Generic XY scatter plot routine'''
     wspace = 0.0
