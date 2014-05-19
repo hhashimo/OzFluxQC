@@ -248,7 +248,7 @@ def xyplot(x,y,sub=[1,1,1],regr=0,title=None,xlabel=None,ylabel=None):
         eqnstr = 'y = %.3fx + %.3f'%(resrlm.params[0],resrlm.params[1])
         plt.plot(x_nm[:,0],resrlm.fittedvalues,'r--',linewidth=3)
         plt.text(0.5,0.9,eqnstr,fontsize=8,horizontalalignment='center',transform=ax.transAxes)
-    
+
 def tsplot(x,y,sub=[1,1,1],title=None,xlabel=None,ylabel=None,colours=None,lineat=None):
     plt.subplot(sub[0],sub[1],sub[2])
     MTFmt = mdt.DateFormatter('%m/%Y')

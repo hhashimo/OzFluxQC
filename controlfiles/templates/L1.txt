@@ -29,6 +29,7 @@
   	contact        = ""                                  
   	canopy_height  = ""
   	comment        = "CF metadata, OzFlux standard variable names"
+  	elevation      = ""
   	data_url       = "http://ozflux.its.monash.edu.au/"
     doi            = "DOI:????"
   	history        = "V2.6.3 September 2013"

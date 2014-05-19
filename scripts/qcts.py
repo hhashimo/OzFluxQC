@@ -1705,6 +1705,7 @@ def get_qcflag(ds):
         ds.series[ThisOne]['Flag'][index] = numpy.int32(1)
 
 def get_synthetic_fsd(ds):
+    if "DateTime_UTC" not in ds.series.keys(): return
     log.info(' Calculating synthetic Fsd')
     lat = float(ds.globalattributes["latitude"])
     lon = float(ds.globalattributes["longitude"])

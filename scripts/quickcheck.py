@@ -11,6 +11,7 @@ import numpy
 import scipy.ndimage as ndimage
 import qcio
 from qcutils import GetAltName, GetDateIndex, GetSeriesasMA, GetSeries, startlog, GetUnitsFromds, SetUnitsInds, startlog
+from qcplot import tsplot
 
 def xyplot(x,y,sub=[1,1,1],regr=0,thru0=0,title=None,xlabel=None,ylabel=None,fname=None):
     '''Generic XY scatter plot routine'''
@@ -41,26 +42,6 @@ def xyplot(x,y,sub=[1,1,1],regr=0,thru0=0,title=None,xlabel=None,ylabel=None,fna
         eqnstr = 'y = %.3fx'%(a)
         plt.text(0.5,0.875,eqnstr,fontsize=8,horizontalalignment='center',transform=ax.transAxes)
     plt.subplots_adjust(wspace=wspace,hspace=hspace)
-
-def tsplot(x,y,sub=[1,1,1],title=None,xlabel=None,ylabel=None,colours=None,lineat=None):
-    plt.subplot(sub[0],sub[1],sub[2])
-    if (y.all() is numpy.ma.masked):
-        y = numpy.ma.zeros(len(y))
-    if colours!=None:
-        plt.scatter(x,y,c=colours)
-    else:
-        plt.scatter(x,y)
-    if lineat!=None:
-        plt.plot((x[0],x[-1]),(float(lineat),float(lineat)))
-    plt.xlim((x[0],x[-1]))
-    ax = plt.gca()
-    ax.xaxis.set_major_formatter(MTFmt)
-    if title!=None:
-        plt.title(title)
-    if ylabel!=None:
-        ax.yaxis.set_label_text(ylabel)
-    if xlabel!=None:
-        ax.xaxis.set_label_text(xlabel)
 
 def hrplot(x,y,sub=[1,1,1],title=None,xlabel=None,ylabel=None,colours=None):
     plt.subplot(sub[0],sub[1],sub[2])
@@ -214,7 +195,7 @@ Fe_night = numpy.ma.array(Fe_night,mask=mask)
 Fh_night = numpy.ma.array(Fh_night,mask=mask)
 FhpFe_night = Fh_night + Fe_night
 xyplot(Fa_night,FhpFe_night,sub=[2,2,4],regr=1,title="Night",xlabel='Fa (W/m2)',ylabel='Fh+Fe (W/m2)')
-figname='../plots/'+ds.globalattributes['site_name'].replace(' ','')+'_'+ds.globalattributes['nc_level']+'_'+'SEB_30minutes.png'
+figname='../plots/'+ds.globalattributes['site_name'].replace(' ','')+'_'+ds.globalattributes['nc_level']+'_QC_'+'SEB_30minutes.png'
 fig.savefig(figname,format='png')
 
 # *** start of section based on daily averages ***
@@ -318,7 +299,7 @@ tsplot(DT_daily,WUE_day_avg,sub=[6,1,4],colours=WUE_day_num,ylabel='WUE=Fc/Fe',l
 tsplot(DT_daily,Sws_daily_avg,sub=[6,1,5],colours=Sws_daily_num,ylabel='Sws')
 tsplot(DT_daily,Rain_daily_sum,sub=[6,1,6],colours=Rain_daily_num,ylabel='Rain')
 #fig.show()
-figname='../plots/'+ds.globalattributes['site_name'].replace(' ','')+'_'+ds.globalattributes['nc_level']+'_'+'DailyRatios.png'
+figname='../plots/'+ds.globalattributes['site_name'].replace(' ','')+'_'+ds.globalattributes['nc_level']+'_QC_'+'DailyRatios.png'
 fig.savefig(figname,format='png')
 
 # now we do the daily averages of the fluxes and the meteorology
@@ -359,7 +340,7 @@ tsplot(DT_daily,Flu_day_avg,sub=[6,1,4],colours=Flu_day_num,ylabel='Flu (W/m2)')
 tsplot(DT_daily,Fn_day_avg,sub=[6,1,5],colours=Fn_day_num,ylabel='Fn (W/m2)')
 tsplot(DT_daily,Fg_day_avg,sub=[6,1,6],colours=Fg_day_num,ylabel='Fg (W/m2)')
 #fig.show()
-figname='../plots/'+ds.globalattributes['site_name'].replace(' ','')+'_'+ds.globalattributes['nc_level']+'_'+'DailyRadn.png'
+figname='../plots/'+ds.globalattributes['site_name'].replace(' ','')+'_'+ds.globalattributes['nc_level']+'_QC_'+'DailyRadn.png'
 fig.savefig(figname,format='png')
 
 Fsd_daily = Fsd_30min.reshape(nDays,ntsInDay)
@@ -400,7 +381,7 @@ tsplot(DT_daily,Fe_day_avg,sub=[5,1,3],colours=Fe_day_num,ylabel='Fe (W/m2)')
 tsplot(DT_daily,Fh_day_avg,sub=[5,1,4],colours=Fh_day_num,ylabel='Fh (W/m2)')
 tsplot(DT_daily,Fc_day_avg,sub=[5,1,5],colours=Fc_day_num,ylabel='Fc ('+Fc_units+')',lineat=0)
 #fig.show()
-figname='../plots/'+ds.globalattributes['site_name'].replace(' ','')+'_'+ds.globalattributes['nc_level']+'_'+'DailyFluxes.png'
+figname='../plots/'+ds.globalattributes['site_name'].replace(' ','')+'_'+ds.globalattributes['nc_level']+'_QC_'+'DailyFluxes.png'
 fig.savefig(figname,format='png')
 
 Ta_daily = Ta_30min.reshape(nDays,ntsInDay)
@@ -426,35 +407,36 @@ tsplot(DT_daily,CO2_day_avg,sub=[5,1,3],colours=CO2_day_num,ylabel='CO2 ('+CO2_u
 tsplot(DT_daily,Ws_daily_avg,sub=[5,1,4],colours=Ws_daily_num,ylabel='WS (m/s)')
 tsplot(DT_daily,Rain_daily_sum,sub=[5,1,5],colours=Rain_daily_num,ylabel='Rain (mm)')
 #fig.show()
-figname='../plots/'+ds.globalattributes['site_name'].replace(' ','')+'_'+ds.globalattributes['nc_level']+'_'+'DailyMet.png'
+figname='../plots/'+ds.globalattributes['site_name'].replace(' ','')+'_'+ds.globalattributes['nc_level']+'_QC_'+'DailyMet.png'
 fig.savefig(figname,format='png')
 
-## ... now do the nocturnal Fc and assorted drivers
-## get the soil temperature
-##Ts_daily_avg = numpy.ma.average(Ts_daily,axis=1)
-##Ts_daily_num = numpy.ma.count(Ts_daily,axis=1)
-#Ts_day = numpy.ma.masked_where(Fsd_daily<10,Ts_daily)
-#Ts_night = numpy.ma.masked_where(Fsd_daily>=10,Ts_daily)
-#Ts_day_avg = numpy.ma.average(Ts_day,axis=1)          # get the daily average
-#Ts_day_num = numpy.ma.count(Ts_day,axis=1)
-#Ts_night_avg = numpy.ma.average(Ts_night,axis=1)          # get the daily average
-#Ts_night_num = numpy.ma.count(Ts_night,axis=1)
-#us_night = numpy.ma.masked_where(Fsd_daily>=10,us_daily)
-#us_night_avg = numpy.ma.average(us_night,axis=1)          # get the daily average
-#us_night_num = numpy.ma.count(us_night,axis=1)
-#log.info(' Doing the daily Fc and drivers plot ')
-#nFig = nFig + 1
-#fig = plt.figure(nFig,figsize=(PlotWidth_landscape,PlotHeight_landscape))
-#plt.figtext(0.5,0.95,PlotTitle,horizontalalignment='center',size=16)
-#tsplot(DT_daily,Fc_night_avg,sub=[6,1,1],colours=Fc_night_num,ylabel='Fc ('+Fc_units+')')
-#tsplot(DT_daily,us_night_avg,sub=[6,1,2],colours=us_night_num,ylabel='us (night, m/s)')
-#tsplot(DT_daily,Ts_day_avg,sub=[6,1,3],colours=Ts_day_num,ylabel='Ts (day, C)')
-#tsplot(DT_daily,Ts_night_avg,sub=[6,1,4],colours=Ts_night_num,ylabel='Ts (night, C)')
-#tsplot(DT_daily,Sws_daily_avg,sub=[6,1,5],colours=Sws_daily_num,ylabel='Sws (%)')
-#tsplot(DT_daily,Rain_daily_sum,sub=[6,1,6],colours=Rain_daily_num,ylabel='Rain (mm)')
-##fig.show()
-#figname='../plots/'+ds.globalattributes['site_name'].replace(' ','')+'_'+ds.globalattributes['nc_level']+'_'+'DailyFc&Drivers.png'
-#fig.savefig(figname,format='png')
+Ta_daily = Ta_30min.reshape(nDays,ntsInDay)
+Ts_daily = Ts_30min.reshape(nDays,ntsInDay)
+Sws_daily = Sws_30min.reshape(nDays,ntsInDay)
+Fg_daily = Fg_30min.reshape(nDays,ntsInDay)
+Rain_daily = Rain_30min.reshape(nDays,ntsInDay)
+Ta_daily_avg = numpy.ma.average(Ta_daily,axis=1)      # get the daily average
+Ta_daily_num = numpy.ma.count(Ta_daily,axis=1)
+Ts_daily_avg = numpy.ma.average(Ts_daily,axis=1)      # get the daily average
+Ts_daily_num = numpy.ma.count(Ts_daily,axis=1)
+Sws_day_avg = numpy.ma.average(Sws_daily,axis=1)          # get the daily average
+Sws_day_num = numpy.ma.count(Sws_daily,axis=1)
+Fg_daily_avg = numpy.ma.average(Fg_daily,axis=1)      # get the daily average
+Fg_daily_num = numpy.ma.count(Fg_daily,axis=1)
+Fg_daily_avg = numpy.ma.average(Fg_daily,axis=1)      # get the daily average
+Rain_daily_sum = numpy.ma.sum(Rain_daily,axis=1)
+Rain_daily_num = numpy.ma.count(Rain_daily,axis=1)
+log.info(' Doing the daily soil data plot ')
+nFig = nFig + 1
+fig = plt.figure(nFig,figsize=(PlotWidth_landscape,PlotHeight_landscape))
+plt.figtext(0.5,0.95,PlotTitle,horizontalalignment='center',size=16)
+tsplot(DT_daily,Ta_daily_avg,sub=[5,1,1],colours=Ta_daily_num,ylabel='Ta (C)')
+tsplot(DT_daily,Ts_daily_avg,sub=[5,1,2],colours=Ts_daily_num,ylabel='Ts (C)')
+tsplot(DT_daily,Sws_day_avg,sub=[5,1,3],colours=Sws_day_num,ylabel='Sws (frac)')
+tsplot(DT_daily,Fg_daily_avg,sub=[5,1,4],colours=Fg_daily_num,ylabel='Fg (W/m2)')
+tsplot(DT_daily,Rain_daily_sum,sub=[5,1,5],colours=Rain_daily_num,ylabel='Rain (mm)')
+figname='../plots/'+ds.globalattributes['site_name'].replace(' ','')+'_'+ds.globalattributes['nc_level']+'_QC_'+'DailySoil.png'
+fig.savefig(figname,format='png')
 
 MnthList = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 # plot Fsd
@@ -482,7 +464,7 @@ for i in [12,1,2,3,4,5,6,7,8,9,10,11]:
                title=MnthList[i-1],xlabel=xlabel,ylabel=ylabel,
                colours=Fsd_hr_num)
 #fig.show()
-figname='../plots/'+ds.globalattributes['site_name'].replace(' ','')+'_'+ds.globalattributes['nc_level']+'_'+'DiurnalFsdByMonth.png'
+figname='../plots/'+ds.globalattributes['site_name'].replace(' ','')+'_'+ds.globalattributes['nc_level']+'_QC_'+'DiurnalFsdByMonth.png'
 fig.savefig(figname,format='png')
 
 # plot Fa
@@ -510,7 +492,7 @@ for i in [12,1,2,3,4,5,6,7,8,9,10,11]:
                title=MnthList[i-1],xlabel=xlabel,ylabel=ylabel,
                colours=Fa_hr_num)
 #fig.show()
-figname='../plots/'+ds.globalattributes['site_name'].replace(' ','')+'_'+ds.globalattributes['nc_level']+'_'+'DiurnalFaByMonth.png'
+figname='../plots/'+ds.globalattributes['site_name'].replace(' ','')+'_'+ds.globalattributes['nc_level']+'_QC_'+'DiurnalFaByMonth.png'
 fig.savefig(figname,format='png')
 
 # plot Fn
@@ -538,7 +520,7 @@ for i in [12,1,2,3,4,5,6,7,8,9,10,11]:
                title=MnthList[i-1],xlabel=xlabel,ylabel=ylabel,
                colours=Fn_hr_num)
 #fig.show()
-figname='../plots/'+ds.globalattributes['site_name'].replace(' ','')+'_'+ds.globalattributes['nc_level']+'_'+'DiurnalFnByMonth.png'
+figname='../plots/'+ds.globalattributes['site_name'].replace(' ','')+'_'+ds.globalattributes['nc_level']+'_QC_'+'DiurnalFnByMonth.png'
 fig.savefig(figname,format='png')
 
 # plot Fg
@@ -566,7 +548,7 @@ for i in [12,1,2,3,4,5,6,7,8,9,10,11]:
                title=MnthList[i-1],xlabel=xlabel,ylabel=ylabel,
                colours=Fg_hr_num)
 #fig.show()
-figname='../plots/'+ds.globalattributes['site_name'].replace(' ','')+'_'+ds.globalattributes['nc_level']+'_'+'DiurnalFgByMonth.png'
+figname='../plots/'+ds.globalattributes['site_name'].replace(' ','')+'_'+ds.globalattributes['nc_level']+'_QC_'+'DiurnalFgByMonth.png'
 fig.savefig(figname,format='png')
 
 # plot Ts
@@ -594,7 +576,7 @@ for i in [12,1,2,3,4,5,6,7,8,9,10,11]:
                title=MnthList[i-1],xlabel=xlabel,ylabel=ylabel,
                colours=Fg_hr_num)
 #fig.show()
-figname='../plots/'+ds.globalattributes['site_name'].replace(' ','')+'_'+ds.globalattributes['nc_level']+'_'+'DiurnalTsByMonth.png'
+figname='../plots/'+ds.globalattributes['site_name'].replace(' ','')+'_'+ds.globalattributes['nc_level']+'_QC_'+'DiurnalTsByMonth.png'
 fig.savefig(figname,format='png')
 
 # plot Fh
@@ -622,7 +604,7 @@ for i in [12,1,2,3,4,5,6,7,8,9,10,11]:
                title=MnthList[i-1],xlabel=xlabel,ylabel=ylabel,
                colours=Fh_hr_num)
 #fig.show()
-figname='../plots/'+ds.globalattributes['site_name'].replace(' ','')+'_'+ds.globalattributes['nc_level']+'_'+'DiurnalFhByMonth.png'
+figname='../plots/'+ds.globalattributes['site_name'].replace(' ','')+'_'+ds.globalattributes['nc_level']+'_QC_'+'DiurnalFhByMonth.png'
 fig.savefig(figname,format='png')
 
 # plot Fe
@@ -650,7 +632,7 @@ for i in [12,1,2,3,4,5,6,7,8,9,10,11]:
                title=MnthList[i-1],xlabel=xlabel,ylabel=ylabel,
                colours=Fe_hr_num)
 #fig.show()
-figname='../plots/'+ds.globalattributes['site_name'].replace(' ','')+'_'+ds.globalattributes['nc_level']+'_'+'DiurnalFeByMonth.png'
+figname='../plots/'+ds.globalattributes['site_name'].replace(' ','')+'_'+ds.globalattributes['nc_level']+'_QC_'+'DiurnalFeByMonth.png'
 fig.savefig(figname,format='png')
 
 # plot Fc
@@ -678,7 +660,7 @@ for i in [12,1,2,3,4,5,6,7,8,9,10,11]:
                title=MnthList[i-1],xlabel=xlabel,ylabel=ylabel,
                colours=Fc_hr_num)
 #fig.show()
-figname='../plots/'+ds.globalattributes['site_name'].replace(' ','')+'_'+ds.globalattributes['nc_level']+'_'+'DiurnalFcByMonth.png'
+figname='../plots/'+ds.globalattributes['site_name'].replace(' ','')+'_'+ds.globalattributes['nc_level']+'_QC_'+'DiurnalFcByMonth.png'
 fig.savefig(figname,format='png')
 
 plt.show()

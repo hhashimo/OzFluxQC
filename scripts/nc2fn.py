@@ -14,6 +14,9 @@ def perdelta(start, end, delta):
         yield curr
         curr += delta
 
+# open the logging file
+log = qcutils.startlog('ncconcat','../logfiles/ncconcat.log')
+
 # get the control file contents
 # was there an argument on the command line?
 if len(sys.argv)>1:
