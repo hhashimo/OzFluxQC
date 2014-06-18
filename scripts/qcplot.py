@@ -242,12 +242,15 @@ def xyplot(x,y,sub=[1,1,1],regr=0,title=None,xlabel=None,ylabel=None):
         x.mask = mask
         y.mask = mask
         x_nm = numpy.ma.compressed(x)
-        x_nm = sm.add_constant(x_nm)
+        x_nm = sm.add_constant(x_nm,prepend=False)
         y_nm = numpy.ma.compressed(y)
-        resrlm = sm.RLM(y_nm,x_nm,M=sm.robust.norms.TukeyBiweight()).fit()
-        eqnstr = 'y = %.3fx + %.3f'%(resrlm.params[0],resrlm.params[1])
-        plt.plot(x_nm[:,0],resrlm.fittedvalues,'r--',linewidth=3)
-        plt.text(0.5,0.9,eqnstr,fontsize=8,horizontalalignment='center',transform=ax.transAxes)
+        if len(y_nm)!=0 or len(x_nm)!=0:
+            resrlm = sm.RLM(y_nm,x_nm,M=sm.robust.norms.TukeyBiweight()).fit()
+            eqnstr = 'y = %.3fx + %.3f'%(resrlm.params[0],resrlm.params[1])
+            plt.plot(x_nm[:,0],resrlm.fittedvalues,'r--',linewidth=3)
+            plt.text(0.5,0.9,eqnstr,fontsize=8,horizontalalignment='center',transform=ax.transAxes)
+        else:
+            log.info("xyplot: nothing to plot!")
 
 def tsplot(x,y,sub=[1,1,1],title=None,xlabel=None,ylabel=None,colours=None,lineat=None):
     plt.subplot(sub[0],sub[1],sub[2])

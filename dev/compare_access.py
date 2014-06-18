@@ -82,7 +82,7 @@ ts_bottom = margin_bottom + xy_height + xyxy_space + xy_height + xyts_space
 #ts_height = (1.0 - margin_top - ts_bottom)/float(nDrivers+1)
 ts_height = (1.0 - margin_top - ts_bottom)
 fig_num = 0
-for label in ["Fsd","Fld","Fn","Ta","q","Ws","Ts","Sws","ps","ustar","Fh","Fe"]:
+for label in ["Fsd","Fld","Fn","Fg","Ta","q","Ws","Ts","Sws","ps","ustar","Fh","Fe"]:
     print "compare_access: doing "+label
     fig_num = fig_num + 1
     # get the tower data
@@ -136,12 +136,12 @@ for label in ["Fsd","Fld","Fn","Ta","q","Ws","Ts","Sws","ps","ustar","Fh","Fe"]:
     ax3.plot(data_acc,data_tow,'b.')
     ax3.set_ylabel('Tower ('+units+')')
     ax3.set_xlabel('ACCESS ('+units+')')
-    resrlm = sm.RLM(data_tow_nm,sm.add_constant(data_acc_nm),M=sm.robust.norms.TukeyBiweight()).fit()
+    resrlm = sm.RLM(data_tow_nm,sm.add_constant(data_acc_nm,prepend=False),M=sm.robust.norms.TukeyBiweight()).fit()
     m_rlm = resrlm.params[0]; b_rlm = resrlm.params[1]
     eqnstr = 'y = %.3fx + %.3f'%(m_rlm,b_rlm)
     ax3.plot(data_acc_nm,resrlm.fittedvalues,'r--',linewidth=3)
     ax3.text(0.5,0.915,eqnstr,fontsize=8,horizontalalignment='center',transform=ax3.transAxes,color='red')
-    resols = sm.OLS(data_tow_nm,sm.add_constant(data_acc_nm)).fit()
+    resols = sm.OLS(data_tow_nm,sm.add_constant(data_acc_nm,prepend=False)).fit()
     m_ols = resols.params[0]; b_ols = resols.params[1]
     eqnstr = 'y = %.3fx + %.3f'%(m_ols,b_ols)
     ax3.plot(data_acc_nm,resrlm.fittedvalues,'g--',linewidth=3)
@@ -161,11 +161,11 @@ for label in ["Fsd","Fld","Fn","Ta","q","Ws","Ts","Sws","ps","ustar","Fh","Fe"]:
     data_tow_daily_avg.mask = (data_acc_daily_avg.mask)|(data_tow_daily_avg.mask)
     data_acc_daily_avg_nm = numpy.ma.compressed(data_acc_daily_avg)
     data_tow_daily_avg_nm = numpy.ma.compressed(data_tow_daily_avg)
-    resrlm = sm.RLM(data_tow_daily_avg_nm,sm.add_constant(data_acc_daily_avg_nm),M=sm.robust.norms.TukeyBiweight()).fit()
+    resrlm = sm.RLM(data_tow_daily_avg_nm,sm.add_constant(data_acc_daily_avg_nm,prepend=False),M=sm.robust.norms.TukeyBiweight()).fit()
     eqnstr = 'y = %.3fx + %.3f'%(resrlm.params[0],resrlm.params[1])
     ax4.plot(data_acc_daily_avg_nm,resrlm.fittedvalues,'r--',linewidth=3)
     ax4.text(0.5,0.915,eqnstr,fontsize=8,horizontalalignment='center',transform=ax4.transAxes,color='red')
-    resrlm = sm.OLS(data_tow_daily_avg_nm,sm.add_constant(data_acc_daily_avg_nm)).fit()
+    resrlm = sm.OLS(data_tow_daily_avg_nm,sm.add_constant(data_acc_daily_avg_nm,prepend=False)).fit()
     eqnstr = 'y = %.3fx + %.3f'%(resrlm.params[0],resrlm.params[1])
     ax4.plot(data_acc_daily_avg_nm,resrlm.fittedvalues,'g--',linewidth=3)
     ax4.text(0.5,0.85,eqnstr,fontsize=8,horizontalalignment='center',transform=ax4.transAxes,color='green')

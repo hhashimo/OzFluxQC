@@ -25,6 +25,8 @@ class DataStructure(object):
         self.globalattributes = {}
         self.mergeserieslist = []
         self.averageserieslist = []
+        self.accessserieslist = []
+        self.accessfilelist = []
         self.soloserieslist = []
         self.climatologyserieslist = []
 

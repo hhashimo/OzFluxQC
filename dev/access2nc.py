@@ -43,6 +43,7 @@ nRecs = len(valid_date)
 # set some global attributres
 ds_60minutes.globalattributes["nc_nrecs"] = nRecs
 ds_60minutes.globalattributes["time_step"] = 60
+ds_60minutes.globalattributes["time_zone"] = cf["Global"]["site_timezone"]
 # map the ACCESS file global attributes to the OzFluxQC file
 for attr in f.ncattrs():
     ds_60minutes.globalattributes[attr] = getattr(f,attr)
@@ -129,6 +130,17 @@ for i in range(0,3):
         Ws = numpy.sqrt(u*u+v*v)
         attr = qcutils.MakeAttributeDictionary(long_name="Wind speed",units="m/s",height="10m")
         qcutils.CreateSeries(ds_60minutes,Ws_label,Ws,Flag=f,Attr=attr)
+# wind direction from components
+for i in range(0,3):
+    for j in range(0,3):
+        u_label = "u_"+str(i)+str(j)
+        v_label = "v_"+str(i)+str(j)
+        Wd_label = "Wd_"+str(i)+str(j)
+        u,f = qcutils.GetSeriesasMA(ds_60minutes,u_label)
+        v,f = qcutils.GetSeriesasMA(ds_60minutes,v_label)
+        Wd = float(270) - numpy.ma.arctan2(v,u)*float(180)/numpy.pi
+        attr = qcutils.MakeAttributeDictionary(long_name="Wind direction",units="degrees",height="10m")
+        qcutils.CreateSeries(ds_60minutes,Wd_label,Wd,Flag=f,Attr=attr)
 # relative humidity from temperature, specific humidity and pressure
 for i in range(0,3):
     for j in range(0,3):
@@ -188,6 +200,32 @@ for i in range(0,3):
         attr = qcutils.MakeAttributeDictionary(long_name='Calculated net radiation',
                              standard_name='surface_net_allwave_radiation',units='W/m2')
         qcutils.CreateSeries(ds_60minutes,label_Fn,Fn,Flag=f,Attr=attr)
+# ground heat flux as residual
+for i in range(0,3):
+    for j in range(0,3):
+        label_Fg = "Fg_"+str(i)+str(j)
+        label_Fn = "Fn_"+str(i)+str(j)
+        label_Fh = "Fh_"+str(i)+str(j)
+        label_Fe = "Fe_"+str(i)+str(j)
+        Fn,f = qcutils.GetSeriesasMA(ds_60minutes,label_Fn)
+        Fh,f = qcutils.GetSeriesasMA(ds_60minutes,label_Fh)
+        Fe,f = qcutils.GetSeriesasMA(ds_60minutes,label_Fe)
+        Fg = Fn - Fh - Fe
+        attr = qcutils.MakeAttributeDictionary(long_name='Calculated ground heat flux',
+                             standard_name='downward_heat_flux_in_soil',units='W/m2')
+        qcutils.CreateSeries(ds_60minutes,label_Fg,Fg,Flag=f,Attr=attr)
+# Available energy
+for i in range(0,3):
+    for j in range(0,3):
+        label_Fg = "Fg_"+str(i)+str(j)
+        label_Fn = "Fn_"+str(i)+str(j)
+        label_Fa = "Fa_"+str(i)+str(j)
+        Fn,f = qcutils.GetSeriesasMA(ds_60minutes,label_Fn)
+        Fg,f = qcutils.GetSeriesasMA(ds_60minutes,label_Fg)
+        Fa = Fn - Fg
+        attr = qcutils.MakeAttributeDictionary(long_name='Calculated available energy',
+                             standard_name='not defined',units='W/m2')
+        qcutils.CreateSeries(ds_60minutes,label_Fa,Fa,Flag=f,Attr=attr)
 
 # interpolate from 60 to 30 minutes if requested
 if qcutils.cfoptionskey(cf,"Interpolate"):

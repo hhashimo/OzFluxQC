@@ -218,16 +218,20 @@ def l4qc(cf,ds3):
     for ThisOne in cf['Drivers'].keys():
         # interpolate over any gaps up to 1 hour in length
         qcts.InterpolateOverMissing(ds4,series=ThisOne,maxlen=2)
-        # gap fill using data from an alternative site
-        qcgf.GapFillFromAlternate(cf,ds4,series=ThisOne)
-        # gap fill using climatology
-        qcgf.GapFillFromClimatology(cf,ds4,series=ThisOne)
+        # _namecollector will put a list of series names in ds.accessserieslist for later processing
+        qcgf.GapFillFromACCESS_namecollector(cf,ds4,series=ThisOne)
+        ## gap fill using data from an alternative site
+        #qcgf.GapFillFromAlternate(cf,ds4,series=ThisOne)
+        ## gap fill using climatology
+        #qcgf.GapFillFromClimatology(cf,ds4,series=ThisOne)
         # re-apply the quality control checks (range, diurnal and rules)
         qcck.do_qcchecks_oneseries(cf,ds4,series=ThisOne)
         # interpolate over any remaining gaps up to 3 hours in length
         qcts.InterpolateOverMissing(ds4,series=ThisOne,maxlen=6)
         # fill any remaining gaps climatology
         qcgf.GapFillFromClimatology(cf,ds4,series=ThisOne)
+    # do the gap filling using the ACCESS output
+    qcgf.GapFillFromACCESS(ds4)
     # re-calculate the meteorological variables
     qcts.CalculateMeteorologicalVariables(ds4)
     # now do the flux gap filling methods

@@ -859,7 +859,7 @@ def CoordRotation2D(cf,ds):
         RotatedSeriesList = ['wT','wA','wC','uw','vw']
         NonRotatedSeriesList = ['UzT','UzA','UzC','UxUz','UyUz']
         for ThisOne, ThatOne in zip(RotatedSeriesList,NonRotatedSeriesList):
-            ReplaceWhereMissing(ds.series[ThisOne],ds.series[ThisOne],ds.series[ThatOne],FlagValue=20)
+            ReplaceWhereMissing(ds.series[ThisOne],ds.series[ThisOne],ds.series[ThatOne],FlagValue=21)
         if 'RelaxRotation' not in ds.globalattributes['Functions']:
             ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', RelaxRotation'
 
