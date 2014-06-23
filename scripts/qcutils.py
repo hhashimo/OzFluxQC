@@ -175,7 +175,7 @@ def CreateSeries(ds,Label,Data,FList=None,Flag=None,Attr=None):
     
     This utility is the prefered method for creating or updating a data series because
     it implements a consistent method for creating series in the data structure.  Direct
-    writes to the contents of the data structure are discouraged (unless PRI wrote the code!).
+    writes to the contents of the data structure are discouraged (unless PRI wrote the code:=P).
     """
     ds.series['_tmp_'] = {}                       # create a temporary series to avoid premature overwrites
     # put the data into the temporary series
@@ -378,7 +378,7 @@ def GetAttributeDictionary(ds,ThisOne):
     if ThisOne in ds.series.keys():
         attr = ds.series[ThisOne]['Attr']
     else:
-        MakeAttributeDictionary()
+        attr = MakeAttributeDictionary()
     return attr
 
 def GetcbTicksFromCF(cf,ThisOne):
@@ -512,9 +512,19 @@ def GetSeries(ds,ThisOne,si=0,ei=-1):
             nRecs = numpy.size(ds.series[ThisOne]['Data'])
             Flag = numpy.zeros(nRecs,dtype=numpy.int32)
     else:
-        nRecs = int(ds.globalattributes['nc_nrecs'])
-        Series = numpy.array([-9999]*nRecs,numpy.float64)
-        Flag = numpy.ones(nRecs,dtype=numpy.int32)
+        Series,Flag = MakeEmptySeries(ds,ThisOne,si=si,ei=ei)
+    if ei==-1:
+        Series = Series[si:]
+        Flag = Flag[si:]
+    else:
+        Series = Series[si:ei+1]
+        Flag = Flag[si:ei+1]
+    return Series,Flag
+
+def MakeEmptySeries(ds,ThisOne,si=0,ei=-1):
+    nRecs = int(ds.globalattributes['nc_nrecs'])
+    Series = numpy.array([-9999]*nRecs,numpy.float64)
+    Flag = numpy.ones(nRecs,dtype=numpy.int32)
     if ei==-1:
         Series = Series[si:]
         Flag = Flag[si:]
@@ -565,7 +575,7 @@ def get_cfsection(cf,series='',mode='quiet'):
     the control file.
     '''
     section = ''
-    sectionlist = ['Variables','Drivers','Targets','Derived']
+    sectionlist = ['Variables','Drivers','Fluxes','Derived']
     if len(series)==0:
         msgtxt = ' get_cfsection: no input series specified'
         if mode!='quiet': log.info(msgtxt)

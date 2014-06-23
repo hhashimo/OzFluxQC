@@ -232,52 +232,45 @@ def GapFill_L2(cf,ds2,ds3):
         for series in ds3.soloserieslist:
             qcts.MergeSeries(cf,ds3,series,[0,10,20,30,40,50])
 
-def GapFillFromClimatology(cf,ds,series=''):
+def GapFillFromClimatology(ds):
     '''
     Gap fill missing data using data from the climatology spreadsheet produced by
     the climatology.py script.
     '''
-    if len(series)==0: return
-    # check to see if the series has an entry in the config file
-    section = qcutils.get_cfsection(cf,series=series,mode='quiet')
-    if len(section)==0: return                    # "series" is not in the config file
-    # check to see if "series" is to be gap filled using climatology
-    if 'GapFillFromClimatology' not in cf[section][series].keys(): return
-    # check to see if "series" is in the data structure
-    if series not in ds.series.keys(): return     # "series" is not in the data structure
-    # check to see if there are any gaps in "series"
-    index = numpy.where(abs(ds.series[series]['Data']-float(-9999))<c.eps)[0]
-    if len(index)==0: return                      # no gaps found in "series"
-    # do the gap filling
-    log.info(' Gap filling '+series+' using climatology')
-    alt_xlbook = {}
-    open_xlfiles = []
-    section = qcutils.get_cfsection(cf,series=series,mode='quiet')
-    alt_filename = cf[section][series]['GapFillFromClimatology']['file_name']
-    if not os.path.exists(alt_filename):
-        log.error(" GapFillFromClimatology: Climatology file "+alt_filename+" doesn't exist")
+    if "climatology" not in dir(ds): return
+    # get the list of climatology data files and take out the duplicates
+    climatology_file_list = list(set(ds.climatology["file_name"]))
+    # more than 1 climatology data file not supported at present
+    if len(climatology_file_list)>1: raise NotImplementedError
+    # get the name of the climatology file
+    cli_filename = climatology_file_list[0]
+    # return to calling routine if the file doesn't exist
+    if not os.path.exists(cli_filename):
+        log.error(" GapFillFromClimatology: Climatology file "+cli_filename+" doesn't exist")
         return
-    if alt_filename not in open_xlfiles:
-        n = len(open_xlfiles)
-        alt_xlbook[n] = xlrd.open_workbook(alt_filename)
-        open_xlfiles.append(alt_filename)
-    else:
-        n = open_xlfiles.index(alt_filename)
-    # choose the gap filling method
-    if "method" in cf[section][series]['GapFillFromClimatology']:
-        if cf[section][series]['GapFillFromClimatology']['method']=='monthly':
-            gfClimatology_monthly(cf,ds,series,alt_xlbook[n])
-        elif cf[section][series]['GapFillFromClimatology']['method']=='interpolated daily':
-            gfClimatology_interpolateddaily(cf,ds,series,alt_xlbook[n])
+    # open the climatology file
+    cli_xlbook = xlrd.open_workbook(cli_filename)
+    # loop over the series to gap filled using climatology
+    for label,output,method in zip(ds.climatology["series"],ds.climatology["output"],ds.climatology["method"]):
+        # check to see if there are any gaps in "series"
+        index = numpy.where(abs(ds.series[label]['Data']-float(-9999))<c.eps)[0]
+        if len(index)==0: continue                      # no gaps found in "series"
+        # do the gap filling
+        log.info(" Gap filling "+label+" using climatology")
+        # choose the gap filling method
+        if method=="monthly":
+            gfClimatology_monthly(ds,label,output,cli_xlbook)
+        elif method=="interpolated daily":
+            gfClimatology_interpolateddaily(ds,label,output,cli_xlbook)
         else:
             log.error(" GapFillFromClimatology: unrecognised method option for "+series)
-            return
-    else:
-        gfClimatology_monthly(cf,ds,series,alt_xlbook[n])
+            continue
     if 'GapFillFromClimatology' not in ds.globalattributes['Functions']:
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', GapFillFromClimatology'
+    # remove the "climatology" attribute from ds
+    del ds.climatology
 
-def gfClimatology_monthly(cf,ds,series,xlbook):
+def gfClimatology_monthly(ds,series,output,xlbook):
     thissheet = xlbook.sheet_by_name(series)
     val1d = numpy.zeros_like(ds.series[series]['Data'])
     values = numpy.zeros([48,12])
@@ -288,10 +281,10 @@ def gfClimatology_monthly(cf,ds,series,xlbook):
         h = numpy.int(2*ds.series['Hdh']['Data'][i])
         m = numpy.int(ds.series['Month']['Data'][i])
         val1d[i] = values[h,m-1]
-    ds.series[series]['Data'][index] = val1d[index]
-    ds.series[series]['Flag'][index] = numpy.int32(32)
+    ds.series[output]['Data'][index] = val1d[index]
+    ds.series[output]['Flag'][index] = numpy.int32(40)
     
-def gfClimatology_interpolateddaily(cf,ds,series,xlbook):
+def gfClimatology_interpolateddaily(ds,series,output,xlbook):
     # gap fill from interpolated 30 minute data
     ts = ds.globalattributes["time_step"]
     ldt = ds.series["DateTime"]["Data"]
@@ -330,11 +323,11 @@ def gfClimatology_interpolateddaily(cf,ds,series,xlbook):
         jj = cdt.index(ldt[ii],li)
         li = jj
         data[ii] = val1d[jj]
-        flag[ii] = numpy.int32(32)
+        flag[ii] = numpy.int32(40)
     # get the attribute dictionary of the series being gap filled
-    attr = qcutils.GetAttributeDictionary(ds, series)
+    attr = qcutils.GetAttributeDictionary(ds,series)
     # put the gap filled data back into the data structure
-    qcutils.CreateSeries(ds, series, data, Flag=flag, Attr=attr)
+    qcutils.CreateSeries(ds,output,data,Flag=flag,Attr=attr)
 
 def GapFillFluxFromDayRatio(cf,ds,series=''):
     section = qcutils.get_cfsection(cf,series=series,mode='quiet')
@@ -400,7 +393,7 @@ def GapFillFluxFromDayRatio(cf,ds,series=''):
     flux_gf[index] = flux_rd[index]
     # generate a QC flag to indicate data has been estimated from ratios (day time)
     # and interpolated climatology (night time).
-    flag = numpy.array([40]*nRecs,dtype=numpy.int32)
+    flag = numpy.array([60]*nRecs,dtype=numpy.int32)
     # put the gap filled data into the data structure
     units=qcutils.GetUnitsFromds(ds, series)
     attr = qcutils.MakeAttributeDictionary(long_name='gap filled using ratio (daily)',units=units)
@@ -421,13 +414,68 @@ def GapFillFluxUsingMDS(cf,ds,series=""):
         log.info(" GapFillFluxUsingMDS: not implemented yet")
         return
 
-def GapFillFromACCESS_namecollector(cf,ds,series=""):
+def GapFillParseControlFile(cf,ds,series=""):
+    # find the section containing the series
     section = qcutils.get_cfsection(cf,series=series,mode="quiet")
+    # return empty handed if the series is not in a section
     if len(section)==0: return
+    if series not in ds.series.keys(): return
     if "GapFillFromACCESS" in cf[section][series].keys():
-        ds.accessserieslist.append(series)
-        access_file = cf[section][series]["GapFillFromACCESS"]["file_name"]
-        ds.accessfilelist.append(access_file)
+        if "access" not in dir(ds):
+            ds.access = {}
+            ds.access["series"] = []
+            ds.access["output"] = []
+            ds.access["file_name"] = []
+        ds.access["series"].append(series)
+        file_name = cf[section][series]["GapFillFromACCESS"]["file_name"]
+        ds.access["file_name"].append(file_name)
+        output = cf[section][series]["GapFillFromACCESS"]["output"]
+        ds.access["output"].append(output)
+        data,flag = qcutils.MakeEmptySeries(ds,output)
+        attr = qcutils.GetAttributeDictionary(ds,output)
+        qcutils.CreateSeries(ds,output,data,Flag=flag,Attr=attr)
+    if "GapFillUsingSOLO" in cf[section][series].keys():
+        if "solo" not in dir(ds):
+            ds.solo = {}
+            ds.solo["series"] = []
+            ds.solo["drivers"] = []
+            ds.solo["output"] = []
+        ds.solo["series"].append(series)
+        drivers = ast.literal_eval(cf[section][series]["GapFillUsingSOLO"]["drivers"])
+        ds.solo["drivers"].append(drivers)
+        output = cf[section][series]["GapFillUsingSOLO"]["output"]
+        ds.solo["output"].append(output)
+        data,flag = qcutils.MakeEmptySeries(ds,output)
+        attr = qcutils.GetAttributeDictionary(ds,output)
+        qcutils.CreateSeries(ds,output,data,Flag=flag,Attr=attr)
+    if "GapFillFromClimatology" in cf[section][series].keys():
+        if "climatology" not in dir(ds):
+            ds.climatology = {}
+            ds.climatology["series"] = []
+            ds.climatology["output"] = []
+            ds.climatology["file_name"] = []
+            ds.climatology["method"] = []
+        ds.climatology["series"].append(series)
+        file_name = cf[section][series]["GapFillFromClimatology"]["file_name"]
+        ds.climatology["file_name"].append(file_name)
+        output = cf[section][series]["GapFillFromClimatology"]["output"]
+        ds.climatology["output"].append(output)
+        data,flag = qcutils.MakeEmptySeries(ds,output)
+        attr = qcutils.GetAttributeDictionary(ds,output)
+        qcutils.CreateSeries(ds,output,data,Flag=flag,Attr=attr)
+        if "method" not in cf[section][series]["GapFillFromClimatology"].keys():
+            # default if "method" missing is "interpolated_daily"
+            ds.climatology["method"].append("interpolated_daily")
+        else:
+            ds.climatology["method"].append(cf[section][series]["GapFillFromClimatology"]["method"])
+    if "MergeSeries" in cf[section][series].keys():
+        if "merge" not in dir(ds):
+            ds.merge = {}
+            ds.merge["series"] = []
+            ds.merge["source"] = []
+        ds.merge["series"].append(series)
+        source = ast.literal_eval(cf[section][series]["MergeSeries"]["Source"])
+        ds.merge["source"].append(source)
 
 def GapFillFromACCESS(ds4):
     '''
@@ -439,15 +487,14 @@ def GapFillFromACCESS(ds4):
     the ACCESS GUI when we are done.  On exit, the OzFluxQC main GUI continues
     and eventually writes the gap filled data to file.
     '''
-    if len(ds4.accessserieslist)==0: return
+    if "access" not in dir(ds4): return
+    # get the list of ACCESS data files and take out the duplicates
+    access_file_list = list(set(ds4.access["file_name"]))
+    # more than 1 ACCESS data file not supported at present
+    if len(access_file_list)>1: raise NotImplementedError
     ldt_tower = ds4.series["DateTime"]["Data"]
     # we need the start and end time of the period of overlap between the ACCESS
     # and tower data
-    # get the list of ACCESS data files and take out the duplicates
-    access_file_list = list(set(ds4.accessfilelist))
-    # more than 1 ACCESS data file not supported at present
-    if len(access_file_list)>1:
-        raise NotImplementedError
     # read the ACCESS data file
     ds_access = qcio.nc_read_series(access_file_list[0])
     ldt_access = ds_access.series["DateTime"]["Data"]
@@ -458,13 +505,12 @@ def GapFillFromACCESS(ds4):
     if ldt_access[-1]<ldt_tower[0]:
         log.error("ACCESS data end before tower data starts")
         return
-    
+    # get the start and end date of the overlap period
+    ds4.access["overlap_startdate"] = max([ldt_tower[0],ldt_access[0]])
+    ds4.access["overlap_enddate"] = min([ldt_tower[-1],ldt_access[-1]])
+    # make the GUI
     access_gui = Tkinter.Toplevel()
-    # get the start and end datetime of the overlap period
-    access_gui.overlap_startdate = max([ldt_tower[0],ldt_access[0]])
-    access_gui.overlap_enddate = min([ldt_tower[-1],ldt_access[-1]])
-
-    access_gui.wm_title("ACCESS GUI : "+str(ds4.accessserieslist))
+    access_gui.wm_title("ACCESS GUI : "+str(ds4.access["series"]))
     access_gui.grid()
     # top row
     nrow = 0
@@ -474,9 +520,9 @@ def GapFillFromACCESS(ds4):
     access_gui.fileendLabel.grid(row=nrow,column=3,columnspan=3)
     # second row
     nrow = nrow + 1
-    access_gui.filestartValue = Tkinter.Label(access_gui,text=str(access_gui.overlap_startdate))
+    access_gui.filestartValue = Tkinter.Label(access_gui,text=str(ds4.access["overlap_startdate"]))
     access_gui.filestartValue.grid(row=nrow,column=0,columnspan=3)
-    access_gui.fileendValue = Tkinter.Label(access_gui,text=str(access_gui.overlap_enddate))
+    access_gui.fileendValue = Tkinter.Label(access_gui,text=str(ds4.access["overlap_enddate"]))
     access_gui.fileendValue.grid(row=nrow,column=3,columnspan=3)
     # third row
     nrow = nrow + 1
@@ -492,51 +538,55 @@ def GapFillFromACCESS(ds4):
     access_gui.endEntry.grid(row=nrow,column=3,columnspan=3)
     # bottom row
     nrow = nrow + 1
-    access_gui.runButton = Tkinter.Button(access_gui,text="Go",command=lambda:gfACCESS_main(ds4,ds_access,access_gui))
+    access_gui.runButton = Tkinter.Button(access_gui,text="Run",command=lambda:gfACCESS_main(ds4,ds_access,access_gui))
     access_gui.runButton.grid(row=nrow,column=0,columnspan=2)
-    access_gui.acceptButton = Tkinter.Button(access_gui,text="Accept",command=lambda:gfACCESS_replace(ds4,ds_access,access_gui))
+    access_gui.acceptButton = Tkinter.Button(access_gui,text="Done",command=lambda:gfACCESS_finish(ds4,access_gui))
     access_gui.acceptButton.grid(row=nrow,column=2,columnspan=2)
-    access_gui.doneButton = Tkinter.Button(access_gui,text="Done",command=lambda:gfACCESS_finish(access_gui))
+    access_gui.doneButton = Tkinter.Button(access_gui,text="Close plots",command=lambda:gfACCESS_closeplots())
     access_gui.doneButton.grid(row=nrow,column=4,columnspan=2)
     access_gui.wait_window(access_gui)
 
-def gfACCESS_finish(self):
+def gfACCESS_finish(ds,access_gui):
     for i in plt.get_fignums(): plt.close(i)
-    self.destroy()
+    del ds.access
+    access_gui.destroy()
 
-def gfACCESS_main(ds4,ds_access,access_gui):
+def gfACCESS_closeplots():
+    for i in plt.get_fignums(): plt.close(i)
+
+def gfACCESS_main(ds_tower,ds_access,access_gui):
     '''
     This is the main routine for using ACCESS data to gap fill drivers.
     '''
-    log.info(" Gap filling "+str(ds4.accessserieslist)+" using ACCESS data")
+    log.info(" Gap filling "+str(ds_tower.access["series"])+" using ACCESS data")
     # read the control file again, this allows the contents of the control file to
     # be changed with the ACCESS GUI still displayed
-    cfname = ds4.globalattributes["controlfile_name"]
+    cfname = ds_tower.globalattributes["controlfile_name"]
     cf = qcio.get_controlfilecontents(cfname)
     # get the site name
-    site_name = ds4.globalattributes["site_name"]
+    site_name = ds_tower.globalattributes["site_name"]
     # get the time step and a local pointer to the datetime series
-    ts = int(ds4.globalattributes["time_step"])
+    ts = int(ds_tower.globalattributes["time_step"])
     # check the time step of the tower and ACCESS data are the same
     if ts!=int(ds_access.globalattributes["time_step"]):
         log.error("gfACCESS_main: ACCESS and tower time steps are different")
         return
     # get a local datetime series
-    ldt_tower = ds4.series["DateTime"]["Data"]
+    ldt_tower = ds_tower.series["DateTime"]["Data"]
     ldt_access = ds_access.series["DateTime"]["Data"]
     # get the start and end datetimes entered in the ACCESS GUI
     startdate = access_gui.startEntry.get()
-    if len(startdate)==0: startdate = access_gui.overlap_startdate
+    if len(startdate)==0: startdate = ds_tower.access["overlap_startdate"]
     enddate = access_gui.endEntry.get()
-    if len(enddate)==0: enddate = access_gui.overlap_enddate
+    if len(enddate)==0: enddate = ds_tower.access["overlap_enddate"]
     # get the indices of the start and end datetimes in the tower and the ACCESS data.
     si_tower = qcutils.GetDateIndex(ldt_tower,str(startdate),ts=ts,match="startnextday")
     ei_tower = qcutils.GetDateIndex(ldt_tower,str(enddate),ts=ts,match="endpreviousday")
     si_access = qcutils.GetDateIndex(ldt_access,str(startdate),ts=ts,match="startnextday")
     ei_access = qcutils.GetDateIndex(ldt_access,str(enddate),ts=ts,match="endpreviousday")
     # save the start and end date
-    access_gui.period_startdate = ldt_tower[si_tower]
-    access_gui.period_enddate = ldt_tower[ei_tower]
+    ds_tower.access["period_startdate"] = ldt_tower[si_tower]
+    ds_tower.access["period_enddate"] = ldt_tower[ei_tower]
     # get the datetime series for the overlap period
     odt_tower = ldt_tower[si_tower:ei_tower+1]
     odt_access = ldt_access[si_access:ei_access+1]
@@ -547,62 +597,72 @@ def gfACCESS_main(ds4,ds_access,access_gui):
     ndays = nrecs/nperday
     # now loop over the variables to be gap filled using the ACCESS data
     fig_num = 0
-    access_gui.data = {}
-    for label in ds4.accessserieslist:
-        # create a dictionary to hold the variable information for later use
-        access_gui.data[label] = {}
+    ds_tower.access["var_maxr"] = []
+    for label,output in zip(ds_tower.access["series"],ds_tower.access["output"]):
         fig_num = fig_num + 1
         title = site_name+' : Comparison of tower and ACCESS data for '+label
         # get the tower data
-        data_tower,flag_tower=qcutils.GetSeriesasMA(ds4,label,si=si_tower,ei=ei_tower)
+        data_tower,flag_tower = qcutils.GetSeriesasMA(ds_tower,label,si=si_tower,ei=ei_tower)
         # get the units
-        attr_tower = qcutils.GetAttributeDictionary(ds4,label)
+        attr_tower = qcutils.GetAttributeDictionary(ds_tower,label)
         units_tower = attr_tower["units"]
         # get a list of ACCESS variables for this tower variable
         access_var_list = [item for item in ds_access.series.keys() if label in item]
         # check the series in the ACCESS data
         if len(access_var_list)==0:
             log.error("gfACCESS_main: series "+label+" not in ACCESS data file")
-            return
+            continue
         # get the ACCESS series that has the highest correlation with the tower data
         r = numpy.zeros(len(access_var_list))
         for idx,var in enumerate(access_var_list):
-            data_access,flag_access=qcutils.GetSeriesasMA(ds_access,var,si=si_access,ei=ei_access)
+            data_access,flag_access = qcutils.GetSeriesasMA(ds_access,var,si=si_access,ei=ei_access)
             attr_access = qcutils.GetAttributeDictionary(ds_access,var)
             units_access = attr_access["units"]
             r[idx] = numpy.ma.corrcoef(data_tower,data_access)[0,1]
         maxidx = numpy.argmax(r)
         var_maxr = access_var_list[maxidx]
         # save the name of the ACCESS variable that has the highest correlation with the tower data
-        access_gui.data[label]["var_maxr"] = var_maxr
-        data_access,flag_access=qcutils.GetSeriesasMA(ds_access,var_maxr,si=si_access,ei=ei_access)
+        ds_tower.access["var_maxr"].append(var_maxr)
+        data_access,flag_access = qcutils.GetSeriesasMA(ds_access,var_maxr,si=si_access,ei=ei_access)
         # plot the data for this period
         pd = gfACCESS_initplot(site_name=site_name,label=label,fig_num=fig_num,title=title,
                                ts=ts,ndays=ndays,nperday=nperday,
                                units_tower=units_tower,units_access=units_access)
         gfACCESS_plot(pd,odt_tower,data_tower,odt_access,data_access,r)
-        # save the regression statistics and the best fit data for each variable for this period
-        #for item in ["rlm","ols"]: access_gui["access"][label][item] = pd[item]
-    # make sure this processing step gets written to the global attribute "Functions"
-    if "GapFillFromACCESS" not in ds4.globalattributes["Functions"]:
-        ds4.globalattributes["Functions"] = ds4.globalattributes["Functions"]+", GapFillFromACCESS"
 
-def gfACCESS_replace(ds_tower,ds_access,access_gui):
-    print access_gui.period_startdate,access_gui.period_enddate
+        # mask both series when either one is missing
+        data_access.mask = numpy.ma.mask_or(data_access.mask,data_tower.mask)
+        data_tower.mask = numpy.ma.mask_or(data_access.mask,data_tower.mask)
+        # get non-masked versions of the data, these are used with the robust statistics module
+        data_access_nm = numpy.ma.compressed(data_access)
+        data_tower_nm = numpy.ma.compressed(data_tower)
+        # best fit of ACCESS data to tower data by robust least squares
+        resrlm = sm.RLM(data_tower_nm,sm.add_constant(data_access_nm,prepend=False),M=sm.robust.norms.TukeyBiweight()).fit()
+        m_rlm = resrlm.params[0]; b_rlm = resrlm.params[1]
+        data_access_rlm = m_rlm*data_access+b_rlm
+        # put the best-fit adjusted ACCESS data into the output series
+        ds_tower.series[output]["Data"][si_tower:ei_tower+1] = data_access_rlm
+        ds_tower.series[output]["Flag"][si_tower:ei_tower+1] = numpy.int32(20)
+    
+    # make sure this processing step gets written to the global attribute "Functions"
+    if "GapFillFromACCESS" not in ds_tower.globalattributes["Functions"]:
+        ds_tower.globalattributes["Functions"] = ds_tower.globalattributes["Functions"]+", GapFillFromACCESS"
+
+def gfACCESS_replace(ds_tower,ds_access):
+    #print access_gui.period_startdate,access_gui.period_enddate
     # point to some useful parts of the data structures
     ldt_tower = ds_tower.series["DateTime"]["Data"]
     ldt_access = ds_access.series["DateTime"]["Data"]
     ts = ds_tower.globalattributes["time_step"]
     # get the start and end datetime for the period being gap filled
-    startdate = access_gui.period_startdate
-    enddate = access_gui.period_enddate
+    startdate = ds_tower.access["period_startdate"]
+    enddate = ds_tower.access["period_enddate"]
     # get the start and end indices for the tower data series
     si_tower = qcutils.GetDateIndex(ldt_tower,str(startdate),ts=ts,match="exact")
     ei_tower = qcutils.GetDateIndex(ldt_tower,str(enddate),ts=ts,match="exact")
     si_access = qcutils.GetDateIndex(ldt_access,str(startdate),ts=ts,match="exact")
     ei_access = qcutils.GetDateIndex(ldt_access,str(enddate),ts=ts,match="exact")
-    for label in access_gui.data:
-        var_maxr = access_gui.data[label]["var_maxr"]
+    for label,var_maxr,output in zip(ds_tower.access["series"],ds_tower.access["var_maxr"],ds_tower.access["output"]):
         data_access,flag_access = qcutils.GetSeriesasMA(ds_access,var_maxr,si=si_access,ei=ei_access)
         data_tower,flag_tower = qcutils.GetSeriesasMA(ds_tower,label,si=si_tower,ei=ei_tower)
         # mask both series when either one is missing
@@ -617,8 +677,8 @@ def gfACCESS_replace(ds_tower,ds_access,access_gui):
         data_access_rlm = m_rlm*data_access+b_rlm
         # replace missing tower with the best-fit adjusted ACCESS data
         index = numpy.where(abs(ds_tower.series[label]["Data"][si_tower:ei_tower+1]-numpy.float64(-9999))<c.eps)[0]
-        ds_tower.series[label]["Data"][si_tower:ei_tower+1][index] = data_access_rlm[index]
-        ds_tower.series[label]["Flag"][si_tower:ei_tower+1][index] = numpy.int32(20)
+        ds_tower.series[output]["Data"][si_tower:ei_tower+1][index] = data_access_rlm[index]
+        ds_tower.series[output]["Flag"][si_tower:ei_tower+1][index] = numpy.int32(20)
 
 def gfACCESS_initplot(**kwargs):
     pd = {"margin_bottom":0.05,"margin_top":0.05,"margin_left":0.075,"margin_right":0.05,
@@ -781,12 +841,6 @@ def gfACCESS_plot(pd,odt_tower,data_tower,odt_access,data_access,r):
     # show the plot
     plt.draw()
 
-def GapFillUsingSOLO_namecollector(cf,ds,series=''):
-    section = qcutils.get_cfsection(cf,series=series,mode='quiet')
-    if len(section)==0: return
-    if 'GapFillUsingSOLO' in cf[section][series].keys():
-        ds.soloserieslist.append(series)
-
 def GapFillUsingSOLO(dsa,dsb):
     '''
     This is the "Run SOLO" GUI.
@@ -797,47 +851,48 @@ def GapFillUsingSOLO(dsa,dsb):
     when we are done.  On exit, the OzFluxQC main GUI continues and eventually
     writes the gap filled data to file.
     '''
-    if len(dsb.soloserieslist)==0: return
-    ldt = dsb.series['DateTime']['Data']
-    
+    if "solo" not in dir(dsb): return
+    # local pointer to the datetime series
+    ldt = dsb.series["DateTime"]["Data"]
+    # set up the GUI
     solo_gui = Tkinter.Toplevel()
-    solo_gui.wm_title('SOLO GUI : '+str(dsb.soloserieslist))
+    solo_gui.wm_title("SOLO GUI : "+str(dsb.solo["series"]))
     solo_gui.grid()
     # top row
     nrow = 0
-    solo_gui.nodesLabel = Tkinter.Label(solo_gui,text='Nodes')
-    solo_gui.nodesLabel.grid(row=nrow,column=0,columnspan=1,sticky='E')
+    solo_gui.nodesLabel = Tkinter.Label(solo_gui,text="Nodes")
+    solo_gui.nodesLabel.grid(row=nrow,column=0,columnspan=1,sticky="E")
     solo_gui.nodesEntry = Tkinter.Entry(solo_gui,width=6)
-    solo_gui.nodesEntry.grid(row=nrow,column=1,columnspan=1,sticky='W')
-    solo_gui.nodesEntry.insert(0,'Auto')
+    solo_gui.nodesEntry.grid(row=nrow,column=1,columnspan=1,sticky="W")
+    solo_gui.nodesEntry.insert(0,"Auto")
     #solo_gui.nodesEntry.insert(0,'5')
-    solo_gui.trainingLabel = Tkinter.Label(solo_gui,text='Training')
-    solo_gui.trainingLabel.grid(row=nrow,column=2,columnspan=1,sticky='E')
+    solo_gui.trainingLabel = Tkinter.Label(solo_gui,text="Training")
+    solo_gui.trainingLabel.grid(row=nrow,column=2,columnspan=1,sticky="E")
     solo_gui.trainingEntry = Tkinter.Entry(solo_gui,width=6)
-    solo_gui.trainingEntry.grid(row=nrow,column=3,columnspan=1,sticky='W')
-    solo_gui.trainingEntry.insert(0,'500')
-    solo_gui.factorLabel = Tkinter.Label(solo_gui,text='Nda factor')
-    solo_gui.factorLabel.grid(row=nrow,column=4,columnspan=1,sticky='E')
+    solo_gui.trainingEntry.grid(row=nrow,column=3,columnspan=1,sticky="W")
+    solo_gui.trainingEntry.insert(0,"500")
+    solo_gui.factorLabel = Tkinter.Label(solo_gui,text="Nda factor")
+    solo_gui.factorLabel.grid(row=nrow,column=4,columnspan=1,sticky="E")
     solo_gui.factorEntry = Tkinter.Entry(solo_gui,width=6)
-    solo_gui.factorEntry.grid(row=nrow,column=5,columnspan=1,sticky='W')
-    solo_gui.factorEntry.insert(0,'5')
+    solo_gui.factorEntry.grid(row=nrow,column=5,columnspan=1,sticky="W")
+    solo_gui.factorEntry.insert(0,"5")
     # second row
     nrow = nrow + 1
-    solo_gui.learningrateLabel = Tkinter.Label(solo_gui,text='Learning')
-    solo_gui.learningrateLabel.grid(row=nrow,column=2,columnspan=1,sticky='E')
+    solo_gui.learningrateLabel = Tkinter.Label(solo_gui,text="Learning")
+    solo_gui.learningrateLabel.grid(row=nrow,column=2,columnspan=1,sticky="E")
     solo_gui.learningrateEntry = Tkinter.Entry(solo_gui,width=6)
-    solo_gui.learningrateEntry.grid(row=nrow,column=3,columnspan=1,sticky='W')
-    solo_gui.learningrateEntry.insert(0,'0.01')
-    solo_gui.iterationsLabel = Tkinter.Label(solo_gui,text='Iterations')
-    solo_gui.iterationsLabel.grid(row=nrow,column=4,columnspan=1,sticky='E')
+    solo_gui.learningrateEntry.grid(row=nrow,column=3,columnspan=1,sticky="W")
+    solo_gui.learningrateEntry.insert(0,"0.01")
+    solo_gui.iterationsLabel = Tkinter.Label(solo_gui,text="Iterations")
+    solo_gui.iterationsLabel.grid(row=nrow,column=4,columnspan=1,sticky="E")
     solo_gui.iterationsEntry = Tkinter.Entry(solo_gui,width=6)
-    solo_gui.iterationsEntry.grid(row=nrow,column=5,columnspan=1,sticky='W')
-    solo_gui.iterationsEntry.insert(0,'500')
+    solo_gui.iterationsEntry.grid(row=nrow,column=5,columnspan=1,sticky="W")
+    solo_gui.iterationsEntry.insert(0,"500")
     # third row
     nrow = nrow + 1
-    solo_gui.filestartLabel = Tkinter.Label(solo_gui,text='File start date')
+    solo_gui.filestartLabel = Tkinter.Label(solo_gui,text="File start date")
     solo_gui.filestartLabel.grid(row=nrow,column=0,columnspan=3)
-    solo_gui.fileendLabel = Tkinter.Label(solo_gui,text='File end date')
+    solo_gui.fileendLabel = Tkinter.Label(solo_gui,text="File end date")
     solo_gui.fileendLabel.grid(row=nrow,column=3,columnspan=3)
     # fourth row
     nrow = nrow + 1
@@ -847,27 +902,28 @@ def GapFillUsingSOLO(dsa,dsb):
     solo_gui.fileendValue.grid(row=nrow,column=3,columnspan=3)
     # fifth row
     nrow = nrow + 1
-    solo_gui.startLabel = Tkinter.Label(solo_gui, text='Start date (YYYY-MM-DD)')
+    solo_gui.startLabel = Tkinter.Label(solo_gui, text="Start date (YYYY-MM-DD)")
     solo_gui.startLabel.grid(row=nrow,column=0,columnspan=3)
     solo_gui.startEntry = Tkinter.Entry(solo_gui)
     solo_gui.startEntry.grid(row=nrow,column=3,columnspan=3)
     # sixth row
     nrow = nrow + 1
-    solo_gui.endLabel = Tkinter.Label(solo_gui, text='End date   (YYYY-MM-DD)')
+    solo_gui.endLabel = Tkinter.Label(solo_gui, text="End date   (YYYY-MM-DD)")
     solo_gui.endLabel.grid(row=nrow,column=0,columnspan=3)
     solo_gui.endEntry = Tkinter.Entry(solo_gui)
     solo_gui.endEntry.grid(row=nrow,column=3,columnspan=3)
     # bottom row
     nrow = nrow + 1
-    solo_gui.runButton = Tkinter.Button (solo_gui, text='Run SOLO',command=lambda:gfSOLO_main(dsa,dsb,solo_gui))
+    solo_gui.runButton = Tkinter.Button (solo_gui, text="Run SOLO",command=lambda:gfSOLO_main(dsa,dsb,solo_gui))
     solo_gui.runButton.grid(row=nrow,column=1,columnspan=2)
-    solo_gui.doneButton = Tkinter.Button (solo_gui, text='Done',command=lambda:finished_solo(solo_gui))
+    solo_gui.doneButton = Tkinter.Button (solo_gui, text="Done",command=lambda:finished_solo(dsb,solo_gui))
     solo_gui.doneButton.grid(row=nrow,column=3,columnspan=2)
     solo_gui.wait_window(solo_gui)
 
-def finished_solo(self):
+def finished_solo(ds,solo_gui):
     for i in plt.get_fignums(): plt.close(i)
-    self.destroy()
+    del ds.solo
+    solo_gui.destroy()
 
 #def quit_solo(top,cf):
     #cf['button'] = 'quit'
@@ -878,65 +934,61 @@ def gfSOLO_main(dsa,dsb,solo_gui):
     '''
     This is the main routine for running SOLO, an artifical neural network for gap filling fluxes.
     '''
-    log.info(' Gap filling '+str(dsb.soloserieslist)+' using SOLO ANN')
+    log.info(" Gap filling "+str(dsb.solo["series"])+" using SOLO ANN")
     # read the control file again, this allows the contents of the control file to
     # be changed with the SOLO GUI still displayed
-    cfname = dsb.globalattributes['controlfile_name']
+    cfname = dsb.globalattributes["controlfile_name"]
     cf = qcio.get_controlfilecontents(cfname)
     # get the time step and a local pointer to the datetime series
-    ts = dsb.globalattributes['time_step']
-    ldt = dsb.series['DateTime']['Data']
+    ts = dsb.globalattributes["time_step"]
+    ldt = dsb.series["DateTime"]["Data"]
     startdate = solo_gui.startEntry.get()
     enddate = solo_gui.endEntry.get()
     # get the start and end datetime indices
-    si = qcutils.GetDateIndex(ldt,startdate,ts=ts,default=0,match='exact')
-    ei = qcutils.GetDateIndex(ldt,enddate,ts=ts,default=-1,match='exact')
+    si = qcutils.GetDateIndex(ldt,startdate,ts=ts,default=0,match="exact")
+    ei = qcutils.GetDateIndex(ldt,enddate,ts=ts,default=-1,match="exact")
     # check the start and end indices
     if si >= ei:
-        print ' GapFillUsingSOLO: end datetime index smaller that start datetime index'
+        print " GapFillUsingSOLO: end datetime index smaller that start datetime index"
         return
     if si==0 and ei==-1:
-        print ' GapFillUsingSOLO: no start and end datetime specified, using all data'
-        nRecs = int(dsb.globalattributes['nc_nrecs'])
+        print " GapFillUsingSOLO: no start and end datetime specified, using all data"
+        nRecs = int(dsb.globalattributes["nc_nrecs"])
     else:
         nRecs = ei - si + 1
     # loop over the series to be gap filled using solo
-    for series in dsb.soloserieslist:
-        # get the section containing series
-        section = qcutils.get_cfsection(cf,series=series,mode='quiet')
-        # get the list of drivers
-        driverlist = ast.literal_eval(cf[section][series]['GapFillUsingSOLO']['drivers'])
+    for series,drivers,output in zip(dsb.solo["series"],dsb.solo["drivers"],dsb.solo["output"]):
         # set the number of nodes for the inf files
-        nodesAuto = gfSOLO_setnodesEntry(solo_gui,driverlist)
+        nodesAuto = gfSOLO_setnodesEntry(solo_gui,drivers)
         # write the inf files for sofm, solo and seqsolo
         gfSOLO_writeinffiles(solo_gui)
         # run SOFM
-        result = gfSOLO_runsofm(cf,dsa,dsb,solo_gui,driverlist,series,nRecs,si=si,ei=ei)
+        result = gfSOLO_runsofm(dsa,dsb,solo_gui,drivers,series,nRecs,si=si,ei=ei)
         if result!=1: return
         # run SOLO
-        result = gfSOLO_runsolo(cf,dsa,dsb,driverlist,series,nRecs,si=si,ei=ei)
+        result = gfSOLO_runsolo(dsa,dsb,drivers,series,nRecs,si=si,ei=ei)
         if result!=1: return
         # run seqsolo and put the solo_modelled data into the ds series
-        result = gfSOLO_runseqsolo(cf,dsa,dsb,driverlist,series,nRecs,si=si,ei=ei)
+        result = gfSOLO_runseqsolo(dsa,dsb,drivers,series,output,nRecs,si=si,ei=ei)
         if result!=1: return
         # plot the results
-        gfSOLO_plotresults(cf,dsa,dsb,driverlist,series,solo_gui,si=si,ei=ei)
+        gfSOLO_plotresults(dsa,dsb,drivers,series,output,solo_gui,si=si,ei=ei)
         # reset the nodesEntry in the solo_gui
         if nodesAuto: gfSOLO_resetnodesEntry(solo_gui)
     if 'GapFillUsingSOLO' not in dsb.globalattributes['Functions']:
         dsb.globalattributes['Functions'] = dsb.globalattributes['Functions']+', GapFillUsingSOLO'
 
-def gfSOLO_setnodesEntry(solo_gui,driverlist):
+def gfSOLO_setnodesEntry(solo_gui,drivers):
     nodesAuto = False
-    if str(solo_gui.nodesEntry.get()).lower()=='auto':
+    if str(solo_gui.nodesEntry.get()).lower()=="auto":
         nodesAuto = True
         solo_gui.nodesEntry.delete(0,Tkinter.END)
-        solo_gui.nodesEntry.insert(0,str(len(driverlist)+1))
+        solo_gui.nodesEntry.insert(0,str(len(drivers)+1))
     return nodesAuto
 
 def gfSOLO_resetnodesEntry(solo_gui):
     solo_gui.nodesEntry.delete(0,Tkinter.END)
-    solo_gui.nodesEntry.insert(0,'Auto')
+    solo_gui.nodesEntry.insert(0,"Auto")
 
 def gfSOLO_writeinffiles(solo_gui):
     # sofm inf file
@@ -1033,7 +1085,7 @@ def gfSOLO_writeinffiles(solo_gui):
     f.write('Line 22: missing data value, default value is -9999\n')
     f.close()
 
-def gfSOLO_runsofm(cf,dsa,dsb,solo_gui,driverlist,targetlabel,nRecs,si=0,ei=-1):
+def gfSOLO_runsofm(dsa,dsb,solo_gui,driverlist,targetlabel,nRecs,si=0,ei=-1):
     '''
     Run sofm, the pre-processor for SOLO.
     '''
@@ -1051,9 +1103,9 @@ def gfSOLO_runsofm(cf,dsa,dsb,solo_gui,driverlist,targetlabel,nRecs,si=0,ei=-1):
     sofmoutname = sofmoutname + str(solo_gui.iterationsEntry.get())   # seqsolo training iterations
     sofmoutname = sofmoutname + '.out'
     sofminfname = sofmoutname + '.inf'
-    # check to see if the user wants to use any existing sofm output
-    if qcutils.cfoptionskey(cf,'UseExistingSOFMOutput'):
-        if gfSOLO_checkforprevioussofmrun(sofmoutname,sofminfname): return
+    ## check to see if the user wants to use any existing sofm output
+    #if qcutils.cfoptionskey(cf,'UseExistingSOFMOutput'):
+        #if gfSOLO_checkforprevioussofmrun(sofmoutname,sofminfname): return
     # get the number of drivers
     ndrivers = len(driverlist)
     # add an extra column for the target data
@@ -1138,7 +1190,7 @@ def gfSOLO_checkforprevioussofmrun(sofmoutname,sofminfname):
     else:
         return False
 
-def gfSOLO_runsolo(cf,dsa,dsb,driverlist,targetlabel,nRecs,si=0,ei=-1):
+def gfSOLO_runsolo(dsa,dsb,driverlist,targetlabel,nRecs,si=0,ei=-1):
     '''
     Run SOLO.
     Note that although we pass in <targetlabel>, we will use <targetlabel>_L3 as the
@@ -1192,14 +1244,10 @@ def gfSOLO_runsolo(cf,dsa,dsb,driverlist,targetlabel,nRecs,si=0,ei=-1):
         log.error(' gfSOLO_runsolo: SOLO did not run correctly, check the SOLO GUI and the log files')
         return 0
 
-def gfSOLO_runseqsolo(cf,dsa,dsb,driverlist,targetlabel,nRecs,si=0,ei=-1):
+def gfSOLO_runseqsolo(dsa,dsb,driverlist,targetlabel,outputlabel,nRecs,si=0,ei=-1):
     '''
     Run SEQSOLO.
     '''
-    # get the section containing series
-    section = qcutils.get_cfsection(cf,series=targetlabel,mode='quiet')
-    # get the output label
-    outlabel = str(cf[section][targetlabel]['GapFillUsingSOLO']['output'])
     # get the number of drivers    
     ndrivers = len(driverlist)
     # add an extra column for the target data
@@ -1236,35 +1284,31 @@ def gfSOLO_runseqsolo(cf,dsa,dsb,driverlist,targetlabel,nRecs,si=0,ei=-1):
         # seqsolo can be used via the "learning rate" and "Iterations" GUI options
         seqdata = numpy.genfromtxt('solo/output/seqOut2.out')
         # if no output series exists then create one now
-        if outlabel not in dsb.series.keys():
+        if outputlabel not in dsb.series.keys():
             # qcutils.GetSeriesasMA will create a blank series if it doesn't already exist
-            flux, flux_flag = qcutils.GetSeriesasMA(dsb,outlabel)
+            flux, flux_flag = qcutils.GetSeriesasMA(dsb,outputlabel)
             attr = qcutils.MakeAttributeDictionary(long_name=targetlabel+' modelled by SOLO',
                                                    units=dsa.series[targetlabel]['Attr']['units'])
-            qcutils.CreateSeries(dsb,outlabel,flux,Flag=flux_flag,Attr=attr)
+            qcutils.CreateSeries(dsb,outputlabel,flux,Flag=flux_flag,Attr=attr)
         # put the SOLO modelled data back into the data series
         if ei==-1:
-            dsb.series[outlabel]['Data'][si:] = seqdata[:,1]
-            dsb.series[outlabel]['Flag'][si:] = numpy.int32(30)
+            dsb.series[outputlabel]['Data'][si:] = seqdata[:,1]
+            dsb.series[outputlabel]['Flag'][si:] = numpy.int32(30)
         else:
-            dsb.series[outlabel]['Data'][si:ei+1] = seqdata[:,1]
-            dsb.series[outlabel]['Flag'][si:ei+1] = numpy.int32(30)
+            dsb.series[outputlabel]['Data'][si:ei+1] = seqdata[:,1]
+            dsb.series[outputlabel]['Flag'][si:ei+1] = numpy.int32(30)
         return 1
     else:
         log.error(' gfSOLO_runseqsolo: SEQSOLO did not run correctly, check the SOLO GUI and the log files')
         return 0
 
-def gfSOLO_plotresults(cf,dsa,dsb,driverlist,targetlabel,solo_gui,si=0,ei=-1):
-    # get the section containing series
-    section = qcutils.get_cfsection(cf,series=targetlabel,mode='quiet')
-    # get the output label
-    outlabel = str(cf[section][targetlabel]['GapFillUsingSOLO']['output'])
+def gfSOLO_plotresults(dsa,dsb,driverlist,targetlabel,outputlabel,solo_gui,si=0,ei=-1):
     dt = int(dsb.globalattributes['time_step'])
     xdt = numpy.array(dsb.series['DateTime']['Data'][si:ei+1])
     Hdh,f = qcutils.GetSeriesasMA(dsb,'Hdh',si=si,ei=ei)
     # get the observed and modelled values
     obs,f = qcutils.GetSeriesasMA(dsa,targetlabel,si=si,ei=ei)
-    mod,f = qcutils.GetSeriesasMA(dsb,outlabel,si=si,ei=ei)
+    mod,f = qcutils.GetSeriesasMA(dsb,outputlabel,si=si,ei=ei)
     nDrivers = len(driverlist)
     # margins
     margin_bottom = 0.075
@@ -1356,7 +1400,7 @@ def gfSOLO_plotresults(cf,dsa,dsb,driverlist,targetlabel,solo_gui,si=0,ei=-1):
     ts_axes[0].set_xlim(xdt[0],xdt[-1])
     TextStr = targetlabel+'_obs ('+dsa.series[targetlabel]['Attr']['units']+')'
     ts_axes[0].text(0.05,0.85,TextStr,color='b',horizontalalignment='left',transform=ts_axes[0].transAxes)
-    TextStr = outlabel+'('+dsb.series[outlabel]['Attr']['units']+')'
+    TextStr = outputlabel+'('+dsb.series[outputlabel]['Attr']['units']+')'
     ts_axes[0].text(0.85,0.85,TextStr,color='r',horizontalalignment='right',transform=ts_axes[0].transAxes)
     plt.draw()    
     for ThisOne,i in zip(driverlist,range(1,nDrivers+1)):

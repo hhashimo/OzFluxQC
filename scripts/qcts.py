@@ -1902,6 +1902,42 @@ def MassmanStandard(cf,ds,Ta_in='Ta',Ah_in='Ah',ps_in='ps',ustar_in='ustar',usta
             index = numpy.where(mask.astype(int)==1)
             ds.series[ThisOne]['Flag'][index] = numpy.int32(12)
 
+def MergeSeries_L4(ds):
+    # check that ds has a "merge" attribute
+    if "merge" not in dir(ds): return
+    # set the OK flags
+    okflags = [0,10,20,30,40,50]
+    # loop over the entries in ds.merge
+    for label,srclist in zip(ds.merge["series"],ds.merge["source"]):
+        log.info(' Merging '+str(srclist)+' ==> '+label)
+        if srclist[0] not in ds.series.keys():
+            log.error('  MergeSeries: primary input series'+srclist[0]+'not found')
+            continue
+        data = ds.series[srclist[0]]['Data'].copy()
+        flag = ds.series[srclist[0]]['Flag'].copy()
+        attr = ds.series[srclist[0]]['Attr'].copy()
+        SeriesNameString = srclist[0]
+        srclist.remove(srclist[0])
+        for ThisOne in srclist:
+            if ThisOne in ds.series.keys():
+                SeriesNameString = SeriesNameString+', '+ThisOne
+                indx1 = numpy.zeros(numpy.size(data),dtype=numpy.int)
+                indx2 = numpy.zeros(numpy.size(data),dtype=numpy.int)
+                for okflag in okflags:
+                    index = numpy.where((flag==okflag))[0]                             # index of acceptable primary values
+                    indx1[index] = 1                                                   # set primary index to 1 when primary good
+                    index = numpy.where((ds.series[ThisOne]['Flag']==okflag))[0]       # same process for secondary
+                    indx2[index] = 1
+                index = numpy.where((indx1!=1)&(indx2==1))[0]           # index where primary bad but secondary good
+                data[index] = ds.series[ThisOne]['Data'][index]         # replace bad primary with good secondary
+                flag[index] = ds.series[ThisOne]['Flag'][index]
+            else:
+                log.error('  MergeSeries: secondary input series'+ThisOne+'not found')
+        attr["long_name"] = "Merged from " + SeriesNameString
+        qcutils.CreateSeries(ds,label,data,Flag=flag,Attr=attr)
+    # remove the "merge" attribute from ds
+    del ds.merge
+
 def MergeSeries(cf,ds,series,okflags):
     """
         Merge two series of data to produce one series containing the best data from both.

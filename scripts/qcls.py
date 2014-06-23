@@ -210,58 +210,61 @@ def l4qc(cf,ds3):
     # return from this routine if this is the case
     if not ds4: return ds4
     # set some attributes for this level    
-    ds4.globalattributes['nc_level'] = 'L4'
-    ds4.globalattributes['EPDversion'] = sys.version
+    ds4.globalattributes["nc_level"] = "L4"
+    ds4.globalattributes["EPDversion"] = sys.version
     # put the control file name into the global attributes
-    ds4.globalattributes['controlfile_name'] = cf['controlfile_name']
+    ds4.globalattributes["controlfile_name"] = cf["controlfile_name"]
     # now do the meteorological driver gap filling
-    for ThisOne in cf['Drivers'].keys():
-        # interpolate over any gaps up to 1 hour in length
-        qcts.InterpolateOverMissing(ds4,series=ThisOne,maxlen=2)
-        # _namecollector will put a list of series names in ds.accessserieslist for later processing
-        qcgf.GapFillFromACCESS_namecollector(cf,ds4,series=ThisOne)
-        ## gap fill using data from an alternative site
-        #qcgf.GapFillFromAlternate(cf,ds4,series=ThisOne)
-        ## gap fill using climatology
-        #qcgf.GapFillFromClimatology(cf,ds4,series=ThisOne)
-        # re-apply the quality control checks (range, diurnal and rules)
-        qcck.do_qcchecks_oneseries(cf,ds4,series=ThisOne)
-        # interpolate over any remaining gaps up to 3 hours in length
+    for ThisOne in cf["Drivers"].keys():
+        # interpolate over short gaps
         qcts.InterpolateOverMissing(ds4,series=ThisOne,maxlen=6)
-        # fill any remaining gaps climatology
-        qcgf.GapFillFromClimatology(cf,ds4,series=ThisOne)
+        # parse the control file for information on how the user wants to do the gap filling
+        qcgf.GapFillParseControlFile(cf,ds4,series=ThisOne)
+    # *** start of the section that does the gap filling of the drivers ***
     # do the gap filling using the ACCESS output
     qcgf.GapFillFromACCESS(ds4)
+    # gap fill using SOLO
+    qcgf.GapFillUsingSOLO(ds3,ds4)
+    # gap fill using climatology
+    qcgf.GapFillFromClimatology(ds4)
+    # merge the gap filled drivers into a single series
+    qcts.MergeSeries_L4(ds4)
     # re-calculate the meteorological variables
     qcts.CalculateMeteorologicalVariables(ds4)
     # now do the flux gap filling methods
-    for ThisOne in cf['Targets'].keys():
+    for ThisOne in cf["Fluxes"].keys():
         # interpolate over any gaps up to 1 hour in length
-        qcts.InterpolateOverMissing(ds4,series=ThisOne,maxlen=2)
-        qcgf.GapFillFluxUsingMDS(cf,ds4,series=ThisOne)
-        # _namecollector will put a list of series names in ds.soloserieslist for later processing
-        qcgf.GapFillUsingSOLO_namecollector(cf,ds4,series=ThisOne)
-        qcgf.GapFillFluxFromDayRatio(cf,ds4,series=ThisOne)
-        qcgf.GapFillFromClimatology(cf,ds4,series=ThisOne)
+        qcts.InterpolateOverMissing(ds4,series=ThisOne,maxlen=6)
+        # parse the control file for information on how the user wants to do the gap filling
+        qcgf.GapFillParseControlFile(cf,ds4,series=ThisOne)
+    # *** start of the section that does the gap filling of the fluxes ***
     # do the gap filling using SOLO on all series identified by _namecollector
     qcgf.GapFillUsingSOLO(ds3,ds4)
-    # now re-apply the quality control checks
-    for ThisOne in cf['Drivers'].keys():
-        # re-apply the quality control checks (range, diurnal and rules)
-        qcck.do_qcchecks_oneseries(cf,ds4,series=ThisOne)
-        # interpolate over any remaining gaps up to 3 hours in length
-        qcts.InterpolateOverMissing(ds4,series=ThisOne,maxlen=3)
-        # fill any remaining gaps climatology
-        qcgf.GapFillFromClimatology(cf,ds4,series=ThisOne)
-    for ThisOne in cf['Targets'].keys():
-        # gap fill the observations using gap fill data in the order specified in cf
-        qcts.MergeSeries(cf,ds4,ThisOne,[0,10,20,30,40,50])
-        # re-apply the quality control checks (range, diurnal and rules)
-        qcck.do_qcchecks_oneseries(cf,ds4,series=ThisOne)
-        # interpolate over any remaining gaps up to 3 hours in length
-        qcts.InterpolateOverMissing(ds4,series=ThisOne,maxlen=3)
-        # fill any remaining gaps climatology
-        qcgf.GapFillFromClimatology(cf,ds4,series=ThisOne)
+    ## gap fill using marginal distribution sampling
+    #qcgf.GapFillFluxUsingMDS(cf,ds4)
+    ## gap fill using ratios
+    #qcgf.GapFillFluxFromDayRatio(cf,ds4)
+    # gap fill using climatology
+    qcgf.GapFillFromClimatology(ds4)
+    # merge the gap filled drivers into a single series
+    qcts.MergeSeries_L4(ds4)
+    ## now re-apply the quality control checks
+    #for ThisOne in cf['Drivers'].keys():
+        ## re-apply the quality control checks (range, diurnal and rules)
+        #qcck.do_qcchecks_oneseries(cf,ds4,series=ThisOne)
+        ## interpolate over any remaining gaps up to 3 hours in length
+        #qcts.InterpolateOverMissing(ds4,series=ThisOne,maxlen=3)
+        ## fill any remaining gaps climatology
+        #qcgf.GapFillFromClimatology(cf,ds4,series=ThisOne)
+    #for ThisOne in cf['Targets'].keys():
+        ## gap fill the observations using gap fill data in the order specified in cf
+        #qcts.MergeSeries(cf,ds4,ThisOne,[0,10,20,30,40,50])
+        ## re-apply the quality control checks (range, diurnal and rules)
+        #qcck.do_qcchecks_oneseries(cf,ds4,series=ThisOne)
+        ## interpolate over any remaining gaps up to 3 hours in length
+        #qcts.InterpolateOverMissing(ds4,series=ThisOne,maxlen=3)
+        ## fill any remaining gaps climatology
+        #qcgf.GapFillFromClimatology(cf,ds4,series=ThisOne)
     ## estimate Reco using the methods specified in the control file
     #qcgf.EstimateReco(cf,ds4)
     ## get a single series of NEE
