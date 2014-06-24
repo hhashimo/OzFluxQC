@@ -55,12 +55,12 @@ class qcgui(Tkinter.Frame):
         # things in the first row of the GUI
         self.process1Label = Tkinter.Label(self,text='L1: Raw data')
         self.process1Label.grid(row=0,column=1,columnspan=1)
-        self.process1Label = Tkinter.Label(self,text='L2: QA/QC')
-        self.process1Label.grid(row=0,column=2,columnspan=2)
-        self.process2Label = Tkinter.Label(self,text='L3: Process')
-        self.process2Label.grid(row=0,column=4,columnspan=2)
-        self.process3Label = Tkinter.Label(self,text='L4: Gap fill')
-        self.process3Label.grid(row=0,column=6,columnspan=2)
+        self.process2Label = Tkinter.Label(self,text='L2: QA/QC')
+        self.process2Label.grid(row=0,column=2,columnspan=2)
+        self.process3Label = Tkinter.Label(self,text='L3: Process')
+        self.process3Label.grid(row=0,column=4,columnspan=2)
+        self.process4Label = Tkinter.Label(self,text='L4: Gap fill')
+        self.process4Label.grid(row=0,column=6,columnspan=2)
         # things in the second row of the GUI
         self.doxl2nc1Button = Tkinter.Button (self, text="Read L1 Excel file", command=self.do_xl2ncL1 )
         self.doxl2nc1Button.grid(row=1,column=1,columnspan=1)

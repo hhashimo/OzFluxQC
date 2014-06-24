@@ -914,21 +914,21 @@ def GapFillUsingSOLO(dsa,dsb):
     solo_gui.endEntry.grid(row=nrow,column=3,columnspan=3)
     # bottom row
     nrow = nrow + 1
-    solo_gui.runButton = Tkinter.Button (solo_gui, text="Run SOLO",command=lambda:gfSOLO_main(dsa,dsb,solo_gui))
-    solo_gui.runButton.grid(row=nrow,column=1,columnspan=2)
-    solo_gui.doneButton = Tkinter.Button (solo_gui, text="Done",command=lambda:finished_solo(dsb,solo_gui))
-    solo_gui.doneButton.grid(row=nrow,column=3,columnspan=2)
+    solo_gui.runButton = Tkinter.Button (solo_gui, text="Run",command=lambda:gfSOLO_main(dsa,dsb,solo_gui))
+    solo_gui.runButton.grid(row=nrow,column=0,columnspan=2)
+    solo_gui.doneButton = Tkinter.Button (solo_gui, text="Done",command=lambda:gfSOLO_finish(dsb,solo_gui))
+    solo_gui.doneButton.grid(row=nrow,column=2,columnspan=2)
+    solo_gui.doneButton = Tkinter.Button (solo_gui, text="Close plots",command=lambda:gfSOLO_closeplots())
+    solo_gui.doneButton.grid(row=nrow,column=4,columnspan=2)
     solo_gui.wait_window(solo_gui)
 
-def finished_solo(ds,solo_gui):
+def gfSOLO_finish(ds,solo_gui):
     for i in plt.get_fignums(): plt.close(i)
     del ds.solo
     solo_gui.destroy()
 
-#def quit_solo(top,cf):
-    #cf['button'] = 'quit'
-    #for i in plt.get_fignums(): plt.close(i)
-    #top.destroy()
+def gfSOLO_closeplots():
+    for i in plt.get_fignums(): plt.close(i)
 
 def gfSOLO_main(dsa,dsb,solo_gui):
     '''
@@ -1136,7 +1136,7 @@ def gfSOLO_runsofm(dsa,dsb,solo_gui,driverlist,targetlabel,nRecs,si=0,ei=-1):
     # if the output file from a previous run exists, delete it
     if os.path.exists('solo/output/sofm_4.out'): os.remove('solo/output/sofm_4.out')
     # now run SOFM
-    log.info(' GapFillUsingSOLO: running SOFM')
+    #log.info(' GapFillUsingSOLO: running SOFM')
     sofmlogfile = open('solo/log/sofm.log','wb')
     subprocess.call(['./solo/bin/sofm','solo/inf/sofm.inf'],stdout=sofmlogfile)
     sofmlogfile.close()
@@ -1230,7 +1230,7 @@ def gfSOLO_runsolo(dsa,dsb,driverlist,targetlabel,nRecs,si=0,ei=-1):
     # if the output file from a previous run exists, delete it
     if os.path.exists('solo/output/eigenValue.out'): os.remove('solo/output/eigenValue.out')
     # now run SOLO
-    log.info(' GapFillUsingSOLO: running SOLO')
+    #log.info(' GapFillUsingSOLO: running SOLO')
     solologfile = open('solo/log/solo.log','wb')
     if 'win' in sys.platform:
         subprocess.call(['./solo/bin/solo.exe','solo/inf/solo.inf'],stdout=solologfile)
@@ -1271,7 +1271,7 @@ def gfSOLO_runseqsolo(dsa,dsb,driverlist,targetlabel,outputlabel,nRecs,si=0,ei=-
     # if the output file from a previous run exists, delete it
     if os.path.exists('solo/output/seqOut2.out'): os.remove('solo/output/seqOut2.out')
     # now run SEQSOLO
-    log.info(' GapFillUsingSOLO: running SEQSOLO')
+    #log.info(' GapFillUsingSOLO: running SEQSOLO')
     seqsolologfile = open('solo/log/seqsolo.log','wb')
     if 'win' in sys.platform:
         subprocess.call(['./solo/bin/seqsolo.exe','solo/inf/seqsolo.inf'],stdout=seqsolologfile)
