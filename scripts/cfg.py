@@ -1,5 +1,8 @@
 version_name = "OzFluxQC"
-version_number = "V2.7.2"
+version_number = "V2.8.0"
+# V2.8.0   - implemented;
+#            - gap filling using ACCESS data (works for any alternate site file)
+#            - menu at top of OzFluxQC GUI
 # V2.7.2   - several enhancements, mainly to do with gap filling
 #            - implemented "interpolated daily" metyhod of
 #              gap filling from climatology

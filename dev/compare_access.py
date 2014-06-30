@@ -13,6 +13,9 @@ import statsmodels.api as sm
 import qcio
 import qcutils
 
+# open the logging file
+log = qcutils.startlog('compare_access','../logfiles/compare_access.log')
+
 # load the control file
 cf = qcio.load_controlfile(path='../controlfiles')
 if len(cf)==0: sys.exit()
@@ -83,10 +86,14 @@ ts_bottom = margin_bottom + xy_height + xyxy_space + xy_height + xyts_space
 ts_height = (1.0 - margin_top - ts_bottom)
 fig_num = 0
 for label in ["Fsd","Fld","Fn","Fg","Ta","q","Ws","Ts","Sws","ps","ustar","Fh","Fe"]:
-    print "compare_access: doing "+label
-    fig_num = fig_num + 1
     # get the tower data
     data_tow,f = qcutils.GetSeriesasMA(ds_tow,label,si=si_tow,ei=ei_tow)
+    # check to see if there is any data to work with
+    if len(numpy.ma.compressed(data_tow))==0:
+        print "compare_access: no tower data, skipping "+label
+        continue
+    print "compare_access: doing "+label
+    fig_num = fig_num + 1
     # get the units
     attr = qcutils.GetAttributeDictionary(ds_tow,label)
     units = attr["units"]
@@ -102,12 +109,12 @@ for label in ["Fsd","Fld","Fn","Fg","Ta","q","Ws","Ts","Sws","ps","ustar","Fh","
     max_ij = numpy.unravel_index(r_array.argmax(), r_array.shape)
     # get data from the grid cell with highest correlation to tower data
     label_acc=label+"_"+str(max_ij[0])+str(max_ij[1])
-    data_acc_all,f=qcutils.GetSeriesasMA(ds_acc,label_acc,si=si_acc,ei=ei_acc)
+    data_acc,f=qcutils.GetSeriesasMA(ds_acc,label_acc,si=si_acc,ei=ei_acc)
     # flatten the correlation array for plotting
     r_flat=r_array.flatten()
     # mask both series when either one is missing
-    data_acc.mask = (data_acc_all.mask)|(data_tow.mask)
-    data_tow.mask = (data_acc_all.mask)|(data_tow.mask)
+    data_acc.mask = (data_acc.mask)|(data_tow.mask)
+    data_tow.mask = (data_acc.mask)|(data_tow.mask)
     # get non-masked versions of the data
     data_acc_nm = numpy.ma.compressed(data_acc)
     data_tow_nm = numpy.ma.compressed(data_tow)
@@ -191,9 +198,9 @@ for label in ["Fsd","Fld","Fn","Fg","Ta","q","Ws","Ts","Sws","ps","ustar","Fh","
     rect_ts = [margin_left,ts_bottom,ts_width,ts_height]
     axes_ts = plt.axes(rect_ts)
     axes_ts.plot(dt_tow,data_tow,'ro',label="Tower")
-    axes_ts.plot(dt_acc,data_acc_all,'b-',label="ACCESS-A")
-    axes_ts.plot(dt_acc,m_rlm*data_acc_all+b_rlm,'r-',label="ACCESS-A (RLM)")
-    axes_ts.plot(dt_acc,m_ols*data_acc_all+b_ols,'g-',label="ACCESS-A (OLS)")
+    axes_ts.plot(dt_acc,data_acc,'b-',label="ACCESS-A")
+    axes_ts.plot(dt_acc,m_rlm*data_acc+b_rlm,'r-',label="ACCESS-A (RLM)")
+    axes_ts.plot(dt_acc,m_ols*data_acc+b_ols,'g-',label="ACCESS-A (OLS)")
     axes_ts.set_ylabel(label+' ('+units+')')
     axes_ts.legend(loc='upper right',frameon=False,prop={'size':8})
     # now get some statistics

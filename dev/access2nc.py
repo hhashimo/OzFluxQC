@@ -26,8 +26,8 @@ def perdelta(start,end,delta):
 # get the control file
 cf = qcio.load_controlfile(path='../controlfiles')
 if len(cf)==0: sys.exit()
-infilename = qcio.get_infilename_from_cf(cf)
-outfilename = qcio.get_outfilename_from_cf(cf)
+infilename = cf["Files"]["in_filepath"]+cf["Files"]["in_filename"]
+outfilename = cf["Files"]["out_filepath"]+cf["Files"]["out_filename"]
 
 # create an instance of the data structure
 ds_60minutes = qcio.DataStructure()
@@ -36,8 +36,11 @@ ds_30minutes = qcio.DataStructure()
 f = MFDataset(infilename)
 site_tz = pytz.timezone(cf["Global"]["site_timezone"])
 
-valid_date = f.variables["valid_date"]
-valid_time = f.variables["valid_time"]
+valid_date = f.variables["valid_date"][:]
+index = numpy.where(valid_date!=0)[0]
+valid_date = valid_date[index]
+valid_time = f.variables["valid_time"][:]
+valid_time = valid_time[index]
 nRecs = len(valid_date)
 
 # set some global attributres
@@ -47,7 +50,7 @@ ds_60minutes.globalattributes["time_zone"] = cf["Global"]["site_timezone"]
 # map the ACCESS file global attributes to the OzFluxQC file
 for attr in f.ncattrs():
     ds_60minutes.globalattributes[attr] = getattr(f,attr)
-    
+
 #dt=[datetime.datetime.strptime(str(valid_date[i]*10000+valid_time[i]),"%Y%m%d%H%M") for i in range(0,nRecs)]
 dt_utc_60minutes=[datetime.datetime.strptime(str(valid_date[i]*10000+valid_time[i]),"%Y%m%d%H%M") for i in range(0,len(valid_date))]
 # make utc_dt timezone aware
@@ -55,6 +58,9 @@ dt_utc_60minutes=[x.replace(tzinfo=pytz.utc) for x in dt_utc_60minutes]
 # get local time from UTC
 # NOTE: will have to disable daylight saving at some stage, towers stay on Standard Time
 dt_loc_60minutes=[x.astimezone(site_tz) for x in dt_utc_60minutes]
+# NOTE: will have to disable daylight saving at some stage, towers stay on Standard Time
+# PRI hopes that the following line will do this ...
+dt_loc_60minutes=[x-x.dst() for x in dt_loc_60minutes]
 # make local time timezone naive to match datetimes in OzFluxQC
 dt_loc_60minutes=[x.replace(tzinfo=None) for x in dt_loc_60minutes]
 ds_60minutes.series["DateTime"] = {}
@@ -78,10 +84,12 @@ for label in varlist:
         for j in range(0,3):
             if len(f.variables[access_name].shape)==3:
                 series = f.variables[access_name][:,i,j]
+                series = series[index]
                 label_ij = label+'_'+str(i)+str(j)
                 qcutils.CreateSeries(ds_60minutes,label_ij,series,Flag=flag_60minutes,Attr=attr)
             elif len(f.variables[access_name].shape)==4:
                 series = f.variables[access_name][:,0,i,j]
+                series = series[index]
                 label_ij = label+'_'+str(i)+str(j)
                 qcutils.CreateSeries(ds_60minutes,label_ij,series,Flag=flag_60minutes,Attr=attr)
             else:

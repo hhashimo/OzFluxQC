@@ -6,7 +6,7 @@ import matplotlib
 matplotlib.use('TkAgg')
 import numpy
 import time
-import Tkinter
+import Tkinter as tk
 import os
 import sys
 
@@ -17,6 +17,7 @@ if not os.path.exists("./scripts/"):
 # since the scripts directory is there, try importing the modules
 sys.path.append('scripts')
 import cfg
+import qcclim
 import qcgf
 import qcio
 import qcls
@@ -29,7 +30,7 @@ if not os.path.exists("./logfiles/"):
 if not os.path.exists("./plots/"):
     os.makedirs("./plots/")
 
-class qcgui(Tkinter.Frame):
+class qcgui(tk.Tk):
     """
         QC Data Main GUI
         Used to access read, save, and data processing (qcls) prodecures
@@ -46,71 +47,128 @@ class qcgui(Tkinter.Frame):
             3-6:  Show Timestamp range of dataset and accept date range for graphical plots
             7:  Export excel dataset from NetCDF file
         """
-    def __init__(self, master=None):
-        Tkinter.Frame.__init__(self, master)
-        self.grid()
-        self.createWidgets()
+    def __init__(self, parent):
+        tk.Tk.__init__(self,parent)
+        self.parent = parent
+        self.initialise()
 
-    def createWidgets(self):
+    def option_not_implemented(self):
+        self.do_progress(text='Option not implemented yet ...')
+        log.info(' Option not implemented yet ...')
+    
+    def initialise(self):
+        self.org_frame = tk.Frame(self)
+        self.org_frame.grid()
         # things in the first row of the GUI
-        self.process1Label = Tkinter.Label(self,text='L1: Raw data')
-        self.process1Label.grid(row=0,column=1,columnspan=1)
-        self.process2Label = Tkinter.Label(self,text='L2: QA/QC')
-        self.process2Label.grid(row=0,column=2,columnspan=2)
-        self.process3Label = Tkinter.Label(self,text='L3: Process')
-        self.process3Label.grid(row=0,column=4,columnspan=2)
-        self.process4Label = Tkinter.Label(self,text='L4: Gap fill')
-        self.process4Label.grid(row=0,column=6,columnspan=2)
+        L1Label = tk.Label(self.org_frame,text='L1: Raw data')
+        L1Label.grid(row=0,column=0,columnspan=1)
+        L2Label = tk.Label(self.org_frame,text='L2: QA/QC')
+        L2Label.grid(row=0,column=1,columnspan=1)
+        L3Label = tk.Label(self.org_frame,text='L3: Process')
+        L3Label.grid(row=0,column=2,columnspan=1)
+        L4Label = tk.Label(self.org_frame,text='L4: Gap fill')
+        L4Label.grid(row=0,column=3,columnspan=1)
         # things in the second row of the GUI
-        self.doxl2nc1Button = Tkinter.Button (self, text="Read L1 Excel file", command=self.do_xl2ncL1 )
-        self.doxl2nc1Button.grid(row=1,column=1,columnspan=1)
-        self.doL1Button = Tkinter.Button (self, text="Do L2 QA/QC", command=self.do_l2qc )
-        self.doL1Button.grid(row=1,column=2,columnspan=2)
-        self.doL2Button = Tkinter.Button (self, text="Do L3 processing", command=self.do_l3qc )
-        self.doL2Button.grid(row=1,column=4,columnspan=2)
-        self.doL3Button = Tkinter.Button (self, text="Do L4 gap filling", command=self.do_l4qc )
-        self.doL3Button.grid(row=1,column=6,columnspan=2)
+        doL1Button = tk.Button (self.org_frame, text="Read L1 Excel file", command=self.do_xl2ncL1 )
+        doL1Button.grid(row=1,column=0,columnspan=1)
+        doL2Button = tk.Button (self.org_frame, text="Do L2 QA/QC", command=self.do_l2qc )
+        doL2Button.grid(row=1,column=1,columnspan=1)
+        doL3Button = tk.Button (self.org_frame, text="Do L3 processing", command=self.do_l3qc )
+        doL3Button.grid(row=1,column=2,columnspan=1)
+        doL4Button = tk.Button (self.org_frame, text="Do L4 gap filling", command=self.do_l4qc )
+        doL4Button.grid(row=1,column=3,columnspan=1)
         # things in the third row of the GUI
-        self.filestartLabel = Tkinter.Label(self,text='File start date')
-        self.filestartLabel.grid(row=2,column=2,columnspan=2)
-        self.fileendLabel = Tkinter.Label(self,text='File end date')
-        self.fileendLabel.grid(row=2,column=4,columnspan=2)
+        filestartLabel = tk.Label(self.org_frame,text='File start date')
+        filestartLabel.grid(row=2,column=1,columnspan=1)
+        fileendLabel = tk.Label(self.org_frame,text='File end date')
+        fileendLabel.grid(row=2,column=2,columnspan=1)
         # things in the fourth row of the GUI
-        self.filestartValue = Tkinter.Label(self,text='No file loaded ...')
-        self.filestartValue.grid(row=3,column=2,columnspan=2)
-        self.fileendValue = Tkinter.Label(self,text='No file loaded ...')
-        self.fileendValue.grid(row=3,column=4,columnspan=2)
+        self.filestartValue = tk.Label(self.org_frame,text='No file loaded ...')
+        self.filestartValue.grid(row=3,column=1,columnspan=1)
+        self.fileendValue = tk.Label(self.org_frame,text='No file loaded ...')
+        self.fileendValue.grid(row=3,column=2,columnspan=1)
         # things in the fifth row of the GUI
-        self.plotstartLabel = Tkinter.Label(self, text='Start date (YYYY-MM-DD)')
-        self.plotstartLabel.grid(row=4,column=2,columnspan=2)
-        self.plotstartEntry = Tkinter.Entry(self)
-        self.plotstartEntry.grid(row=4,column=4,columnspan=2)
+        plotstartLabel = tk.Label(self.org_frame, text='Start date (YYYY-MM-DD)')
+        plotstartLabel.grid(row=4,column=1,columnspan=1)
+        self.plotstartEntry = tk.Entry(self.org_frame)
+        self.plotstartEntry.grid(row=4,column=2,columnspan=1)
         # things in row sixth of the GUI
-        self.plotendLabel = Tkinter.Label(self, text='End date   (YYYY-MM-DD)')
-        self.plotendLabel.grid(row=5,column=2,columnspan=2)
-        self.plotendEntry = Tkinter.Entry(self)
-        self.plotendEntry.grid(row=5,column=4,columnspan=2)
+        plotendLabel = tk.Label(self.org_frame, text='End date   (YYYY-MM-DD)')
+        plotendLabel.grid(row=5,column=1,columnspan=1)
+        self.plotendEntry = tk.Entry(self.org_frame)
+        self.plotendEntry.grid(row=5,column=2,columnspan=1)
         # things in the seventh row of the GUI
-        self.closeplotwindowsButton = Tkinter.Button (self, text="Close plot windows", command=self.do_closeplotwindows )
-        self.closeplotwindowsButton.grid(row=6,column=1,columnspan=1)
-        self.plotL1L2Button = Tkinter.Button (self, text="Plot L1 & L2 Data", command=self.do_plotL1L2 )
-        self.plotL1L2Button.grid(row=6,column=2,columnspan=2)
-        self.plotL3L3Button = Tkinter.Button (self, text="Plot L3 Data", command=self.do_plotL3L3 )
-        self.plotL3L3Button.grid(row=6,column=4,columnspan=2)
-        self.plotL3L3Button = Tkinter.Button (self, text="Plot L3 & L4 Data", command=self.do_plotL3L4 )
-        self.plotL3L3Button.grid(row=6,column=6,columnspan=2)
+        closeplotwindowsButton = tk.Button (self.org_frame, text="Close plot windows", command=self.do_closeplotwindows )
+        closeplotwindowsButton.grid(row=6,column=0,columnspan=1)
+        plotL1L2Button = tk.Button (self.org_frame, text="Plot L1 & L2 Data", command=self.do_plotL1L2 )
+        plotL1L2Button.grid(row=6,column=1,columnspan=1)
+        plotL3L3Button = tk.Button (self.org_frame, text="Plot L3 Data", command=self.do_plotL3L3 )
+        plotL3L3Button.grid(row=6,column=2,columnspan=1)
+        plotL3L3Button = tk.Button (self.org_frame, text="Plot L3 & L4 Data", command=self.do_plotL3L4 )
+        plotL3L3Button.grid(row=6,column=3,columnspan=1)
         # things in the eigth row of the GUI
-        self.savexL2Button = Tkinter.Button (self, text='Write L2 Excel file', command=self.do_savexL2 )
-        self.savexL2Button.grid(row=7,column=2,columnspan=2)
-        self.savexL3Button = Tkinter.Button (self, text='Write L3 Excel file', command=self.do_savexL3 )
-        self.savexL3Button.grid(row=7,column=4,columnspan=2)
-        self.savexL4Button = Tkinter.Button (self, text='Write L4 Excel file', command=self.do_savexL4 )
-        self.savexL4Button.grid(row=7,column=6,columnspan=2)
+        quitButton = tk.Button (self.org_frame, text='Quit', command=self.do_quit )
+        quitButton.grid(row=7,column=0,columnspan=1)
+        savexL2Button = tk.Button (self.org_frame, text='Write L2 Excel file', command=self.do_savexL2 )
+        savexL2Button.grid(row=7,column=1,columnspan=1)
+        savexL3Button = tk.Button (self.org_frame, text='Write L3 Excel file', command=self.do_savexL3 )
+        savexL3Button.grid(row=7,column=2,columnspan=1)
+        savexL4Button = tk.Button (self.org_frame, text='Write L4 Excel file', command=self.do_savexL4 )
+        savexL4Button.grid(row=7,column=3,columnspan=1)
         # other things in the GUI
-        self.quitButton = Tkinter.Button (self, text='Quit', command=self.do_quit )
-        self.quitButton.grid(row=7,column=1,columnspan=1)
-        self.progress = Tkinter.Label(self, text='Waiting for input ...')
-        self.progress.grid(row=8,column=1,columnspan=6)
+        self.progress = tk.Label(self.org_frame, text='Waiting for input ...')
+        self.progress.grid(row=8,column=0,columnspan=2,sticky="W")
+        # now we put together the menu, "File" first
+        menubar = tk.Menu(self)
+        filemenu = tk.Menu(menubar,tearoff=0)
+        filemenu.add_command(label="Concatenate netCDF",command=self.option_not_implemented)
+        filemenu.add_command(label="List netCDF contents",command=self.option_not_implemented)
+        filemenu.add_command(label="nc to xls",command=self.option_not_implemented)
+        filemenu.add_command(label="xls to nc",command=self.option_not_implemented)
+        filemenu.add_separator()
+        filemenu.add_command(label="Quit",command=self.do_quit)
+        menubar.add_cascade(label="File",menu=filemenu)
+        # now the "Run" menu
+        runmenu = tk.Menu(menubar,tearoff=0)
+        runmenu.add_command(label="Read L1 Excel file",command=self.do_xl2ncL1)
+        runmenu.add_command(label="Do L2 QA/QC",command=self.do_l2qc)
+        runmenu.add_command(label="Do L3 processing",command=self.do_l3qc)
+        runmenu.add_command(label="Do L4 gap filling",command=self.do_l4qc)
+        runmenu.add_command(label="Do L5 partitioning",command=self.option_not_implemented)
+        menubar.add_cascade(label="Run",menu=runmenu)
+        # then the "Plot" menu
+        plotmenu = tk.Menu(menubar,tearoff=0)
+        plotmenu.add_command(label="Plot L1 & L2",command=self.do_plotL1L2)
+        plotmenu.add_command(label="Plot L3",command=self.do_plotL3L3)
+        plotmenu.add_command(label="Plot L3 & L4",command=self.do_plotL3L4)
+        plotmenu.add_command(label="Plot L5",command=self.option_not_implemented)
+        pltsummenu = tk.Menu(menubar,tearoff=0)
+        pltsummenu.add_command(label="Fingerprint",command=self.option_not_implemented)
+        pltsummenu.add_command(label="Full check",command=self.option_not_implemented)
+        pltsummenu.add_command(label="Quick check",command=self.option_not_implemented)
+        pltsummenu.add_command(label="Years check",command=self.option_not_implemented)
+        plotmenu.add_cascade(label="Summary",menu=pltsummenu)
+        plotmenu.add_separator()
+        plotmenu.add_command(label="Close plots",command=self.do_closeplotwindows)
+        menubar.add_cascade(label="Plot",menu=plotmenu)
+        # and the "Utilities" menu
+        utilsmenu = tk.Menu(menubar,tearoff=0)
+        utilsmenu.add_command(label="Climatology",command=self.do_climatology)
+        menubar.add_cascade(label="Utilities",menu=utilsmenu)
+        # followed by the "u*" menu
+        ustarmenu = tk.Menu(menubar,tearoff=0)
+        ustarmenu.add_command(label="Reichstein",command=self.option_not_implemented)
+        ustarmenu.add_command(label="Change Point Detection",command=self.option_not_implemented)
+        ustarmenu.add_command(label="Cleverly",command=self.option_not_implemented)
+        menubar.add_cascade(label="u* threshold",menu=ustarmenu)
+        # and lastly the partitioning menu
+        partitionmenu = tk.Menu(menubar,tearoff=0)
+        partitionmenu.add_command(label="Lloyd-Taylor",command=self.option_not_implemented)
+        partitionmenu.add_command(label="Lasslop",command=self.option_not_implemented)
+        partitionmenu.add_command(label="ANN",command=self.option_not_implemented)
+        menubar.add_cascade(label="Respiration",menu=partitionmenu)
+
+        self.config(menu=menubar)
 
     def do_closeplotwindows(self):
         """
@@ -171,7 +229,7 @@ class qcgui(Tkinter.Frame):
         if len(outfilename)==0: self.do_progress(text='An error occurred, check the console ...'); return
         ncFile = qcio.nc_open_write(outfilename)
         qcio.nc_write_series(ncFile,self.ds2)                                  # save the L2 data
-        self.do_progress(text='Finished saving L2 QC data')              # tell the user we are done
+        self.do_progress(text='Finished saving L2 QC data')              # tdo_progressell the user we are done
         log.info(' Finished saving L2 QC data')
 
     def do_l3qc(self):
@@ -437,8 +495,8 @@ class qcgui(Tkinter.Frame):
             Update progress message in QC Data GUI
             """
         self.progress.destroy()
-        self.progress = Tkinter.Label(self, text=text)
-        self.progress.grid(row=8,column=1,columnspan=6)
+        self.progress = tk.Label(self.org_frame, text=text)
+        self.progress.grid(row=8,column=0,columnspan=2,sticky="W")
         self.update()
 
     def do_quit(self):
@@ -546,19 +604,30 @@ class qcgui(Tkinter.Frame):
             """
         self.filestartValue.destroy()
         self.fileendValue.destroy()
-        self.filestartValue = Tkinter.Label(self,text=startstr)
-        self.filestartValue.grid(row=3,column=2,columnspan=2)
-        self.fileendValue = Tkinter.Label(self,text=endstr)
-        self.fileendValue.grid(row=3,column=4,columnspan=2)
+        self.filestartValue = tk.Label(self.org_frame,text=startstr)
+        self.filestartValue.grid(row=3,column=1,columnspan=1)
+        self.fileendValue = tk.Label(self.org_frame,text=endstr)
+        self.fileendValue.grid(row=3,column=2,columnspan=1)
         self.update()
-
+    
+    def do_climatology(self):
+        """
+        Calls qcclim.climatology
+        """
+        self.do_progress(text='Loading control file ...')
+        cf = qcio.load_controlfile(path='controlfiles')
+        if len(cf)==0: self.do_progress(text='Waiting for input ...'); return
+        self.do_progress(text='Doing the climatology')
+        qcclim.climatology(cf)
+        self.do_progress(text='Finished climatology')
+        log.info(' Finished climatology')
 
 if __name__ == "__main__":
     log = qcutils.startlog('qc','logfiles/qc.log')
-    qcGUI = qcgui()
+    qcGUI = qcgui(None)
     main_title = cfg.version_name+' Main GUI '+cfg.version_number
-    qcGUI.master.title(main_title)
+    qcGUI.title(main_title)
     qcGUI.mainloop()
-    qcGUI.master.destroy()
+    qcGUI.destroy()
 
     log.info('QC: All done')
