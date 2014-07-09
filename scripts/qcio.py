@@ -23,6 +23,7 @@ class DataStructure(object):
     def __init__(self):
         self.series = {}
         self.globalattributes = {}
+        self.dimensions = {}
         self.mergeserieslist = []
         self.averageserieslist = []
         self.soloserieslist = []
@@ -390,6 +391,114 @@ def load_controlfile(path=''):
     cf = get_controlfilecontents(name)
     return cf
 
+def nc_concatenate(cf):
+    # initialise logicals
+    TimeGap = False
+    # get an instance of the data structure
+    ds = DataStructure()
+    # get the input file list
+    InFile_list = cf['Files']['In'].keys()
+    # read in the first file
+    ncFileName = cf['Files']['In'][InFile_list[0]]
+    log.info('nc_concatenate: Reading data from '+ncFileName)
+    ds_n = nc_read_series(ncFileName)
+    if len(ds_n.series.keys())==0:
+        log.error('nc_concatenate: An error occurred reading netCDF file: '+ncFileName)
+        return
+    # fill the global attributes
+    for ThisOne in ds_n.globalattributes.keys():
+        ds.globalattributes[ThisOne] = ds_n.globalattributes[ThisOne]
+    # fill the variables
+    for ThisOne in ds_n.series.keys():
+        if ThisOne=="Fc":
+            attr = qcutils.GetAttributeDictionary(ds_n, ThisOne)
+            if attr['units']=='mg/m2/s':
+                print "Converting Fc to umol/m2/s"
+                Fc,f = qcutils.GetSeriesasMA(ds_n, ThisOne)
+                Fc = mf.Fc_umolpm2psfrommgpm2ps(Fc)
+                attr['units'] = 'umol/m2/s'
+                qcutils.CreateSeries(ds_n,ThisOne,Fc,Flag=f,Attr=attr)
+        ds.series[ThisOne] = {}
+        ds.series[ThisOne]['Data'] = ds_n.series[ThisOne]['Data']
+        ds.series[ThisOne]['Flag'] = ds_n.series[ThisOne]['Flag']
+        ds.series[ThisOne]['Attr'] = {}
+        for attr in ds_n.series[ThisOne]['Attr'].keys():
+            ds.series[ThisOne]['Attr'][attr] = ds_n.series[ThisOne]['Attr'][attr]
+    ts = int(ds.globalattributes['time_step'])
+    # loop over the remaining files given in the control file
+    for n in InFile_list[1:]:
+        ncFileName = cf['Files']['In'][InFile_list[int(n)]]
+        log.info('nc_concatenate: Reading data from '+ncFileName)
+        #print 'ncconcat: reading data from '+ncFileName
+        ds_n = nc_read_series(ncFileName)
+        if len(ds.series.keys())==0:
+            log.error('nc_concatenate: An error occurred reading the netCDF file: '+ncFileName)
+            return
+        dt_n = ds_n.series['DateTime']['Data']
+        dt = ds.series['DateTime']['Data']
+        nRecs_n = len(ds_n.series['xlDateTime']['Data'])
+        nRecs = len(ds.series['xlDateTime']['Data'])
+        #print ds.series['DateTime']['Data'][-1],ds_n.series['DateTime']['Data'][-1]
+        #print dt[-1],dt[-1]+datetime.timedelta(minutes=ts),dt_n[0]
+        if dt_n[0]<dt[-1]+datetime.timedelta(minutes=ts):
+            log.info('nc_concatenate: Overlapping times detected in consecutive files')
+            si = qcutils.GetDateIndex(dt_n,str(dt[-1]),ts=ts)+1
+            ei = -1
+        if dt_n[0]==dt[-1]+datetime.timedelta(minutes=ts):
+            log.info('nc_concatenate: Start and end times OK in consecutive files')
+            si = 0; ei = -1
+        if dt_n[0]>dt[-1]+datetime.timedelta(minutes=ts):
+            log.info('nc_concatenate: Gap between start and end times in consecutive files')
+            si = 0; ei = -1
+            TimeGap = True
+        # loop over the data series in the concatenated file
+        for ThisOne in ds.series.keys():
+            if ThisOne=="Fc":
+                attr = qcutils.GetAttributeDictionary(ds_n, ThisOne)
+                if attr['units']=='mg/m2/s':
+                    print "Converting Fc to umol/m2/s"
+                    Fc,f = qcutils.GetSeriesasMA(ds_n, ThisOne)
+                    Fc = mf.Fc_umolpm2psfrommgpm2ps(Fc)
+                    attr['units'] = 'umol/m2/s'
+                    qcutils.CreateSeries(ds_n,ThisOne,Fc,Flag=f,Attr=attr)
+            # does this series exist in the file being added to the concatenated file
+            if ThisOne in ds_n.series.keys():
+                # if so, then append this series to the concatenated series
+                ds.series[ThisOne]['Data'] = numpy.append(ds.series[ThisOne]['Data'],ds_n.series[ThisOne]['Data'][si:ei])
+                ds.series[ThisOne]['Flag'] = numpy.append(ds.series[ThisOne]['Flag'],ds_n.series[ThisOne]['Flag'][si:ei])
+            else:
+                # if not, then create a dummy series and concatenate that
+                ds_n.series[ThisOne] = {}
+                ds_n.series[ThisOne]['Data'] = numpy.array([-9999]*nRecs_n,dtype=numpy.float64)
+                ds_n.series[ThisOne]['Flag'] = numpy.array([1]*nRecs_n,dtype=numpy.int32)
+                ds.series[ThisOne]['Data'] = numpy.append(ds.series[ThisOne]['Data'],ds_n.series[ThisOne]['Data'][si:ei])
+                ds.series[ThisOne]['Flag'] = numpy.append(ds.series[ThisOne]['Flag'],ds_n.series[ThisOne]['Flag'][si:ei])
+        # and now loop over the series in the file being concatenated
+        for ThisOne in ds_n.series.keys():
+            # does this series exist in the concatenated data
+            if ThisOne not in ds.series.keys():
+                # if not then add it
+                ds.series[ThisOne] = {}
+                ds.series[ThisOne]['Data'] = numpy.array([-9999]*nRecs,dtype=numpy.float64)
+                ds.series[ThisOne]['Flag'] = numpy.array([1]*nRecs,dtype=numpy.int32)
+                ds.series[ThisOne]['Data'] = numpy.append(ds.series[ThisOne]['Data'],ds_n.series[ThisOne]['Data'][si:ei])
+                ds.series[ThisOne]['Flag'] = numpy.append(ds.series[ThisOne]['Flag'],ds_n.series[ThisOne]['Flag'][si:ei])
+                ds.series[ThisOne]['Attr'] = {}
+                for attr in ds_n.series[ThisOne]['Attr'].keys():
+                    ds.series[ThisOne]['Attr'][attr] = ds_n.series[ThisOne]['Attr'][attr]
+        # now sort out any time gaps
+        if TimeGap:
+            qcutils.FixTimeGaps(ds)
+            TimeGap = False
+    
+    ds.globalattributes['nc_nrecs'] = str(len(ds.series['xlDateTime']['Data']))
+    
+    # write the netCDF file
+    ncFileName = get_keyvalue_from_cf(cf['Files']['Out'],'ncFileName')
+    log.info('nc_concatenate: Writing data to '+ncFileName)
+    ncFile = nc_open_write(ncFileName)
+    nc_write_series(ncFile,ds)
+
 def nc_read_series(ncFullName):
     ''' Read a netCDF file and put the data and meta-data into a DataStructure'''
     log.info(' Reading netCDF file '+ncFullName)
@@ -476,6 +585,11 @@ def nc_write_series(ncFile,ds,outputlist=None):
         dt = get_ncdtype(ds.series[ThisOne]['Data'])
         ncVar = ncFile.createVariable(ThisOne,dt,('Time',))
         #print nRecs,ThisOne,len(ds.series[ThisOne]['Data'])
+        if len(ds.series[ThisOne]["Data"])!=nRecs:
+            slen = str(len(ds.series[ThisOne]["Data"]))
+            log.error(ThisOne+" length ("+slen+") not equal to Time dimension length "+str(nRecs))
+            ncFile.close()
+            return
         ncVar[:] = ds.series[ThisOne]['Data'].tolist()
         for attr in ds.series[ThisOne]['Attr']:
             setattr(ncVar,attr,ds.series[ThisOne]['Attr'][attr])
@@ -584,7 +698,95 @@ def xl_read_series(cf):
     ds.globalattributes['nc_nrecs'] = str(len(ds.series['xlDateTime']['Data']))
     return ds
 
+def xl_write_ACCESSStats(ds):
+    if "access" not in dir(ds): return
+    # open an Excel file for the fit statistics
+    cfname = ds.globalattributes["controlfile_name"]
+    cf = get_controlfilecontents(cfname)
+    out_filename = get_outfilename_from_cf(cf)
+    # get the Excel file name
+    xl_filename = out_filename.replace('.nc','_ACCESSStats.xls')
+    log.info(' Writing ACCESS fit statistics to Excel file '+xl_filename)
+    # open the Excel file
+    xlfile = xlwt.Workbook()
+    # list of outputs to write to the Excel file
+    output_list = ["n","r_max","bias","rmse","var_tow","var_acc","max_lag",
+                   "m_rlm","b_rlm","m_ols","b_ols"]
+    # loop over the series that have been gap filled using ACCESS data
+    for label in ds.access.keys():
+        # add a sheet with the series label
+        xlResultsSheet = xlfile.add_sheet(label)
+        xlRow = 10
+        xlCol = 0
+        xlResultsSheet.write(xlRow,xlCol,"startdate")
+        d_xf = xlwt.easyxf(num_format_str='dd/mm/yyyy hh:mm')
+        for item in ds.access[label]["results"]["startdate"]:
+            xlRow = xlRow + 1
+            xlResultsSheet.write(xlRow,xlCol,item,d_xf)
+        xlRow = 10
+        xlCol = xlCol + 1
+        xlResultsSheet.write(xlRow,xlCol,"enddate")
+        for item in ds.access[label]["results"]["enddate"]:
+            xlRow = xlRow + 1
+            xlResultsSheet.write(xlRow,xlCol,item,d_xf)
+        xlRow = 10
+        xlCol = xlCol + 1
+        for output in output_list:
+            xlResultsSheet.write(xlRow,xlCol,output)
+            for item in ds.access[label]["results"][output]:
+                xlRow = xlRow + 1
+                xlResultsSheet.write(xlRow,xlCol,item)
+            xlRow = 10
+            xlCol = xlCol + 1
+    xlfile.save(xl_filename)
+
+def xl_write_SOLOStats(ds):
+    if "solo" not in dir(ds): return
+    # open an Excel file for the fit statistics
+    cfname = ds.globalattributes["controlfile_name"]
+    cf = get_controlfilecontents(cfname)
+    out_filename = get_outfilename_from_cf(cf)
+    # get the Excel file name
+    xl_filename = out_filename.replace('.nc','_SOLOStats.xls')
+    log.info(' Writing SOLO fit statistics to Excel file '+xl_filename)
+    # open the Excel file
+    xlfile = xlwt.Workbook()
+    # list of outputs to write to the Excel file
+    output_list = ["n","r_max","bias","rmse","var_obs","var_mod","m_ols","b_ols"]
+    # loop over the series that have been gap filled using ACCESS data
+    for label in ds.solo.keys():
+        # add a sheet with the series label
+        xlResultsSheet = xlfile.add_sheet(label)
+        xlRow = 10
+        xlCol = 0
+        xlResultsSheet.write(xlRow,xlCol,"startdate")
+        d_xf = xlwt.easyxf(num_format_str='dd/mm/yyyy hh:mm')
+        for item in ds.solo[label]["results"]["startdate"]:
+            xlRow = xlRow + 1
+            xlResultsSheet.write(xlRow,xlCol,item,d_xf)
+        xlRow = 10
+        xlCol = xlCol + 1
+        xlResultsSheet.write(xlRow,xlCol,"enddate")
+        for item in ds.solo[label]["results"]["enddate"]:
+            xlRow = xlRow + 1
+            xlResultsSheet.write(xlRow,xlCol,item,d_xf)
+        xlRow = 10
+        xlCol = xlCol + 1
+        for output in output_list:
+            xlResultsSheet.write(xlRow,xlCol,output)
+            for item in ds.solo[label]["results"][output]:
+                xlRow = xlRow + 1
+                xlResultsSheet.write(xlRow,xlCol,item)
+            xlRow = 10
+            xlCol = xlCol + 1
+    xlfile.save(xl_filename)
+
 def xl_write_series(ds, xlfullname, outputlist=None):
+    if "nc_nrecs" in ds.globalattributes.keys():
+        nRecs = ds.globalattributes["nc_nrecs"]
+    else:
+        variablelist = ds.series.keys()
+        nRecs = len(ds.series[variablelist[0]]["Data"])
     # open the Excel file
     log.info(' Opening and writing Excel file '+xlfullname)
     xlfile = xlwt.Workbook()
@@ -635,19 +837,19 @@ def xl_write_series(ds, xlfullname, outputlist=None):
         attributelist.sort()
         for Attr in attributelist:
             xlAttrSheet.write(xlrow,xlcol_attrname,Attr)
-            xlAttrSheet.write(xlrow,xlcol_attrvalue,ds.series[ThisOne]['Attr'][Attr])
+            xlAttrSheet.write(xlrow,xlcol_attrvalue,str(ds.series[ThisOne]['Attr'][Attr]))
             xlrow = xlrow + 1
     # write the Excel date/time to the data and the QC flags as the first column
-    log.info(' Writing the datetime to Excel file '+xlfullname)
-    nRecs = len(ds.series['xlDateTime']['Data'])
-    d_xf = xlwt.easyxf(num_format_str='dd/mm/yyyy hh:mm')
-    xlDataSheet.write(2,xlcol,'xlDateTime')
-    for j in range(nRecs):
-        xlDataSheet.write(j+3,xlcol,ds.series['xlDateTime']['Data'][j],d_xf)
-        xlFlagSheet.write(j+3,xlcol,ds.series['xlDateTime']['Data'][j],d_xf)
-    # remove xlDateTime from the list of variables to be written to the Excel file
-    if 'xlDateTime' in outputlist:
-        outputlist.remove('xlDateTime')
+    if "xlDateTime" in ds.series.keys():
+        log.info(' Writing the datetime to Excel file '+xlfullname)
+        d_xf = xlwt.easyxf(num_format_str='dd/mm/yyyy hh:mm')
+        xlDataSheet.write(2,xlcol,'xlDateTime')
+        for j in range(nRecs):
+            xlDataSheet.write(j+3,xlcol,ds.series['xlDateTime']['Data'][j],d_xf)
+            xlFlagSheet.write(j+3,xlcol,ds.series['xlDateTime']['Data'][j],d_xf)
+        # remove xlDateTime from the list of variables to be written to the Excel file
+        if 'xlDateTime' in outputlist:
+            outputlist.remove('xlDateTime')
     # now start looping over the other variables in the xl file
     xlcol = xlcol + 1
     # loop over variables to be output to xl file

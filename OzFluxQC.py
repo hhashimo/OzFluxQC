@@ -121,7 +121,7 @@ class qcgui(tk.Tk):
         # now we put together the menu, "File" first
         menubar = tk.Menu(self)
         filemenu = tk.Menu(menubar,tearoff=0)
-        filemenu.add_command(label="Concatenate netCDF",command=self.option_not_implemented)
+        filemenu.add_command(label="Concatenate netCDF",command=self.do_ncconcat)
         filemenu.add_command(label="List netCDF contents",command=self.option_not_implemented)
         filemenu.add_command(label="nc to xls",command=self.option_not_implemented)
         filemenu.add_command(label="xls to nc",command=self.option_not_implemented)
@@ -169,6 +169,18 @@ class qcgui(tk.Tk):
         menubar.add_cascade(label="Respiration",menu=partitionmenu)
 
         self.config(menu=menubar)
+
+    def do_climatology(self):
+        """
+        Calls qcclim.climatology
+        """
+        self.do_progress(text='Loading control file ...')
+        cf = qcio.load_controlfile(path='controlfiles')
+        if len(cf)==0: self.do_progress(text='Waiting for input ...'); return
+        self.do_progress(text='Doing the climatology')
+        qcclim.climatology(cf)
+        self.do_progress(text='Finished climatology')
+        log.info(' Finished climatology')
 
     def do_closeplotwindows(self):
         """
@@ -376,6 +388,18 @@ class qcgui(tk.Tk):
         qcio.nc_write_series(ncFile,self.ds4,outputlist=outputlist)             # save the L4 data
         self.do_progress(text='Finished saving L4 gap filled NetCDF data')      # tell the user we are done
         log.info(' Finished saving L4 gap filled NetCDF data')
+
+    def do_ncconcat(self):
+        """
+        Calls qcio.nc_concatenate
+        """
+        self.do_progress(text='Loading control file ...')
+        cf = qcio.load_controlfile(path='controlfiles')
+        if len(cf)==0: self.do_progress(text='Waiting for input ...'); return
+        self.do_progress(text='Concatenating files')
+        qcio.nc_concatenate(cf)
+        self.do_progress(text='Finished concatenating files')
+        log.info(' Finished concatenating files')
 
     def do_plotL1L2(self):
         """
@@ -610,18 +634,6 @@ class qcgui(tk.Tk):
         self.fileendValue.grid(row=3,column=2,columnspan=1)
         self.update()
     
-    def do_climatology(self):
-        """
-        Calls qcclim.climatology
-        """
-        self.do_progress(text='Loading control file ...')
-        cf = qcio.load_controlfile(path='controlfiles')
-        if len(cf)==0: self.do_progress(text='Waiting for input ...'); return
-        self.do_progress(text='Doing the climatology')
-        qcclim.climatology(cf)
-        self.do_progress(text='Finished climatology')
-        log.info(' Finished climatology')
-
 if __name__ == "__main__":
     log = qcutils.startlog('qc','logfiles/qc.log')
     qcGUI = qcgui(None)

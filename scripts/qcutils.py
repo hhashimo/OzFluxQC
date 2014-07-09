@@ -703,13 +703,14 @@ def get_UTCfromlocaltime(ds):
     ds.series['DateTime_UTC']["Attr"]["long_name"] = "Datetime as UTC"
     ds.series['DateTime_UTC']["Attr"]["units"] = "None"
 
-def get_xldate_from_datetime(dt):
+def get_xldate_from_datetime(dt,datemode=0):
     '''
     PURPOSE:
      Returns a list of xldatetime (floating point number represent decimal days
      since 00:00 1/1/1900) from a list of Python datetimes
     USAGE:
-     xl_date = qcutils.get_xldate_from_datetime(py_date)
+    datemode = ds.globalattributes["xl_datemode"]
+     xl_date = qcutils.get_xldate_from_datetime(py_date,datemode=datemode)
      ds.series["xlDateTime"] = numpy.array(xl_date)
     ASSUMPTIONS:
      datemode is set to 0 (1900 date system), use on Windows assumed
@@ -721,7 +722,7 @@ def get_xldate_from_datetime(dt):
                                                       dt[i].hour,
                                                       dt[i].minute,
                                                       dt[i].second),
-                                                      0) for i in range(0,len(dt))]
+                                                      datemode) for i in range(0,len(dt))]
     return xldate
 
 def get_ymdhms_from_datetime(ds):
