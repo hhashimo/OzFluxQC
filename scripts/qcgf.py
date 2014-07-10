@@ -640,15 +640,10 @@ def gfACCESS_main(ds_tower,ds_access,access_gui,access_dates):
                                ts=ts,ndays=ndays,nperday=nperday,
                                units_tower=units_tower,units_access=units_access)
         gfACCESS_plot(pd,ds_tower,odt_tower,data_tower,odt_access,data_access,r)
-        # mask both series when either one is missing
-        data_access.mask = numpy.ma.mask_or(data_access.mask,data_tower.mask)
-        data_tower.mask = numpy.ma.mask_or(data_access.mask,data_tower.mask)
-        # get non-masked versions of the data, these are used with the robust statistics module
-        data_access_nm = numpy.ma.compressed(data_access)
-        data_tower_nm = numpy.ma.compressed(data_tower)
-        # best fit of ACCESS data to tower data by robust least squares
-        resrlm = sm.RLM(data_tower_nm,sm.add_constant(data_access_nm,prepend=False),M=sm.robust.norms.TukeyBiweight()).fit()
-        m_rlm = resrlm.params[0]; b_rlm = resrlm.params[1]
+        # get the robust least squares coefficients
+        m_rlm = ds_tower.access[label]["results"]["m_rlm"][-1]
+        b_rlm = ds_tower.access[label]["results"]["b_rlm"][-1]
+        # get the best fit ACCESS data
         data_access_rlm = m_rlm*data_access+b_rlm
         # put the best-fit adjusted ACCESS data into the output series
         ds_tower.series[output]["Data"][si_tower:ei_tower+1] = data_access_rlm
@@ -669,12 +664,15 @@ def gfACCESS_initplot(**kwargs):
     return pd
 
 def gfACCESS_plot(pd,ds_tower,odt_tower,data_tower,odt_access,data_access,r):
+    # local copies of the data so the originals are not modified in this routine
+    access = numpy.ma.copy(data_access)
+    tower = numpy.ma.copy(data_tower)
     # mask both series when either one is missing
-    data_access.mask = numpy.ma.mask_or(data_access.mask,data_tower.mask)
-    data_tower.mask = numpy.ma.mask_or(data_access.mask,data_tower.mask)
+    access.mask = numpy.ma.mask_or(access.mask,tower.mask)
+    tower.mask = numpy.ma.mask_or(access.mask,tower.mask)
     # get non-masked versions of the data, these are used with the robust statistics module
-    data_access_nm = numpy.ma.compressed(data_access)
-    data_tower_nm = numpy.ma.compressed(data_tower)
+    access_nm = numpy.ma.compressed(access)
+    tower_nm = numpy.ma.compressed(tower)
     # turn on interactive plotting
     plt.ion()
     # create the figure canvas
@@ -695,7 +693,7 @@ def gfACCESS_plot(pd,ds_tower,odt_tower,data_tower,odt_access,data_access,r):
     rect2 = [0.40,pd["margin_bottom"]+pd["margin_bottom"]+pd["xy_height"],
              pd["xy_width"],pd["xy_height"]]
     ax2 = plt.axes(rect2)
-    l=ax2.xcorr(data_tower_nm,data_access_nm,maxlags=pd["nperday"])
+    l=ax2.xcorr(tower_nm,access_nm,maxlags=pd["nperday"])
     ax2.set_ylabel('r')
     ax2.set_xlabel('Lags')
     plt.draw()
@@ -705,65 +703,65 @@ def gfACCESS_plot(pd,ds_tower,odt_tower,data_tower,odt_access,data_access,r):
     # scatter plot of 30 minute data
     rect3 = [0.10,pd["margin_bottom"],pd["xy_width"],pd["xy_height"]]
     ax3 = plt.axes(rect3)
-    ax3.plot(data_access,data_tower,'b.')
+    ax3.plot(access,tower,'b.')
     ax3.set_ylabel('Tower ('+pd["units_tower"]+')')
     ax3.set_xlabel('ACCESS ('+pd["units_access"]+')')
-    resrlm = sm.RLM(data_tower_nm,sm.add_constant(data_access_nm,prepend=False),M=sm.robust.norms.TukeyBiweight()).fit()
+    resrlm = sm.RLM(tower_nm,sm.add_constant(access_nm,prepend=False),M=sm.robust.norms.TukeyBiweight()).fit()
     pd["m_rlm"] = resrlm.params[0]
     pd["b_rlm"] = resrlm.params[1]
     ds_tower.access[pd["label"]]["results"]["m_rlm"].append(resrlm.params[0])
     ds_tower.access[pd["label"]]["results"]["b_rlm"].append(resrlm.params[1])
-    pd["rlm"] = pd["m_rlm"]*data_access+pd["b_rlm"]
+    pd["rlm"] = pd["m_rlm"]*access+pd["b_rlm"]
     eqnstr = 'y = %.3fx + %.3f'%(pd["m_rlm"],pd["b_rlm"])
-    ax3.plot(data_access_nm,resrlm.fittedvalues,'r--',linewidth=3)
+    ax3.plot(access_nm,resrlm.fittedvalues,'r--',linewidth=3)
     ax3.text(0.5,0.915,eqnstr,fontsize=8,horizontalalignment='center',transform=ax3.transAxes,color='red')
-    resols = sm.OLS(data_tower_nm,sm.add_constant(data_access_nm,prepend=False)).fit()
+    resols = sm.OLS(tower_nm,sm.add_constant(access_nm,prepend=False)).fit()
     pd["m_ols"] = resols.params[0]
     pd["b_ols"] = resols.params[1]
     ds_tower.access[pd["label"]]["results"]["m_ols"].append(resols.params[0])
     ds_tower.access[pd["label"]]["results"]["b_ols"].append(resols.params[1])
-    pd["ols"] = pd["m_ols"]*data_access+pd["b_ols"]
+    pd["ols"] = pd["m_ols"]*access+pd["b_ols"]
     eqnstr = 'y = %.3fx + %.3f'%(pd["m_ols"],pd["b_ols"])
-    ax3.plot(data_access_nm,resrlm.fittedvalues,'g--',linewidth=3)
+    ax3.plot(access_nm,resrlm.fittedvalues,'g--',linewidth=3)
     ax3.text(0.5,0.85,eqnstr,fontsize=8,horizontalalignment='center',transform=ax3.transAxes,color='green')
     ax3.text(0.6,0.075,'30 minutes',fontsize=10,horizontalalignment='left',transform=ax3.transAxes)
     plt.draw()
     # scatter plot of daily averages
     rect4 = [0.40,pd["margin_bottom"],pd["xy_width"],pd["xy_height"]]
     ax4 = plt.axes(rect4)
-    data_tower_2d = numpy.ma.reshape(data_tower,[pd["ndays"],pd["nperday"]])
-    data_tower_daily_avg = numpy.ma.average(data_tower_2d,axis=1)
-    data_access_2d = numpy.ma.reshape(data_access,[pd["ndays"],pd["nperday"]])
-    data_access_daily_avg = numpy.ma.average(data_access_2d,axis=1)
-    ax4.plot(data_access_daily_avg,data_tower_daily_avg,'b.')
+    tower_2d = numpy.ma.reshape(tower,[pd["ndays"],pd["nperday"]])
+    tower_daily_avg = numpy.ma.average(tower_2d,axis=1)
+    access_2d = numpy.ma.reshape(access,[pd["ndays"],pd["nperday"]])
+    access_daily_avg = numpy.ma.average(access_2d,axis=1)
+    ax4.plot(access_daily_avg,tower_daily_avg,'b.')
     ax4.set_ylabel('Tower ('+pd["units_tower"]+')')
     ax4.set_xlabel('ACCESS ('+pd["units_access"]+')')
-    data_access_daily_avg.mask = numpy.ma.mask_or(data_access_daily_avg.mask,data_tower_daily_avg.mask)
-    data_tower_daily_avg.mask = numpy.ma.mask_or(data_access_daily_avg.mask,data_tower_daily_avg.mask)
-    data_access_daily_avg_nm = numpy.ma.compressed(data_access_daily_avg)
-    data_tower_daily_avg_nm = numpy.ma.compressed(data_tower_daily_avg)
-    resrlm = sm.RLM(data_tower_daily_avg_nm,sm.add_constant(data_access_daily_avg_nm,prepend=False),M=sm.robust.norms.TukeyBiweight()).fit()
+    access_daily_avg.mask = numpy.ma.mask_or(access_daily_avg.mask,tower_daily_avg.mask)
+    tower_daily_avg.mask = numpy.ma.mask_or(access_daily_avg.mask,tower_daily_avg.mask)
+    access_daily_avg_nm = numpy.ma.compressed(access_daily_avg)
+    tower_daily_avg_nm = numpy.ma.compressed(tower_daily_avg)
+    resrlm = sm.RLM(tower_daily_avg_nm,sm.add_constant(access_daily_avg_nm,prepend=False),M=sm.robust.norms.TukeyBiweight()).fit()
     eqnstr = 'y = %.3fx + %.3f'%(resrlm.params[0],resrlm.params[1])
-    ax4.plot(data_access_daily_avg_nm,resrlm.fittedvalues,'r--',linewidth=3)
+    ax4.plot(access_daily_avg_nm,resrlm.fittedvalues,'r--',linewidth=3)
     ax4.text(0.5,0.915,eqnstr,fontsize=8,horizontalalignment='center',transform=ax4.transAxes,color='red')
-    resrlm = sm.OLS(data_tower_daily_avg_nm,sm.add_constant(data_access_daily_avg_nm,prepend=False)).fit()
+    resrlm = sm.OLS(tower_daily_avg_nm,sm.add_constant(access_daily_avg_nm,prepend=False)).fit()
     eqnstr = 'y = %.3fx + %.3f'%(resrlm.params[0],resrlm.params[1])
-    ax4.plot(data_access_daily_avg_nm,resrlm.fittedvalues,'g--',linewidth=3)
+    ax4.plot(access_daily_avg_nm,resrlm.fittedvalues,'g--',linewidth=3)
     ax4.text(0.5,0.85,eqnstr,fontsize=8,horizontalalignment='center',transform=ax4.transAxes,color='green')
     ax4.text(0.6,0.075,'Daily average',fontsize=10,horizontalalignment='left',transform=ax4.transAxes)
     plt.draw()
     # diurnal average plot
     rect5 = [0.70,pd["margin_bottom"],pd["xy_width"],pd["xy_height"]]
     ax5 = plt.axes(rect5)
-    data_tower_hourly_avg = numpy.ma.average(data_tower_2d,axis=0)
-    data_access_hourly_avg = numpy.ma.average(data_access_2d,axis=0)
-    data_access_hourly_rlm = numpy.ma.average(pd["m_rlm"]*data_access_2d+pd["b_rlm"],axis=0)
-    data_access_hourly_ols = numpy.ma.average(pd["m_ols"]*data_access_2d+pd["b_ols"],axis=0)
-    ind = numpy.arange(len(data_tower_hourly_avg))*float(pd["ts"])/float(60)
-    ax5.plot(ind,data_tower_hourly_avg,'ro',label='Tower')
-    ax5.plot(ind,data_access_hourly_avg,'b-',label='ACCESS-A')
-    ax5.plot(ind,data_access_hourly_rlm,'r-',label='ACCESS-A (RLM)')
-    ax5.plot(ind,data_access_hourly_ols,'g-',label='ACCESS-A (OLS)')
+    tower_hourly_avg = numpy.ma.average(tower_2d,axis=0)
+    access_hourly_avg = numpy.ma.average(access_2d,axis=0)
+    access_hourly_rlm = numpy.ma.average(pd["m_rlm"]*access_2d+pd["b_rlm"],axis=0)
+    access_hourly_ols = numpy.ma.average(pd["m_ols"]*access_2d+pd["b_ols"],axis=0)
+    ind = numpy.arange(len(tower_hourly_avg))*float(pd["ts"])/float(60)
+    ax5.plot(ind,tower_hourly_avg,'ro',label='Tower')
+    ax5.plot(ind,access_hourly_avg,'b-',label='ACCESS-A')
+    ax5.plot(ind,access_hourly_rlm,'r-',label='ACCESS-A (RLM)')
+    ax5.plot(ind,access_hourly_ols,'g-',label='ACCESS-A (OLS)')
     ax5.set_ylabel(pd["label"]+' ('+pd["units_tower"]+')')
     ax5.set_xlim(0,24)
     ax5.xaxis.set_ticks([0,6,12,18,24])
@@ -773,24 +771,24 @@ def gfACCESS_plot(pd,ds_tower,odt_tower,data_tower,odt_access,data_access,r):
     # time series
     rect_ts = [pd["margin_left"],pd["ts_bottom"],pd["ts_width"],pd["ts_height"]]
     axes_ts = plt.axes(rect_ts)
-    axes_ts.plot(odt_tower,data_tower,'ro',label="Tower")
-    axes_ts.plot(odt_access,data_access,'b-',label="ACCESS-A")
+    axes_ts.plot(odt_tower,tower,'ro',label="Tower")
+    axes_ts.plot(odt_access,access,'b-',label="ACCESS-A")
     axes_ts.plot(odt_access,pd["rlm"],'r-',label="ACCESS-A (RLM)")
     axes_ts.plot(odt_access,pd["ols"],'g-',label="ACCESS-A (OLS)")
     axes_ts.set_ylabel(pd["label"]+' ('+pd["units_tower"]+')')
     axes_ts.legend(loc='upper right',frameon=False,prop={'size':8})
     plt.draw()
     # now get some statistics
-    numpoints = numpy.ma.count(data_tower)
+    numpoints = numpy.ma.count(tower)
     ds_tower.access[pd["label"]]["results"]["n"].append(numpoints)
-    diff = data_tower - data_access
+    diff = tower - access
     bias = numpy.ma.average(diff)
     ds_tower.access[pd["label"]]["results"]["bias"].append(bias)
     rmse = numpy.ma.sqrt(numpy.ma.average(diff*diff))
     ds_tower.access[pd["label"]]["results"]["rmse"].append(rmse)
-    var_tow = numpy.ma.var(data_tower)
+    var_tow = numpy.ma.var(tower)
     ds_tower.access[pd["label"]]["results"]["var_tow"].append(var_tow)
-    var_acc = numpy.ma.var(data_access)
+    var_acc = numpy.ma.var(access)
     ds_tower.access[pd["label"]]["results"]["var_acc"].append(var_acc)
     r_max = numpy.ma.maximum(r)
     ds_tower.access[pd["label"]]["results"]["r_max"].append(r_max)

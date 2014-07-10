@@ -111,14 +111,10 @@ def copy_datastructure(cf,ds_in):
                         pass
     return ds_out
 
-def nc2xl(cf):
-    # get the filenames
-    outfilename = get_outfilename_from_cf(cf)
-    xlfilename= outfilename.replace('.nc','.xls')
-    # get the output list
-    outputlist = get_outputlist_from_cf(cf,'xl')
+def nc_2xls(ncfilename,outputlist=None):
+    xlfilename= ncfilename.replace('.nc','.xls')
     # read the netCDF file
-    ds = nc_read_series(outfilename)
+    ds = nc_read_series(ncfilename)
     # write the variables to the Excel file
     xl_write_series(ds,xlfilename,outputlist=outputlist)
 
@@ -783,7 +779,7 @@ def xl_write_SOLOStats(ds):
 
 def xl_write_series(ds, xlfullname, outputlist=None):
     if "nc_nrecs" in ds.globalattributes.keys():
-        nRecs = ds.globalattributes["nc_nrecs"]
+        nRecs = int(ds.globalattributes["nc_nrecs"])
     else:
         variablelist = ds.series.keys()
         nRecs = len(ds.series[variablelist[0]]["Data"])

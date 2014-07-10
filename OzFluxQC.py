@@ -123,7 +123,7 @@ class qcgui(tk.Tk):
         filemenu = tk.Menu(menubar,tearoff=0)
         filemenu.add_command(label="Concatenate netCDF",command=self.do_ncconcat)
         filemenu.add_command(label="List netCDF contents",command=self.option_not_implemented)
-        filemenu.add_command(label="nc to xls",command=self.option_not_implemented)
+        filemenu.add_command(label="nc to xls",command=self.do_nc2xls)
         filemenu.add_command(label="xls to nc",command=self.option_not_implemented)
         filemenu.add_separator()
         filemenu.add_command(label="Quit",command=self.do_quit)
@@ -389,6 +389,16 @@ class qcgui(tk.Tk):
         self.do_progress(text='Finished saving L4 gap filled NetCDF data')      # tell the user we are done
         log.info(' Finished saving L4 gap filled NetCDF data')
 
+    def do_nc2xls(self):
+        """ Calls qcio.nc_2xls. """
+        self.do_progress(text="Choosing netCDF file ...")
+        ncfilename = qcio.get_filename_dialog(path="../Sites",title="Choose a netCDF file")
+        if len(ncfilename)==0: self.do_progress(text="Waiting for input ..."); return
+        self.do_progress(text="Converting netCDF file to Excel file")
+        qcio.nc_2xls(ncfilename,outputlist=None)
+        self.do_progress(text="Finished converting netCDF file")
+        log.info(" Finished converting netCDF file")
+
     def do_ncconcat(self):
         """
         Calls qcio.nc_concatenate
@@ -543,7 +553,11 @@ class qcgui(tk.Tk):
             Outputs L2 Excel file containing Data and Flag worksheets
             """
         self.do_progress(text='Exporting L2 NetCDF -> Xcel ...')                     # put up the progress message
-        qcio.nc2xl(self.cf)
+        # get the output filename
+        outfilename = qcio.get_outfilename_from_cf(self.cf)
+        # get the output list
+        outputlist = get_outputlist_from_cf(self.cf,'xl')
+        qcio.nc_2xls(outfilename,outputlist=outputlist)
         self.do_progress(text='Finished L2 Data Export')              # tell the user we are done
         log.info(' Finished saving L2 data')
 
@@ -555,7 +569,11 @@ class qcgui(tk.Tk):
             Outputs L3 Excel file containing Data and Flag worksheets
             """
         self.do_progress(text='Exporting L3 NetCDF -> Xcel ...')                     # put up the progress message
-        qcio.nc2xl(self.cf)
+        # get the output filename
+        outfilename = qcio.get_outfilename_from_cf(self.cf)
+        # get the output list
+        outputlist = get_outputlist_from_cf(self.cf,'xl')
+        qcio.nc_2xls(outfilename,outputlist=outputlist)
         self.do_progress(text='Finished L3 Data Export')              # tell the user we are done
         log.info(' Finished saving L3 data')
 
@@ -567,7 +585,11 @@ class qcgui(tk.Tk):
             Outputs L4 Excel file containing Data and Flag worksheets
             """
         self.do_progress(text='Exporting L4 NetCDF -> Xcel ...')                     # put up the progress message
-        qcio.nc2xl(self.cf)
+        # get the output filename
+        outfilename = qcio.get_outfilename_from_cf(self.cf)
+        # get the output list
+        outputlist = get_outputlist_from_cf(self.cf,'xl')
+        qcio.nc_2xls(outfilename,outputlist=outputlist)
         self.do_progress(text='Finished L4 Data Export')              # tell the user we are done
         log.info(' Finished saving L4 data')
 
