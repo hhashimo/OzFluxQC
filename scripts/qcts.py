@@ -37,8 +37,8 @@ def albedo(cf,ds):
     log.info(' Applying albedo constraints')
     if 'albedo' not in ds.series.keys():
         if 'Fsd' in ds.series.keys() and 'Fsu' in ds.series.keys():
-            Fsd,f = qcutils.GetSeriesasMA(ds,'Fsd')
-            Fsu,f = qcutils.GetSeriesasMA(ds,'Fsu')
+            Fsd,f,a = qcutils.GetSeriesasMA(ds,'Fsd')
+            Fsu,f,a = qcutils.GetSeriesasMA(ds,'Fsu')
             albedo = Fsu / Fsd
             attr = qcutils.MakeAttributeDictionary(long_name='solar albedo',units='none',standard_name='solar_albedo')
             qcutils.CreateSeries(ds,'albedo',albedo,FList=['Fsd','Fsu'],Attr=attr)
@@ -46,11 +46,11 @@ def albedo(cf,ds):
             log.warning('  Fsd or Fsu not in ds, albedo not calculated')
             return
     else:
-        albedo,f = qcutils.GetSeriesasMA(ds,'albedo')
+        albedo,f,a = qcutils.GetSeriesasMA(ds,'albedo')
         if 'Fsd' in ds.series.keys():
-            Fsd,f = qcutils.GetSeriesasMA(ds,'Fsd')
+            Fsd,f,a = qcutils.GetSeriesasMA(ds,'Fsd')
         else:
-            Fsd,f = qcutils.GetSeriesasMA(ds,'Fn')
+            Fsd,f,a = qcutils.GetSeriesasMA(ds,'Fn')
     
     if qcutils.cfkeycheck(cf,ThisOne='albedo',key='Threshold'):
         Fsdbase = float(cf['Variables']['albedo']['Threshold']['Fsd'])
@@ -245,8 +245,8 @@ def CalculateAvailableEnergy(ds,Fa_out='Fa',Fn_in='Fn',Fg_in='Fg'):
         Fg_in: input ground heat flux in ds.  Example: 'Fg'
         """
     log.info(' Calculating available energy from Fn and Fg')
-    Fn,f = qcutils.GetSeriesasMA(ds,Fn_in)
-    Fg,f = qcutils.GetSeriesasMA(ds,Fg_in)
+    Fn,f,a = qcutils.GetSeriesasMA(ds,Fn_in)
+    Fg,f,a = qcutils.GetSeriesasMA(ds,Fg_in)
     Fa = Fn - Fg
     attr = qcutils.MakeAttributeDictionary(long_name='Available energy using '+Fn_in+','+Fg_in,units='W/m2')
     qcutils.CreateSeries(ds,Fa_out,Fa,FList=[Fn_in,Fg_in],Attr=attr)
@@ -280,16 +280,16 @@ def CalculateFluxes(cf,ds,Ta_name='Ta',ps_name='ps',Ah_name='Ah',wT_in='wT',wA_i
     long_name = ''
     if 'Massman' in ds.globalattributes['Functions']:
         long_name = ' and frequency response corrected'
-    Ta,f = qcutils.GetSeriesasMA(ds,Ta_name)
-    ps,f = qcutils.GetSeriesasMA(ds,ps_name)
-    Ah,f = qcutils.GetSeriesasMA(ds,Ah_name)
-    rhom,f = qcutils.GetSeriesasMA(ds,'rhom')
-    RhoCp,f = qcutils.GetSeriesasMA(ds,'RhoCp')
-    Lv,f = qcutils.GetSeriesasMA(ds,'Lv')
+    Ta,f,a = qcutils.GetSeriesasMA(ds,Ta_name)
+    ps,f,a = qcutils.GetSeriesasMA(ds,ps_name)
+    Ah,f,a = qcutils.GetSeriesasMA(ds,Ah_name)
+    rhom,f,a = qcutils.GetSeriesasMA(ds,'rhom')
+    RhoCp,f,a = qcutils.GetSeriesasMA(ds,'RhoCp')
+    Lv,f,a = qcutils.GetSeriesasMA(ds,'Lv')
     
     log.info(' Calculating fluxes from covariances')
     if wT_in in ds.series.keys():
-        wT,f = qcutils.GetSeriesasMA(ds,wT_in)
+        wT,f,a = qcutils.GetSeriesasMA(ds,wT_in)
         Fhv = RhoCp * wT
         attr = qcutils.MakeAttributeDictionary(long_name='Virtual heat flux, rotated to natural wind coordinates'+long_name,
                                            units='W/m2')
@@ -297,7 +297,7 @@ def CalculateFluxes(cf,ds,Ta_name='Ta',ps_name='ps',Ah_name='Ah',wT_in='wT',wA_i
     else:
         log.error('  CalculateFluxes: '+wT_in+' not found in ds.series, Fh not calculated')
     if wA_in in ds.series.keys():
-        wA,f = qcutils.GetSeriesasMA(ds,wA_in)
+        wA,f,a = qcutils.GetSeriesasMA(ds,wA_in)
         Fe = Lv * wA / float(1000)
         attr = qcutils.MakeAttributeDictionary(long_name='Latent heat flux, rotated to natural wind coordinates'+long_name,
                                            standard_name='surface_upward_latent_heat_flux',units='W/m2')
@@ -305,7 +305,7 @@ def CalculateFluxes(cf,ds,Ta_name='Ta',ps_name='ps',Ah_name='Ah',wT_in='wT',wA_i
     else:
         log.error('  CalculateFluxes: '+wA_in+' not found in ds.series, Fe not calculated')
     if wC_in in ds.series.keys():
-        wC,f = qcutils.GetSeriesasMA(ds,wC_in)
+        wC,f,a = qcutils.GetSeriesasMA(ds,wC_in)
         Fc = wC
         attr = qcutils.MakeAttributeDictionary(long_name='CO2 flux, rotated to natural wind coordinates'+long_name,units='mg/m2/s')
         qcutils.CreateSeries(ds,Fc_out,Fc,FList=[wC_in],Attr=attr)
@@ -313,8 +313,8 @@ def CalculateFluxes(cf,ds,Ta_name='Ta',ps_name='ps',Ah_name='Ah',wT_in='wT',wA_i
         log.error('  CalculateFluxes: '+wC_in+' not found in ds.series, Fc_raw not calculated')
     if uw_in in ds.series.keys():
         if vw_in in ds.series.keys():
-            uw,f = qcutils.GetSeriesasMA(ds,uw_in)
-            vw,f = qcutils.GetSeriesasMA(ds,vw_in)
+            uw,f,a = qcutils.GetSeriesasMA(ds,uw_in)
+            vw,f,a = qcutils.GetSeriesasMA(ds,vw_in)
             vs = uw*uw + vw*vw
             Fm = rhom * numpy.ma.sqrt(vs)
             us = numpy.ma.sqrt(numpy.ma.sqrt(vs))
@@ -341,8 +341,8 @@ def CalculateLongwave(ds,Fl_out,Fl_in,Tbody_in):
         Tbody_in: input sensor body temperature in ds.  Example: 'Tbody'
         """
     log.info(' Calculating longwave radiation')
-    Fl_raw,f = qcutils.GetSeriesasMA(ds,Fl_in)
-    Tbody,f = qcutils.GetSeriesasMA(ds,Tbody_in)
+    Fl_raw,f,a = qcutils.GetSeriesasMA(ds,Fl_in)
+    Tbody,f,a = qcutils.GetSeriesasMA(ds,Tbody_in)
     Fl = Fl_raw + c.sb*(Tbody + 273.15)**4
     attr = qcutils.MakeAttributeDictionary(long_name='Calculated longwave radiation using '+Fl_in+','+Tbody_in,units='W/m2')
     qcutils.CreateSeries(ds,Fl_out,Fl,FList=[Fl_in,Tbody_in],Attr=attr)
@@ -374,16 +374,18 @@ def CalculateMeteorologicalVariables(ds,Ta_name='Ta',Tv_name='Tv_CSAT',ps_name='
         #ps_name = vars[1]
         #Ah_name = vars[2]
     # get the required data series
-    Ta,f = qcutils.GetSeriesasMA(ds,Ta_name)
-    Tv,f = qcutils.GetSeriesasMA(ds,Tv_name)
-    ps,f = qcutils.GetSeriesasMA(ds,ps_name)
-    Ah,f = qcutils.GetSeriesasMA(ds,Ah_name)
-    Cc,f = qcutils.GetSeriesasMA(ds,Cc_name)
+    Ta,f,a = qcutils.GetSeriesasMA(ds,Ta_name)
+    # use Tv_CSAT if it is in the data structure, otherwise use Ta
+    if Tv_name not in ds.series.keys(): Tv_name = Ta_name
+    Tv,f,a = qcutils.GetSeriesasMA(ds,Tv_name)
+    ps,f,a = qcutils.GetSeriesasMA(ds,ps_name)
+    Ah,f,a = qcutils.GetSeriesasMA(ds,Ah_name)
+    Cc,f,a = qcutils.GetSeriesasMA(ds,Cc_name)
     # calculate RH if it has not been read from the L1 spreadsheet
     if RH_name not in ds.series.keys():
         RH = mf.RHfromabsolutehumidity(Ah,Ta)     # relative humidity in units of percent
     else:
-        RH,f = qcutils.GetSeriesasMA(ds,RH_name)
+        RH,f,a = qcutils.GetSeriesasMA(ds,RH_name)
     # do the calculations
     e = mf.vapourpressure(Ah,Ta)                  # vapour pressure from absolute humidity and temperature
     esat = mf.es(Ta)                              # saturation vapour pressure
@@ -456,10 +458,10 @@ def CalculateNetRadiation(cf,ds,Fn_out,Fsd_in,Fsu_in,Fld_in,Flu_in):
         """
     log.info(' Calculating net radiation from 4 components')
     if Fsd_in in ds.series.keys() and Fsu_in in ds.series.keys() and Fld_in in ds.series.keys() and Flu_in in ds.series.keys():
-        Fsd,f = qcutils.GetSeriesasMA(ds,Fsd_in)
-        Fsu,f = qcutils.GetSeriesasMA(ds,Fsu_in)
-        Fld,f = qcutils.GetSeriesasMA(ds,Fld_in)
-        Flu,f = qcutils.GetSeriesasMA(ds,Flu_in)
+        Fsd,f,a = qcutils.GetSeriesasMA(ds,Fsd_in)
+        Fsu,f,a = qcutils.GetSeriesasMA(ds,Fsu_in)
+        Fld,f,a = qcutils.GetSeriesasMA(ds,Fld_in)
+        Flu,f,a = qcutils.GetSeriesasMA(ds,Flu_in)
         Fn = (Fsd - Fsu) + (Fld - Flu)
         attr = qcutils.MakeAttributeDictionary(long_name='Calculated net radiation using '+Fsd_in+','+Fsu_in+','+Fld_in+','+Flu_in,
                              standard_name='surface_net_allwave_radiation',units='W/m2')
@@ -523,9 +525,9 @@ def ComputeDailySums(cf,ds,SumList,SubSumList,MinMaxList,MeanList,SoilList):
                 Invar = ast.literal_eval(cf['Sums']['ETin'])
             else:
                 Invar = ['Fe']
-            Fe,f = qcutils.GetSeriesasMA(ds,Invar[0])
+            Fe,f,a = qcutils.GetSeriesasMA(ds,Invar[0])
             if 'Lv' in ds.series.keys():
-                Lv,f = qcutils.GetSeriesasMA(ds,'Lv')
+                Lv,f,a = qcutils.GetSeriesasMA(ds,'Lv')
             else:
                 Lv = c.Lv
             ET = Fe * 60 * 30 * 1000 / (Lv * c.rho_water)  # mm/30min for summing
@@ -540,9 +542,9 @@ def ComputeDailySums(cf,ds,SumList,SubSumList,MinMaxList,MeanList,SoilList):
                 EnergyIn = ast.literal_eval(cf['Sums']['Energyin'])
             else:
                 EnergyIn = ['Fe', 'Fh', 'Fg']
-            Fe,f = qcutils.GetSeriesasMA(ds,EnergyIn[0])
-            Fh,f = qcutils.GetSeriesasMA(ds,EnergyIn[1])
-            Fg,f = qcutils.GetSeriesasMA(ds,EnergyIn[2])
+            Fe,f,a = qcutils.GetSeriesasMA(ds,EnergyIn[0])
+            Fh,f,a = qcutils.GetSeriesasMA(ds,EnergyIn[1])
+            Fg,f,a = qcutils.GetSeriesasMA(ds,EnergyIn[2])
             EnergyOut = ['Fe_MJ','Fh_MJ','Fg_MJ']
             for index in range(0,3):
                 convert_energy(ds,EnergyIn[index],EnergyOut[index])
@@ -555,11 +557,11 @@ def ComputeDailySums(cf,ds,SumList,SubSumList,MinMaxList,MeanList,SoilList):
                 RadiationIn = ast.literal_eval(cf['Sums']['Radin'])
             else:
                 RadiationIn = ['Fld','Flu','Fn','Fsd','Fsu']
-            Fld,f = qcutils.GetSeriesasMA(ds,RadiationIn[0])
-            Flu,f = qcutils.GetSeriesasMA(ds,RadiationIn[1])
-            Fnr,f = qcutils.GetSeriesasMA(ds,RadiationIn[2])
-            Fsd,f = qcutils.GetSeriesasMA(ds,RadiationIn[3])
-            Fsu,f = qcutils.GetSeriesasMA(ds,RadiationIn[4])
+            Fld,f,a = qcutils.GetSeriesasMA(ds,RadiationIn[0])
+            Flu,f,a = qcutils.GetSeriesasMA(ds,RadiationIn[1])
+            Fnr,f,a = qcutils.GetSeriesasMA(ds,RadiationIn[2])
+            Fsd,f,a = qcutils.GetSeriesasMA(ds,RadiationIn[3])
+            Fsu,f,a = qcutils.GetSeriesasMA(ds,RadiationIn[4])
             RadiationOut = ['Fld_MJ','Flu_MJ','Fnr_MJ','Fsd_MJ','Fsu_MJ']
             for index in range(0,5):
                 convert_energy(ds,RadiationIn[index],RadiationOut[index])
@@ -575,8 +577,8 @@ def ComputeDailySums(cf,ds,SumList,SubSumList,MinMaxList,MeanList,SoilList):
             
             if qcutils.cfkeycheck(cf,Base='Sums',ThisOne='GPPin'):
                 GPPIn = ast.literal_eval(cf['Sums']['GPPin'])
-                GPP,f = qcutils.GetSeriesasMA(ds,GPPIn[0])
-                Re,f = qcutils.GetSeriesasMA(ds,GPPIn[1])
+                GPP,f,a = qcutils.GetSeriesasMA(ds,GPPIn[0])
+                Re,f,a = qcutils.GetSeriesasMA(ds,GPPIn[1])
                 GPP_mmol = GPP * 1800 / 1000
                 Re_mmol = Re * 1800 / 1000
                 attr = qcutils.MakeAttributeDictionary(long_name='Cumulative 30-min GPP',units='mmol/m2',standard_name='gross_primary_productivity_of_carbon')
@@ -588,7 +590,7 @@ def ComputeDailySums(cf,ds,SumList,SubSumList,MinMaxList,MeanList,SoilList):
                     OutList.append(GPPOut[listindex])
                     SumOutList.append(GPPOut[listindex])
             
-            Fc,f = qcutils.GetSeriesasMA(ds,CIn[0])
+            Fc,f,a = qcutils.GetSeriesasMA(ds,CIn[0])
             Fc_umol = Fc * 1e6 / (1000 * 44)               # umol/m2-s for min/max
             Fc_mmol = Fc_umol * 1800 / 1000                # mmol/m2-30min for summing
             Fc_g = Fc * 1800 / 1000                        # g/m2-30min for summing
@@ -608,7 +610,7 @@ def ComputeDailySums(cf,ds,SumList,SubSumList,MinMaxList,MeanList,SoilList):
                     SumList.remove('PM')
                     info.error('  Penman-Monteith Daily sum: input Source not located')
                 else:
-                    Gst_mmol,f = qcutils.GetSeriesasMA(ds,'Gst')   # mmol/m2-s
+                    Gst_mmol,f,a = qcutils.GetSeriesasMA(ds,'Gst')   # mmol/m2-s
                     Gst_mol =  Gst_mmol * 1800 / 1000                 # mol/m2-30min for summing
                     attr = qcutils.MakeAttributeDictionary(long_name='Cumulative 30-min Bulk Stomatal Conductance',units='mol/m2')
                     qcutils.CreateSeries(ds,'Gst_mol',Gst_mol,FList=['Gst'],Attr=attr)
@@ -630,7 +632,7 @@ def ComputeDailySums(cf,ds,SumList,SubSumList,MinMaxList,MeanList,SoilList):
                 CIn = ast.literal_eval(cf['Sums']['Cin'])
             else:
                 CIn = ['Fc']
-            Fc,f = qcutils.GetSeriesasMA(ds,CIn[0])
+            Fc,f,a = qcutils.GetSeriesasMA(ds,CIn[0])
             Fc_umol = Fc * 1e6 / (1000 * 44)               # umol/m2-s for min/max
             attr = qcutils.MakeAttributeDictionary(long_name='Average Flux',units='umol/(m2 s)',standard_name='surface_upward_mole_flux_of_carbon_dioxide')
             qcutils.CreateSeries(ds,'Fc_umol',Fc_umol,FList=CIn,Attr=attr)
@@ -737,7 +739,7 @@ def convert_energy(ds,InVar,OutVar):
         InVar: name of input variable.  Example: 'Fe_gapfilled'
         OutVar: name of output variable.  Example: 'Fe_MJ'
         """
-    Wm2,f = qcutils.GetSeriesasMA(ds,InVar)
+    Wm2,f,a = qcutils.GetSeriesasMA(ds,InVar)
     MJ = Wm2 * 1800 / 1e6
     attr = qcutils.MakeAttributeDictionary(long_name=ds.series[InVar]['Attr']['long_name'],units='MJ/m2',standard_name=ds.series[InVar]['Attr']['standard_name'])
     qcutils.CreateSeries(ds,OutVar,MJ,FList=[InVar],Attr=attr)
@@ -752,25 +754,25 @@ def CoordRotation2D(cf,ds):
         ds: data structure
         """
     # get the raw wind velocity components
-    Ux,f = qcutils.GetSeriesasMA(ds,'Ux')          # longitudinal component in CSAT coordinate system
-    Uy,f = qcutils.GetSeriesasMA(ds,'Uy')          # lateral component in CSAT coordinate system
-    Uz,f = qcutils.GetSeriesasMA(ds,'Uz')          # vertical component in CSAT coordinate system
+    Ux,f,a = qcutils.GetSeriesasMA(ds,'Ux')          # longitudinal component in CSAT coordinate system
+    Uy,f,a = qcutils.GetSeriesasMA(ds,'Uy')          # lateral component in CSAT coordinate system
+    Uz,f,a = qcutils.GetSeriesasMA(ds,'Uz')          # vertical component in CSAT coordinate system
     # get the raw covariances
-    UxUz,f = qcutils.GetSeriesasMA(ds,'UxUz')      # covariance(Ux,Uz)
-    UyUz,f = qcutils.GetSeriesasMA(ds,'UyUz')      # covariance(Uy,Uz)
-    UxUy,f = qcutils.GetSeriesasMA(ds,'UxUy')      # covariance(Ux,Uy)
-    UyUy,f = qcutils.GetSeriesasMA(ds,'UyUy')      # variance(Uy)
-    UxUx,f = qcutils.GetSeriesasMA(ds,'UxUx')      # variance(Ux)
-    UzUz,f = qcutils.GetSeriesasMA(ds,'UzUz')      # variance(Ux)
-    UzC,f = qcutils.GetSeriesasMA(ds,'UzC')        # covariance(Uz,C)
-    UzA,f = qcutils.GetSeriesasMA(ds,'UzA')        # covariance(Uz,A)
-    UzT,f = qcutils.GetSeriesasMA(ds,'UzT')        # covariance(Uz,T)
-    UxC,f = qcutils.GetSeriesasMA(ds,'UxC')        # covariance(Ux,C)
-    UyC,f = qcutils.GetSeriesasMA(ds,'UyC')        # covariance(Uy,C)
-    UxA,f = qcutils.GetSeriesasMA(ds,'UxA')        # covariance(Ux,A)
-    UyA,f = qcutils.GetSeriesasMA(ds,'UyA')        # covariance(Ux,A)
-    UxT,f = qcutils.GetSeriesasMA(ds,'UxT')        # covariance(Ux,T)
-    UyT,f = qcutils.GetSeriesasMA(ds,'UyT')        # covariance(Uy,T)
+    UxUz,f,a = qcutils.GetSeriesasMA(ds,'UxUz')      # covariance(Ux,Uz)
+    UyUz,f,a = qcutils.GetSeriesasMA(ds,'UyUz')      # covariance(Uy,Uz)
+    UxUy,f,a = qcutils.GetSeriesasMA(ds,'UxUy')      # covariance(Ux,Uy)
+    UyUy,f,a = qcutils.GetSeriesasMA(ds,'UyUy')      # variance(Uy)
+    UxUx,f,a = qcutils.GetSeriesasMA(ds,'UxUx')      # variance(Ux)
+    UzUz,f,a = qcutils.GetSeriesasMA(ds,'UzUz')      # variance(Ux)
+    UzC,f,a = qcutils.GetSeriesasMA(ds,'UzC')        # covariance(Uz,C)
+    UzA,f,a = qcutils.GetSeriesasMA(ds,'UzA')        # covariance(Uz,A)
+    UzT,f,a = qcutils.GetSeriesasMA(ds,'UzT')        # covariance(Uz,T)
+    UxC,f,a = qcutils.GetSeriesasMA(ds,'UxC')        # covariance(Ux,C)
+    UyC,f,a = qcutils.GetSeriesasMA(ds,'UyC')        # covariance(Uy,C)
+    UxA,f,a = qcutils.GetSeriesasMA(ds,'UxA')        # covariance(Ux,A)
+    UyA,f,a = qcutils.GetSeriesasMA(ds,'UyA')        # covariance(Ux,A)
+    UxT,f,a = qcutils.GetSeriesasMA(ds,'UxT')        # covariance(Ux,T)
+    UyT,f,a = qcutils.GetSeriesasMA(ds,'UyT')        # covariance(Uy,T)
     nRecs = int(ds.globalattributes['nc_nrecs'])   # number of records
     # apply 2D coordinate rotation unless otherwise specified in control file
     rotate = True
@@ -884,13 +886,12 @@ def CalculateFcStorage(cf,ds,Fc_out='Fc_storage',CO2_in='Cc_7500_Av'):
             ts = int(ds.globalattributes['time_step'])
             zms = float(cf['General']['zms'])
             # get the input data
-            Cc,Cc_flag = qcutils.GetSeriesasMA(ds,CO2_in,si=0,ei=-1)
-            attr_in = qcutils.GetAttributeDictionary(ds,CO2_in)
-            Ta,f = qcutils.GetSeriesasMA(ds,'Ta',si=0,ei=-1)
-            ps,f = qcutils.GetSeriesasMA(ds,'ps',si=0,ei=-1)
+            Cc,Cc_flag,Cc_attr = qcutils.GetSeriesasMA(ds,CO2_in,si=0,ei=-1)
+            Ta,f,a = qcutils.GetSeriesasMA(ds,'Ta',si=0,ei=-1)
+            ps,f,a = qcutils.GetSeriesasMA(ds,'ps',si=0,ei=-1)
             # check the CO2 concentration units
             # if the units are mg/m3, convert CO2 concentration to umol/mol before taking the difference
-            if attr_in['units']=='mg/m3': Cc = mf.co2_ppmfrommgpm3(Cc,Ta,ps)
+            if Cc_attr['units']=='mg/m3': Cc = mf.co2_ppmfrommgpm3(Cc,Ta,ps)
             # calculate the change in CO2 concentration between time steps, CO2 concentration in umol/mol.
             dc = numpy.ma.ediff1d(Cc,to_begin=0)
             # convert the CO2 concentration difference from umol/mol to mg/m3
@@ -925,17 +926,15 @@ def CorrectFcForStorage(cf,ds,Fc_out='Fc',Fc_in='Fc',Fc_storage_in='Fc_storage')
     if not qcutils.cfoptionskey(cf,Key='ApplyFcStorage'): return
     if (Fc_in not in ds.series.keys()) or (Fc_storage_in not in ds.series.keys()): return
     log.info(' ***!!! Applying Fc storage term !!!***')
-    Fc,Fc_flag = qcutils.GetSeriesasMA(ds,Fc_in)
-    attr_in = qcutils.GetAttributeDictionary(ds,Fc_in)
-    Fc_storage,Fc_storage_flag = qcutils.GetSeriesasMA(ds,Fc_storage_in)
-    attr_storage = qcutils.GetAttributeDictionary(ds,Fc_storage_in)
-    if attr_in['units']!=attr_storage['units']:
+    Fc,Fc_flag,Fc_attr = qcutils.GetSeriesasMA(ds,Fc_in)
+    Fc_storage,Fc_storage_flag,Fc_storage_attr = qcutils.GetSeriesasMA(ds,Fc_storage_in)
+    if Fc_attr['units']!=Fc_storage_attr['units']:
         log.error('CorrectFcForStorage: units of Fc do not match those of storage term, storage not applied')
         return
     log.info(' Applying storage correction to Fc')
     Fc = Fc + Fc_storage
-    long_name = attr_in['long_name'] + 'corrected for storage using supplied storage term'
-    attr_out = qcutils.MakeAttributeDictionary(long_name=long_name, units=attr_in['units'])
+    long_name = Fc_attr['long_name'] + 'corrected for storage using supplied storage term'
+    attr_out = qcutils.MakeAttributeDictionary(long_name=long_name, units=Fc_attr['units'])
     qcutils.CreateSeries(ds,Fc_out,Fc,FList=[Fc_in,Fc_storage_in],Attr=attr_out)
     if 'CorrectFcForStorage' not in ds.globalattributes['Functions']:
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', CorrectFcForStorage'
@@ -975,9 +974,9 @@ def CorrectFgForStorage(cf,ds,Fg_out='Fg',Fg_in='Fg',Ts_in='Ts',SWC_in='Sws'):
     bd = max(1200.0,min(2500.0,float(cf['Soil']['BulkDensity'])))
     oc = max(0.0,min(1.0,float(cf['Soil']['OrganicContent'])))
     mc = 1.0 - oc
-    Fg,Fg_flag = qcutils.GetSeriesasMA(ds,Fg_in)  # raw soil heat flux
+    Fg,Fg_flag,Fg_attr = qcutils.GetSeriesasMA(ds,Fg_in)  # raw soil heat flux
     nRecs = len(Fg)                               # number of records in series
-    Ts,f = qcutils.GetSeriesasMA(ds,Ts_in)        # soil temperature
+    Ts,f,a = qcutils.GetSeriesasMA(ds,Ts_in)        # soil temperature
     Sws_default = min(1.0,max(0.0,float(cf['Soil']['SwsDefault'])))
     if len(SWC_in) == 0:
         slist = []
@@ -987,13 +986,13 @@ def CorrectFgForStorage(cf,ds,Fg_out='Fg',Fg_in='Fg',Ts_in='Ts',SWC_in='Sws'):
             log.info('  CorrectFgForStorage: Sws_default used for whole series')
             Sws = numpy.ones(nRecs)*Sws_default
         elif len(slist)==1:
-            Sws,f = qcutils.GetSeriesasMA(ds,slist[0])
+            Sws,f,a = qcutils.GetSeriesasMA(ds,slist[0])
         else:
             MergeSeries(ds,'Sws',slist,[0,10])
-            Sws,f = qcutils.GetSeriesasMA(ds,'Sws')
+            Sws,f,a = qcutils.GetSeriesasMA(ds,'Sws')
     else:
         slist = SWC_in
-        Sws,f = qcutils.GetSeriesasMA(ds,SWC_in)
+        Sws,f,a = qcutils.GetSeriesasMA(ds,SWC_in)
     iom = numpy.where(numpy.mod(f,10)!=0)[0]
     if len(iom)!=0:
         log.info('  CorrectFgForStorage: Sws_default used for '+str(len(iom))+' values')
@@ -1082,7 +1081,7 @@ def CorrectSWC(cf,ds):
         invar = SWCempList[i]
         outvar = SWCoutList[i]
         attr = SWCattr[i]
-        Sws,f = qcutils.GetSeriesasMA(ds,invar)
+        Sws,f,a = qcutils.GetSeriesasMA(ds,invar)
         
         nRecs = len(Sws)
         
@@ -1105,7 +1104,7 @@ def CorrectSWC(cf,ds):
             invar = TDRempList[i]
             outvar = TDRoutList[i]
             attr = TDRattr[i]
-            Sws,f = qcutils.GetSeriesasMA(ds,invar)
+            Sws,f,a = qcutils.GetSeriesasMA(ds,invar)
             
             nRecs = len(Sws)
             
@@ -1133,7 +1132,7 @@ def CorrectWindDirection(cf,ds,Wd_in):
         Wd_in: input/output wind direction variable in ds.  Example: 'Wd_CSAT'
         """
     log.info(' Correcting wind direction')
-    Wd,f = qcutils.GetSeriesasMA(ds,Wd_in)
+    Wd,f,a = qcutils.GetSeriesasMA(ds,Wd_in)
     ldt = ds.series['DateTime']['Data']
     KeyList = cf['Variables'][Wd_in]['Correction'].keys()
     for i in range(len(KeyList)):
@@ -1159,7 +1158,7 @@ def LowPassFilterSws(cf,ds,Sws_out='Sws_LP',Sws_in='Sws',npoles=5,co_ny=0.05):
     still resolves day-to-day changes and seasonal trends.
     '''
     b,a = butter(npoles,co_ny)
-    Sws,f = qcutils.GetSeries(ds,Sws_in)
+    Sws,f,a = qcutils.GetSeries(ds,Sws_in)
     Sws_LP = filtfilt(b,a,Sws)
     attr = qcutils.MakeAttributeDictionary(long_name=attr,units='cm3 water/cm3 soil',standard_name='soil_moisture_content')
     qcutils.CreateSeries(ds,outvar,Sws_out,FList=[invar],Attr=attr)
@@ -1227,37 +1226,37 @@ def do_attributes(cf,ds):
 def do_functions(cf,ds):
     log.info(' Getting variances from standard deviations & vice versa')
     if 'AhAh' in ds.series.keys() and 'Ah_7500_Sd' not in ds.series.keys():
-        AhAh, flag = qcutils.GetSeriesasMA(ds,'AhAh')
+        AhAh,flag,attr = qcutils.GetSeriesasMA(ds,'AhAh')
         Ah_7500_Sd = numpy.ma.sqrt(AhAh)
         attr = qcutils.MakeAttributeDictionary(long_name='Absolute humidity from Li-7500, standard deviation',units='g/m3')
         qcutils.CreateSeries(ds,'Ah_7500_Sd',Ah_7500_Sd,Flag=flag,Attr=attr)
     if 'Ah_7500_Sd' in ds.series.keys() and 'AhAh' not in ds.series.keys():
-        Ah_7500_Sd, flag = qcutils.GetSeriesasMA(ds,'Ah_7500_Sd')
+        Ah_7500_Sd,flag,attr = qcutils.GetSeriesasMA(ds,'Ah_7500_Sd')
         AhAh = Ah_7500_Sd*Ah_7500_Sd
         attr = qcutils.MakeAttributeDictionary(long_name='Absolute humidity from Li-7500, variance',units='(g/m3)2')
         qcutils.CreateSeries(ds,'AhAh',AhAh,Flag=flag,Attr=attr)
     if 'CcCc' in ds.series.keys() and 'Cc_7500_Sd' not in ds.series.keys():
-        CcCc, flag = qcutils.GetSeriesasMA(ds,'CcCc')
+        CcCc,flag,attr = qcutils.GetSeriesasMA(ds,'CcCc')
         Cc_7500_Sd = numpy.ma.sqrt(CcCc)
         attr = qcutils.MakeAttributeDictionary(long_name='CO2 concentration from Li-7500, standard deviation',units='mg/m3')
         qcutils.CreateSeries(ds,'Cc_7500_Sd',Cc_7500_Sd,Flag=flag,Attr=attr)
     if 'Cc_7500_Sd' in ds.series.keys() and 'CcCc' not in ds.series.keys():
-        Cc_7500_Sd, flag = qcutils.GetSeriesasMA(ds,'Cc_7500_Sd')
+        Cc_7500_Sd,flag,attr = qcutils.GetSeriesasMA(ds,'Cc_7500_Sd')
         CcCc = Cc_7500_Sd*Cc_7500_Sd
         attr = qcutils.MakeAttributeDictionary(long_name='CO2 concentration from Li-7500, variance',units='(mg/m3)2')
         qcutils.CreateSeries(ds,'CcCc',CcCc,Flag=flag,Attr=attr)
     if 'Ux_Sd' in ds.series.keys() and 'UxUx' not in ds.series.keys():
-        Ux_Sd, flag = qcutils.GetSeriesasMA(ds,'Ux_Sd')
+        Ux_Sd,flag,attr = qcutils.GetSeriesasMA(ds,'Ux_Sd')
         UxUx = Ux_Sd*Ux_Sd
         attr = qcutils.MakeAttributeDictionary(long_name='Longitudinal velocity component from CSAT, variance',units='(m/s)2')
         qcutils.CreateSeries(ds,'UxUx',UxUx,Flag=flag,Attr=attr)
     if 'Uy_Sd' in ds.series.keys() and 'UyUy' not in ds.series.keys():
-        Uy_Sd, flag = qcutils.GetSeriesasMA(ds,'Uy_Sd')
+        Uy_Sd,flag,attr = qcutils.GetSeriesasMA(ds,'Uy_Sd')
         UyUy = Uy_Sd*Uy_Sd
         attr = qcutils.MakeAttributeDictionary(long_name='Lateral velocity component from CSAT, variance',units='(m/s)2')
         qcutils.CreateSeries(ds,'UyUy',UyUy,Flag=flag,Attr=attr)
     if 'Uz_Sd' in ds.series.keys() and 'UzUz' not in ds.series.keys():
-        Uz_Sd, flag = qcutils.GetSeriesasMA(ds,'Uz_Sd')
+        Uz_Sd,flag,attr = qcutils.GetSeriesasMA(ds,'Uz_Sd')
         UzUz = Uz_Sd*Uz_Sd
         attr = qcutils.MakeAttributeDictionary(long_name='Vertical velocity component from CSAT, variance',units='(m/s)2')
         qcutils.CreateSeries(ds,'UzUz',UzUz,Flag=flag,Attr=attr)
@@ -1279,15 +1278,15 @@ def do_solo(cf,ds4,Fc_in='Fc',Fe_in='Fe',Fh_in='Fh',Fc_out='Fc',Fe_out='Fe',Fh_o
     CalculateMeteorologicalVariables(ds4)
     ds4.globalattributes['L4Functions'] = ds4.globalattributes['L4Functions']+', CalculateMetVars'
     if Fe_in in ds4.series.keys():
-        Fe,flag = qcutils.GetSeriesasMA(ds4,Fe_in)
+        Fe,flag,attr = qcutils.GetSeriesasMA(ds4,Fe_in)
         attr = qcutils.MakeAttributeDictionary(long_name='ANN gapfilled Latent Heat Flux',units='W/m2',standard_name='surface_upward_latent_heat_flux')
         qcutils.CreateSeries(ds4,Fe_out,Fe,Flag=flag,Attr=attr)
     if Fc_in in ds4.series.keys():
-        Fc,flag = qcutils.GetSeriesasMA(ds4,Fc_in)
+        Fc,flag,attr = qcutils.GetSeriesasMA(ds4,Fc_in)
         attr = qcutils.MakeAttributeDictionary(long_name='ANN gapfilled Carbon Flux',units='mg/m2/s')
         qcutils.CreateSeries(ds4,Fc_out,Fc,Flag=flag,Attr=attr)
     if Fh_in in ds4.series.keys():
-        Fh,flag = qcutils.GetSeriesasMA(ds4,Fh_in)
+        Fh,flag,attr = qcutils.GetSeriesasMA(ds4,Fh_in)
         attr = qcutils.MakeAttributeDictionary(long_name='ANN gapfilled Sensible Heat Flux',units='W/m2',standard_name='surface_upward_sensible_heat_flux')
         qcutils.CreateSeries(ds4,Fh_out,Fh,Flag=flag,Attr=attr)
 
@@ -1352,18 +1351,18 @@ def Fc_WPL(cf,ds,Fc_wpl_out='Fc',Fc_raw_in='Fc',Fh_in='Fh',Fe_in='Fe',Ta_in='Ta'
         log.error(" qcts.Fc_WPL: WPL correction for Fc disabled in control file")
         return
     log.info(' Applying WPL correction to Fc')
-    Fc_raw,Fc_raw_flag = qcutils.GetSeriesasMA(ds,Fc_raw_in)
-    Fh,f = qcutils.GetSeriesasMA(ds,Fh_in)
-    Fe,f = qcutils.GetSeriesasMA(ds,Fe_in)
-    Ta,f = qcutils.GetSeriesasMA(ds,Ta_in)
+    Fc_raw,Fc_raw_flag,Fc_raw_attr = qcutils.GetSeriesasMA(ds,Fc_raw_in)
+    Fh,f,a = qcutils.GetSeriesasMA(ds,Fh_in)
+    Fe,f,a = qcutils.GetSeriesasMA(ds,Fe_in)
+    Ta,f,a = qcutils.GetSeriesasMA(ds,Ta_in)
     TaK = Ta+c.C2K                                # air temperature from C to K
-    Ah,f = qcutils.GetSeriesasMA(ds,Ah_in)
+    Ah,f,a = qcutils.GetSeriesasMA(ds,Ah_in)
     Ah = Ah*c.g2kg                                # absolute humidity from g/m3 to kg/m3
-    Cc,f = qcutils.GetSeriesasMA(ds,Cc_in)
-    ps,f = qcutils.GetSeriesasMA(ds,ps_in)
-    rhod,f = qcutils.GetSeriesasMA(ds,'rhod')
-    RhoCp, f = qcutils.GetSeriesasMA(ds,'RhoCp')
-    Lv,f = qcutils.GetSeriesasMA(ds,'Lv')
+    Cc,f,a = qcutils.GetSeriesasMA(ds,Cc_in)
+    ps,f,a = qcutils.GetSeriesasMA(ds,ps_in)
+    rhod,f,a = qcutils.GetSeriesasMA(ds,'rhod')
+    RhoCp,f,a = qcutils.GetSeriesasMA(ds,'RhoCp')
+    Lv,f,a = qcutils.GetSeriesasMA(ds,'Lv')
     sigma = Ah/rhod
     co2_wpl_Fe = (c.mu/(1+c.mu*sigma))*(Cc/rhod)*(Fe/Lv)
     co2_wpl_Fh = (Cc/TaK)*(Fh/RhoCp)
@@ -1412,16 +1411,16 @@ def Fe_WPL(cf,ds,Fe_wpl_out='Fe',Fe_raw_in='Fe',Fh_in='Fh',Ta_in='Ta',Ah_in='Ah'
         Ta_in = Eargs[3]
         Ah_in = Eargs[4]
         ps_in = Eargs[5]
-    Fe_raw,Fe_raw_flag = qcutils.GetSeriesasMA(ds,Fe_raw_in)
-    Fh,f = qcutils.GetSeriesasMA(ds,Fh_in)
-    Ta,f = qcutils.GetSeriesasMA(ds,Ta_in)
+    Fe_raw,Fe_raw_flag,Fe_raw_attr = qcutils.GetSeriesasMA(ds,Fe_raw_in)
+    Fh,f,a = qcutils.GetSeriesasMA(ds,Fh_in)
+    Ta,f,a = qcutils.GetSeriesasMA(ds,Ta_in)
     TaK = Ta + c.C2K                              # air temperature from C to K
-    Ah,f = qcutils.GetSeriesasMA(ds,Ah_in)
-    ps,f = qcutils.GetSeriesasMA(ds,ps_in)
-    rhod,f = qcutils.GetSeriesasMA(ds,'rhod')     # density dry air
-    rhom,f = qcutils.GetSeriesasMA(ds,'rhom')     # density moist air
-    RhoCp,f = qcutils.GetSeriesasMA(ds,'RhoCp')
-    Lv,f = qcutils.GetSeriesasMA(ds,'Lv')
+    Ah,f,a = qcutils.GetSeriesasMA(ds,Ah_in)
+    ps,f,a = qcutils.GetSeriesasMA(ds,ps_in)
+    rhod,f,a = qcutils.GetSeriesasMA(ds,'rhod')     # density dry air
+    rhom,f,a = qcutils.GetSeriesasMA(ds,'rhom')     # density moist air
+    RhoCp,f,a = qcutils.GetSeriesasMA(ds,'RhoCp')
+    Lv,f,a = qcutils.GetSeriesasMA(ds,'Lv')
     Ah = Ah*c.g2kg                                # absolute humidity from g/m3 to kg/m3
     sigma = Ah/rhod
     h2o_wpl_Fe = c.mu*sigma*Fe_raw
@@ -1460,16 +1459,16 @@ def FhvtoFh(cf,ds,Fh_out='Fh',Fhv_in='Fhv',Tv_in='Tv_CSAT',q_in='q',wA_in='wA',w
     '''
     log.info(' Converting virtual Fh to Fh')
     # get the input series
-    Fhv,Fhv_f = qcutils.GetSeriesasMA(ds,Fhv_in)                      # get the virtual heat flux
-    Tv,Tv_f = qcutils.GetSeriesasMA(ds,Tv_in)                         # get the virtual temperature, C
-    TvK = Tv + c.C2K                                                  # convert from C to K
-    wA,wA_f = qcutils.GetSeriesasMA(ds,wA_in)                         # get the wA covariance, g/m2/s
-    wA = wA * c.g2kg                                                  # convert from g/m2/s to kg/m2/s
-    q,q_f = qcutils.GetSeriesasMA(ds,q_in)                            # get the specific humidity, kg/kg
-    wT,wT_f = qcutils.GetSeriesasMA(ds,wT_in)                         # get the wT covariance, mK/s
+    Fhv,f,a = qcutils.GetSeriesasMA(ds,Fhv_in)              # get the virtual heat flux
+    Tv,f,a = qcutils.GetSeriesasMA(ds,Tv_in)                # get the virtual temperature, C
+    TvK = Tv + c.C2K                                        # convert from C to K
+    wA,f,a = qcutils.GetSeriesasMA(ds,wA_in)                # get the wA covariance, g/m2/s
+    wA = wA * c.g2kg                                        # convert from g/m2/s to kg/m2/s
+    q,f,a = qcutils.GetSeriesasMA(ds,q_in)                  # get the specific humidity, kg/kg
+    wT,f,a = qcutils.GetSeriesasMA(ds,wT_in)                # get the wT covariance, mK/s
     # get the utility series
-    RhoCp,RhoCp_f = qcutils.GetSeriesasMA(ds,'RhoCp')                 # get rho*Cp
-    rhom,rhom_f = qcutils.GetSeriesasMA(ds,'rhom')                    # get the moist air density, kg/m3
+    RhoCp,f,a = qcutils.GetSeriesasMA(ds,'RhoCp')           # get rho*Cp
+    rhom,f,a = qcutils.GetSeriesasMA(ds,'rhom')             # get the moist air density, kg/m3
     # define local constants
     alpha = 0.51
     # do the conversion
@@ -1502,7 +1501,7 @@ def FilterUstar(cf,ds,ustar_in='ustar',ustar_out='ustar_filtered'):
     if 'ustar_threshold' in cf['Variables'][ustar_out].keys():
         log.info(' Filtering ustar to remove values below threshold')
         ustar_threshold = float(cf['Variables'][ustar_out]['ustar_threshold'])
-        ustar, ustar_flag = qcutils.GetSeriesasMA(ds,ustar_in)
+        ustar,ustar_flag,ustar_attr = qcutils.GetSeriesasMA(ds,ustar_in)
         index = numpy.ma.where(ustar<=ustar_threshold)[0]
         ustar = numpy.ma.masked_where(ustar<=ustar_threshold,ustar)
         ustar_flag[index] = 18
@@ -1804,24 +1803,24 @@ def MassmanStandard(cf,ds,Ta_in='Ta',Ah_in='Ah',ps_in='ps',ustar_in='ustar',usta
     #  The code for the first and second passes is very similar.  It would be useful to make them the
     #  same and put into a loop to reduce the nu,ber of lines in this function.
     # calculate ustar and Monin-Obukhov length from rotated but otherwise uncorrected covariances
-    Ta,f = qcutils.GetSeriesasMA(ds,Ta_in)
-    Ah,f = qcutils.GetSeriesasMA(ds,Ah_in)
-    ps,f = qcutils.GetSeriesasMA(ds,ps_in)
+    Ta,f,a = qcutils.GetSeriesasMA(ds,Ta_in)
+    Ah,f,a = qcutils.GetSeriesasMA(ds,Ah_in)
+    ps,f,a = qcutils.GetSeriesasMA(ds,ps_in)
     nRecs = numpy.size(Ta)
-    u,f = qcutils.GetSeriesasMA(ds,'u')
-    uw,f = qcutils.GetSeriesasMA(ds,'uw')
-    vw,f = qcutils.GetSeriesasMA(ds,'vw')
-    wT,f = qcutils.GetSeriesasMA(ds,'wT')
-    wC,f = qcutils.GetSeriesasMA(ds,'wC')
-    wA,f = qcutils.GetSeriesasMA(ds,'wA')
+    u,f,a = qcutils.GetSeriesasMA(ds,'u')
+    uw,f,a = qcutils.GetSeriesasMA(ds,'uw')
+    vw,f,a = qcutils.GetSeriesasMA(ds,'vw')
+    wT,f,a = qcutils.GetSeriesasMA(ds,'wT')
+    wC,f,a = qcutils.GetSeriesasMA(ds,'wC')
+    wA,f,a = qcutils.GetSeriesasMA(ds,'wA')
     if ustar_in not in ds.series.keys():
         ustarm = numpy.ma.sqrt(numpy.ma.sqrt(uw ** 2 + vw ** 2))
     else:
-        ustarm,f = qcutils.GetSeriesasMA(ds,ustar_in)
+        ustarm,f,a = qcutils.GetSeriesasMA(ds,ustar_in)
     if L_in not in ds.series.keys():
         Lm = mf.molen(Ta, Ah, ps, ustarm, wT, fluxtype='kinematic')
     else:
-        Lm,f = qcutils.GetSeriesasMA(ds,Lm_in)
+        Lm,f,a = qcutils.GetSeriesasMA(ds,Lm_in)
     # now calculate z on L
     zoLm = zmd / Lm
     # start calculating the correction coefficients for approximate corrections
@@ -1897,7 +1896,7 @@ def MassmanStandard(cf,ds,Ta_in='Ta',Ah_in='Ah',ps_in='ps',ustar_in='ustar',usta
     if qcutils.cfkeycheck(cf,Base='General',ThisOne='MassmanFlag') and cf['General']['MassmanFlag'] == 'True':
         keys = [ustar_out,L_out,uw_out,vw_out,wT_out,wA_out,wC_out]
         for ThisOne in keys:
-            testseries,f = qcutils.GetSeriesasMA(ds,ThisOne)
+            testseries,f,a = qcutils.GetSeriesasMA(ds,ThisOne)
             mask = numpy.ma.getmask(testseries)
             index = numpy.where(mask.astype(int)==1)
             ds.series[ThisOne]['Flag'][index] = numpy.int32(12)
@@ -2004,7 +2003,7 @@ def MergeSeries(cf,ds,series,okflags):
 
 def PT100(ds,T_out,R_in,m):
     log.info(' Calculating temperature from PT100 resistance')
-    R,f = qcutils.GetSeriesasMA(ds,R_in)
+    R,f,a = qcutils.GetSeriesasMA(ds,R_in)
     R = m*R
     T = (-c.PT100_alpha+numpy.sqrt(c.PT100_alpha**2-4*c.PT100_beta*(-R/100+1)))/(2*c.PT100_beta)
     attr = qcutils.MakeAttributeDictionary(long_name='Calculated PT100 temperature using '+str(R_in),units='degC')
@@ -2012,8 +2011,8 @@ def PT100(ds,T_out,R_in,m):
 
 def ReplaceRotatedCovariance(cf,ds,rot_cov_label,non_cov_label):
     log.info(' Replacing missing '+rot_cov_label+' when '+non_cov_label+' is good')
-    cr_data,cr_flag = qcutils.GetSeriesasMA(ds,rot_cov_label)
-    cn_data,cn_flag = qcutils.GetSeriesasMA(ds,non_cov_label)
+    cr_data,cr_flag,cr_attr = qcutils.GetSeriesasMA(ds,rot_cov_label)
+    cn_data,cn_flag,cn_attr = qcutils.GetSeriesasMA(ds,non_cov_label)
     index = numpy.ma.where((cr_data.mask==True)&(cn_data.mask==False))[0]
     if len(index)!=0:
         ds.series[rot_cov_label]['Data'][index] = cn_data[index]
@@ -2171,9 +2170,9 @@ def TaFromTv(cf,ds,Ta_out='Ta_CSAT',Tv_in='Tv_CSAT',Ah_in='Ah',ps_in='ps'):
     #       to calculate the vapour pressure from the absolute humidity, the
     #       approximation involved here is of the order of 1%.
     log.info(' Calculating Ta from Tv')
-    Tv,f = qcutils.GetSeriesasMA(ds,Tv_in)
-    Ah,f = qcutils.GetSeriesasMA(ds,Ah_in)
-    ps,f = qcutils.GetSeriesasMA(ds,ps_in)
+    Tv,f,a = qcutils.GetSeriesasMA(ds,Tv_in)
+    Ah,f,a = qcutils.GetSeriesasMA(ds,Ah_in)
+    ps,f,a = qcutils.GetSeriesasMA(ds,ps_in)
     nRecs = int(ds.globalattributes['nc_nrecs'])
     Ta_flag = numpy.zeros(nRecs,numpy.int32)
     vp = mf.vapourpressure(Ah,Tv)
@@ -2223,11 +2222,11 @@ def UstarFromFh(cf,ds,us_out='uscalc',T_in='Ta', Ah_in='Ah', p_in='ps', Fh_in='F
         Fh_in = args[4]
         u_in = args[5]
         us_in = args[6]
-    T,T_flag = qcutils.GetSeries(ds,T_in)
-    Ah,Ah_flag = qcutils.GetSeries(ds,Ah_in)
-    p,p_flag = qcutils.GetSeries(ds,p_in)
-    Fh,Fh_flag = qcutils.GetSeries(ds,Fh_in)
-    u,u_flag = qcutils.GetSeries(ds,u_in)
+    T,T_flag,T_attr = qcutils.GetSeries(ds,T_in)
+    Ah,Ah_flag,Ah_attr = qcutils.GetSeries(ds,Ah_in)
+    p,p_flag,p_attr = qcutils.GetSeries(ds,p_in)
+    Fh,Fh_flag,Fh_attr = qcutils.GetSeries(ds,Fh_in)
+    u,u_flag,u_attr = qcutils.GetSeries(ds,u_in)
     nRecs = numpy.size(Fh)
     us = numpy.zeros(nRecs,dtype=numpy.float64) + numpy.float64(-9999)
     us_flag = numpy.zeros(nRecs,dtype=numpy.int)

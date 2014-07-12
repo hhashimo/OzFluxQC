@@ -36,7 +36,7 @@ for ThisOne in ds_n.series.keys():
         attr = qcutils.GetAttributeDictionary(ds_n, ThisOne)
         if attr['units']=='mg/m2/s':
             print "Converting Fc to umol/m2/s"
-            Fc,f = qcutils.GetSeriesasMA(ds_n, ThisOne)
+            Fc,f,a = qcutils.GetSeriesasMA(ds_n, ThisOne)
             Fc = mf.Fc_umolpm2psfrommgpm2ps(Fc)
             attr['units'] = 'umol/m2/s'
             qcutils.CreateSeries(ds_n,ThisOne,Fc,Flag=f,Attr=attr)
@@ -79,7 +79,7 @@ for n in InFile_list[1:]:
             attr = qcutils.GetAttributeDictionary(ds_n, ThisOne)
             if attr['units']=='mg/m2/s':
                 print "Converting Fc to umol/m2/s"
-                Fc,f = qcutils.GetSeriesasMA(ds_n, ThisOne)
+                Fc,f,a = qcutils.GetSeriesasMA(ds_n, ThisOne)
                 Fc = mf.Fc_umolpm2psfrommgpm2ps(Fc)
                 attr['units'] = 'umol/m2/s'
                 qcutils.CreateSeries(ds_n,ThisOne,Fc,Flag=f,Attr=attr)

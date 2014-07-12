@@ -103,7 +103,7 @@ for nFig in cf['Plots'].keys():
         VarName = qcutils.GetAltNameFromCF(cf,ThisOne)
         ticks = qcutils.GetcbTicksFromCF(cf,ThisOne)
         lower, upper = qcutils.GetRangesFromCF(cf,ThisOne)
-        data_30min,flag = qcutils.GetSeriesasMA(ds,VarName,si=si,ei=ei)
+        data_30min,flag,attr = qcutils.GetSeriesasMA(ds,VarName,si=si,ei=ei)
         data_30min = qcck.cliptorange(data_30min, lower, upper)
         data_daily = data_30min.reshape(nDays,nPerDay)
         if 'Units' in ds.series[VarName]['Attr']: units = str(ds.series[VarName]['Attr']['Units'])

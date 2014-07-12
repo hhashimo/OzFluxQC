@@ -41,23 +41,21 @@ nrecs=ndays*nperday
 
 dt_tow = ds_tow.series["DateTime"]["Data"]
 if "Ws" not in ds_tow.series.keys() and "Ws_CSAT" in ds_tow.series.keys():
-    Ws,f = qcutils.GetSeriesasMA(ds_tow,"Ws_CSAT")
-    attr = qcutils.GetAttributeDictionary(ds_tow,"Ws_CSAT")
-    qcutils.CreateSeries(ds_tow,"Ws",Ws,Flag=f,Attr=attr)
+    Ws,flag,attr = qcutils.GetSeriesasMA(ds_tow,"Ws_CSAT")
+    qcutils.CreateSeries(ds_tow,"Ws",Ws,Flag=flag,Attr=attr)
 if "Wd" not in ds_tow.series.keys() and "Wd_CSAT" in ds_tow.series.keys():
-    Wd,f = qcutils.GetSeriesasMA(ds_tow,"Wd_CSAT")
-    attr = qcutils.GetAttributeDictionary(ds_tow,"Wd_CSAT")
-    qcutils.CreateSeries(ds_tow,"Wd",Wd,Flag=f,Attr=attr)
+    Wd,flag,attr = qcutils.GetSeriesasMA(ds_tow,"Wd_CSAT")
+    qcutils.CreateSeries(ds_tow,"Wd",Wd,Flag=flag,Attr=attr)
 if "q" not in ds_tow.series.keys():
     if "RH" not in ds_tow.series.keys():
-        Ah,f = qcutils.GetSeriesasMA(ds_tow,"Ah")
-        Ta,f = qcutils.GetSeriesasMA(ds_tow,"Ta")
+        Ah,f,a = qcutils.GetSeriesasMA(ds_tow,"Ah")
+        Ta,f,a = qcutils.GetSeriesasMA(ds_tow,"Ta")
         RH = mf.RHfromabsolutehumidity(Ah,Ta)
         attr = qcutils.MakeAttributeDictionary(long_name='Relative humidity',units='%',standard_name='not defined')
         qcutils.CreateSeries(ds_tow,"RH",RH,FList=["Ta","Ah"],Attr=attr)
-    RH,f = qcutils.GetSeriesasMA(ds_tow,"RH")
-    Ta,f = qcutils.GetSeriesasMA(ds_tow,"Ta")
-    ps,f = qcutils.GetSeriesasMA(ds_tow,"ps")
+    RH,f,a = qcutils.GetSeriesasMA(ds_tow,"RH")
+    Ta,f,a = qcutils.GetSeriesasMA(ds_tow,"Ta")
+    ps,f,a = qcutils.GetSeriesasMA(ds_tow,"ps")
     q = mf.qfromrh(RH, Ta, ps)
     attr = qcutils.MakeAttributeDictionary(long_name='Specific humidity',units='kg/kg',standard_name='specific_humidity')
     qcutils.CreateSeries(ds_tow,'q',q,FList=["Ta","ps","RH"],Attr=attr)
@@ -87,29 +85,28 @@ ts_height = (1.0 - margin_top - ts_bottom)
 fig_num = 0
 for label in ["Fsd","Fld","Fn","Fg","Ta","q","Ws","Ts","Sws","ps","ustar","Fh","Fe"]:
     # get the tower data
-    data_tow,f = qcutils.GetSeriesasMA(ds_tow,label,si=si_tow,ei=ei_tow)
+    data_tow,f,attr = qcutils.GetSeriesasMA(ds_tow,label,si=si_tow,ei=ei_tow)
+    # get the units
+    units = attr["units"]
     # check to see if there is any data to work with
     if len(numpy.ma.compressed(data_tow))==0:
         print "compare_access: no tower data, skipping "+label
         continue
     print "compare_access: doing "+label
     fig_num = fig_num + 1
-    # get the units
-    attr = qcutils.GetAttributeDictionary(ds_tow,label)
-    units = attr["units"]
     # get the correlation between the tower data and the 3x3 grid cells
     r_array=numpy.zeros((3,3))
     for i in range(0,3):
         for j in range(0,3):
             label_acc=label+"_"+str(i)+str(j)
-            data_acc,f=qcutils.GetSeriesasMA(ds_acc,label_acc,si=si_acc,ei=ei_acc)
+            data_acc,f,a = qcutils.GetSeriesasMA(ds_acc,label_acc,si=si_acc,ei=ei_acc)
             r=numpy.ma.corrcoef(data_tow,data_acc)
             r_array[i,j]=r[0][1]
     # find the grid indices of the maximum correlation
     max_ij = numpy.unravel_index(r_array.argmax(), r_array.shape)
     # get data from the grid cell with highest correlation to tower data
     label_acc=label+"_"+str(max_ij[0])+str(max_ij[1])
-    data_acc,f=qcutils.GetSeriesasMA(ds_acc,label_acc,si=si_acc,ei=ei_acc)
+    data_acc,f,a = qcutils.GetSeriesasMA(ds_acc,label_acc,si=si_acc,ei=ei_acc)
     # flatten the correlation array for plotting
     r_flat=r_array.flatten()
     # mask both series when either one is missing

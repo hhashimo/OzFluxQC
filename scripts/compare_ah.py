@@ -55,9 +55,9 @@ nrecs=ndays*nperday
 Ah_7500_name = str(cf['Variables']['Ah_7500'])
 Ah_HMP_name = str(cf['Variables']['Ah_HMP'])
 # get local data series from the data structure
-ah_7500_30min_1d,flag = qcutils.GetSeriesasMA(ds,Ah_7500_name,si=si,ei=ei)
-ah_HMP1_30min_1d,flag = qcutils.GetSeriesasMA(ds,Ah_HMP_name,si=si,ei=ei)
-month_30min_1d,flag = qcutils.GetSeriesasMA(ds,'Month',si=si,ei=ei)
+ah_7500_30min_1d,flag,attr = qcutils.GetSeriesasMA(ds,Ah_7500_name,si=si,ei=ei)
+ah_HMP1_30min_1d,flag,attr = qcutils.GetSeriesasMA(ds,Ah_HMP_name,si=si,ei=ei)
+month_30min_1d,flag,attr = qcutils.GetSeriesasMA(ds,'Month',si=si,ei=ei)
 # mask data points unless both 7500 and HMP present
 mask = numpy.ma.mask_or(ah_7500_30min_1d.mask,ah_HMP1_30min_1d.mask)
 ah_7500_30min_1d = numpy.ma.array(ah_7500_30min_1d,mask=mask)

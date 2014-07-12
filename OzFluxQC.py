@@ -143,7 +143,7 @@ class qcgui(tk.Tk):
         plotmenu.add_command(label="Plot L3 & L4",command=self.do_plotL3L4)
         plotmenu.add_command(label="Plot L5",command=self.option_not_implemented)
         pltsummenu = tk.Menu(menubar,tearoff=0)
-        pltsummenu.add_command(label="Fingerprint",command=self.option_not_implemented)
+        pltsummenu.add_command(label="Fingerprint",command=self.do_plotfingerprint)
         pltsummenu.add_command(label="Full check",command=self.option_not_implemented)
         pltsummenu.add_command(label="Quick check",command=self.option_not_implemented)
         pltsummenu.add_command(label="Years check",command=self.option_not_implemented)
@@ -411,6 +411,16 @@ class qcgui(tk.Tk):
         self.do_progress(text='Finished concatenating files')
         log.info(' Finished concatenating files')
 
+    def do_plotfingerprint(self):
+        """ Plot fingerprint"""
+        self.do_progress(text='Loading control file ...')
+        self.cf = qcio.load_controlfile(path='controlfiles')
+        if len(self.cf)==0: self.do_progress(text='Waiting for input ...'); return
+        self.do_progress(text='Plotting fingerprint ...')
+        qcplot.plot_fingerprint(self.cf)
+        self.do_progress(text='Finished plotting fingerprint')
+        log.info(' Finished plotting fingerprint')
+        
     def do_plotL1L2(self):
         """
             Plot L1 (raw) and L2 (QA/QC) data in blue and red, respectively

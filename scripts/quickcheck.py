@@ -98,43 +98,43 @@ EndDate = str(DateTime[-1])
 # get the 30 minute data from the data structure
 log.info(' Getting data from data structure ')
 #  radiation first ...
-Mnth_30min,flag = GetSeriesasMA(ds,GetAltName(cf,ds,'Month'),si=si,ei=ei)
-Hour_30min,flag = GetSeriesasMA(ds,GetAltName(cf,ds,'Hour'),si=si,ei=ei)
-Mnit_30min,flag = GetSeriesasMA(ds,GetAltName(cf,ds,'Minute'),si=si,ei=ei)
-Fsd,flag = GetSeriesasMA(ds,GetAltName(cf,ds,'Fsd'),si=si,ei=ei)
+Mnth_30min,flag,attr = GetSeriesasMA(ds,GetAltName(cf,ds,'Month'),si=si,ei=ei)
+Hour_30min,flag,attr = GetSeriesasMA(ds,GetAltName(cf,ds,'Hour'),si=si,ei=ei)
+Mnit_30min,flag,attr = GetSeriesasMA(ds,GetAltName(cf,ds,'Minute'),si=si,ei=ei)
+Fsd,flag,attr = GetSeriesasMA(ds,GetAltName(cf,ds,'Fsd'),si=si,ei=ei)
 if 'Fsd_syn' in ds.series.keys():
-    Fsd_syn,flag = GetSeriesasMA(ds,'Fsd_syn',si=si,ei=ei)
+    Fsd_syn,flag,attr = GetSeriesasMA(ds,'Fsd_syn',si=si,ei=ei)
     index = numpy.ma.where(Fsd.mask==True)[0]
     Fsd[index] = Fsd_syn[index]
 night_mask = (Fsd<10)
 day_mask = (Fsd>=10)
-Fsd_30min,flag = GetSeriesasMA(ds,GetAltName(cf,ds,'Fsd'),si=si,ei=ei)
-Fsu_30min,flag = GetSeriesasMA(ds,GetAltName(cf,ds,'Fsu'),si=si,ei=ei)
-Fld_30min,flag = GetSeriesasMA(ds,GetAltName(cf,ds,'Fld'),si=si,ei=ei)
-Flu_30min,flag = GetSeriesasMA(ds,GetAltName(cf,ds,'Flu'),si=si,ei=ei)
-Fn_30min,flag = GetSeriesasMA(ds,GetAltName(cf,ds,'Fn'),si=si,ei=ei)
+Fsd_30min,flag,attr = GetSeriesasMA(ds,GetAltName(cf,ds,'Fsd'),si=si,ei=ei)
+Fsu_30min,flag,attr = GetSeriesasMA(ds,GetAltName(cf,ds,'Fsu'),si=si,ei=ei)
+Fld_30min,flag,attr = GetSeriesasMA(ds,GetAltName(cf,ds,'Fld'),si=si,ei=ei)
+Flu_30min,flag,attr = GetSeriesasMA(ds,GetAltName(cf,ds,'Flu'),si=si,ei=ei)
+Fn_30min,flag,attr = GetSeriesasMA(ds,GetAltName(cf,ds,'Fn'),si=si,ei=ei)
 #  then fluxes ...
-Fg_30min,flag = GetSeriesasMA(ds,GetAltName(cf,ds,'Fg'),si=si,ei=ei)
+Fg_30min,flag,attr = GetSeriesasMA(ds,GetAltName(cf,ds,'Fg'),si=si,ei=ei)
 Fa2_30min = Fn_30min - Fg_30min
-Fa_30min,flag = GetSeriesasMA(ds,GetAltName(cf,ds,'Fa'),si=si,ei=ei)
+Fa_30min,flag,attr = GetSeriesasMA(ds,GetAltName(cf,ds,'Fa'),si=si,ei=ei)
 index = numpy.where((Fa_30min.mask==True)&(Fa2_30min.mask==False))[0]
 Fa_30min[index] = Fa2_30min[index]
-Fe_30min,flag = GetSeriesasMA(ds,GetAltName(cf,ds,'Fe'),si=si,ei=ei)
-Fh_30min,flag = GetSeriesasMA(ds,GetAltName(cf,ds,'Fh'),si=si,ei=ei)
-Fc_30min,flag = GetSeriesasMA(ds,GetAltName(cf,ds,'Fc'),si=si,ei=ei)
+Fe_30min,flag,attr = GetSeriesasMA(ds,GetAltName(cf,ds,'Fe'),si=si,ei=ei)
+Fh_30min,flag,attr = GetSeriesasMA(ds,GetAltName(cf,ds,'Fh'),si=si,ei=ei)
+Fc_30min,flag,attr = GetSeriesasMA(ds,GetAltName(cf,ds,'Fc'),si=si,ei=ei)
 Fc_units = ds.series[GetAltName(cf,ds,'Fc')]['Attr']['units']
-us_30min,flag = GetSeriesasMA(ds,GetAltName(cf,ds,'ustar'),si=si,ei=ei)
+us_30min,flag,attr = GetSeriesasMA(ds,GetAltName(cf,ds,'ustar'),si=si,ei=ei)
 #  then meteorology ...
-Ta_30min,flag = GetSeriesasMA(ds,GetAltName(cf,ds,'Ta'),si=si,ei=ei)
-H2O_30min,flag = GetSeriesasMA(ds,GetAltName(cf,ds,'H2O'),si=si,ei=ei)
+Ta_30min,flag,attr = GetSeriesasMA(ds,GetAltName(cf,ds,'Ta'),si=si,ei=ei)
+H2O_30min,flag,attr = GetSeriesasMA(ds,GetAltName(cf,ds,'H2O'),si=si,ei=ei)
 H2O_units = ds.series[GetAltName(cf,ds,'H2O')]['Attr']['units']
-CO2_30min,flag = GetSeriesasMA(ds,GetAltName(cf,ds,'CO2'),si=si,ei=ei)
+CO2_30min,flag,attr = GetSeriesasMA(ds,GetAltName(cf,ds,'CO2'),si=si,ei=ei)
 CO2_units = ds.series[GetAltName(cf,ds,'CO2')]['Attr']['units']
-Rain_30min,flag = GetSeriesasMA(ds,GetAltName(cf,ds,'Precip'),si=si,ei=ei)
-Ws_30min,flag = GetSeriesasMA(ds,GetAltName(cf,ds,'Ws'),si=si,ei=ei)
+Rain_30min,flag,attr = GetSeriesasMA(ds,GetAltName(cf,ds,'Precip'),si=si,ei=ei)
+Ws_30min,flag,attr = GetSeriesasMA(ds,GetAltName(cf,ds,'Ws'),si=si,ei=ei)
 #  then soil ...
-Sws_30min,flag = GetSeriesasMA(ds,GetAltName(cf,ds,'Sws'),si=si,ei=ei)
-Ts_30min,flag = GetSeriesasMA(ds,GetAltName(cf,ds,'Ts'),si=si,ei=ei)
+Sws_30min,flag,attr = GetSeriesasMA(ds,GetAltName(cf,ds,'Sws'),si=si,ei=ei)
+Ts_30min,flag,attr = GetSeriesasMA(ds,GetAltName(cf,ds,'Ts'),si=si,ei=ei)
 
 # get the number of days in the data set
 ntsInDay = float(24.0*60.0/float(ts))

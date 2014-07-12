@@ -39,8 +39,8 @@ writer = csv.writer(csvfile)
 ds = qcio.nc_read_series(ncFileName)
 # Tumbarumba doesn't have RH in the netCDF files
 if "RH" not in ds.series.keys():
-    Ah,f = qcutils.GetSeriesasMA(ds,'Ah')
-    Ta,f = qcutils.GetSeriesasMA(ds,'Ta')
+    Ah,f,a = qcutils.GetSeriesasMA(ds,'Ah')
+    Ta,f,a = qcutils.GetSeriesasMA(ds,'Ta')
     RH = mf.RHfromabsolutehumidity(Ah, Ta)
     attr = qcutils.MakeAttributeDictionary(long_name='Relative humidity',units='%',standard_name='not defined')
     qcutils.CreateSeries(ds,"RH",RH,FList=['Ta','Ah'],Attr=attr)
@@ -118,11 +118,11 @@ if (int(ds.globalattributes["nc_nrecs"])!=nRecs_year) & (int(ds.globalattributes
     print len(ds.series["DateTime"]["Data"]),ds.series["DateTime"]["Data"][0],ds.series["DateTime"]["Data"][-1]
     sys.exit()
 # get the date and time data
-Day,flag = qcutils.GetSeries(ds,'Day')
-Month,flag = qcutils.GetSeries(ds,'Month')
-Year,flag = qcutils.GetSeries(ds,'Year')
-Hour,flag = qcutils.GetSeries(ds,'Hour')
-Minute,flag = qcutils.GetSeries(ds,'Minute')
+Day,flag,attr = qcutils.GetSeries(ds,'Day')
+Month,flag,attr = qcutils.GetSeries(ds,'Month')
+Year,flag,attr = qcutils.GetSeries(ds,'Year')
+Hour,flag,attr = qcutils.GetSeries(ds,'Hour')
+Minute,flag,attr = qcutils.GetSeries(ds,'Minute')
 # get the data
 data = {}
 series_list = cf["Variables"].keys()

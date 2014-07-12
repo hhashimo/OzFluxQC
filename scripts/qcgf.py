@@ -4,6 +4,7 @@ from configobj import ConfigObj
 import constants as c
 import csv
 import datetime
+import dateutil
 import logging
 import numpy
 import matplotlib.dates as mdt
@@ -78,7 +79,7 @@ def EstimateRecoUsingLloydTaylor(cf,ds):
         E0[index] = E0_monthly[m-1]
         rb[index] = rb_monthly[m-1]
     # get the driver data
-    Ts,flag = qcutils.GetSeriesasMA(ds,driver_label)
+    Ts,flag,attr = qcutils.GetSeriesasMA(ds,driver_label)
     # estimate Reco using the Lloyd-Taylor expression
     t1 = 1/(c.Tref-c.T0)
     t2 = 1/(Ts-c.T0)
@@ -99,12 +100,12 @@ def CalculateNEE(cf,ds):
     #  - when Fsd < 10 W/m2 (night time)
     #    - use observed Fc (Fc_flag=0) when u* > ustar_threshold
     #    - use modelled Reco when Fc_flag!=0 or u* < ustar_threshold
-    Fsd,Fsd_flag = qcutils.GetSeriesasMA(ds,'Fsd')
-    ustar,ustar_flag = qcutils.GetSeriesasMA(ds,'ustar')
+    Fsd,Fsd_flag,Fsd_attr = qcutils.GetSeriesasMA(ds,'Fsd')
+    ustar,ustar_flag,ustar_attr = qcutils.GetSeriesasMA(ds,'ustar')
     Fc_label = str(cf['Derived']['NEE']['Fc'])
-    Fc,Fc_flag = qcutils.GetSeriesasMA(ds,Fc_label)
+    Fc,Fc_flag,Fc_attr = qcutils.GetSeriesasMA(ds,Fc_label)
     Reco_label = str(cf['Derived']['NEE']['Reco'])
-    Reco,Reco_flag = qcutils.GetSeriesasMA(ds,Reco_label)
+    Reco,Reco_flag,Reco_attr = qcutils.GetSeriesasMA(ds,Reco_label)
     Fsd_threshold = float(cf['Params']['Fsd_threshold'])
     ustar_threshold = float(cf['Params']['ustar_threshold'])
     # create a series for NEE and the NEE QC flag
@@ -148,12 +149,12 @@ def PartitionNEE(cf,ds):
         log.info('PartitionNEE: requested series '+NEE_label+' is not in the data structure')
         return
     else:
-        NEE,f = qcutils.GetSeriesasMA(ds,NEE_label)
+        NEE,f,a = qcutils.GetSeriesasMA(ds,NEE_label)
     if Reco_label not in ds.series.keys():
         log.info('PartitionNEE: requested series '+Reco_label+' is not in the data structure')
         return
     else:
-        Reco,f = qcutils.GetSeriesasMA(ds,Reco_label)
+        Reco,f,a = qcutils.GetSeriesasMA(ds,Reco_label)
     # check the units
     NEE_units=qcutils.GetUnitsFromds(ds,NEE_label)
     Reco_units=qcutils.GetUnitsFromds(ds,Reco_label)
@@ -310,7 +311,7 @@ def gfClimatology_interpolateddaily(ds,series,output,xlbook):
         # fill the climatological value array
         val1d[xlRow*nts:(xlRow+1)*nts] = thissheet.row_values(xlRow+2,start_colx=1,end_colx=nts+1)
     # get the data to be filled with climatological values
-    data,flag = qcutils.GetSeriesasMA(ds,series)
+    data,flag,attr = qcutils.GetSeriesasMA(ds,series)
     # get an index of missing values
     idx = numpy.ma.where(data.mask==True)[0]
     # there must be a better way to do this ...
@@ -318,14 +319,19 @@ def gfClimatology_interpolateddaily(ds,series,output,xlbook):
     # does not seem to work (mask stays true on replaced values in data), the work around is to
     # step through the indices, find the time of the missing value in data, find the same time in the
     # gap filled values val1d and set the missing element of data to this element of val1d
+    # actually ...
+    # this may not be the fastest but it may be the most robust because it matches dates of missing data
+    # to dates in the climatology file
     li = 0
     for ii in idx:
-        jj = cdt.index(ldt[ii],li)
-        li = jj
-        data[ii] = val1d[jj]
-        flag[ii] = numpy.int32(40)
-    # get the attribute dictionary of the series being gap filled
-    attr = qcutils.GetAttributeDictionary(ds,series)
+        try:
+            jj = cdt.index(ldt[ii],li)
+            li = jj
+            data[ii] = val1d[jj]
+            flag[ii] = numpy.int32(40)
+        except ValueError:
+            data[ii] = numpy.float64(-9999)
+            flag[ii] = numpy.int32(41)
     # put the gap filled data back into the data structure
     qcutils.CreateSeries(ds,output,data,Flag=flag,Attr=attr)
 
@@ -352,12 +358,12 @@ def GapFillFluxFromDayRatio(cf,ds,series=''):
     flux_xlsheet = xlbook.sheet_by_name(cf[section][series]['GapFillFluxFromDayRatio']['flux_xlSheet'])
     out_label = cf[section][series]['GapFillFluxFromDayRatio']['output']
     # get the data series as masked arrays from the data structure
-    Fsd, Fsd_flag = qcutils.GetSeriesasMA(ds,'Fsd')
-    us, us_flag = qcutils.GetSeriesasMA(ds,'ustar')
-    driver, driver_flag = qcutils.GetSeriesasMA(ds, driver_label)
+    Fsd,Fsd_flag,Fsd_attr = qcutils.GetSeriesasMA(ds,'Fsd')
+    us,us_flag,us_attr = qcutils.GetSeriesasMA(ds,'ustar')
+    driver,driver_flag,driver_attr = qcutils.GetSeriesasMA(ds, driver_label)
     nRecs = len(driver)
     # get the flux series to be gap filled
-    flux, flux_flag = qcutils.GetSeriesasMA(ds,series)
+    flux,flux_flag,flux_attr = qcutils.GetSeriesasMA(ds,series)
     # initialise arrays for the ratios and the fluxes
     ratio_ts = numpy.zeros(ndays*nts,dtype=numpy.float64)
     flux_monthly = numpy.zeros((nts,nmn),dtype=numpy.float64)
@@ -414,6 +420,23 @@ def GapFillFluxUsingMDS(cf,ds,series=""):
         log.info(" GapFillFluxUsingMDS: not implemented yet")
         return
 
+def gfACCESS_createACCESSdict(cf,ds,series):
+    section = qcutils.get_cfsection(cf,series=series,mode="quiet")
+    if len(section)==0:
+        log.error("gfACCESS_createACCESSdict: Series "+series+" not found in control file, skipping ...")
+        return
+    # create the ACCESS directory in the data structure
+    if "access" not in dir(ds): ds.access = {}
+    # create a dictionary for this series
+    ds.access[series] = {}
+    ds.access[series]["file_name"] = cf[section][series]["GapFillFromACCESS"]["file_name"]
+    ds.access[series]["output"] = cf[section][series]["GapFillFromACCESS"]["output"]
+    ds.access[series]["results"] = {"startdate":[],"middate":[],"enddate":[],"n":[],
+                                    "r_max":[],"bias":[],"rmse":[],"var_tow":[],"var_acc":[],
+                                    "lag_maxr":[],"m_rlm":[],"b_rlm":[],"m_ols":[],"b_ols":[]}
+    data,flag,attr = qcutils.MakeEmptySeries(ds,ds.access[series]["output"])
+    qcutils.CreateSeries(ds,ds.access[series]["output"],data,Flag=flag,Attr=attr)
+    
 def GapFillParseControlFile(cf,ds,series=""):
     # find the section containing the series
     section = qcutils.get_cfsection(cf,series=series,mode="quiet")
@@ -421,19 +444,7 @@ def GapFillParseControlFile(cf,ds,series=""):
     if len(section)==0: return
     if series not in ds.series.keys(): return
     if "GapFillFromACCESS" in cf[section][series].keys():
-        # create the ACCESS directory in the data structure
-        if "access" not in dir(ds): ds.access = {}
-        # create a dictionary for this series
-        ds.access[series] = {}
-        ds.access[series]["file_name"] = cf[section][series]["GapFillFromACCESS"]["file_name"]
-        ds.access[series]["output"] = cf[section][series]["GapFillFromACCESS"]["output"]
-        ds.access[series]["var@maxr"] = ""
-        ds.access[series]["results"] = {"startdate":[],"enddate":[],"n":[],"r_max":[],"bias":[],
-                                        "rmse":[],"var_tow":[],"var_acc":[],"max_lag":[],
-                                        "m_rlm":[],"b_rlm":[],"m_ols":[],"b_ols":[]}
-        data,flag = qcutils.MakeEmptySeries(ds,ds.access[series]["output"])
-        attr = qcutils.GetAttributeDictionary(ds,ds.access[series]["output"])
-        qcutils.CreateSeries(ds,ds.access[series]["output"],data,Flag=flag,Attr=attr)
+        gfACCESS_createACCESSdict(cf,ds,series)
     if "GapFillUsingSOLO" in cf[section][series].keys():
         # create the SOLO directory in the data structure
         if "solo" not in dir(ds): ds.solo = {}
@@ -441,10 +452,9 @@ def GapFillParseControlFile(cf,ds,series=""):
         ds.solo[series] = {}
         ds.solo[series]["drivers"] = ast.literal_eval(cf[section][series]["GapFillUsingSOLO"]["drivers"])
         ds.solo[series]["output"] = cf[section][series]["GapFillUsingSOLO"]["output"]
-        ds.solo[series]["results"] = {"startdate":[],"enddate":[],"n":[],"r_max":[],"bias":[],
-                                      "rmse":[],"var_obs":[],"var_mod":[],"m_ols":[],"b_ols":[]}
-        data,flag = qcutils.MakeEmptySeries(ds,ds.solo[series]["output"])
-        attr = qcutils.GetAttributeDictionary(ds,ds.solo[series]["output"])
+        ds.solo[series]["results"] = {"startdate":[],"middate":[],"enddate":[],"n":[],"r_max":[],
+                                      "bias":[],"rmse":[],"var_obs":[],"var_mod":[],"m_ols":[],"b_ols":[]}
+        data,flag,attr = qcutils.MakeEmptySeries(ds,ds.solo[series]["output"])
         qcutils.CreateSeries(ds,ds.solo[series]["output"],data,Flag=flag,Attr=attr)
     if "GapFillFromClimatology" in cf[section][series].keys():
         if "climatology" not in dir(ds):
@@ -458,8 +468,7 @@ def GapFillParseControlFile(cf,ds,series=""):
         ds.climatology["file_name"].append(file_name)
         output = cf[section][series]["GapFillFromClimatology"]["output"]
         ds.climatology["output"].append(output)
-        data,flag = qcutils.MakeEmptySeries(ds,output)
-        attr = qcutils.GetAttributeDictionary(ds,output)
+        data,flag,attr = qcutils.MakeEmptySeries(ds,output)
         qcutils.CreateSeries(ds,output,data,Flag=flag,Attr=attr)
         if "method" not in cf[section][series]["GapFillFromClimatology"].keys():
             # default if "method" missing is "interpolated_daily"
@@ -534,9 +543,26 @@ def GapFillFromACCESS(ds4):
     access_gui.endLabel.grid(row=nrow,column=0,columnspan=3)
     access_gui.endEntry = Tkinter.Entry(access_gui)
     access_gui.endEntry.grid(row=nrow,column=3,columnspan=3)
+    # fifth row
+    nrow = nrow + 1
+    access_gui.v = Tkinter.IntVar()
+    access_gui.v.set(1)
+    access_gui.manualRadioButton = Tkinter.Radiobutton(access_gui,text="Manual",variable=access_gui.v,value=1)
+    access_gui.manualRadioButton.grid(row=nrow,column=0)
+    access_gui.daysRadioButton = Tkinter.Radiobutton(access_gui,text="Days",variable=access_gui.v,value=2)
+    access_gui.daysRadioButton.grid(row=nrow,column=1)
+    access_gui.daysEntry = Tkinter.Entry(access_gui,width=3)
+    access_gui.daysEntry.grid(row=nrow,column=2)
+    access_gui.monthlyRadioButton = Tkinter.Radiobutton(access_gui,text="Monthly",variable=access_gui.v,value=3)
+    access_gui.monthlyRadioButton.grid(row=nrow,column=3)
+    access_gui.yearlyRadioButton = Tkinter.Radiobutton(access_gui,text="Yearly",variable=access_gui.v,value=4)
+    access_gui.yearlyRadioButton.grid(row=nrow,column=4)
+    access_gui.resetButton = Tkinter.Button(access_gui,text="Reset",
+                                            command=lambda:gfACCESS_resetradiobuttons(access_gui))
+    access_gui.resetButton.grid(row=nrow,column=5)
     # bottom row
     nrow = nrow + 1
-    access_gui.runButton = Tkinter.Button(access_gui,text="Run",command=lambda:gfACCESS_main(ds4,ds_access,access_gui,access_dates))
+    access_gui.runButton = Tkinter.Button(access_gui,text="Run",command=lambda:gfACCESS_call(ds4,ds_access,access_gui,access_dates))
     access_gui.runButton.grid(row=nrow,column=0,columnspan=2)
     access_gui.acceptButton = Tkinter.Button(access_gui,text="Done",command=lambda:gfACCESS_finish(ds4,access_gui))
     access_gui.acceptButton.grid(row=nrow,column=2,columnspan=2)
@@ -544,6 +570,9 @@ def GapFillFromACCESS(ds4):
     access_gui.doneButton.grid(row=nrow,column=4,columnspan=2)
     access_gui.wait_window(access_gui)
 
+def gfACCESS_resetradiobuttons(access_gui):
+    access_gui.v.set(1)
+    
 def gfACCESS_finish(ds,access_gui):
     # close any open plot windows
     for i in plt.get_fignums(): plt.close(i)
@@ -556,8 +585,37 @@ def gfACCESS_finish(ds,access_gui):
 
 def gfACCESS_closeplots():
     for i in plt.get_fignums(): plt.close(i)
+    
+def gfACCESS_call(ds_tower,ds_access,access_gui,access_dates):
+    if access_gui.v.get()==1:
+        # get the start and end datetimes entered in the ACCESS GUI
+        access_dates["startdate"] = access_gui.startEntry.get()
+        if len(access_dates["startdate"])==0: access_dates["startdate"] = access_dates["overlap_startdate"]
+        access_dates["enddate"] = access_gui.endEntry.get()
+        if len(access_dates["enddate"])==0: access_dates["enddate"] = access_dates["overlap_enddate"]
+        gfACCESS_main(ds_tower,ds_access,access_dates)
+    elif access_gui.v.get()==2:
+        pass
+    elif access_gui.v.get()==3:
+        # get the start datetime entered in the ACCESS GUI
+        access_dates["startdate"] = access_gui.startEntry.get()
+        if len(access_dates["startdate"])==0: access_dates["startdate"] = access_dates["overlap_startdate"]
+        startdate = dateutil.parser.parse(str(access_dates["startdate"]))
+        overlap_startdate = dateutil.parser.parse(str(access_dates["overlap_startdate"]))
+        overlap_enddate = dateutil.parser.parse(str(access_dates["overlap_enddate"]))
+        enddate = startdate+dateutil.relativedelta.relativedelta(months=1)
+        enddate = min([overlap_enddate,enddate])
+        access_dates["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d")
+        while startdate<overlap_enddate:
+            gfACCESS_main(ds_tower,ds_access,access_dates)
+            startdate = enddate
+            enddate = startdate+dateutil.relativedelta.relativedelta(months=1)
+            access_dates["startdate"] = startdate.strftime("%Y-%m-%d")
+            access_dates["enddate"] = enddate.strftime("%Y-%m-%d")
+    elif access_gui.v.get()==4:
+        pass
 
-def gfACCESS_main(ds_tower,ds_access,access_gui,access_dates):
+def gfACCESS_main(ds_tower,ds_access,access_dates):
     '''
     This is the main routine for using ACCESS data to gap fill drivers.
     '''
@@ -578,10 +636,9 @@ def gfACCESS_main(ds_tower,ds_access,access_gui,access_dates):
     ldt_tower = ds_tower.series["DateTime"]["Data"]
     ldt_access = ds_access.series["DateTime"]["Data"]
     xldt_tower = ds_tower.series["xlDateTime"]["Data"]
-    # get the start and end datetimes entered in the ACCESS GUI
-    startdate = access_gui.startEntry.get()
-    if len(startdate)==0: startdate = access_dates["overlap_startdate"]
-    enddate = access_gui.endEntry.get()
+    # get the start and end datetimes
+    startdate = access_dates["startdate"]
+    enddate = access_dates["enddate"]
     if len(enddate)==0: enddate = access_dates["overlap_enddate"]
     # get the indices of the start and end datetimes in the tower and the ACCESS data.
     si_tower = qcutils.GetDateIndex(ldt_tower,str(startdate),ts=ts,match="startnextday",default=0)
@@ -604,19 +661,26 @@ def gfACCESS_main(ds_tower,ds_access,access_gui,access_dates):
     nperhr = int(float(60)/ts+0.5)
     nperday = int(float(24)*nperhr+0.5)
     ndays = nrecs/nperday
-    # now loop over the variables to be gap filled using the ACCESS data
+    # now loop over the variables to be gap filled using the ACCESS data close any open plot windows
+    for i in plt.get_fignums(): plt.close(i)
     fig_num = 0
     for label in ds_tower.access.keys():
+        # save the start, mid and end datetimes for later output
         ds_tower.access[label]["results"]["startdate"].append(xldt_tower[si_tower])
         ds_tower.access[label]["results"]["enddate"].append(xldt_tower[ei_tower])
+        ds_tower.access[label]["results"]["middate"].append(numpy.average([xldt_tower[si_tower],
+                                                                           xldt_tower[ei_tower]]))
+        # get the tower data
+        data_tower,flag_tower,attr_tower = qcutils.GetSeriesasMA(ds_tower,label,si=si_tower,ei=ei_tower)
+        # get the units
+        units_tower = attr_tower["units"]
+        # check to see if there is anything there
+        if numpy.ma.count(data_tower)<2:
+            gfACCESS_appendmissing(ds_tower,label)
+            continue
         output = ds_tower.access[label]["output"]
         fig_num = fig_num + 1
         title = site_name+' : Comparison of tower and ACCESS data for '+label
-        # get the tower data
-        data_tower,flag_tower = qcutils.GetSeriesasMA(ds_tower,label,si=si_tower,ei=ei_tower)
-        # get the units
-        attr_tower = qcutils.GetAttributeDictionary(ds_tower,label)
-        units_tower = attr_tower["units"]
         # get a list of ACCESS variables for this tower variable
         access_var_list = [item for item in ds_access.series.keys() if label in item]
         # check the series in the ACCESS data
@@ -626,31 +690,42 @@ def gfACCESS_main(ds_tower,ds_access,access_gui,access_dates):
         # get the ACCESS series that has the highest correlation with the tower data
         r = numpy.zeros(len(access_var_list))
         for idx,var in enumerate(access_var_list):
-            data_access,flag_access = qcutils.GetSeriesasMA(ds_access,var,si=si_access,ei=ei_access)
-            attr_access = qcutils.GetAttributeDictionary(ds_access,var)
+            data_access,flag_access,attr_access = qcutils.GetSeriesasMA(ds_access,var,si=si_access,ei=ei_access)
             units_access = attr_access["units"]
             r[idx] = numpy.ma.corrcoef(data_tower,data_access)[0,1]
         maxidx = numpy.argmax(r)
         # save the name of the ACCESS variable that has the highest correlation with the tower data
         var_maxr = access_var_list[maxidx]
-        ds_tower.access[label]["var_maxr"] = var_maxr
-        data_access,flag_access = qcutils.GetSeriesasMA(ds_access,var_maxr,si=si_access,ei=ei_access)
+        data_access,flag_access,attr_access = qcutils.GetSeriesasMA(ds_access,var_maxr,si=si_access,ei=ei_access)
         # plot the data for this period
-        pd = gfACCESS_initplot(site_name=site_name,label=label,fig_num=fig_num,title=title,
-                               ts=ts,ndays=ndays,nperday=nperday,
-                               units_tower=units_tower,units_access=units_access)
-        gfACCESS_plot(pd,ds_tower,odt_tower,data_tower,odt_access,data_access,r)
-        # get the robust least squares coefficients
-        m_rlm = ds_tower.access[label]["results"]["m_rlm"][-1]
-        b_rlm = ds_tower.access[label]["results"]["b_rlm"][-1]
-        # get the best fit ACCESS data
-        data_access_rlm = m_rlm*data_access+b_rlm
-        # put the best-fit adjusted ACCESS data into the output series
-        ds_tower.series[output]["Data"][si_tower:ei_tower+1] = data_access_rlm
-        ds_tower.series[output]["Flag"][si_tower:ei_tower+1] = numpy.int32(20)
+        pd = gfACCESS_initplot(site_name=site_name,label=label,var_maxr=var_maxr,
+                               fig_num=fig_num,title=title,
+                               si_access=si_access,ei_access=ei_access,
+                               si_tower=si_tower,ei_tower=ei_tower,
+                               startdate=startdate,enddate=enddate,
+                               r=r,ts=ts,nrecs=nrecs,ndays=ndays,nperday=nperday)
+        gfACCESS_plot(pd,ds_tower,ds_access)
+        ## get the ordinary least squares coefficients
+        #m_ols = ds_tower.access[label]["results"]["m_ols"][-1]
+        #b_ols = ds_tower.access[label]["results"]["b_ols"][-1]
+        ## get the best fit ACCESS data
+        #data_access_ols = m_ols*data_access+b_ols
+        # put the ordinary least-squares adjusted ACCESS data into the output series
+        ds_tower.series[output]["Data"][pd["si_tower"]:pd["ei_tower"]+1] = pd["ols"]
+        ds_tower.series[output]["Flag"][pd["si_tower"]:pd["ei_tower"]+1] = numpy.int32(20)
     # make sure this processing step gets written to the global attribute "Functions"
     if "GapFillFromACCESS" not in ds_tower.globalattributes["Functions"]:
         ds_tower.globalattributes["Functions"] = ds_tower.globalattributes["Functions"]+", GapFillFromACCESS"
+
+def gfACCESS_appendmissing(ds,label):
+    log.error("Less than 2 points available for series "+label+", ignoring ...")
+    # set the output statisics to missing values
+    ds.access[label]["results"]["n"].append(0)
+    results_list = ds.access[label]["results"].keys()
+    for item in ["startdate","enddate","middate","n"]:
+        if item in results_list: results_list.remove(item)
+    for item in results_list:
+        ds.access[label]["results"][item].append(-9999)
 
 def gfACCESS_initplot(**kwargs):
     pd = {"margin_bottom":0.05,"margin_top":0.05,"margin_left":0.075,"margin_right":0.05,
@@ -663,10 +738,22 @@ def gfACCESS_initplot(**kwargs):
         pd[key] = value
     return pd
 
-def gfACCESS_plot(pd,ds_tower,odt_tower,data_tower,odt_access,data_access,r):
-    # local copies of the data so the originals are not modified in this routine
-    access = numpy.ma.copy(data_access)
-    tower = numpy.ma.copy(data_tower)
+def gfACCESS_plot(pd,ds_tower,ds_access):
+    # get local pointer to the datetime series
+    ldt_tower = ds_tower.series["DateTime"]["Data"]
+    ldt_access = ds_access.series["DateTime"]["Data"]
+    xldt_tower = ds_tower.series["xlDateTime"]["Data"]
+    # get the datetime series for the overlap period
+    odt_tower = ldt_tower[pd["si_tower"]:pd["ei_tower"]+1]
+    odt_access = ldt_access[pd["si_access"]:pd["ei_access"]+1]
+    # get the tower and ACCESS data
+    data_tower,flag,attr_tower = qcutils.GetSeriesasMA(ds_tower,pd["label"],si=pd["si_tower"],ei=pd["ei_tower"])
+    units_tower = attr_tower["units"]
+    data_access,flag,attr_access = qcutils.GetSeriesasMA(ds_access,pd["var_maxr"],si=pd["si_access"],ei=pd["ei_access"])
+    units_access = attr_access["units"]
+    # get copies of the data for modifying with masked "or"
+    tower = numpy.ma.array(data_tower)
+    access = numpy.ma.array(data_access)
     # mask both series when either one is missing
     access.mask = numpy.ma.mask_or(access.mask,tower.mask)
     tower.mask = numpy.ma.mask_or(access.mask,tower.mask)
@@ -684,34 +771,56 @@ def gfACCESS_plot(pd,ds_tower,odt_tower,data_tower,odt_access,data_access,r):
     rect1 = [0.10,pd["margin_bottom"]+pd["margin_bottom"]+pd["xy_height"],
              pd["xy_width"],pd["xy_height"]]
     ax1 = plt.axes(rect1)
-    ind=numpy.arange(len(r))
-    ax1.bar(ind,r,0.35)
-    ax1.set_ylabel('r')
+    ind=numpy.arange(len(pd["r"]))
+    ax1.bar(ind,pd["r"],0.35)
+    ax1.set_ylabel("r")
     ax1.set_xlabel('Grid')
     plt.draw()
     # lagged correlation
     rect2 = [0.40,pd["margin_bottom"]+pd["margin_bottom"]+pd["xy_height"],
              pd["xy_width"],pd["xy_height"]]
     ax2 = plt.axes(rect2)
-    l=ax2.xcorr(tower_nm,access_nm,maxlags=pd["nperday"])
+    lag_uncorr = ax2.xcorr(tower_nm,access_nm,maxlags=int(pd["nperday"]/2),color="b")
     ax2.set_ylabel('r')
     ax2.set_xlabel('Lags')
+    # get the lag at maximum correlation as the number of time steps
+    pd["lag_uncorr_maxr_nots"] = numpy.argmax(lag_uncorr[1])-int(pd["nperday"]/2)
+    # get the lag in minutes
+    pd["lag_uncorr_maxr_minutes"] = pd["ts"]*(numpy.argmax(lag_uncorr[1])-int(pd["nperday"]/2))
+    ds_tower.access[pd["label"]]["results"]["lag_maxr"].append(pd["lag_uncorr_maxr_minutes"])
+    # correct for any lag between the ACCESS data and the tower data
+    access_uncorr = numpy.ma.array(access)
+    access_uncorr_2d = numpy.ma.reshape(access_uncorr,[pd["ndays"],pd["nperday"]])
+    access_hourly_avg = numpy.ma.average(access_uncorr_2d,axis=0)
+    if pd["lag_uncorr_maxr_minutes"]!=0:
+        data_tower,data_access = gfACCESS_lagaccess(pd,ds_tower,ds_access)
+        # get copies for use with "or"'d mask
+        tower = numpy.ma.array(data_tower)
+        access = numpy.ma.array(data_access)
+        # mask both series when either one is missing
+        access.mask = numpy.ma.mask_or(access.mask,tower.mask)
+        tower.mask = numpy.ma.mask_or(access.mask,tower.mask)
+        # get non-masked versions of the data, these are used with the robust statistics module
+        access_nm = numpy.ma.compressed(access)
+        tower_nm = numpy.ma.compressed(tower)
+    # plot the lagged correlatioin for the corrected data
+    lag_corr = ax2.xcorr(tower_nm,access_nm,maxlags=pd["nperday"]/12,color="r")
+    # get the lag in minutes
+    pd["lag_corr_maxr_minutes"] = pd["ts"]*(numpy.argmax(lag_corr[1])-pd["nperday"]/12)
     plt.draw()
-    max_lag = pd["ts"]*(numpy.argmax(l[1])-pd["nperday"])
-    ds_tower.access[pd["label"]]["results"]["max_lag"].append(max_lag)
     # bottom row of XY plots
     # scatter plot of 30 minute data
     rect3 = [0.10,pd["margin_bottom"],pd["xy_width"],pd["xy_height"]]
     ax3 = plt.axes(rect3)
     ax3.plot(access,tower,'b.')
-    ax3.set_ylabel('Tower ('+pd["units_tower"]+')')
-    ax3.set_xlabel('ACCESS ('+pd["units_access"]+')')
+    ax3.set_ylabel('Tower ('+units_tower+')')
+    ax3.set_xlabel('ACCESS ('+units_access+')')
     resrlm = sm.RLM(tower_nm,sm.add_constant(access_nm,prepend=False),M=sm.robust.norms.TukeyBiweight()).fit()
     pd["m_rlm"] = resrlm.params[0]
     pd["b_rlm"] = resrlm.params[1]
     ds_tower.access[pd["label"]]["results"]["m_rlm"].append(resrlm.params[0])
     ds_tower.access[pd["label"]]["results"]["b_rlm"].append(resrlm.params[1])
-    pd["rlm"] = pd["m_rlm"]*access+pd["b_rlm"]
+    pd["rlm"] = pd["m_rlm"]*data_access+pd["b_rlm"]
     eqnstr = 'y = %.3fx + %.3f'%(pd["m_rlm"],pd["b_rlm"])
     ax3.plot(access_nm,resrlm.fittedvalues,'r--',linewidth=3)
     ax3.text(0.5,0.915,eqnstr,fontsize=8,horizontalalignment='center',transform=ax3.transAxes,color='red')
@@ -720,9 +829,9 @@ def gfACCESS_plot(pd,ds_tower,odt_tower,data_tower,odt_access,data_access,r):
     pd["b_ols"] = resols.params[1]
     ds_tower.access[pd["label"]]["results"]["m_ols"].append(resols.params[0])
     ds_tower.access[pd["label"]]["results"]["b_ols"].append(resols.params[1])
-    pd["ols"] = pd["m_ols"]*access+pd["b_ols"]
+    pd["ols"] = pd["m_ols"]*data_access+pd["b_ols"]
     eqnstr = 'y = %.3fx + %.3f'%(pd["m_ols"],pd["b_ols"])
-    ax3.plot(access_nm,resrlm.fittedvalues,'g--',linewidth=3)
+    ax3.plot(access_nm,resols.fittedvalues,'g--',linewidth=3)
     ax3.text(0.5,0.85,eqnstr,fontsize=8,horizontalalignment='center',transform=ax3.transAxes,color='green')
     ax3.text(0.6,0.075,'30 minutes',fontsize=10,horizontalalignment='left',transform=ax3.transAxes)
     plt.draw()
@@ -734,8 +843,8 @@ def gfACCESS_plot(pd,ds_tower,odt_tower,data_tower,odt_access,data_access,r):
     access_2d = numpy.ma.reshape(access,[pd["ndays"],pd["nperday"]])
     access_daily_avg = numpy.ma.average(access_2d,axis=1)
     ax4.plot(access_daily_avg,tower_daily_avg,'b.')
-    ax4.set_ylabel('Tower ('+pd["units_tower"]+')')
-    ax4.set_xlabel('ACCESS ('+pd["units_access"]+')')
+    ax4.set_ylabel('Tower ('+units_tower+')')
+    ax4.set_xlabel('ACCESS ('+units_access+')')
     access_daily_avg.mask = numpy.ma.mask_or(access_daily_avg.mask,tower_daily_avg.mask)
     tower_daily_avg.mask = numpy.ma.mask_or(access_daily_avg.mask,tower_daily_avg.mask)
     access_daily_avg_nm = numpy.ma.compressed(access_daily_avg)
@@ -754,7 +863,6 @@ def gfACCESS_plot(pd,ds_tower,odt_tower,data_tower,odt_access,data_access,r):
     rect5 = [0.70,pd["margin_bottom"],pd["xy_width"],pd["xy_height"]]
     ax5 = plt.axes(rect5)
     tower_hourly_avg = numpy.ma.average(tower_2d,axis=0)
-    access_hourly_avg = numpy.ma.average(access_2d,axis=0)
     access_hourly_rlm = numpy.ma.average(pd["m_rlm"]*access_2d+pd["b_rlm"],axis=0)
     access_hourly_ols = numpy.ma.average(pd["m_ols"]*access_2d+pd["b_ols"],axis=0)
     ind = numpy.arange(len(tower_hourly_avg))*float(pd["ts"])/float(60)
@@ -762,7 +870,7 @@ def gfACCESS_plot(pd,ds_tower,odt_tower,data_tower,odt_access,data_access,r):
     ax5.plot(ind,access_hourly_avg,'b-',label='ACCESS-A')
     ax5.plot(ind,access_hourly_rlm,'r-',label='ACCESS-A (RLM)')
     ax5.plot(ind,access_hourly_ols,'g-',label='ACCESS-A (OLS)')
-    ax5.set_ylabel(pd["label"]+' ('+pd["units_tower"]+')')
+    ax5.set_ylabel(pd["label"]+' ('+units_tower+')')
     ax5.set_xlim(0,24)
     ax5.xaxis.set_ticks([0,6,12,18,24])
     ax5.set_xlabel('Hour')
@@ -772,10 +880,10 @@ def gfACCESS_plot(pd,ds_tower,odt_tower,data_tower,odt_access,data_access,r):
     rect_ts = [pd["margin_left"],pd["ts_bottom"],pd["ts_width"],pd["ts_height"]]
     axes_ts = plt.axes(rect_ts)
     axes_ts.plot(odt_tower,tower,'ro',label="Tower")
-    axes_ts.plot(odt_access,access,'b-',label="ACCESS-A")
+    axes_ts.plot(odt_access,access_uncorr,'b-',label="ACCESS-A")
     axes_ts.plot(odt_access,pd["rlm"],'r-',label="ACCESS-A (RLM)")
     axes_ts.plot(odt_access,pd["ols"],'g-',label="ACCESS-A (OLS)")
-    axes_ts.set_ylabel(pd["label"]+' ('+pd["units_tower"]+')')
+    axes_ts.set_ylabel(pd["label"]+' ('+units_tower+')')
     axes_ts.legend(loc='upper right',frameon=False,prop={'size':8})
     plt.draw()
     # now get some statistics
@@ -790,16 +898,20 @@ def gfACCESS_plot(pd,ds_tower,odt_tower,data_tower,odt_access,data_access,r):
     ds_tower.access[pd["label"]]["results"]["var_tow"].append(var_tow)
     var_acc = numpy.ma.var(access)
     ds_tower.access[pd["label"]]["results"]["var_acc"].append(var_acc)
-    r_max = numpy.ma.maximum(r)
+    r_max = numpy.ma.maximum(pd["r"])
     ds_tower.access[pd["label"]]["results"]["r_max"].append(r_max)
-    text_left = 0.70
-    num_left = 0.80
-    row_bottom = 0.375
+    text_left = 0.675
+    num_left = 0.825
+    row_bottom = 0.35
     row_space = 0.030
     i = 0
     row_posn = row_bottom + i*row_space
-    plt.figtext(text_left,row_posn,'Lag (minutes)')
-    plt.figtext(num_left,row_posn,'%.4g'%(max_lag))
+    plt.figtext(text_left,row_posn,'Lag (corrected)')
+    plt.figtext(num_left,row_posn,'%.4g'%(pd["lag_corr_maxr_minutes"]))
+    i = i + 1
+    row_posn = row_bottom + i*row_space
+    plt.figtext(text_left,row_posn,'Lag (uncorrected)')
+    plt.figtext(num_left,row_posn,'%.4g'%(pd["lag_uncorr_maxr_minutes"]))
     i = i + 1
     row_posn = row_bottom + i*row_space
     plt.figtext(text_left,row_posn,'Var (ACCESS)')
@@ -832,6 +944,44 @@ def gfACCESS_plot(pd,ds_tower,odt_tower,data_tower,odt_access,data_access,r):
     fig.savefig(figname,format='png')
     # show the plot
     plt.draw()
+
+def gfACCESS_lagaccess(pd,ds_tower,ds_access):
+    # local pointers to the datetime series
+    ldt_tower = ds_tower.series["DateTime"]["Data"]
+    ldt_access = ds_access.series["DateTime"]["Data"]
+    xldt_tower = ds_tower.series["xlDateTime"]["Data"]
+    # lag the ACCESS datetime series
+    ldt_access_lagcorr = [x+datetime.timedelta(minutes=int(pd["lag_uncorr_maxr_minutes"])) for x in ldt_access]
+    # get the indices of the start and end datetimes in the tower and the ACCESS data.
+    pd["si_tower"] = qcutils.GetDateIndex(ldt_tower,str(pd["startdate"]),ts=pd["ts"],match="startnextday",default=0)
+    pd["ei_tower"] = qcutils.GetDateIndex(ldt_tower,str(pd["enddate"]),ts=pd["ts"],match="endpreviousday",default=-1)
+    pd["si_access"] = qcutils.GetDateIndex(ldt_access_lagcorr,str(pd["startdate"]),ts=pd["ts"],match="startnextday",default=0)
+    pd["ei_access"] = qcutils.GetDateIndex(ldt_access_lagcorr,str(pd["enddate"]),ts=pd["ts"],match="endpreviousday",default=-1)
+    # now make sure the start and end datetime match
+    pd["startdate"] = max([ldt_tower[pd["si_tower"]],ldt_access_lagcorr[pd["si_access"]]])
+    pd["enddate"] = min([ldt_tower[pd["ei_tower"]],ldt_access_lagcorr[pd["ei_access"]]])
+    # and get the start and end indices again in case they didn't
+    pd["si_tower"] = qcutils.GetDateIndex(ldt_tower,str(pd["startdate"]),ts=pd["ts"],match="startnextday")
+    pd["ei_tower"] = qcutils.GetDateIndex(ldt_tower,str(pd["enddate"]),ts=pd["ts"],match="endpreviousday")
+    pd["si_access"] = qcutils.GetDateIndex(ldt_access_lagcorr,str(pd["startdate"]),ts=pd["ts"],match="startnextday")
+    pd["ei_access"] = qcutils.GetDateIndex(ldt_access_lagcorr,str(pd["enddate"]),ts=pd["ts"],match="endpreviousday")
+    # get the datetime series for the overlap period
+    odt_tower = ldt_tower[pd["si_tower"]:pd["ei_tower"]+1]
+    odt_access = ldt_access_lagcorr[pd["si_access"]:pd["ei_access"]+1]
+    # get the number of samples per day and the number of days in the period
+    pd["nrecs"] = pd["ei_tower"] - pd["si_tower"] + 1
+    nperhr = int(float(60)/pd["ts"]+0.5)
+    pd["nperday"] = int(float(24)*nperhr+0.5)
+    pd["ndays"] = pd["nrecs"]/pd["nperday"]
+    # save the start, mid and end datetimes for later output
+    ds_tower.access[pd["label"]]["results"]["startdate"][-1] = xldt_tower[pd["si_tower"]]
+    ds_tower.access[pd["label"]]["results"]["enddate"][-1] = xldt_tower[pd["ei_tower"]]
+    ds_tower.access[pd["label"]]["results"]["middate"][-1] = numpy.average([xldt_tower[pd["si_tower"]],
+                                                                       xldt_tower[pd["ei_tower"]]])
+    # get the data again, this time with the lag corrected
+    data_tower,flag,attr_tower = qcutils.GetSeriesasMA(ds_tower,pd["label"],si=pd["si_tower"],ei=pd["ei_tower"])
+    data_access,flag,attr_access = qcutils.GetSeriesasMA(ds_access,pd["var_maxr"],si=pd["si_access"],ei=pd["ei_access"])
+    return data_tower,data_access
 
 def GapFillUsingSOLO(dsa,dsb):
     '''
@@ -936,6 +1086,11 @@ def gfSOLO_main(dsa,dsb,solo_gui):
     # be changed with the SOLO GUI still displayed
     cfname = dsb.globalattributes["controlfile_name"]
     cf = qcio.get_controlfilecontents(cfname)
+    for series in dsb.solo.keys():
+        section = qcutils.get_cfsection(cf,series=series,mode="quiet")
+        if len(section)==0: continue
+        if series not in dsb.series.keys(): continue
+        dsb.solo[series]["drivers"] = ast.literal_eval(cf[section][series]["GapFillUsingSOLO"]["drivers"])
     # get some useful things
     site_name = dsa.globalattributes["site_name"]
     # get the time step and a local pointer to the datetime series
@@ -949,7 +1104,7 @@ def gfSOLO_main(dsa,dsb,solo_gui):
     ei = qcutils.GetDateIndex(ldt,enddate,ts=ts,default=-1,match="exact")
     # check the start and end indices
     if si >= ei:
-        print " GapFillUsingSOLO: end datetime index smaller that start datetime index"
+        print " GapFillUsingSOLO: end datetime index ("+str(ei)+") smaller that start ("+str(si)+")"
         return
     if si==0 and ei==-1:
         print " GapFillUsingSOLO: no start and end datetime specified, using all data"
@@ -961,6 +1116,7 @@ def gfSOLO_main(dsa,dsb,solo_gui):
     for series in dsb.solo.keys():
         dsb.solo[series]["results"]["startdate"].append(xldt[si])
         dsb.solo[series]["results"]["enddate"].append(xldt[ei])
+        dsb.solo[series]["results"]["middate"].append(numpy.average([xldt[si],xldt[ei]]))
         drivers = dsb.solo[series]["drivers"]
         output = dsb.solo[series]["output"]
         # set the number of nodes for the inf files
@@ -1123,7 +1279,7 @@ def gfSOLO_runsofm(dsa,dsb,solo_gui,driverlist,targetlabel,nRecs,si=0,ei=-1):
     i = 0
     badlines = []
     for TheseOnes in driverlist:
-        driver,flag = qcutils.GetSeries(dsb,TheseOnes,si=si,ei=ei)
+        driver,flag,attr = qcutils.GetSeries(dsb,TheseOnes,si=si,ei=ei)
         index = numpy.where(abs(driver-float(-9999)<c.eps))[0]
         if len(index)!=0:
             log.error(' GapFillUsingSOLO: -9999 found in driver '+TheseOnes+' at lines '+str(index))
@@ -1213,11 +1369,11 @@ def gfSOLO_runsolo(dsa,dsb,driverlist,targetlabel,nRecs,si=0,ei=-1):
     # now fill the driver data array, drivers come from the modified ds
     i = 0
     for TheseOnes in driverlist:
-        driver,flag = qcutils.GetSeries(dsb,TheseOnes,si=si,ei=ei)
+        driver,flag,attr = qcutils.GetSeries(dsb,TheseOnes,si=si,ei=ei)
         soloinputdata[:,i] = driver[:]
         i = i + 1
     # a clean copy of the target is pulled from the unmodified ds each time
-    target,flag = qcutils.GetSeries(dsa,targetlabel,si=si,ei=ei)
+    target,flag,attr = qcutils.GetSeries(dsa,targetlabel,si=si,ei=ei)
     # now load the target data into the data array
     soloinputdata[:,ndrivers] = target[:]
     # now strip out the bad data
@@ -1264,11 +1420,11 @@ def gfSOLO_runseqsolo(dsa,dsb,driverlist,targetlabel,outputlabel,nRecs,si=0,ei=-
     # now fill the driver data array
     i = 0
     for TheseOnes in driverlist:
-        driver,flag = qcutils.GetSeries(dsb,TheseOnes,si=si,ei=ei)
+        driver,flag,attr = qcutils.GetSeries(dsb,TheseOnes,si=si,ei=ei)
         seqsoloinputdata[:,i] = driver[:]
         i = i + 1
     # a clean copy of the target is pulled from the unmodified ds each time
-    target,flag = qcutils.GetSeries(dsa,targetlabel,si=si,ei=ei)
+    target,flag,attr = qcutils.GetSeries(dsa,targetlabel,si=si,ei=ei)
     # now load the target data into the data array
     seqsoloinputdata[:,ndrivers] = target[:]
     # and then write the seqsolo input file
@@ -1295,10 +1451,10 @@ def gfSOLO_runseqsolo(dsa,dsb,driverlist,targetlabel,outputlabel,nRecs,si=0,ei=-
         # if no output series exists then create one now
         if outputlabel not in dsb.series.keys():
             # qcutils.GetSeriesasMA will create a blank series if it doesn't already exist
-            flux, flux_flag = qcutils.GetSeriesasMA(dsb,outputlabel)
+            flux,flag,attr = qcutils.GetSeriesasMA(dsb,outputlabel)
             attr = qcutils.MakeAttributeDictionary(long_name=targetlabel+' modelled by SOLO',
                                                    units=dsa.series[targetlabel]['Attr']['units'])
-            qcutils.CreateSeries(dsb,outputlabel,flux,Flag=flux_flag,Attr=attr)
+            qcutils.CreateSeries(dsb,outputlabel,flux,Flag=flag,Attr=attr)
         # put the SOLO modelled data back into the data series
         if ei==-1:
             dsb.series[outputlabel]['Data'][si:] = seqdata[:,1]
@@ -1330,10 +1486,10 @@ def gfSOLO_plot(pd,dsa,dsb,driverlist,targetlabel,outputlabel,solo_gui,si=0,ei=-
     ts = int(dsb.globalattributes['time_step'])
     # get a local copy of the datetime series
     xdt = numpy.array(dsb.series['DateTime']['Data'][si:ei+1])
-    Hdh,f = qcutils.GetSeriesasMA(dsb,'Hdh',si=si,ei=ei)
+    Hdh,f,a = qcutils.GetSeriesasMA(dsb,'Hdh',si=si,ei=ei)
     # get the observed and modelled values
-    obs,f = qcutils.GetSeriesasMA(dsa,targetlabel,si=si,ei=ei)
-    mod,f = qcutils.GetSeriesasMA(dsb,outputlabel,si=si,ei=ei)
+    obs,f,a = qcutils.GetSeriesasMA(dsa,targetlabel,si=si,ei=ei)
+    mod,f,a = qcutils.GetSeriesasMA(dsb,outputlabel,si=si,ei=ei)
     # make the figure
     plt.ion()
     fig = plt.figure(pd["fig_num"],figsize=(13,9))
@@ -1426,7 +1582,7 @@ def gfSOLO_plot(pd,dsa,dsb,driverlist,targetlabel,outputlabel,solo_gui,si=0,ei=-
         this_bottom = pd["ts_bottom"] + i*pd["ts_height"]
         rect = [pd["margin_left"],this_bottom,pd["ts_width"],pd["ts_height"]]
         ts_axes.append(plt.axes(rect,sharex=ts_axes[0]))
-        data,flag = qcutils.GetSeriesasMA(dsb,ThisOne,si=si,ei=ei)
+        data,flag,attr = qcutils.GetSeriesasMA(dsb,ThisOne,si=si,ei=ei)
         ts_axes[i].plot(xdt,data)
         plt.setp(ts_axes[i].get_xticklabels(),visible=False)
         TextStr = ThisOne+'('+dsb.series[ThisOne]['Attr']['units']+')'

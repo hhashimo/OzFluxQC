@@ -108,16 +108,16 @@ def ConvertCO2Units(cf,ds,Cc='Cc'):
     if Cc_units_out!=Cc_units_in:
         log.info(' Converting CO2 concentration from '+Cc_units_in+' to '+Cc_units_out)
         if Cc_units_out=="umol/mol" and Cc_units_in=="mg/m3":
-            c_mgpm3,flag = GetSeriesasMA(ds,Cc)
-            T,dummy = GetSeriesasMA(ds,'Ta')
-            p,dummy = GetSeriesasMA(ds,'ps')
+            c_mgpm3,flag,attr = GetSeriesasMA(ds,Cc)
+            T,f,a = GetSeriesasMA(ds,'Ta')
+            p,f,a = GetSeriesasMA(ds,'ps')
             c_ppm = mf.co2_ppmfrommgpm3(c_mgpm3,T,p)
             attr = MakeAttributeDictionary(long_name='converted to umol/mol',units=Cc_units_out)
             CreateSeries(ds,Cc,c_ppm,Flag=flag,Attr=attr)
         elif Cc_units_out=="mg/m3" and Cc_units_in=="umol/mol":
-            c_ppm,flag = GetSeriesasMA(ds,Cc)
-            T,dummy = GetSeriesasMA(ds,'Ta')
-            p,dummy = GetSeriesasMA(ds,'ps')
+            c_ppm,flag,attr = GetSeriesasMA(ds,Cc)
+            T,f,a = GetSeriesasMA(ds,'Ta')
+            p,f,a = GetSeriesasMA(ds,'ps')
             c_mgpm3 = mf.co2_mgpm3fromppm(c_ppm,T,p)
             attr = MakeAttributeDictionary(long_name='converted to mg/m3',units=Cc_units_out)
             CreateSeries(ds,Cc,c_mgpm3,Flag=flag,Attr=attr)
@@ -135,12 +135,12 @@ def ConvertFcUnits(cf,ds,Fc='Fc',Fc_storage='Fc_storage'):
         if Fc_units_out!=Fc_units_in:
             log.info(' Converting CO2 flux from '+Fc_units_in+' to '+Fc_units_out)
             if Fc_units_out=="umol/m2/s" and Fc_units_in=="mg/m2/s":
-                Fc_mgpm2ps,flag = GetSeriesasMA(ds,Fc)
+                Fc_mgpm2ps,flag,attr = GetSeriesasMA(ds,Fc)
                 Fc_umolpm2ps = mf.Fc_umolpm2psfrommgpm2ps(Fc_mgpm2ps)
                 attr =MakeAttributeDictionary(long_name='converted to umol/m2/s',units=Fc_units_out)
                 CreateSeries(ds,Fc,Fc_umolpm2ps,Flag=flag,Attr=attr)
             elif Fc_units_out=="mg/m2/s" and Fc_units_in=="umol/m2/s":
-                Fc_umolpm2ps,f = GetSeriesasMA(ds,Fc)
+                Fc_umolpm2ps,f,a = GetSeriesasMA(ds,Fc)
                 Fc_mgpm2ps = mf.Fc_mgpm2psfromumolpm2ps(Fc_umolpm2ps)
                 attr = MakeAttributeDictionary(long_name='converted to mg/m2/s',units=Fc_units_out)
                 CreateSeries(ds,Fc,Fc_mgpm2ps,Flag=flag,Attr=attr)
@@ -152,12 +152,12 @@ def ConvertFcUnits(cf,ds,Fc='Fc',Fc_storage='Fc_storage'):
         if Fc_units_out!=Fc_storage_units_in:
             log.info(' Converting CO2 storage flux from '+Fc_storage_units_in+' to '+Fc_units_out)
             if Fc_units_out=="umol/m2/s" and Fc_storage_units_in=="mg/m2/s":
-                Fc_storage_mgpm2ps,flag = GetSeriesasMA(ds,Fc_storage)
+                Fc_storage_mgpm2ps,flag,attr = GetSeriesasMA(ds,Fc_storage)
                 Fc_storage_umolpm2ps = mf.Fc_umolpm2psfrommgpm2ps(Fc_storage_mgpm2ps)
                 attr =MakeAttributeDictionary(long_name='converted to umol/m2/s',units=Fc_units_out)
                 CreateSeries(ds,Fc_storage,Fc_storage_umolpm2ps,Flag=flag,Attr=attr)
             elif Fc_units_out=="mg/m2/s" and Fc_storage_units_in=="umol/m2/s":
-                Fc_storage_umolpm2ps,f = GetSeriesasMA(ds,Fc_storage)
+                Fc_storage_umolpm2ps,f,a = GetSeriesasMA(ds,Fc_storage)
                 Fc_storage_mgpm2ps = mf.Fc_mgpm2psfromumolpm2ps(Fc_storage_umolpm2ps)
                 attr = MakeAttributeDictionary(long_name='converted to mg/m2/s',units=Fc_units_out)
                 CreateSeries(ds,Fc_storage,Fc_storage_mgpm2ps,Flag=flag,Attr=attr)
@@ -281,7 +281,7 @@ def FixTimeGaps(ds):
     # replace the "gappy" data with the "no gap" data
     for ThisOne in SeriesList:
         attr = GetAttributeDictionary(ds,ThisOne)
-        org_data,org_flag = GetSeriesasMA(ds,ThisOne)
+        org_data,org_flag,org_attr = GetSeriesasMA(ds,ThisOne)
         new_data = numpy.zeros(nRecs,dtype=numpy.float64) - float(9999)
         new_flag = numpy.ones(nRecs,dtype=numpy.int32)
         new_data[dt_ind] = org_data
@@ -419,19 +419,19 @@ def GetDateIndex(datetimeseries,date,ts=30,default=0,match='exact'):
     PURPOSE:
      Return the index of a date/datetime string in an array of datetime objects
     USAGE:
-     si = qcutils.GetDateIndex(dtseries,date_str,ts=30,default=0,match='exact')
+     si = qcutils.GetDateIndex(datetimeseries,date_str,ts=30,default=0,match='exact')
     where
-     dtseries - array of datetime objects
-     date_str - a date or date/time string in a format dateutils can parse
-     ts       - time step for the data, optional (integer)
-     default  - default value, optional (integer)
-     match    - type of match (string) options are:
-                "exact"          - finds the specified datetime and returns
-                                   the index
-                "startnextday"   - returns the index of the first time period
-                                   in the next day
-                "endpreviousday" - returns the index of the last time period
-                                   in the previous day
+     datetimeseries - array of datetime objects
+     date_str       - a date or date/time string in a format dateutils can parse
+     ts             - time step for the data, optional (integer)
+     default        - default value, optional (integer)
+     match          - type of match (string) options are:
+                      "exact"          - finds the specified datetime and returns
+                                         the index
+                      "startnextday"   - returns the index of the first time period
+                                         in the next day
+                      "endpreviousday" - returns the index of the last time period
+                                         in the previous day
                 NOTE: "startnextday" and "endpreviousday" can be used to pick
                     out time periods with an integer number of days
     AUTHOR: PRI
@@ -440,9 +440,15 @@ def GetDateIndex(datetimeseries,date,ts=30,default=0,match='exact'):
         if len(date)!=0:
             i = datetimeseries.index(dateutil.parser.parse(date))
         else:
-            i = default
+            if default==-1:
+                i = len(datetimeseries)-1
+            else:
+                i = default
     except ValueError:
-        i = default
+        if default==-1:
+            i = len(datetimeseries)-1
+        else:
+            i = default
     if match=='startnextday':
         while abs(datetimeseries[i].hour+float(datetimeseries[i].minute)/60-float(ts)/60)>c.eps:
             i = i + 1
@@ -511,19 +517,23 @@ def GetSeries(ds,ThisOne,si=0,ei=-1):
         else:
             nRecs = numpy.size(ds.series[ThisOne]['Data'])
             Flag = numpy.zeros(nRecs,dtype=numpy.int32)
+        if "Attr" in ds.series[ThisOne].keys():
+            Attr = GetAttributeDictionary(ds,ThisOne)
+        else:
+            Attr = MakeAttributeDictionary()
     else:
-        Series,Flag = MakeEmptySeries(ds,ThisOne,si=si,ei=ei)
+        Series,Flag,Attr = MakeEmptySeries(ds,ThisOne,si=si,ei=ei)
     if ei==-1:
         Series = Series[si:]
         Flag = Flag[si:]
     else:
         Series = Series[si:ei+1]
         Flag = Flag[si:ei+1]
-    return Series,Flag
+    return Series,Flag,Attr
 
 def MakeEmptySeries(ds,ThisOne,si=0,ei=-1):
     nRecs = int(ds.globalattributes['nc_nrecs'])
-    Series = numpy.array([-9999]*nRecs,numpy.float64)
+    Series = numpy.ma.array([-9999]*nRecs,numpy.float64)
     Flag = numpy.ones(nRecs,dtype=numpy.int32)
     if ei==-1:
         Series = Series[si:]
@@ -531,14 +541,15 @@ def MakeEmptySeries(ds,ThisOne,si=0,ei=-1):
     else:
         Series = Series[si:ei+1]
         Flag = Flag[si:ei+1]
-    return Series,Flag
+    Attr = MakeAttributeDictionary()
+    return Series,Flag,Attr
 
 def GetSeriesasMA(ds,ThisOne,si=0,ei=-1):
     '''
     PURPOSE:
      Returns a data series and the QC flag series from the data structure.
     USAGE:
-     data,flag=qcutils.GetSeriesasMA(ds,label,si=0,ei=-1)
+     data,flag,attr = qcutils.GetSeriesasMA(ds,label,si=0,ei=-1)
     where the arguments are;
       ds    - the data structure (dict)
       label - label of the data series in ds (string)
@@ -549,16 +560,17 @@ def GetSeriesasMA(ds,ThisOne,si=0,ei=-1):
              (numpy masked array, float64)
       flag - QC flag for the requested series in ds
              (numpy masked array, int32)
+      attr - attribute dictionary for series
     EXAMPLE:
      The code snippet below will return the incoming shortwave data values
      (Fsd) and the associated QC flag (f) as numpy masked arrays;
       ds = qcio.nc_read_series("HowardSprings_2011_L3.nc")
-      Fsd,f = qcutils.GetSeriesasMA(ds,"Fsd")
+      Fsd,f,a = qcutils.GetSeriesasMA(ds,"Fsd")
     AUTHOR: PRI
     '''
-    Series,Flag = GetSeries(ds,ThisOne,si,ei)
+    Series,Flag,Attr = GetSeries(ds,ThisOne,si,ei)
     Series,WasND = SeriestoMA(Series)
-    return Series,Flag
+    return Series,Flag,Attr
 
 def GetUnitsFromds(ds, ThisOne):
     units = ds.series[ThisOne]['Attr']['units']
@@ -810,37 +822,35 @@ def MakeAttributeDictionary(**kwargs):
     attr = {}
     for item in kwargs:
         attr[item] = kwargs.get(item,'not defined')
-        if item in default_list:
-            default_list.remove(item)
+        if item in default_list: default_list.remove(item)
     if len(default_list)!=0:
-        for item in default_list:
-            attr[item] = 'not defined'
+        for item in default_list: attr[item] = 'not defined'
     return attr
 
-def MakeQCFlag(ds,SeriesList):
-    flag = []
-    if len(SeriesList)<=0:
-        #log.info('  MakeQCFlag: no series list specified')
-        pass
-    if len(SeriesList)==1:
-        if SeriesList[0] in ds.series.keys():
-            flag = ds.series[SeriesList[0]]['Flag'].copy()
-        else:
-            log.error('  MakeQCFlag: series '+str(SeriesList[0])+' not in ds.series')
-    if len(SeriesList)>1:
-        for ThisOne in SeriesList:
-            if ThisOne in ds.series.keys():
-                if len(flag)==0:
-                    #flag = numpy.ones(numpy.size(ds.series[ThisOne]['Flag']))
-                    flag = ds.series[ThisOne]['Flag'].copy()
-                else:
-                    tmp_flag = ds.series[ThisOne]['Flag'].copy()      # get a temporary copy of the flag
-                    index = numpy.where(numpy.mod(tmp_flag,10)==0)    # find the elements with flag = 0, 10, 20 etc
-                    tmp_flag[index] = 0                               # set them all to 0
-                    flag = numpy.maximum(flag,tmp_flag)               # now take the maximum
-            else:
-                log.error('  MakeQCFlag: series '+ThisOne+' not in ds.series')
-    return flag
+#def MakeQCFlag(ds,SeriesList):
+    #flag = []
+    #if len(SeriesList)<=0:
+        ##log.info('  MakeQCFlag: no series list specified')
+        #pass
+    #if len(SeriesList)==1:
+        #if SeriesList[0] in ds.series.keys():
+            #flag = ds.series[SeriesList[0]]['Flag'].copy()
+        #else:
+            #log.error('  MakeQCFlag: series '+str(SeriesList[0])+' not in ds.series')
+    #if len(SeriesList)>1:
+        #for ThisOne in SeriesList:
+            #if ThisOne in ds.series.keys():
+                #if len(flag)==0:
+                    ##flag = numpy.ones(numpy.size(ds.series[ThisOne]['Flag']))
+                    #flag = ds.series[ThisOne]['Flag'].copy()
+                #else:
+                    #tmp_flag = ds.series[ThisOne]['Flag'].copy()      # get a temporary copy of the flag
+                    #index = numpy.where(numpy.mod(tmp_flag,10)==0)    # find the elements with flag = 0, 10, 20 etc
+                    #tmp_flag[index] = 0                               # set them all to 0
+                    #flag = numpy.maximum(flag,tmp_flag)               # now take the maximum
+            #else:
+                #log.error('  MakeQCFlag: series '+ThisOne+' not in ds.series')
+    #return flag
 
 def MakeQCFlag(ds,SeriesList):
     flag = []

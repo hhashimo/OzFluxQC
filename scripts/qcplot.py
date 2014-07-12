@@ -1,16 +1,99 @@
 import ast
 import constants as c
+import datetime
 import time
 import matplotlib.dates as mdt
 import matplotlib.pyplot as plt
+import meteorologicalfunctions as mf
 import numpy
 import statsmodels.api as sm
+import qcck
 import qcio
 import qcutils
 import logging
 
 log = logging.getLogger('qc.plot')
 
+def plot_fingerprint(cf):
+    """ Do a fingerprint plot"""
+    infilename = qcio.get_infilename_from_cf(cf)
+    # read the netCDF file and return the data structure "ds"
+    ds = qcio.nc_read_series(infilename)
+    if len(ds.series.keys())==0:
+        log.error("netCDF file "+infilename+" not found")
+        return
+    # make sure the specific humidity deficit (SHD) is in the data structure
+    if "SHD" not in ds.series.keys():
+        Ah,f,a = qcutils.GetSeriesasMA(ds,"Ah")
+        Ta,f,a = qcutils.GetSeriesasMA(ds,"Ta")
+        ps,f,a = qcutils.GetSeriesasMA(ds,"ps")
+        e = mf.vapourpressure(Ah,Ta)                  # vapour pressure from absolute humidity and temperature
+        esat = mf.es(Ta)                              # saturation vapour pressure
+        mr = mf.mixingratio(ps,e)                     # mixing ratio
+        mrsat = mf.mixingratio(ps,esat)               # saturation mixing ratio
+        q = mf.specifichumidity(mr)                   # specific humidity from mixing ratio
+        qsat = mf.specifichumidity(mrsat)             # saturation specific humidity from saturation mixing ratio
+        SHD = qsat - q                                # specific humidity deficit
+        attr = qcutils.MakeAttributeDictionary(long_name='Specific humidity deficit',units='kg/kg')
+        qcutils.CreateSeries(ds,'SHD',SHD,FList=["Ta","Ah","ps"],Attr=attr)
+    # get some useful things
+    ts = int(ds.globalattributes["time_step"])
+    site_name = str(ds.globalattributes['site_name'])
+    level = str(ds.globalattributes['nc_level'])
+    nRecs = int(ds.globalattributes['nc_nrecs'])
+    # check for time gaps in the file
+    if qcutils.CheckTimeStep(ds): qcutils.FixTimeGaps(ds)
+    # title string for plots
+    TitleStr = site_name+' '+level
+    # number of records per hour and number per day
+    nPerHr = int(float(60)/ts+0.5)
+    nPerDay = int(float(24)*nPerHr+0.5)
+    # get the datetime series
+    DateTime = ds.series['DateTime']['Data']
+    StartDate = str(ds.series['DateTime']['Data'][0])
+    EndDate = str(ds.series['DateTime']['Data'][-1])
+    # find the start index of the first whole day (time=00:30)
+    si = qcutils.GetDateIndex(DateTime,StartDate,ts=ts,default=0,match='startnextday')
+    # find the end index of the last whole day (time=00:00)
+    ei = qcutils.GetDateIndex(DateTime,EndDate,ts=ts,default=-1,match='endpreviousday')
+    # truncate the datetie series to whole days
+    DateTime = DateTime[si:ei+1]
+    sd = datetime.datetime.toordinal(DateTime[0])
+    ed = datetime.datetime.toordinal(DateTime[-1])
+    TitleStr = TitleStr+' from '+str(DateTime[0])+' to '+str(DateTime[-1])
+    nDays = len(DateTime)/nPerDay
+    # do the plots
+    for nFig in cf['Plots'].keys():
+        n = 0
+        fig = plt.figure(nFig,figsize=[15,10])
+        plt.figtext(0.5,0.95,TitleStr,horizontalalignment='center')
+        SeriesList = qcutils.GetPlotVariableNamesFromCF(cf,nFig)
+        nPlots = len(SeriesList)
+        for ThisOne in SeriesList:
+            n += 1
+            VarName = qcutils.GetAltNameFromCF(cf,ThisOne)
+            ticks = qcutils.GetcbTicksFromCF(cf,ThisOne)
+            data,flag,attr = qcutils.GetSeriesasMA(ds,VarName,si=si,ei=ei)
+            lower, upper = qcutils.GetRangesFromCF(cf,ThisOne)
+            data = qcck.cliptorange(data, lower, upper)
+            data_daily = data.reshape(nDays,nPerDay)
+            units = str(ds.series[VarName]['Attr']['units'])
+            label = VarName + ' (' + units + ')'
+            loc,fmt = get_ticks(datetime.datetime.fromordinal(sd),datetime.datetime.fromordinal(ed))
+            ax = plt.subplot(1,nPlots,n)
+            plt.imshow(data_daily,extent=[0,24,sd,ed],aspect='auto',origin='lower')
+            ax.yaxis.set_major_locator(loc)
+            ax.yaxis.set_major_formatter(fmt)
+            plt.colorbar(orientation='horizontal',fraction=0.02,pad=0.075,ticks=ticks)
+            plt.xticks([0,6,12,18,24])
+            plt.xlabel(label)
+            if n!= 1: plt.setp(ax.get_yticklabels(), visible=False)
+        pngname = 'plots/'+site_name.replace(' ','')+'_'+level+'_'
+        pngname = pngname+qcutils.GetPlotTitleFromCF(cf,nFig).replace(' ','_')+'.png'
+        fig.savefig(pngname,format='png')
+    #plt.draw()
+    plt.show()
+    
 def plottimeseries(cf,nFig,dsa,dsb,si,ei):
     SiteName = dsa.globalattributes['site_name']
     Level = dsb.globalattributes['nc_level']
@@ -207,15 +290,15 @@ def plotxy(cf,nFig,plt_cf,dsa,dsb,si,ei):
     log.info(' Plotting xy: '+str(XSeries)+' v '+str(YSeries))
     if dsa == dsb:
         for xname,yname in zip(XSeries,YSeries):
-            xa,flag = qcutils.GetSeriesasMA(dsa,xname,si=si,ei=ei)
-            ya,flag = qcutils.GetSeriesasMA(dsa,yname,si=si,ei=ei)
+            xa,flag,attr = qcutils.GetSeriesasMA(dsa,xname,si=si,ei=ei)
+            ya,flag,attr = qcutils.GetSeriesasMA(dsa,yname,si=si,ei=ei)
             xyplot(xa,ya,sub=[1,1,1],regr=1,xlabel=xname,ylabel=yname)
     else:
         for xname,yname in zip(XSeries,YSeries):
-            xa,flag = qcutils.GetSeriesasMA(dsa,xname,si=si,ei=ei)
-            ya,flag = qcutils.GetSeriesasMA(dsa,yname,si=si,ei=ei)
-            xb,flag = qcutils.GetSeriesasMA(dsb,xname,si=si,ei=ei)
-            yb,flag = qcutils.GetSeriesasMA(dsb,yname,si=si,ei=ei)
+            xa,flag,attr = qcutils.GetSeriesasMA(dsa,xname,si=si,ei=ei)
+            ya,flag,attr = qcutils.GetSeriesasMA(dsa,yname,si=si,ei=ei)
+            xb,flag,attr = qcutils.GetSeriesasMA(dsb,xname,si=si,ei=ei)
+            yb,flag,attr = qcutils.GetSeriesasMA(dsb,yname,si=si,ei=ei)
             xyplot(xa,ya,sub=[1,2,1],xlabel=xname,ylabel=yname)
             xyplot(xb,yb,sub=[1,2,2],regr=1,xlabel=xname,ylabel=yname)
     fig.show()

@@ -366,7 +366,7 @@ def get_seriesstats(cf,ds):
     dsVarNames = ds.series.keys()
     dsVarNames.sort(key=unicode.lower)
     for ThisOne in dsVarNames:
-        data,flag = qcutils.GetSeries(ds, ThisOne)
+        data,flag,attr = qcutils.GetSeries(ds, ThisOne)
         hist, bin_edges = numpy.histogram(flag, bins=bins)
         xlFlagSheet.write(xlRow,xlCol,ThisOne)
         xlCol = xlCol + 1
@@ -407,13 +407,12 @@ def nc_concatenate(cf):
     # fill the variables
     for ThisOne in ds_n.series.keys():
         if ThisOne=="Fc":
-            attr = qcutils.GetAttributeDictionary(ds_n, ThisOne)
+            Fc,flag,attr = qcutils.GetSeriesasMA(ds_n, ThisOne)
             if attr['units']=='mg/m2/s':
-                print "Converting Fc to umol/m2/s"
-                Fc,f = qcutils.GetSeriesasMA(ds_n, ThisOne)
+                log.info("Converting Fc to umol/m2/s")
                 Fc = mf.Fc_umolpm2psfrommgpm2ps(Fc)
                 attr['units'] = 'umol/m2/s'
-                qcutils.CreateSeries(ds_n,ThisOne,Fc,Flag=f,Attr=attr)
+                qcutils.CreateSeries(ds_n,ThisOne,Fc,Flag=flag,Attr=attr)
         ds.series[ThisOne] = {}
         ds.series[ThisOne]['Data'] = ds_n.series[ThisOne]['Data']
         ds.series[ThisOne]['Flag'] = ds_n.series[ThisOne]['Flag']
@@ -450,13 +449,12 @@ def nc_concatenate(cf):
         # loop over the data series in the concatenated file
         for ThisOne in ds.series.keys():
             if ThisOne=="Fc":
-                attr = qcutils.GetAttributeDictionary(ds_n, ThisOne)
+                Fc,flag,attr = qcutils.GetSeriesasMA(ds_n,ThisOne)
                 if attr['units']=='mg/m2/s':
-                    print "Converting Fc to umol/m2/s"
-                    Fc,f = qcutils.GetSeriesasMA(ds_n, ThisOne)
+                    log.info("Converting Fc to umol/m2/s")
                     Fc = mf.Fc_umolpm2psfrommgpm2ps(Fc)
                     attr['units'] = 'umol/m2/s'
-                    qcutils.CreateSeries(ds_n,ThisOne,Fc,Flag=f,Attr=attr)
+                    qcutils.CreateSeries(ds_n,ThisOne,Fc,Flag=flag,Attr=attr)
             # does this series exist in the file being added to the concatenated file
             if ThisOne in ds_n.series.keys():
                 # if so, then append this series to the concatenated series
@@ -706,27 +704,23 @@ def xl_write_ACCESSStats(ds):
     # open the Excel file
     xlfile = xlwt.Workbook()
     # list of outputs to write to the Excel file
-    output_list = ["n","r_max","bias","rmse","var_tow","var_acc","max_lag",
+    date_list = ["startdate","middate","enddate"]
+    output_list = ["n","r_max","bias","rmse","var_tow","var_acc","lag_maxr",
                    "m_rlm","b_rlm","m_ols","b_ols"]
     # loop over the series that have been gap filled using ACCESS data
+    d_xf = xlwt.easyxf(num_format_str='dd/mm/yyyy hh:mm')
     for label in ds.access.keys():
         # add a sheet with the series label
         xlResultsSheet = xlfile.add_sheet(label)
         xlRow = 10
         xlCol = 0
-        xlResultsSheet.write(xlRow,xlCol,"startdate")
-        d_xf = xlwt.easyxf(num_format_str='dd/mm/yyyy hh:mm')
-        for item in ds.access[label]["results"]["startdate"]:
-            xlRow = xlRow + 1
-            xlResultsSheet.write(xlRow,xlCol,item,d_xf)
-        xlRow = 10
-        xlCol = xlCol + 1
-        xlResultsSheet.write(xlRow,xlCol,"enddate")
-        for item in ds.access[label]["results"]["enddate"]:
-            xlRow = xlRow + 1
-            xlResultsSheet.write(xlRow,xlCol,item,d_xf)
-        xlRow = 10
-        xlCol = xlCol + 1
+        for dt in date_list:
+            xlResultsSheet.write(xlRow,xlCol,dt)
+            for item in ds.access[label]["results"][dt]:
+                xlRow = xlRow + 1
+                xlResultsSheet.write(xlRow,xlCol,item,d_xf)
+            xlRow = 10
+            xlCol = xlCol + 1
         for output in output_list:
             xlResultsSheet.write(xlRow,xlCol,output)
             for item in ds.access[label]["results"][output]:
@@ -748,26 +742,22 @@ def xl_write_SOLOStats(ds):
     # open the Excel file
     xlfile = xlwt.Workbook()
     # list of outputs to write to the Excel file
+    date_list = ["startdate","middate","enddate"]
     output_list = ["n","r_max","bias","rmse","var_obs","var_mod","m_ols","b_ols"]
     # loop over the series that have been gap filled using ACCESS data
+    d_xf = xlwt.easyxf(num_format_str='dd/mm/yyyy hh:mm')
     for label in ds.solo.keys():
         # add a sheet with the series label
         xlResultsSheet = xlfile.add_sheet(label)
         xlRow = 10
         xlCol = 0
-        xlResultsSheet.write(xlRow,xlCol,"startdate")
-        d_xf = xlwt.easyxf(num_format_str='dd/mm/yyyy hh:mm')
-        for item in ds.solo[label]["results"]["startdate"]:
-            xlRow = xlRow + 1
-            xlResultsSheet.write(xlRow,xlCol,item,d_xf)
-        xlRow = 10
-        xlCol = xlCol + 1
-        xlResultsSheet.write(xlRow,xlCol,"enddate")
-        for item in ds.solo[label]["results"]["enddate"]:
-            xlRow = xlRow + 1
-            xlResultsSheet.write(xlRow,xlCol,item,d_xf)
-        xlRow = 10
-        xlCol = xlCol + 1
+        for dt in date_list:
+            xlResultsSheet.write(xlRow,xlCol,dt)
+            for item in ds.solo[label]["results"][dt]:
+                xlRow = xlRow + 1
+                xlResultsSheet.write(xlRow,xlCol,item,d_xf)
+            xlRow = 10
+            xlCol = xlCol + 1
         for output in output_list:
             xlResultsSheet.write(xlRow,xlCol,output)
             for item in ds.solo[label]["results"][output]:
