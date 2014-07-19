@@ -214,6 +214,10 @@ def l4qc(cf,ds3):
     ds4.globalattributes["EPDversion"] = sys.version
     # put the control file name into the global attributes
     ds4.globalattributes["controlfile_name"] = cf["controlfile_name"]
+    ds4.cf = cf
+    # calculate the available energy
+    if "Fa" not in ds4.series.keys():
+        qcts.CalculateAvailableEnergy(ds4,Fa_out='Fa',Fn_in='Fn',Fg_in='Fg')
     # now do the meteorological driver gap filling
     for ThisOne in cf["Drivers"].keys():
         # interpolate over short gaps

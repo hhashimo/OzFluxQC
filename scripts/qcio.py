@@ -208,8 +208,8 @@ def xl2nc(cf,InLevel):
     nc_write_series(ncFile,ds)
     return 0
 
-def get_controlfilecontents(ControlFileName):
-    log.info(' Processing the control file ')
+def get_controlfilecontents(ControlFileName,mode="verbose"):
+    if mode!="quiet": log.info(' Processing the control file ')
     if len(ControlFileName)!=0:
         cf = ConfigObj(ControlFileName)
         cf['controlfile_name'] = ControlFileName
@@ -696,7 +696,7 @@ def xl_write_ACCESSStats(ds):
     if "access" not in dir(ds): return
     # open an Excel file for the fit statistics
     cfname = ds.globalattributes["controlfile_name"]
-    cf = get_controlfilecontents(cfname)
+    cf = get_controlfilecontents(cfname,mode="quiet")
     out_filename = get_outfilename_from_cf(cf)
     # get the Excel file name
     xl_filename = out_filename.replace('.nc','_ACCESSStats.xls')
@@ -705,28 +705,28 @@ def xl_write_ACCESSStats(ds):
     xlfile = xlwt.Workbook()
     # list of outputs to write to the Excel file
     date_list = ["startdate","middate","enddate"]
-    output_list = ["n","r_max","bias","rmse","var_tow","var_acc","lag_maxr",
-                   "m_rlm","b_rlm","m_ols","b_ols"]
+    output_list = ["n","r_max","bias","rmse","fb","nmse","avg_tow","avg_acc","var_tow","var_acc",
+                   "lag_maxr","m_rlm","b_rlm","m_ols","b_ols"]
     # loop over the series that have been gap filled using ACCESS data
     d_xf = xlwt.easyxf(num_format_str='dd/mm/yyyy hh:mm')
     for label in ds.access.keys():
         # add a sheet with the series label
         xlResultsSheet = xlfile.add_sheet(label)
-        xlRow = 10
+        xlRow = 9
         xlCol = 0
         for dt in date_list:
             xlResultsSheet.write(xlRow,xlCol,dt)
             for item in ds.access[label]["results"][dt]:
                 xlRow = xlRow + 1
                 xlResultsSheet.write(xlRow,xlCol,item,d_xf)
-            xlRow = 10
+            xlRow = 9
             xlCol = xlCol + 1
         for output in output_list:
             xlResultsSheet.write(xlRow,xlCol,output)
             for item in ds.access[label]["results"][output]:
                 xlRow = xlRow + 1
                 xlResultsSheet.write(xlRow,xlCol,item)
-            xlRow = 10
+            xlRow = 9
             xlCol = xlCol + 1
     xlfile.save(xl_filename)
 

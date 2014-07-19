@@ -5,6 +5,7 @@ import logging
 import matplotlib
 matplotlib.use('TkAgg')
 import numpy
+import ntpath
 import time
 import Tkinter as tk
 import os
@@ -174,9 +175,23 @@ class qcgui(tk.Tk):
         """
         Calls qcclim.climatology
         """
-        self.do_progress(text='Loading control file ...')
-        cf = qcio.load_controlfile(path='controlfiles')
-        if len(cf)==0: self.do_progress(text='Waiting for input ...'); return
+        self.do_progress(text='Doing climatology ...')
+        stdname = "controlfiles/standard/climatology.txt"
+        if os.path.exists(stdname):
+            cf = qcio.get_controlfilecontents(stdname)
+            self.do_progress(text='Opening input file ...')
+            filename = qcio.get_filename_dialog(path='../Sites',title='Choose an input file')
+            if len(filename)==0:
+                log.info( " Climatology: no input file chosen")
+                self.do_progress(text='Waiting for input ...')
+                return
+            if "Files" not in dir(cf): cf["Files"] = {}
+            cf["Files"]["file_path"] = ntpath.split(filename)[0]+"/"
+            cf["Files"]["in_filename"] = ntpath.split(filename)[1]
+        else:
+            self.do_progress(text='Loading control file ...')
+            cf = qcio.load_controlfile(path='controlfiles')
+            if len(cf)==0: self.do_progress(text='Waiting for input ...'); return
         self.do_progress(text='Doing the climatology')
         qcclim.climatology(cf)
         self.do_progress(text='Finished climatology')
@@ -414,13 +429,21 @@ class qcgui(tk.Tk):
     def do_plotfingerprint(self):
         """ Plot fingerprint"""
         self.do_progress(text='Loading control file ...')
-        self.cf = qcio.load_controlfile(path='controlfiles')
-        if len(self.cf)==0: self.do_progress(text='Waiting for input ...'); return
+        stdname = "controlfiles/standard/fingerprint.txt"
+        if os.path.exists(stdname):
+            cf = qcio.get_controlfilecontents(stdname)
+            filename = qcio.get_filename_dialog(path='../Sites',title='Choose an input file')
+            if "Files" not in dir(cf): cf["Files"] = {}
+            cf["Files"]["file_path"] = ntpath.split(filename)[0]+"/"
+            cf["Files"]["in_filename"] = ntpath.split(filename)[1]
+        else:
+            cf = qcio.load_controlfile(path='controlfiles')
+        if len(cf)==0: self.do_progress(text='Waiting for input ...'); return
         self.do_progress(text='Plotting fingerprint ...')
-        qcplot.plot_fingerprint(self.cf)
+        qcplot.plot_fingerprint(cf)
         self.do_progress(text='Finished plotting fingerprint')
         log.info(' Finished plotting fingerprint')
-        
+
     def do_plotL1L2(self):
         """
             Plot L1 (raw) and L2 (QA/QC) data in blue and red, respectively

@@ -827,31 +827,6 @@ def MakeAttributeDictionary(**kwargs):
         for item in default_list: attr[item] = 'not defined'
     return attr
 
-#def MakeQCFlag(ds,SeriesList):
-    #flag = []
-    #if len(SeriesList)<=0:
-        ##log.info('  MakeQCFlag: no series list specified')
-        #pass
-    #if len(SeriesList)==1:
-        #if SeriesList[0] in ds.series.keys():
-            #flag = ds.series[SeriesList[0]]['Flag'].copy()
-        #else:
-            #log.error('  MakeQCFlag: series '+str(SeriesList[0])+' not in ds.series')
-    #if len(SeriesList)>1:
-        #for ThisOne in SeriesList:
-            #if ThisOne in ds.series.keys():
-                #if len(flag)==0:
-                    ##flag = numpy.ones(numpy.size(ds.series[ThisOne]['Flag']))
-                    #flag = ds.series[ThisOne]['Flag'].copy()
-                #else:
-                    #tmp_flag = ds.series[ThisOne]['Flag'].copy()      # get a temporary copy of the flag
-                    #index = numpy.where(numpy.mod(tmp_flag,10)==0)    # find the elements with flag = 0, 10, 20 etc
-                    #tmp_flag[index] = 0                               # set them all to 0
-                    #flag = numpy.maximum(flag,tmp_flag)               # now take the maximum
-            #else:
-                #log.error('  MakeQCFlag: series '+ThisOne+' not in ds.series')
-    #return flag
-
 def MakeQCFlag(ds,SeriesList):
     flag = []
     if len(SeriesList)<=0:

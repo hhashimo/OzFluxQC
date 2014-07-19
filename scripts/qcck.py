@@ -73,7 +73,7 @@ def CreateNewSeries(cf,ds):
     log.info(' Checking for new series to create')
     for ThisOne in cf['Variables'].keys():
         if 'MergeSeries' in cf['Variables'][ThisOne].keys():
-            qcts.MergeSeries(cf,ds,ThisOne,[0,10])
+            qcts.MergeSeries(cf,ds,ThisOne,[0,10,20,30,40,50])
         if 'AverageSeries' in cf['Variables'][ThisOne].keys():
             qcts.AverageSeriesByElements(cf,ds,ThisOne)
 

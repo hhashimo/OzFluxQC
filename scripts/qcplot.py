@@ -63,6 +63,7 @@ def plot_fingerprint(cf):
     TitleStr = TitleStr+' from '+str(DateTime[0])+' to '+str(DateTime[-1])
     nDays = len(DateTime)/nPerDay
     # do the plots
+    plt.ion()
     for nFig in cf['Plots'].keys():
         n = 0
         fig = plt.figure(nFig,figsize=[15,10])
@@ -91,9 +92,9 @@ def plot_fingerprint(cf):
         pngname = 'plots/'+site_name.replace(' ','')+'_'+level+'_'
         pngname = pngname+qcutils.GetPlotTitleFromCF(cf,nFig).replace(' ','_')+'.png'
         fig.savefig(pngname,format='png')
-    #plt.draw()
-    plt.show()
-    
+        plt.draw()
+    plt.ioff()
+
 def plottimeseries(cf,nFig,dsa,dsb,si,ei):
     SiteName = dsa.globalattributes['site_name']
     Level = dsb.globalattributes['nc_level']
