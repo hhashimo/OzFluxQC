@@ -154,6 +154,7 @@ def plot_fingerprint(cf):
     for nFig in cf['Plots'].keys():
         n = 0
         fig = plt.figure(nFig,figsize=[15,10])
+        fig.canvas.set_window_title(cf["Plots"][str(nFig)]["Title"])
         plt.figtext(0.5,0.95,TitleStr,horizontalalignment='center')
         SeriesList = qcutils.GetPlotVariableNamesFromCF(cf,nFig)
         nPlots = len(SeriesList)
