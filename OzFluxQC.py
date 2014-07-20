@@ -145,9 +145,9 @@ class qcgui(tk.Tk):
         plotmenu.add_command(label="Plot L5",command=self.option_not_implemented)
         pltsummenu = tk.Menu(menubar,tearoff=0)
         pltsummenu.add_command(label="Fingerprint",command=self.do_plotfingerprint)
-        pltsummenu.add_command(label="Full check",command=self.option_not_implemented)
-        pltsummenu.add_command(label="Quick check",command=self.option_not_implemented)
-        pltsummenu.add_command(label="Years check",command=self.option_not_implemented)
+        #pltsummenu.add_command(label="Full check",command=self.option_not_implemented)
+        pltsummenu.add_command(label="Quick check",command=self.do_plotquickcheck)
+        #pltsummenu.add_command(label="Years check",command=self.option_not_implemented)
         plotmenu.add_cascade(label="Summary",menu=pltsummenu)
         plotmenu.add_separator()
         plotmenu.add_command(label="Close plots",command=self.do_closeplotwindows)
@@ -443,6 +443,24 @@ class qcgui(tk.Tk):
         qcplot.plot_fingerprint(cf)
         self.do_progress(text='Finished plotting fingerprint')
         log.info(' Finished plotting fingerprint')
+
+    def do_plotquickcheck(self):
+        """ Plot quickcheck"""
+        self.do_progress(text='Loading control file ...')
+        stdname = "controlfiles/standard/quickcheck.txt"
+        if os.path.exists(stdname):
+            cf = qcio.get_controlfilecontents(stdname)
+            filename = qcio.get_filename_dialog(path='../Sites',title='Choose an input file')
+            if "Files" not in dir(cf): cf["Files"] = {}
+            cf["Files"]["file_path"] = ntpath.split(filename)[0]+"/"
+            cf["Files"]["in_filename"] = ntpath.split(filename)[1]
+        else:
+            cf = qcio.load_controlfile(path='controlfiles')
+        if len(cf)==0: self.do_progress(text='Waiting for input ...'); return
+        self.do_progress(text='Plotting quickcheck ...')
+        qcplot.plot_quickcheck(cf)
+        self.do_progress(text='Finished plotting quickcheck')
+        log.info(' Finished plotting quickcheck')
 
     def do_plotL1L2(self):
         """

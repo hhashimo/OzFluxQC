@@ -961,7 +961,7 @@ def startlog(loggername,loggerfile):
     fh.setLevel(logging.DEBUG)
     ch = logging.StreamHandler()
     ch.setLevel(logging.INFO)
-    formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s', '%d-%m-%y %H:%M')
+    formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s', '%H:%M')
     #formatter = logging.Formatter('%(asctime)s %(name)-8s %(levelname)-6s %(message)s', '%d-%m-%y %H:%M')
     fh.setFormatter(formatter)
     ch.setFormatter(formatter)
