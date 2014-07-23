@@ -704,12 +704,14 @@ def xl_write_ACCESSStats(ds):
     # open the Excel file
     xlfile = xlwt.Workbook()
     # list of outputs to write to the Excel file
-    date_list = ["startdate","middate","enddate"]
-    output_list = ["n","r_max","bias","rmse","fb","nmse","avg_tow","avg_acc","var_tow","var_acc",
-                   "lag_maxr","m_rlm","b_rlm","m_ols","b_ols"]
+    date_list = ["startdate","enddate"]
     # loop over the series that have been gap filled using ACCESS data
     d_xf = xlwt.easyxf(num_format_str='dd/mm/yyyy hh:mm')
     for label in ds.access.keys():
+        # get the list of values to output with the start and end dates removed
+        output_list = ds.access[label]["results"].keys()
+        for item in date_list:
+            if item in output_list: output_list.remove(item)
         # add a sheet with the series label
         xlResultsSheet = xlfile.add_sheet(label)
         xlRow = 9

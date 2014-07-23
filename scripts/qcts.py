@@ -1543,6 +1543,34 @@ def get_averages(Data):
             Av = -9999
     return Num, Av
 
+def get_laggedcorrelation(x_in,y_in,maxlags=10):
+    """
+    Calculate the lagged cross-correlation between 2 1D arrays.
+    Taken from the matplotlib.pyplot.xcorr source code.
+    PRI added handling of masked arrays.
+    """
+    if numpy.ma.isMA(x_in)!=numpy.ma.isMA(y_in):
+        raise ValueError('qcts.get_laggedcorrelation: one of x or y is a masked array, the other is not')
+    if numpy.ma.isMA(x_in) and numpy.ma.isMA(y_in):
+        mask = numpy.ma.mask_or(x_in.mask,y_in.mask)
+        x = numpy.ma.array(x_in,mask=mask)
+        y = numpy.ma.array(y_in,mask=mask)
+        if numpy.ma.count(x)==0:
+            raise ValueError('qcts.get_laggedcorrelation: x or y all masked')
+        x = numpy.ma.compressed(x)
+        y = numpy.ma.compressed(y)
+    nx = len(x)
+    if nx!=len(y):
+        raise ValueError('qcts.get_laggedcorrelation: x and y must be equal length')
+    corr = numpy.correlate(x, y, mode=2)
+    corr/= numpy.sqrt(numpy.dot(x,x) * numpy.dot(y,y))
+    if maxlags is None: maxlags = nx - 1
+    if maxlags >= nx or maxlags < 1:
+        raise ValueError('qcts.get_laggedcorrelation: maglags must be None or strictly positive < %d'%nx)
+    lags = numpy.arange(-maxlags,maxlags+1)
+    corr = corr[nx-1-maxlags:nx+maxlags]
+    return lags,corr
+
 def get_minmax(Data):
     """
         Get daily minima and maxima on days when no 30-min observations are missing.

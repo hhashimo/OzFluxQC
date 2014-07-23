@@ -220,7 +220,9 @@ class PointBrowser:
         if min([numpy.ma.count(x),numpy.ma.count(y)])<=0:
             print DT_daily[self.ei],'%g'%(numpy.ma.count(x))
         else:
-            print DT_daily[self.ei],'%g %.3f %.3f %.3f'%(numpy.ma.count(x),numpy.ma.corrcoef(x,y)[0][1],numpy.ma.polyfit(x,y,1)[0],numpy.ma.polyfit(x,y,1)[1])
+            print DT_daily[self.ei],'%g %.3f %.3f %.3f'%(numpy.ma.count(x),numpy.ma.corrcoef(x,y)[0][1],
+                                                         numpy.ma.polyfit(numpy.ma.copy(x),numpy.ma.copy(y),1)[0],
+                                                         numpy.ma.polyfit(numpy.ma.copy(x),numpy.ma.copy(y),1)[1])
         x = ah_7500_30min_2d[self.si:self.ei+1,:]
         y = ah_HMP1_30min_2d[self.si:self.ei+1,:]
         x_nm = numpy.ma.compressed(x)

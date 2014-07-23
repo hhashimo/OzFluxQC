@@ -505,46 +505,80 @@ def GetPlotVariableNamesFromCF(cf, n):
         print 'GetPlotVariableNamesFromCF: Plots key not in control file'
     return SeriesList
 
-def GetSeries(ds,ThisOne,si=0,ei=-1):
+def GetSeries(ds,ThisOne,si=0,ei=-1,mode="truncate"):
+    """ Returns the data, QC flag and attributes of a series from the data structure."""
+    # number of records
+    nRecs = int(ds.globalattributes["nc_nrecs"])
+    # check the series requested is in the data structure
     if ThisOne in ds.series.keys():
+        # series is in the data structure
         if isinstance(ds.series[ThisOne]['Data'],list):
+            # return a list if the series is a list
             Series = list(ds.series[ThisOne]['Data'])
         elif isinstance(ds.series[ThisOne]['Data'],numpy.ndarray):
+            # return a numpy array if series is an array
             Series = ds.series[ThisOne]['Data'].copy()
+        # now get the QC flag
         if 'Flag' in ds.series[ThisOne].keys():
+            # return the QC flag if it exists
             Flag = ds.series[ThisOne]['Flag'].copy()
             Flag = Flag.astype(numpy.int32)
         else:
-            nRecs = numpy.size(ds.series[ThisOne]['Data'])
+            # create a QC flag if one does not exist
             Flag = numpy.zeros(nRecs,dtype=numpy.int32)
+        # now get the attribute dictionary
         if "Attr" in ds.series[ThisOne].keys():
             Attr = GetAttributeDictionary(ds,ThisOne)
         else:
             Attr = MakeAttributeDictionary()
     else:
-        Series,Flag,Attr = MakeEmptySeries(ds,ThisOne,si=si,ei=ei)
-    if ei==-1:
-        Series = Series[si:]
-        Flag = Flag[si:]
+        # make an empty series if the requested series does not exist in the data structure
+        Series,Flag,Attr = MakeEmptySeries(ds,ThisOne)
+    # tidy up
+    if mode=="truncate":
+        # truncate to the requested start and end indices
+        si = max(0,si)                  # clip start index at 0
+        ei = min(nRecs,ei)              # clip end index to nRecs
+        if ei==-1: ei = nRecs - 1       # trap ei = -1 values
+        Series = Series[si:ei+1]        # truncate the data
+        Flag = Flag[si:ei+1]            # truncate the QC flag
+    elif mode=="pad":
+        # pad with maiising data at the start and/or the end of the series
+        if si<0 and ei>nRecs-1:
+            # pad at the start
+            Series = numpy.append(float(-9999)*numpy.ones(abs(si),dtype=numpy.float64),Series)
+            Flag = numpy.append(numpy.ones(*abs(si),dtype=numpy.int32),Flag)
+            # pad at the end
+            Series = numpy.append(Series,float(-9999)*numpy.ones((ei-(nRecs-1)),dtype=numpy.float64))
+            Flag = numpy.append(Flag,numpy.ones((ei-(nRecs-1)),dtype=numpy.int32))
+        elif si<0 and ei<=nRecs-1:
+            # pad at the start, truncate the end
+            Series = numpy.append(float(-9999)*numpy.ones(abs(si),dtype=numpy.float64),Series[:ei+1])
+            Flag = numpy.append(numpy.ones(abs(si),dtype=numpy.int32),Flag[:ei+1])
+        elif si>=0 and ei>nRecs-1:
+            # truncate at the start, pad at the end
+            Series = numpy.append(Series[si:],float(-9999)*numpy.ones((ei-(nRecs-1)),numpy.float64))
+            Flag = numpy.append(Flag[si:],numpy.ones((ei-(nRecs-1)),dtype=numpy.int32))
+        elif si>=0 and ei<=nRecs-1:
+            # truncate at the start and end
+            if ei==-1: ei = nRecs - 1
+            Series = Series[si:ei+1]
+            Flag = Flag[si:ei+1]
+        else:
+            msg = 'GetSeries: unrecognised combination of si ('+str(si)+') and ei ('+str(ei)+')'
+            raise ValueError(msg)
     else:
-        Series = Series[si:ei+1]
-        Flag = Flag[si:ei+1]
+        raise ValueError('GetSeries: unrecognised mode option'+str(mode))
     return Series,Flag,Attr
 
-def MakeEmptySeries(ds,ThisOne,si=0,ei=-1):
+def MakeEmptySeries(ds,ThisOne):
     nRecs = int(ds.globalattributes['nc_nrecs'])
-    Series = numpy.ma.array([-9999]*nRecs,numpy.float64)
+    Series = float(-9999)*numpy.ones(nRecs,dtype=numpy.float64)
     Flag = numpy.ones(nRecs,dtype=numpy.int32)
-    if ei==-1:
-        Series = Series[si:]
-        Flag = Flag[si:]
-    else:
-        Series = Series[si:ei+1]
-        Flag = Flag[si:ei+1]
     Attr = MakeAttributeDictionary()
     return Series,Flag,Attr
 
-def GetSeriesasMA(ds,ThisOne,si=0,ei=-1):
+def GetSeriesasMA(ds,ThisOne,si=0,ei=-1,mode="truncate"):
     '''
     PURPOSE:
      Returns a data series and the QC flag series from the data structure.
@@ -568,7 +602,7 @@ def GetSeriesasMA(ds,ThisOne,si=0,ei=-1):
       Fsd,f,a = qcutils.GetSeriesasMA(ds,"Fsd")
     AUTHOR: PRI
     '''
-    Series,Flag,Attr = GetSeries(ds,ThisOne,si,ei)
+    Series,Flag,Attr = GetSeries(ds,ThisOne,si,ei,mode)
     Series,WasND = SeriestoMA(Series)
     return Series,Flag,Attr
 

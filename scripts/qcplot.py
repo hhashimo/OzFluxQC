@@ -1009,7 +1009,7 @@ def xyplot(x,y,sub=[1,1,1],regr=0,thru0=0,title=None,xlabel=None,ylabel=None,fna
         plt.title(title)
         hspace = 0.3
     if regr==1:
-        coefs = numpy.ma.polyfit(x,y,1)
+        coefs = numpy.ma.polyfit(numpy.ma.copy(x),numpy.ma.copy(y),1)
         xfit = numpy.ma.array([numpy.ma.minimum(x),numpy.ma.maximum(x)])
         yfit = numpy.polyval(coefs,xfit)
         r = numpy.ma.corrcoef(x,y)
@@ -1036,38 +1036,6 @@ def xyplot(x,y,sub=[1,1,1],regr=0,thru0=0,title=None,xlabel=None,ylabel=None,fna
         eqnstr = 'y = %.3fx'%(a)
         plt.text(0.5,0.875,eqnstr,fontsize=8,horizontalalignment='center',transform=ax.transAxes)
     plt.subplots_adjust(wspace=wspace,hspace=hspace)
-
-#def xyplot(x,y,sub=[1,1,1],regr=0,title=None,xlabel=None,ylabel=None):
-    #'''Generic XY scatter plot routine'''
-    #plt.subplot(sub[0],sub[1],sub[2])
-    #if xlabel!=None: plt.xlabel(xlabel)
-    #if ylabel!=None: plt.ylabel(ylabel)
-    #if title!=None: plt.title(title)
-    #plt.plot(x,y,'b.')
-    #ax = plt.gca()
-    #if (numpy.ma.count(x)==0) or (numpy.ma.count(y)==0): return
-    #if regr==1:
-        #coefs = numpy.ma.polyfit(x,y,1)
-        #xfit = numpy.ma.array([numpy.ma.minimum(x),numpy.ma.maximum(x)])
-        #yfit = numpy.polyval(coefs,xfit)
-        #r = numpy.ma.corrcoef(x,y)
-        #eqnstr = 'y = %.3fx + %.3f, r = %.3f'%(coefs[0],coefs[1],r[0][1])
-        #plt.plot(xfit,yfit,'r--',linewidth=3)
-        #plt.text(0.5,0.9,eqnstr,fontsize=8,horizontalalignment='center',transform=ax.transAxes)
-    #elif regr==2:
-        #mask = (x.mask)|(y.mask)
-        #x.mask = mask
-        #y.mask = mask
-        #x_nm = numpy.ma.compressed(x)
-        #x_nm = sm.add_constant(x_nm,prepend=False)
-        #y_nm = numpy.ma.compressed(y)
-        #if len(y_nm)!=0 or len(x_nm)!=0:
-            #resrlm = sm.RLM(y_nm,x_nm,M=sm.robust.norms.TukeyBiweight()).fit()
-            #eqnstr = 'y = %.3fx + %.3f'%(resrlm.params[0],resrlm.params[1])
-            #plt.plot(x_nm[:,0],resrlm.fittedvalues,'r--',linewidth=3)
-            #plt.text(0.5,0.9,eqnstr,fontsize=8,horizontalalignment='center',transform=ax.transAxes)
-        #else:
-            #log.info("xyplot: nothing to plot!")
 
 def hrplot(x,y,sub=[1,1,1],title=None,xlabel=None,ylabel=None,colours=None):
     plt.subplot(sub[0],sub[1],sub[2])
