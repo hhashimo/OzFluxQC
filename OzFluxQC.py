@@ -155,19 +155,18 @@ class qcgui(tk.Tk):
         # and the "Utilities" menu
         utilsmenu = tk.Menu(menubar,tearoff=0)
         utilsmenu.add_command(label="Climatology",command=self.do_climatology)
-        menubar.add_cascade(label="Utilities",menu=utilsmenu)
-        # followed by the "u*" menu
         ustarmenu = tk.Menu(menubar,tearoff=0)
         ustarmenu.add_command(label="Reichstein",command=self.option_not_implemented)
         ustarmenu.add_command(label="Change Point Detection",command=self.option_not_implemented)
-        ustarmenu.add_command(label="Cleverly",command=self.option_not_implemented)
-        menubar.add_cascade(label="u* threshold",menu=ustarmenu)
-        # and lastly the partitioning menu
-        partitionmenu = tk.Menu(menubar,tearoff=0)
-        partitionmenu.add_command(label="Lloyd-Taylor",command=self.option_not_implemented)
-        partitionmenu.add_command(label="Lasslop",command=self.option_not_implemented)
-        partitionmenu.add_command(label="ANN",command=self.option_not_implemented)
-        menubar.add_cascade(label="Respiration",menu=partitionmenu)
+        utilsmenu.add_cascade(label="u* threshold",menu=ustarmenu)
+        respirationmenu = tk.Menu(menubar,tearoff=0)
+        #respirationmenu.add_command(label="ANN",command=self.option_not_implemented)
+        respirationmenu.add_command(label="Cleverly",command=self.option_not_implemented)
+        respirationmenu.add_command(label="Lasslop",command=self.option_not_implemented)
+        respirationmenu.add_command(label="Lloyd-Taylor",command=self.option_not_implemented)
+        respirationmenu.add_command(label="van Gorsel",command=self.option_not_implemented)
+        utilsmenu.add_cascade(label="Respiration",menu=respirationmenu)
+        menubar.add_cascade(label="Utilities",menu=utilsmenu)
 
         self.config(menu=menubar)
 

@@ -92,133 +92,222 @@
 #    climatological flux averages.  The monthly climatological averages (at each time step during the
 #    day) are interpolated onto a daily time step before being used to gap fill the missing night time
 #    fluxes.
+# 4) GapFillFluxFromACCESS
+# 5) GapFillFluxUsingSOLO
 [Files]
     file_path = ../Sites/<site_name>/Data/Processed/<year>/
     in_filename = <site_name>_<year>_L3.nc
     out_filename = <site_name>_<year>_L4.nc
 
 [Output]
-    xl = "['Ah','Cc','Fa','Fc','Fe','Fg','Fh','Fld','Flu','Fm','Fn','Fsd','Fsu','ps','Sws','Ta','Ts','ustar','Ws','Wd']"
+    # uncomment the xl and nc lists to output specific variables
+    #xl = "['Ah','Cc','Fa','Fc','Fe','Fg','Fh','Fld','Flu','Fm','Fn','Fsd','Fsu','ps','RH','Sws','Ta','Ts','ustar','Ws','Wd']"
+    #nc = "['Ah','Cc','Fa','Fc','Fe','Fg','Fh','Fld','Flu','Fm','Fn','Fsd','Fsu','ps','RH','Sws','Ta','Ts','ustar','Ws','Wd']"
 
 [Options]
-    UseExistingOutFile = Yes
-    UseExistingSOFMOutput = No
+    UseExistingOutFile    = No
 
 [Params]
-    zmd = 5        # instrument height above displacement plane, m
-    z0 = 1         # roughness length, m
+    zmd             = 5      # instrument height above displacement plane, m
+    z0              = 1      # roughness length, m
     Fsd_threshold   = 10     # Fsd threshold for determining day or night time, W/m2
-    ustar_threshold = 0.30   # ustar threshold for determining turbulent or non-turbulent conditions, m/s
 
 [Drivers]
     [[Ah]]
+        [[[GapFillFromACCESS]]]
+            file_name = ../Sites/<site_name>/Data/ACCESS/<year>/<site_name>_<year>_ACCESS.nc
+            output = "Ah_acc"
         [[[GapFillFromClimatology]]]
-            file_name = ../Sites/<site_name>/Data/Processed/<year>/Climatology_<year>.xls
+            file_name = ../Sites/<site_name>/Data/Processed/<year>/<site_name>_<year>_L3_Climatology.xls
             method = "interpolated daily"
+            output = "Ah_cli"
+        [[[MergeSeries]]]
+            Source     = "['Ah','Ah_acc','Ah_cli']"
         [[[RangeCheck]]]
             Lower      = "[0]*12"
             Upper      = [35]*12
     [[Cc]]
         [[[GapFillFromClimatology]]]
-            file_name = ../Sites/<site_name>/Data/Processed/<year>/Climatology_<year>.xls
+            file_name = ../Sites/<site_name>/Data/Processed/<year>/<site_name>_<year>_L3_Climatology.xls
             method = "interpolated daily"
+            output = "Cc_cli"
+        [[[MergeSeries]]]
+            Source     = "['Cc','Cc_cli']"
         [[[RangeCheck]]]
+        # units are umol/mol
             Lower      = "[300]*12"
             Upper      = "[900]*12"
     [[Fa]]
+        [[[GapFillFromACCESS]]]
+            file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_<year>_ACCESS.nc
+            output = "Fa_acc"
         [[[GapFillFromClimatology]]]
-            file_name = ../Sites/<site_name>/Data/Processed/<year>/Climatology_<year>.xls
+            file_name = ../Sites/<site_name>/Data/Processed/<year>/<site_name>_<year>_L3_Climatology.xls
             method = "interpolated daily"
+            output = "Fa_cli"
+        [[[MergeSeries]]]
+            Source     = "['Fa','Fa_acc','Fa_cli']"
         [[[RangeCheck]]]
             Lower      = "[-300]*12"
             Upper      = "[1000]*12"
     [[Fg]]
+        [[[GapFillFromACCESS]]]
+            file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_<year>_ACCESS.nc
+            output = "Fg_acc"
         [[[GapFillFromClimatology]]]
-            file_name = ../Sites/<site_name>/Data/Processed/<year>/Climatology_<year>.xls
+            file_name = ../Sites/<site_name>/Data/Processed/<year>/<site_name>_<year>_L3_Climatology.xls
             method = "interpolated daily"
+            output = "Fg_cli"
+        [[[MergeSeries]]]
+            Source     = "['Fg','Fg_acc','Fg_cli']"
         [[[RangeCheck]]]
             Lower      = "[-300]*12"
             Upper      = "[300]*12"
     [[Fld]]
+        [[[GapFillFromACCESS]]]
+            file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_<year>_ACCESS.nc
+            output = "Fld_acc"
         [[[GapFillFromClimatology]]]
-            file_name = ../Sites/<site_name>/Data/Processed/<year>/Climatology_<year>.xls
+            file_name = ../Sites/<site_name>/Data/Processed/<year>/<site_name>_<year>_L3_Climatology.xls
             method = "interpolated daily"
+            output = "Fld_cli"
+        [[[MergeSeries]]]
+            Source     = "['Fld','Fld_acc','Fld_cli']"
         [[[RangeCheck]]]
             Lower      = "[250]*12"
             Upper      = "[700]*12"
     [[Flu]]
+        [[[GapFillFromACCESS]]]
+            file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_<year>_ACCESS.nc
+            output = "Flu_acc"
         [[[GapFillFromClimatology]]]
-            file_name = ../Sites/<site_name>/Data/Processed/<year>/Climatology_<year>.xls
+            file_name = ../Sites/<site_name>/Data/Processed/<year>/<site_name>_<year>_L3_Climatology.xls
             method = "interpolated daily"
+            output = "Flu_cli"
+        [[[MergeSeries]]]
+            Source     = "['Flu','Flu_acc','Flu_cli']"
         [[[RangeCheck]]]
             Lower      = "[300]*12"
             Upper      = "[700]*12"
     [[Fn]]
+        [[[GapFillFromACCESS]]]
+            file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_<year>_ACCESS.nc
+            output = "Fn_acc"
         [[[GapFillFromClimatology]]]
-            file_name = ../Sites/<site_name>/Data/Processed/<year>/Climatology_<year>.xls
+            file_name = ../Sites/<site_name>/Data/Processed/<year>/<site_name>_<year>_L3_Climatology.xls
             method = "interpolated daily"
+            output = "Fn_cli"
+        [[[MergeSeries]]]
+            Source     = "['Fn','Fn_acc','Fn_cli']"
         [[[RangeCheck]]]
             Lower      = [-150]*12
             Upper      = [1100]*12
     [[Fsd]]
+        [[[GapFillFromACCESS]]]
+            file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_<year>_ACCESS.nc
+            output = "Fsd_acc"
         [[[GapFillFromClimatology]]]
-            file_name = ../Sites/<site_name>/Data/Processed/<year>/Climatology_<year>.xls
+            file_name = ../Sites/<site_name>/Data/Processed/<year>/<site_name>_<year>_L3_Climatology.xls
             method = "interpolated daily"
+            output = "Fsd_cli"
+        [[[MergeSeries]]]
+            Source     = "['Fsd','Fsd_acc','Fsd_cli']"
         [[[RangeCheck]]]
             Lower      = "[-10]*12"
             Upper      = "[1500]*12"
     [[Fsu]]
+        [[[GapFillFromACCESS]]]
+            file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_<year>_ACCESS.nc
+            output = "Fsu_acc"
         [[[GapFillFromClimatology]]]
-            file_name = ../Sites/<site_name>/Data/Processed/<year>/Climatology_<year>.xls
+            file_name = ../Sites/<site_name>/Data/Processed/<year>/<site_name>_<year>_L3_Climatology.xls
             method = "interpolated daily"
+            output = "Fsu_cli"
+        [[[MergeSeries]]]
+            Source     = "['Fsu','Fsu_acc','Fsu_cli']"
         [[[RangeCheck]]]
             Lower      = "[-10]*12"
             Upper      = "[500]*12"
     [[ps]]
+        [[[GapFillFromACCESS]]]
+            file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_<year>_ACCESS.nc
+            output = "ps_acc"
         [[[GapFillFromClimatology]]]
-            file_name = ../Sites/<site_name>/Data/Processed/<year>/Climatology_<year>.xls
+            file_name = ../Sites/<site_name>/Data/Processed/<year>/<site_name>_<year>_L3_Climatology.xls
             method = "interpolated daily"
+            output = "ps_cli"
+        [[[MergeSeries]]]
+            Source     = "['ps','ps_acc','ps_cli']"
         [[[RangeCheck]]]
             Lower      = "[95]*12"
             Upper      = "[105]*12"
     [[Sws]]
+        [[[GapFillFromACCESS]]]
+            file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_<year>_ACCESS.nc
+            output = "Sws_acc"
         [[[GapFillFromClimatology]]]
-            file_name = ../Sites/<site_name>/Data/Processed/<year>/Climatology_<year>.xls
+            file_name = ../Sites/<site_name>/Data/Processed/<year>/<site_name>_<year>_L3_Climatology.xls
             method = "interpolated daily"
+            output = "Sws_cli"
+        [[[MergeSeries]]]
+            Source     = "['Sws','Sws_acc','Sws_cli']"
     [[Ta]]
+        [[[GapFillFromACCESS]]]
+            file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_<year>_ACCESS.nc
+            output = "Ta_acc"
         [[[GapFillFromClimatology]]]
-            file_name = ../Sites/<site_name>/Data/Processed/<year>/Climatology_<year>.xls
+            file_name = ../Sites/<site_name>/Data/Processed/<year>/<site_name>_<year>_L3_Climatology.xls
             method = "interpolated daily"
+            output = "Ta_cli"
+        [[[MergeSeries]]]
+            Source     = "['Ta','Ta_acc','Ta_cli']"
         [[[RangeCheck]]]
             Lower      = [0]*12
             Upper      = [50]*12
     [[Ts]]
+        [[[GapFillFromACCESS]]]
+            file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_<year>_ACCESS.nc
+            output = "Ts_acc"
         [[[GapFillFromClimatology]]]
-            file_name = ../Sites/<site_name>/Data/Processed/<year>/Climatology_<year>.xls
+            file_name = ../Sites/<site_name>/Data/Processed/<year>/<site_name>_<year>_L3_Climatology.xls
             method = "interpolated daily"
+            output = "Ts_cli"
+        [[[MergeSeries]]]
+            Source     = "['Ts','Ts_acc','Ts_cli']"
         [[[RangeCheck]]]
             Lower      = "[0]*12"
             Upper      = "[60]*12"
     [[Wd]]
+        [[[GapFillFromACCESS]]]
+            file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_<year>_ACCESS.nc
+            output = "Wd_acc"
         [[[GapFillFromClimatology]]]
-            file_name = ../Sites/<site_name>/Data/Processed/<year>/Climatology_<year>.xls
+            file_name = ../Sites/<site_name>/Data/Processed/<year>/<site_name>_<year>_L3_Climatology.xls
             method = "interpolated daily"
+            output = "Wd_cli"
+        [[[MergeSeries]]]
+            Source     = "['Wd','Wd_acc','Wd_cli']"
         [[[RangeCheck]]]
             Lower      = "[0]*12"
             Upper      = "[360]*12"
     [[Ws]]
+        [[[GapFillFromACCESS]]]
+            file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_<year>_ACCESS.nc
+            output = "Ws_acc"
         [[[GapFillFromClimatology]]]
-            file_name = ../Sites/<site_name>/Data/Processed/<year>/Climatology_<year>.xls
+            file_name = ../Sites/<site_name>/Data/Processed/<year>/<site_name>_<year>_L3_Climatology.xls
             method = "interpolated daily"
+            output = "Ws_cli"
+        [[[MergeSeries]]]
+            Source     = "['Ws','Ws_acc','Ws_cli']"
         [[[RangeCheck]]]
             Lower      = "[0]*12"
             Upper      = "[20]*12"
-# targets
-[Targets]
+# fluxes
+[Fluxes]
     [[ustar]]
         [[[GapFillUsingSOLO]]]
-            drivers = "['Ws','Fsd']"
-            ustar_filter = "No"
+            drivers = "['Ws','Fn','Ta','q']"
             output = 'ustar_SOLO'
         [[[MergeSeries]]]
             Source     = "['ustar','ustar_SOLO']"
@@ -226,9 +315,10 @@
             Lower      = "[0]*12"
             Upper      = "[2]*12"
     [[Fe]]
-        [[[GapFillFluxUsingSOLO]]]
+        [[[GapFillUsingSOLO]]]
+           #drivers = "['Fa','SHD','Ta','Ws']" - minimalist
+           #drivers = "['Fn','Fg','q','SHD','Ta','Ts']" - James'
             drivers = "['Fa','SHD','Ta','Ws']"
-            ustar_filter = "No"
             output = 'Fe_SOLO'
         [[[MergeSeries]]]
             Source     = "['Fe','Fe_SOLO']"
@@ -236,9 +326,10 @@
             Lower      = "[-100]*12"
             Upper      = "[600]*12"
     [[Fh]]
-        [[[GapFillFluxUsingSOLO]]]
+        [[[GapFillUsingSOLO]]]
+           #drivers = "['Fa','Ta','Ws']" - minimalist
+           #drivers = "['Fn','Fg','q','SHD','Ta','Ts']" - James'
             drivers = "['Fa','Ta','Ws']"
-            ustar_filter = "No"
             output = 'Fh_SOLO'
         [[[MergeSeries]]]
             Source     = "['Fh','Fh_SOLO']"
@@ -246,15 +337,17 @@
             Lower      = "[-100]*12"
             Upper      = "[600]*12"
     [[Fc]]
-        [[[GapFillFluxUsingSOLO]]]
+        [[[GapFillUsingSOLO]]]
+           #drivers = "['Fsd','q','Ta','Ts']" - minimalist
+           #drivers = "['Fn','Fg','q','SHD','Ta','Ts']" - James'
             drivers = "['Fsd','q','Ta','Ts']"
-            ustar_filter = "No"
             output = 'Fc_SOLO'
         [[[MergeSeries]]]
             Source     = "['Fc','Fc_SOLO']"
         [[[RangeCheck]]]
+        # units are umol/m2/s
             Lower      = "[-50]*12"
-            Upper      = "[50]*12"
+            Upper      = "[20]*12"
 
 [Plots]
     [[1]]
@@ -278,3 +371,20 @@
     [[7]]
         Title = "Fc gap filling"
         Variables = "['Fc','Fc_SOLO']"
+
+[ACCESS_Summary]
+    [[1]]
+        Title = "Radiation"
+        Variables = "['Fsd','Fld','Fn','Fa']"
+    [[2]]
+        Title = "Meteorology"
+        Variables = "['Ta','Ah','Ws','ps']"
+    [[3]]
+        Title = "Soil"
+        Variables = "['Ts','Sws','Fg']"
+#    [[1]]
+#        Title = "Basic 1"
+#        Variables = "['Fsd','Fn','Ta','Ah']"
+#    [[2]]
+#        Title = "Basic 2"
+#        Variables = "['Ws','Ts','ps']"

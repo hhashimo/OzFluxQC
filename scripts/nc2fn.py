@@ -1,3 +1,4 @@
+import constants as c
 import copy
 import csv
 import datetime
@@ -62,7 +63,7 @@ elif dt[0]>start_datetime:
     # requested start_datetime is before the start of the file
     print "nc2fn: padding start of file"
     dt_patched = [ldt for ldt in perdelta(start_datetime, dt[0], ts_delta)]
-    data_patched = numpy.ones(len(dt_patched))*float(-9999)
+    data_patched = numpy.ones(len(dt_patched))*float(c.missing_value)
     flag_patched = numpy.ones(len(dt_patched))
     # list of series in the data structure
     series_list = ds.series.keys()
@@ -90,7 +91,7 @@ elif dt[-1]<end_datetime:
     # requested start_datetime is before the start of the file
     print "nc2fn: padding end of file",dt[-1],end_datetime
     dt_patched = [ldt for ldt in perdelta(dt[-1]+ts_delta, end_datetime+ts_delta, ts_delta)]
-    data_patched = numpy.ones(len(dt_patched))*float(-9999)
+    data_patched = numpy.ones(len(dt_patched))*float(c.missing_value)
     flag_patched = numpy.ones(len(dt_patched))
     # list of series in the data structure
     series_list = ds.series.keys()

@@ -97,7 +97,7 @@ def copy_datastructure(cf,ds_in):
                         # there is more data at L3 than at L4
                         # append missing data to make the series the same length
                         nRecs_append = nRecs_out - nRecs_file
-                        data = numpy.array([-9999]*nRecs_append,dtype=numpy.float64)
+                        data = numpy.array([c.missing_value]*nRecs_append,dtype=numpy.float64)
                         flag = numpy.ones(nRecs_append,dtype=numpy.int32)
                         ds_out.series[ThisOne]['Data'] = numpy.concatenate((ds_out.series[ThisOne]['Data'],data))
                         ds_out.series[ThisOne]['Flag'] = numpy.concatenate((ds_out.series[ThisOne]['Flag'],flag))
@@ -463,7 +463,7 @@ def nc_concatenate(cf):
             else:
                 # if not, then create a dummy series and concatenate that
                 ds_n.series[ThisOne] = {}
-                ds_n.series[ThisOne]['Data'] = numpy.array([-9999]*nRecs_n,dtype=numpy.float64)
+                ds_n.series[ThisOne]['Data'] = numpy.array([c.missing_value]*nRecs_n,dtype=numpy.float64)
                 ds_n.series[ThisOne]['Flag'] = numpy.array([1]*nRecs_n,dtype=numpy.int32)
                 ds.series[ThisOne]['Data'] = numpy.append(ds.series[ThisOne]['Data'],ds_n.series[ThisOne]['Data'][si:ei])
                 ds.series[ThisOne]['Flag'] = numpy.append(ds.series[ThisOne]['Flag'],ds_n.series[ThisOne]['Flag'][si:ei])
@@ -473,7 +473,7 @@ def nc_concatenate(cf):
             if ThisOne not in ds.series.keys():
                 # if not then add it
                 ds.series[ThisOne] = {}
-                ds.series[ThisOne]['Data'] = numpy.array([-9999]*nRecs,dtype=numpy.float64)
+                ds.series[ThisOne]['Data'] = numpy.array([c.missing_value]*nRecs,dtype=numpy.float64)
                 ds.series[ThisOne]['Flag'] = numpy.array([1]*nRecs,dtype=numpy.int32)
                 ds.series[ThisOne]['Data'] = numpy.append(ds.series[ThisOne]['Data'],ds_n.series[ThisOne]['Data'][si:ei])
                 ds.series[ThisOne]['Flag'] = numpy.append(ds.series[ThisOne]['Flag'],ds_n.series[ThisOne]['Flag'][si:ei])
@@ -516,6 +516,10 @@ def nc_read_series(ncFullName):
             ds.series[unicode(ThisOne)] = {}
             # get the data variable object
             ds.series[ThisOne]['Data'] = ncFile.variables[ThisOne][:]
+            # netCDF4 returns a masked array if the "missing_variable" attribute has been set
+            # for the variable, here we trap this and force the array in ds.series to be ndarray
+            if numpy.ma.isMA(ds.series[ThisOne]["Data"]):
+                ds.series[ThisOne]["Data"],dummy = qcutils.MAtoSeries(ds.series[ThisOne]["Data"])
             # check for a QC flag and if it exists, load it
             if ThisOne+'_QCFlag' in ncFile.variables.keys():
                 ds.series[ThisOne]['Flag'] = ncFile.variables[ThisOne+'_QCFlag'][:]
@@ -621,7 +625,7 @@ def xl_read_flags(cf,ds,level,VariablesInFile):
                 xlCol = HeaderRow.index(cf['Variables'][ThisOne]['xl']['name'])
                 Values = ActiveSheet.col_values(xlCol)[FirstDataRow:LastDataRow]
                 Types = ActiveSheet.col_types(xlCol)[FirstDataRow:LastDataRow]
-                ds.series[ThisOne]['Flag'] = numpy.array([-9999]*len(Values),numpy.int32)
+                ds.series[ThisOne]['Flag'] = numpy.array([c.missing_value]*len(Values),numpy.int32)
                 for i in range(len(Values)):
                     if Types[i]==2: #xlType=3 means a date/time value, xlType=2 means a number
                         ds.series[ThisOne]['Flag'][i] = numpy.int32(Values[i])
@@ -674,7 +678,7 @@ def xl_read_series(cf):
                         xlCol = HeaderList.index(cf['Variables'][ThisOne]['xl']['name'].lower())
                         Values = ActiveSheet.col_values(xlCol)[FirstDataRow:LastDataRow]
                         Types = ActiveSheet.col_types(xlCol)[FirstDataRow:LastDataRow]
-                        ds.series[ThisOne]['Data'] = numpy.array([-9999]*len(Values),numpy.float64)
+                        ds.series[ThisOne]['Data'] = numpy.ones(len(Values),dtype=numpy.float64)*float(c.missing_value)
                         ds.series[ThisOne]['Flag'] = numpy.ones(len(Values),dtype=numpy.int32)
                         # we could use "where" and get rid of this for loop
                         for i in range(len(Values)):
@@ -727,7 +731,8 @@ def xl_write_ACCESSStats(ds):
             xlResultsSheet.write(xlRow,xlCol,output)
             for item in ds.access[label]["results"][output]:
                 xlRow = xlRow + 1
-                xlResultsSheet.write(xlRow,xlCol,item)
+                # xlwt under Anaconda seems to only allow float64!
+                xlResultsSheet.write(xlRow,xlCol,numpy.float64(item))
             xlRow = 9
             xlCol = xlCol + 1
     xlfile.save(xl_filename)

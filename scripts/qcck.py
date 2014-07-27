@@ -22,8 +22,8 @@ def rangecheckserieslower(data,lower):
     if numpy.ma.isMA(data):
         data = numpy.ma.masked_where(data<lower,data)
     else:
-        index = numpy.where((abs(data-numpy.float64(-9999))>c.eps)&(data<lower))[0]
-        data[index] = numpy.float64(-9999)
+        index = numpy.where((abs(data-numpy.float64(c.missing_value))>c.eps)&(data<lower))[0]
+        data[index] = numpy.float64(c.missing_value)
     return data
 
 def rangecheckseriesupper(data,upper):
@@ -33,8 +33,8 @@ def rangecheckseriesupper(data,upper):
     if numpy.ma.isMA(data):
         data = numpy.ma.masked_where(data>upper,data)
     else:
-        index = numpy.where((abs(data-numpy.float64(-9999))>c.eps)&(data>upper))[0]
-        data[index] = numpy.float64(-9999)
+        index = numpy.where((abs(data-numpy.float64(c.missing_value))>c.eps)&(data>upper))[0]
+        data[index] = numpy.float64(c.missing_value)
     return data
 
 def CoordinateFluxGaps(cf,ds,Fc_in='Fc',Fe_in='Fe',Fh_in='Fh'):
@@ -53,19 +53,19 @@ def CoordinateFluxGaps(cf,ds,Fc_in='Fc',Fe_in='Fe',Fh_in='Fh'):
         j = index[i]
         if Fc.mask[j]==False:
             Fc.mask[j]=True
-            Fc[j] = numpy.float64(-9999)
+            Fc[j] = numpy.float64(c.missing_value)
             ds.series[Fc_in]['Flag'][j] = numpy.int32(19)
         if Fe.mask[j]==False:
             Fe.mask[j]=True
-            Fe[j] = numpy.float64(-9999)
+            Fe[j] = numpy.float64(c.missing_value)
             ds.series[Fe_in]['Flag'][j] = numpy.int32(19)           
         if Fh.mask[j]==False:
             Fh.mask[j]=True
-            Fh[j] = numpy.float64(-9999)
+            Fh[j] = numpy.float64(c.missing_value)
             ds.series[Fh_in]['Flag'][j] = numpy.int32(19)
-    ds.series[Fc_in]['Data']=numpy.ma.filled(Fc,float(-9999))
-    ds.series[Fe_in]['Data']=numpy.ma.filled(Fe,float(-9999))
-    ds.series[Fh_in]['Data']=numpy.ma.filled(Fh,float(-9999))
+    ds.series[Fc_in]['Data']=numpy.ma.filled(Fc,float(c.missing_value))
+    ds.series[Fe_in]['Data']=numpy.ma.filled(Fe,float(c.missing_value))
+    ds.series[Fh_in]['Data']=numpy.ma.filled(Fh,float(c.missing_value))
     log.info(' Finished gap co-ordination')
 
 def CreateNewSeries(cf,ds):
@@ -106,7 +106,7 @@ def do_7500check(cf,ds):
     log.info('  7500Check: Total ' + str(numpy.size(index)))
     for ThisOne in LI75List:
         if ThisOne in ds.series.keys():
-            ds.series[ThisOne]['Data'][index] = numpy.float64(-9999)
+            ds.series[ThisOne]['Data'][index] = numpy.float64(c.missing_value)
             ds.series[ThisOne]['Flag'][index] = numpy.int32(4)
         else:
             log.error('  qcck.do_7500check: series '+str(ThisOne)+' in LI75List not found in ds.series')
@@ -127,7 +127,7 @@ def CoordinateAh7500AndFcGaps(cf,ds,Fcvar='Fc'):
     # index2  Index of bad Fc observations
     index2 = numpy.where((ds.series[Fcvar]['Flag']!=0) & (ds.series[Fcvar]['Flag']!=10))
     
-    ds.series['Ah_7500_Av']['Data'][index2] = numpy.float64(-9999)
+    ds.series['Ah_7500_Av']['Data'][index2] = numpy.float64(c.missing_value)
     ds.series['Ah_7500_Av']['Flag'][index2] = ds.series[Fcvar]['Flag'][index2]
     ds.series['Ah_7500_Av']['Flag'][index1] = ds.series['Ah_7500_Av']['Flag'][index1]
     if 'CoordinateAh7500AndFcGaps' not in ds.globalattributes['Functions']:
@@ -159,7 +159,7 @@ def do_CSATcheck(cf,ds):
     log.info('  CSATCheck: Diag_CSAT ' + str(numpy.size(index)))
     for ThisOne in CSATList:
         if ThisOne in ds.series.keys():
-            ds.series[ThisOne]['Data'][index] = numpy.float64(-9999)
+            ds.series[ThisOne]['Data'][index] = numpy.float64(c.missing_value)
             ds.series[ThisOne]['Flag'][index] = numpy.int32(3)
         else:
             log.error('  qcck.do_CSATcheck: series '+str(ThisOne)+' in CSATList not found in ds.series')
@@ -174,8 +174,8 @@ def do_diurnalcheck(cf,ds,section='',series='',code=5):
     dt = float(ds.globalattributes['time_step'])
     n = int((60./dt) + 0.5)             #Number of timesteps per hour
     nInts = int((1440.0/dt)+0.5)        #Number of timesteps per day
-    Av = numpy.array([-9999]*nInts,dtype=numpy.float64)
-    Sd = numpy.array([-9999]*nInts,dtype=numpy.float64)
+    Av = numpy.array([c.missing_value]*nInts,dtype=numpy.float64)
+    Sd = numpy.array([c.missing_value]*nInts,dtype=numpy.float64)
     NSd = numpy.array(eval(cf[section][series]['DiurnalCheck']['NumSd']),dtype=float)
     for m in range(1,13):
         mindex = numpy.where(ds.series['Month']['Data']==m)[0]
@@ -183,19 +183,19 @@ def do_diurnalcheck(cf,ds,section='',series='',code=5):
             lHdh = ds.series['Hdh']['Data'][mindex]
             l2ds = ds.series[series]['Data'][mindex]
             for i in range(nInts):
-                li = numpy.where(abs(lHdh-(float(i)/float(n))<c.eps)&(l2ds!=float(-9999)))
+                li = numpy.where(abs(lHdh-(float(i)/float(n))<c.eps)&(l2ds!=float(c.missing_value)))
                 if numpy.size(li)!=0:
                     Av[i] = numpy.mean(l2ds[li])
                     Sd[i] = numpy.std(l2ds[li])
                 else:
-                    Av[i] = float(-9999)
-                    Sd[i] = float(-9999)
+                    Av[i] = float(c.missing_value)
+                    Sd[i] = float(c.missing_value)
             Lwr = Av - NSd[m-1]*Sd
             Upr = Av + NSd[m-1]*Sd
             hindex = numpy.array(n*lHdh,int)
-            index = numpy.where(((l2ds!=float(-9999))&(l2ds<Lwr[hindex]))|
-                                ((l2ds!=float(-9999))&(l2ds>Upr[hindex])))[0] + mindex[0]
-            ds.series[series]['Data'][index] = numpy.float64(-9999)
+            index = numpy.where(((l2ds!=float(c.missing_value))&(l2ds<Lwr[hindex]))|
+                                ((l2ds!=float(c.missing_value))&(l2ds>Upr[hindex])))[0] + mindex[0]
+            ds.series[series]['Data'][index] = numpy.float64(c.missing_value)
             ds.series[series]['Flag'][index] = numpy.int32(code)
             ds.series[series]['Attr']['diurnalcheck_numsd'] = cf[section][series]['DiurnalCheck']['NumSd']
     if 'DiurnalCheck' not in ds.globalattributes['Functions']:
@@ -218,7 +218,7 @@ def do_excludedates(cf,ds,section='',series='',code=6):
             ei = ldt.index(datetime.datetime.strptime(ExcludeDateList[1],'%Y-%m-%d %H:%M')) + 1
         except ValueError:
             ei = -1
-        ds.series[series]['Data'][si:ei] = numpy.float64(-9999)
+        ds.series[series]['Data'][si:ei] = numpy.float64(c.missing_value)
         ds.series[series]['Flag'][si:ei] = numpy.int32(code)
         ds.series[series]['Attr']['ExcludeDates_'+str(i)] = cf[section][series]['ExcludeDates'][str(i)]
     if 'ExcludeDates' not in ds.globalattributes['Functions']:
@@ -246,7 +246,7 @@ def do_excludehours(cf,ds,section='',series='',code=7):
             ExMn = datetime.datetime.strptime(ExcludeHourList[2][j],'%H:%M').minute
             index = numpy.where((ds.series['Hour']['Data'][si:ei]==ExHr)&
                                 (ds.series['Minute']['Data'][si:ei]==ExMn))[0] + si
-            ds.series[series]['Data'][index] = numpy.float64(-9999)
+            ds.series[series]['Data'][index] = numpy.float64(c.missing_value)
             ds.series[series]['Flag'][index] = numpy.int32(code)
             ds.series[series]['Attr']['ExcludeHours_'+str(i)] = cf[section][series]['ExcludeHours'][str(i)]
     if 'ExcludeHours' not in ds.globalattributes['Functions']:
@@ -268,7 +268,7 @@ def do_linear(cf,ds):
 def do_rangecheck(cf,ds,section='',series='',code=2):
     '''Applies a range check to data series listed in the control file.  Data values that
        are less than the lower limit or greater than the upper limit are replaced with
-       -9999 and the corresponding QC flag element is set to 2.'''
+       c.missing_value and the corresponding QC flag element is set to 2.'''
     if len(section)==0: return
     if len(series)==0: return
     if 'RangeCheck' not in cf[section][series].keys(): return
@@ -276,18 +276,18 @@ def do_rangecheck(cf,ds,section='',series='',code=2):
         lwr = numpy.array(eval(cf[section][series]['RangeCheck']['Lower']))
         valid_lower = numpy.min(lwr)
         lwr = lwr[ds.series['Month']['Data']-1]
-        index = numpy.where((abs(ds.series[series]['Data']-numpy.float64(-9999))>c.eps)&
+        index = numpy.where((abs(ds.series[series]['Data']-numpy.float64(c.missing_value))>c.eps)&
                                 (ds.series[series]['Data']<lwr))
-        ds.series[series]['Data'][index] = numpy.float64(-9999)
+        ds.series[series]['Data'][index] = numpy.float64(c.missing_value)
         ds.series[series]['Flag'][index] = numpy.int32(code)
         ds.series[series]['Attr']['rangecheck_lower'] = cf[section][series]['RangeCheck']['Lower']
     if 'Upper' in cf[section][series]['RangeCheck'].keys():
         upr = numpy.array(eval(cf[section][series]['RangeCheck']['Upper']))
         valid_upper = numpy.min(upr)
         upr = upr[ds.series['Month']['Data']-1]
-        index = numpy.where((abs(ds.series[series]['Data']-numpy.float64(-9999))>c.eps)&
+        index = numpy.where((abs(ds.series[series]['Data']-numpy.float64(c.missing_value))>c.eps)&
                                 (ds.series[series]['Data']>upr))
-        ds.series[series]['Data'][index] = numpy.float64(-9999)
+        ds.series[series]['Data'][index] = numpy.float64(c.missing_value)
         ds.series[series]['Flag'][index] = numpy.int32(code)
         ds.series[series]['Attr']['rangecheck_upper'] = cf[section][series]['RangeCheck']['Upper']
         ds.series[series]['Attr']['valid_range'] = str(valid_lower)+','+str(valid_upper)

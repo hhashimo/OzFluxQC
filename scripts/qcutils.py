@@ -179,7 +179,7 @@ def CreateSeries(ds,Label,Data,FList=None,Flag=None,Attr=None):
     """
     ds.series['_tmp_'] = {}                       # create a temporary series to avoid premature overwrites
     # put the data into the temporary series
-    ds.series['_tmp_']['Data'] = numpy.ma.filled(Data,float(-9999))
+    ds.series['_tmp_']['Data'] = numpy.ma.filled(Data,float(c.missing_value))
     # copy or make the QC flag
     if Flag == None:
         ds.series['_tmp_']['Flag'] = MakeQCFlag(ds,FList)
@@ -546,18 +546,18 @@ def GetSeries(ds,ThisOne,si=0,ei=-1,mode="truncate"):
         # pad with maiising data at the start and/or the end of the series
         if si<0 and ei>nRecs-1:
             # pad at the start
-            Series = numpy.append(float(-9999)*numpy.ones(abs(si),dtype=numpy.float64),Series)
+            Series = numpy.append(float(c.missing_value)*numpy.ones(abs(si),dtype=numpy.float64),Series)
             Flag = numpy.append(numpy.ones(*abs(si),dtype=numpy.int32),Flag)
             # pad at the end
-            Series = numpy.append(Series,float(-9999)*numpy.ones((ei-(nRecs-1)),dtype=numpy.float64))
+            Series = numpy.append(Series,float(c.missing_value)*numpy.ones((ei-(nRecs-1)),dtype=numpy.float64))
             Flag = numpy.append(Flag,numpy.ones((ei-(nRecs-1)),dtype=numpy.int32))
         elif si<0 and ei<=nRecs-1:
             # pad at the start, truncate the end
-            Series = numpy.append(float(-9999)*numpy.ones(abs(si),dtype=numpy.float64),Series[:ei+1])
+            Series = numpy.append(float(c.missing_value)*numpy.ones(abs(si),dtype=numpy.float64),Series[:ei+1])
             Flag = numpy.append(numpy.ones(abs(si),dtype=numpy.int32),Flag[:ei+1])
         elif si>=0 and ei>nRecs-1:
             # truncate at the start, pad at the end
-            Series = numpy.append(Series[si:],float(-9999)*numpy.ones((ei-(nRecs-1)),numpy.float64))
+            Series = numpy.append(Series[si:],float(c.missing_value)*numpy.ones((ei-(nRecs-1)),numpy.float64))
             Flag = numpy.append(Flag[si:],numpy.ones((ei-(nRecs-1)),dtype=numpy.int32))
         elif si>=0 and ei<=nRecs-1:
             # truncate at the start and end
@@ -573,7 +573,7 @@ def GetSeries(ds,ThisOne,si=0,ei=-1,mode="truncate"):
 
 def MakeEmptySeries(ds,ThisOne):
     nRecs = int(ds.globalattributes['nc_nrecs'])
-    Series = float(-9999)*numpy.ones(nRecs,dtype=numpy.float64)
+    Series = float(c.missing_value)*numpy.ones(nRecs,dtype=numpy.float64)
     Flag = numpy.ones(nRecs,dtype=numpy.int32)
     Attr = MakeAttributeDictionary()
     return Series,Flag,Attr
@@ -658,7 +658,7 @@ def get_coverage_individual(ds):
     for ThisOne in ["DateTime","DateTime_UTC"]:
         if ThisOne in SeriesList: SeriesList.remove(ThisOne)
     for ThisOne in SeriesList:
-        num_good = len(numpy.where(abs(ds.series[ThisOne]['Data']-float(-9999))>c.eps)[0])
+        num_good = len(numpy.where(abs(ds.series[ThisOne]['Data']-float(c.missing_value))>c.eps)[0])
         coverage = 100*float(num_good)/float(ds.globalattributes['nc_nrecs'])
         ds.series[ThisOne]['Attr']['coverage_'+level] = str('%d'%coverage)
 
@@ -817,14 +817,14 @@ def get_ymdhmsfromxldate(ds):
     # get the date mode of the original Excel datetime
     datemode = int(ds.globalattributes['xl_datemode'])
     nRecs = len(ds.series['xlDateTime']['Data'])
-    Year = numpy.array([-9999]*nRecs,numpy.int32)
-    Month = numpy.array([-9999]*nRecs,numpy.int32)
-    Day = numpy.array([-9999]*nRecs,numpy.int32)
-    Hour = numpy.array([-9999]*nRecs,numpy.int32)
-    Minute = numpy.array([-9999]*nRecs,numpy.int32)
-    Second = numpy.array([-9999]*nRecs,numpy.int32)
-    Hdh = numpy.array([-9999]*nRecs,numpy.float64)
-    Ddd = numpy.array([-9999]*nRecs,numpy.float64)
+    Year = numpy.array([c.missing_value]*nRecs,numpy.int32)
+    Month = numpy.array([c.missing_value]*nRecs,numpy.int32)
+    Day = numpy.array([c.missing_value]*nRecs,numpy.int32)
+    Hour = numpy.array([c.missing_value]*nRecs,numpy.int32)
+    Minute = numpy.array([c.missing_value]*nRecs,numpy.int32)
+    Second = numpy.array([c.missing_value]*nRecs,numpy.int32)
+    Hdh = numpy.array([c.missing_value]*nRecs,numpy.float64)
+    Ddd = numpy.array([c.missing_value]*nRecs,numpy.float64)
     flag = numpy.zeros(nRecs)
     for i in range(nRecs):
         DateTuple = xlrd.xldate_as_tuple(ds.series['xlDateTime']['Data'][i],datemode)
@@ -888,19 +888,19 @@ def MakeQCFlag(ds,SeriesList):
 
 def MAtoSeries(Series):
     """
-    Convert a masked array to a numpy ndarray with masked elements set to -9999.
+    Convert a masked array to a numpy ndarray with masked elements set to c.missing_value.
     Useage:
      Series, WasMA = MAtoSeries(Series)
      where:
       Series (input)    is the data series to be converted.
       WasMA  (returned) is a logical, True if the input series was a masked array.
-      Series (output)   is the input series convered to an ndarray with -9999 values
+      Series (output)   is the input series convered to an ndarray with c.missing_value values
                         for missing data.
     """
     WasMA = False
     if numpy.ma.isMA(Series):
         WasMA = True
-        Series = numpy.ma.filled(Series,float(-9999))
+        Series = numpy.ma.filled(Series,float(c.missing_value))
     return Series, WasMA
 
 def nxMom_nxScalar_alpha(zoL):
@@ -932,8 +932,8 @@ def polyval(p,x):
     >>> p = numpy.array([2,0])
     >>> qcutils.polyval(p,x)
         array([2,4,6])
-    >>> y = numpy.array([1,-9999,3])
-    >>> y = numpy.ma.masked_where(y==-9999,y)
+    >>> y = numpy.array([1,c.missing_value,3])
+    >>> y = numpy.ma.masked_where(y==c.missing_value,y)
     >>> qcutils.polyval(p,y)
     masked_array(data = [2 -- 6],
                  mask = [False True False],
@@ -982,7 +982,7 @@ def SeriestoMA(Series):
     WasND = False
     if not numpy.ma.isMA(Series):
         WasND = True
-        Series = numpy.ma.masked_where(abs(Series-numpy.float64(-9999))<c.eps,Series)
+        Series = numpy.ma.masked_where(abs(Series-numpy.float64(c.missing_value))<c.eps,Series)
     return Series, WasND
 
 def SetUnitsInds(ds, ThisOne, units):

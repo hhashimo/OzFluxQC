@@ -60,10 +60,10 @@ def albedo(cf,ds):
     index = numpy.ma.where((Fsd < Fsdbase) | (ds.series['Hdh']['Data'] < 10) | (ds.series['Hdh']['Data'] > 14))[0]
     index1 = numpy.ma.where(Fsd < Fsdbase)[0]
     index2 = numpy.ma.where((ds.series['Hdh']['Data'] < 10) | (ds.series['Hdh']['Data'] > 14))[0]
-    albedo[index] = numpy.float64(-9999)
+    albedo[index] = numpy.float64(c.missing_value)
     ds.series['albedo']['Flag'][index1] = numpy.int32(51)     # bad Fsd flag only if bad time flag not set
     ds.series['albedo']['Flag'][index2] = numpy.int32(52)     # bad time flag
-    ds.series['albedo']['Data']=numpy.ma.filled(albedo,float(-9999))
+    ds.series['albedo']['Data']=numpy.ma.filled(albedo,float(c.missing_value))
 
 def ApplyLinear(cf,ds,ThisOne):
     """
@@ -79,7 +79,7 @@ def ApplyLinear(cf,ds,ThisOne):
     if ThisOne not in ds.series.keys(): return
     log.info('  Applying linear correction to '+ThisOne)
     if qcutils.incf(cf,ThisOne) and qcutils.haskey(cf,ThisOne,'Linear'):
-        data = numpy.ma.masked_where(ds.series[ThisOne]['Data']==float(-9999),ds.series[ThisOne]['Data'])
+        data = numpy.ma.masked_where(ds.series[ThisOne]['Data']==float(c.missing_value),ds.series[ThisOne]['Data'])
         flag = ds.series[ThisOne]['Flag'].copy()
         ldt = ds.series['DateTime']['Data']
         LinearList = cf['Variables'][ThisOne]['Linear'].keys()
@@ -98,7 +98,7 @@ def ApplyLinear(cf,ds,ThisOne):
             data[si:ei] = Slope * data[si:ei] + Offset
             index = numpy.where(flag[si:ei]==0)[0]
             flag[si:ei][index] = numpy.int32(10)
-            ds.series[ThisOne]['Data'] = numpy.ma.filled(data,float(-9999))
+            ds.series[ThisOne]['Data'] = numpy.ma.filled(data,float(c.missing_value))
             ds.series[ThisOne]['Flag'] = flag
 
 def ApplyLinearDrift(cf,ds,ThisOne):
@@ -117,7 +117,7 @@ def ApplyLinearDrift(cf,ds,ThisOne):
         """
     log.info('  Applying linear drift correction to '+ThisOne)
     if qcutils.incf(cf,ThisOne) and qcutils.haskey(cf,ThisOne,'Drift'):
-        data = numpy.ma.masked_where(ds.series[ThisOne]['Data']==float(-9999),ds.series[ThisOne]['Data'])
+        data = numpy.ma.masked_where(ds.series[ThisOne]['Data']==float(c.missing_value),ds.series[ThisOne]['Data'])
         flag = ds.series[ThisOne]['Flag']
         ldt = ds.series['DateTime']['Data']
         DriftList = cf['Variables'][ThisOne]['Drift'].keys()
@@ -141,7 +141,7 @@ def ApplyLinearDrift(cf,ds,ThisOne):
                 Slope[ssi] = ((((Slope1 - Slope0) / nRecs) * i) + Slope0)
             data[si:ei] = Slope[si:ei] * data[si:ei] + Offset
             flag[si:ei] = 10
-            ds.series[ThisOne]['Data'] = numpy.ma.filled(data,float(-9999))
+            ds.series[ThisOne]['Data'] = numpy.ma.filled(data,float(c.missing_value))
             ds.series[ThisOne]['Flag'] = flag
 
 def ApplyLinearDriftLocal(cf,ds,ThisOne):
@@ -160,7 +160,7 @@ def ApplyLinearDriftLocal(cf,ds,ThisOne):
         """
     log.info('  Applying linear drift correction to '+ThisOne)
     if qcutils.incf(cf,ThisOne) and qcutils.haskey(cf,ThisOne,'LocalDrift'):
-        data = numpy.ma.masked_where(ds.series[ThisOne]['Data']==float(-9999),ds.series[ThisOne]['Data'])
+        data = numpy.ma.masked_where(ds.series[ThisOne]['Data']==float(c.missing_value),ds.series[ThisOne]['Data'])
         flag = ds.series[ThisOne]['Flag']
         ldt = ds.series['DateTime']['Data']
         DriftList = cf['Variables'][ThisOne]['LocalDrift'].keys()
@@ -184,7 +184,7 @@ def ApplyLinearDriftLocal(cf,ds,ThisOne):
                 Slope[ssi] = (SlopeIncrement * i) + Slope0
             data[si:ei] = Slope[si:ei] * data[si:ei] + Offset
             flag[si:ei] = numpy.int32(10)
-            ds.series[ThisOne]['Data'] = numpy.ma.filled(data,float(-9999))
+            ds.series[ThisOne]['Data'] = numpy.ma.filled(data,float(c.missing_value))
             ds.series[ThisOne]['Flag'] = flag
 
 def AverageSeriesByElements(cf,ds,Av_out):
@@ -211,7 +211,7 @@ def AverageSeriesByElements(cf,ds,Av_out):
         tmp_data = ds.series[srclist[0]]['Data'].copy()
         tmp_flag = ds.series[srclist[0]]['Flag'].copy()
         tmp_attr = ds.series[srclist[0]]['Attr'].copy()
-        Av_data = numpy.ma.masked_where(tmp_data==float(-9999),tmp_data)
+        Av_data = numpy.ma.masked_where(tmp_data==float(c.missing_value),tmp_data)
         Mx_flag = tmp_flag
         SeriesNameString = srclist[0]
     else:
@@ -224,7 +224,7 @@ def AverageSeriesByElements(cf,ds,Av_out):
             SeriesNameString = SeriesNameString+', '+ThisOne
             tmp_data = numpy.vstack((tmp_data,ds.series[ThisOne]['Data'].copy()))
             tmp_flag = numpy.vstack((tmp_flag,ds.series[ThisOne]['Flag'].copy()))
-        tmp_data = numpy.ma.masked_where(tmp_data==float(-9999),tmp_data)
+        tmp_data = numpy.ma.masked_where(tmp_data==float(c.missing_value),tmp_data)
         Av_data = numpy.ma.average(tmp_data,axis=0)
         Mx_flag = numpy.min(tmp_flag,axis=0)
     ds.averageserieslist.append(Av_out)
@@ -472,7 +472,7 @@ def CalculateNetRadiation(cf,ds,Fn_out,Fsd_in,Fsu_in,Fld_in,Flu_in):
                     ApplyLinear(cf,ds,Fn_out)
     else:
         nRecs = int(ds.globalattributes['nc_nrecs'])
-        Fn = numpy.array([-9999]*nRecs,dtype=numpy.float64)
+        Fn = numpy.array([c.missing_value]*nRecs,dtype=numpy.float64)
         flag = numpy.ones(nRecs,dtype=numpy.int32)
         attr = qcutils.MakeAttributeDictionary(long_name='Calculated net radiation (one or more components missing)',
                              standard_name='surface_net_allwave_radiation',units='W/m2')
@@ -1086,7 +1086,7 @@ def CorrectSWC(cf,ds):
         nRecs = len(Sws)
         
         Sws_out = numpy.ma.empty(nRecs,float)
-        Sws_out.fill(-9999)
+        Sws_out.fill(c.missing_value)
         Sws_out.mask = numpy.ma.empty(nRecs,bool)
         Sws_out.mask.fill(True)
         
@@ -1109,7 +1109,7 @@ def CorrectSWC(cf,ds):
             nRecs = len(Sws)
             
             Sws_out = numpy.ma.empty(nRecs,float)
-            Sws_out.fill(-9999)
+            Sws_out.fill(c.missing_value)
             Sws_out.mask = numpy.ma.empty(nRecs,bool)
             Sws_out.mask.fill(True)
             
@@ -1148,7 +1148,7 @@ def CorrectWindDirection(cf,ds,Wd_in):
         Correction = float(ItemList[2])
         Wd[si:ei] = Wd[si:ei] + Correction
     Wd = numpy.mod(Wd,float(360))
-    ds.series[Wd_in]['Data'] = numpy.ma.filled(Wd,float(-9999))
+    ds.series[Wd_in]['Data'] = numpy.ma.filled(Wd,float(c.missing_value))
 
 def LowPassFilterSws(cf,ds,Sws_out='Sws_LP',Sws_in='Sws',npoles=5,co_ny=0.05):
     '''
@@ -1179,7 +1179,7 @@ def do_attributes(cf,ds):
         for gattr in cf['Global'].keys():
             ds.globalattributes[gattr] = cf['Global'][gattr]
         ds.globalattributes['Flag0'] = 'Good data'
-        ds.globalattributes['Flag1'] = 'QA/QC: -9999 in level 1 dataset'
+        ds.globalattributes['Flag1'] = 'QA/QC: c.missing_value in level 1 dataset'
         ds.globalattributes['Flag2'] = 'QA/QC: L2 Range Check'
         ds.globalattributes['Flag3'] = 'QA/QC: CSAT Diagnostic'
         ds.globalattributes['Flag4'] = 'QA/QC: LI7500 Diagnostic'
@@ -1222,6 +1222,8 @@ def do_attributes(cf,ds):
                 ds.series[ThisOne]['Attr'] = {}
                 for attr in cf['Variables'][ThisOne]['Attr'].keys():
                     ds.series[ThisOne]['Attr'][attr] = cf['Variables'][ThisOne]['Attr'][attr]
+                if "missing_value" not in ds.series[ThisOne]['Attr'].keys():
+                    ds.series[ThisOne]['Attr']["missing_value"] = c.missing_value
 
 def do_functions(cf,ds):
     log.info(' Getting variances from standard deviations & vice versa')
@@ -1515,16 +1517,16 @@ def FilterUstar(cf,ds,ustar_in='ustar',ustar_out='ustar_filtered'):
 def get_averages(Data):
     """
         Get daily averages on days when no 30-min observations are missing.
-        Days with missing observations return a value of -9999
+        Days with missing observations return a value of c.missing_value
         Values returned are sample size (Num) and average (Av)
         
         Usage qcts.get_averages(Data)
         Data: 1-day dataset
         """
-    li = numpy.ma.where(abs(Data-float(-9999))>c.eps)
+    li = numpy.ma.where(abs(Data-float(c.missing_value))>c.eps)
     Num = numpy.size(li)
     if Num == 0:
-        Av = -9999
+        Av = c.missing_value
     elif Num == 48:
         Av = numpy.ma.mean(Data[li])
     else:
@@ -1540,10 +1542,10 @@ def get_averages(Data):
         if x == 0:
             Av = numpy.ma.mean(Data[li])
         else:
-            Av = -9999
+            Av = c.missing_value
     return Num, Av
 
-def get_laggedcorrelation(x_in,y_in,maxlags=10):
+def get_laggedcorrelation(x_in,y_in,maxlags=10,minpoints=2):
     """
     Calculate the lagged cross-correlation between 2 1D arrays.
     Taken from the matplotlib.pyplot.xcorr source code.
@@ -1551,12 +1553,15 @@ def get_laggedcorrelation(x_in,y_in,maxlags=10):
     """
     if numpy.ma.isMA(x_in)!=numpy.ma.isMA(y_in):
         raise ValueError('qcts.get_laggedcorrelation: one of x or y is a masked array, the other is not')
+    lags = numpy.arange(-maxlags,maxlags+1)
     if numpy.ma.isMA(x_in) and numpy.ma.isMA(y_in):
         mask = numpy.ma.mask_or(x_in.mask,y_in.mask)
         x = numpy.ma.array(x_in,mask=mask)
         y = numpy.ma.array(y_in,mask=mask)
-        if numpy.ma.count(x)==0:
-            raise ValueError('qcts.get_laggedcorrelation: x or y all masked')
+        if numpy.ma.count(x)<minpoints:
+            #log.error('qcts.get_laggedcorrelation: x or y all masked')
+            corr = numpy.zeros(len(lags))
+            return lags,corr
         x = numpy.ma.compressed(x)
         y = numpy.ma.compressed(y)
     nx = len(x)
@@ -1567,24 +1572,23 @@ def get_laggedcorrelation(x_in,y_in,maxlags=10):
     if maxlags is None: maxlags = nx - 1
     if maxlags >= nx or maxlags < 1:
         raise ValueError('qcts.get_laggedcorrelation: maglags must be None or strictly positive < %d'%nx)
-    lags = numpy.arange(-maxlags,maxlags+1)
     corr = corr[nx-1-maxlags:nx+maxlags]
     return lags,corr
 
 def get_minmax(Data):
     """
         Get daily minima and maxima on days when no 30-min observations are missing.
-        Days with missing observations return a value of -9999
+        Days with missing observations return a value of c.missing_value
         Values returned are sample size (Num), minimum (Min) and maximum (Max)
         
         Usage qcts.get_minmax(Data)
         Data: 1-day dataset
         """
-    li = numpy.ma.where(abs(Data-float(-9999))>c.eps)
+    li = numpy.ma.where(abs(Data-float(c.missing_value))>c.eps)
     Num = numpy.size(li)
     if Num == 0:
-        Min = -9999
-        Max = -9999
+        Min = c.missing_value
+        Max = c.missing_value
     elif Num == 48:
         Min = numpy.ma.min(Data[li])
         Max = numpy.ma.max(Data[li])
@@ -1602,14 +1606,14 @@ def get_minmax(Data):
             Min = numpy.ma.min(Data[li])
             Max = numpy.ma.max(Data[li])
         else:
-            Min = -9999
-            Max = -9999
+            Min = c.missing_value
+            Max = c.missing_value
     return Num, Min, Max
 
 def get_nightsums(Data):
     """
         Get nightly sums and averages on nights when no 30-min observations are missing.
-        Nights with missing observations return a value of -9999
+        Nights with missing observations return a value of c.missing_value
         Values returned are sample size (Num), sums (Sum) and average (Av)
         
         Usage qcts.get_nightsums(Data)
@@ -1618,8 +1622,8 @@ def get_nightsums(Data):
     li = numpy.ma.where(Data.mask == False)[0]
     Num = numpy.size(li)
     if Num == 0:
-        Sum = -9999
-        Av = -9999
+        Sum = c.missing_value
+        Av = c.missing_value
     else:
         x = 0
         for i in range(len(Data)):
@@ -1630,38 +1634,38 @@ def get_nightsums(Data):
             Sum = numpy.ma.sum(Data[li])
             Av = numpy.ma.mean(Data[li])
         else:
-            Sum = -9999
-            Av = -9999
+            Sum = c.missing_value
+            Av = c.missing_value
     
     return Num, Sum, Av
 
 def get_soilaverages(Data):
     """
         Get daily averages of soil water content on days when 15 or fewer 30-min observations are missing.
-        Days with 16 or more missing observations return a value of -9999
+        Days with 16 or more missing observations return a value of c.missing_value
         Values returned are sample size (Num) and average (Av)
         
         Usage qcts.get_soilaverages(Data)
         Data: 1-day dataset
         """
-    li = numpy.ma.where(abs(Data-float(-9999))>c.eps)
+    li = numpy.ma.where(abs(Data-float(c.missing_value))>c.eps)
     Num = numpy.size(li)
     if Num > 33:
         Av = numpy.ma.mean(Data[li])
     else:
-        Av = -9999
+        Av = c.missing_value
     return Num, Av
 
 def get_subsums(Data):
     """
         Get separate daily sums of positive and negative fluxes when no 30-min observations are missing.
-        Days with missing observations return a value of -9999
+        Days with missing observations return a value of c.missing_value
         Values returned are positive and negative sample sizes (PosNum and NegNum) and sums (SumPos and SumNeg)
         
         Usage qcts.get_subsums(Data)
         Data: 1-day dataset
         """
-    li = numpy.ma.where(abs(Data-float(-9999))>c.eps)
+    li = numpy.ma.where(abs(Data-float(c.missing_value))>c.eps)
     Num = numpy.size(li)
     if Num == 48:
         pi = numpy.ma.where(Data[li]>0)
@@ -1681,23 +1685,23 @@ def get_subsums(Data):
         ni = numpy.ma.where(Data[li]<0)
         PosNum = numpy.size(pi)
         NegNum = numpy.size(ni)
-        SumPos = -9999
-        SumNeg = -9999
+        SumPos = c.missing_value
+        SumNeg = c.missing_value
     return PosNum, NegNum, SumPos, SumNeg
 
 def get_sums(Data):
     """
         Get daily sums when no 30-min observations are missing.
-        Days with missing observations return a value of -9999
+        Days with missing observations return a value of c.missing_value
         Values returned are sample size (Num) and sum (Sum)
         
         Usage qcts.get_sums(Data)
         Data: 1-day dataset
         """
-    li = numpy.ma.where(abs(Data-float(-9999))>c.eps)
+    li = numpy.ma.where(abs(Data-float(c.missing_value))>c.eps)
     Num = numpy.size(li)
     if Num == 0:
-        Sum = -9999
+        Sum = c.missing_value
     elif Num == 48:
         Sum = numpy.ma.sum(Data[li])
     else:
@@ -1713,13 +1717,13 @@ def get_sums(Data):
         if x == 0:
             Sum = numpy.ma.sum(Data[li])
         else:
-            Sum = -9999
+            Sum = c.missing_value
     return Num, Sum
 
 def get_qcflag(ds):
     """
         Set up flags during ingest of L1 data.
-        Identifies missing observations as -9999 and sets flag value 1
+        Identifies missing observations as c.missing_value and sets flag value 1
         
         Usage qcts.get_qcflag(ds)
         ds: data structure
@@ -1728,7 +1732,7 @@ def get_qcflag(ds):
     nRecs = len(ds.series['xlDateTime']['Data'])
     for ThisOne in ds.series.keys():
         ds.series[ThisOne]['Flag'] = numpy.zeros(nRecs,dtype=numpy.int32)
-        index = numpy.where(ds.series[ThisOne]['Data']==-9999)[0]
+        index = numpy.where(ds.series[ThisOne]['Data']==c.missing_value)[0]
         ds.series[ThisOne]['Flag'][index] = numpy.int32(1)
 
 def get_synthetic_fsd(ds):
@@ -1748,7 +1752,7 @@ def get_synthetic_fsd(ds):
 
 def InvertSign(ds,ThisOne):
     log.info(' Inverting sign of '+ThisOne)
-    index = numpy.where(abs(ds.series[ThisOne]['Data']-float(-9999))>c.eps)[0]
+    index = numpy.where(abs(ds.series[ThisOne]['Data']-float(c.missing_value))>c.eps)[0]
     ds.series[ThisOne]['Data'][index] = float(-1)*ds.series[ThisOne]['Data'][index]
 
 #def InterpolateOverMissing(cf,ds,series='',maxlen=1000):
@@ -1757,12 +1761,12 @@ def InterpolateOverMissing(ds,series='',maxlen=1000):
     #section = qcutils.get_cfsection(cf,series=series,mode='quiet')
     #if len(section)==0: return
     DateNum = date2num(ds.series['DateTime']['Data'])
-    iog = numpy.where(ds.series[series]['Data']!=float(-9999))[0]            # index of good values
+    iog = numpy.where(ds.series[series]['Data']!=float(c.missing_value))[0]            # index of good values
     if len(iog)<2:
         log.info(' InterpolateOverMissing: Less than 2 good points available for series '+str(series))
         return
     f = interpolate.interp1d(DateNum[iog],ds.series[series]['Data'][iog])    # linear interpolation function
-    iom = numpy.where((ds.series[series]['Data']==float(-9999))&             # index of missing values
+    iom = numpy.where((ds.series[series]['Data']==float(c.missing_value))&             # index of missing values
                       (DateNum>=DateNum[iog[0]])&                          # that occur between the first
                       (DateNum<=DateNum[iog[-1]]))[0]                      # and last dates used to define f
     # Now we step through the indices of the missing values and discard
@@ -2105,8 +2109,8 @@ def ReplaceWhereMissing(Destination,Primary,Secondary,FlagOffset=None,FlagValue=
         p_data = p_data[0:numpy.size(s_data)]
     if numpy.size(s_data)>numpy.size(p_data):
         s_data = s_data[0:numpy.size(p_data)]
-    index = numpy.where((abs(p_data-float(-9999))<c.eps)&
-                        (abs(s_data-float(-9999))>c.eps))[0]
+    index = numpy.where((abs(p_data-float(c.missing_value))<c.eps)&
+                        (abs(s_data-float(c.missing_value))>c.eps))[0]
     p_data[index] = s_data[index]
     if FlagValue==None and FlagOffset!=None:
         p_flag[index] = s_flag[index] + numpy.int32(FlagOffset)
@@ -2151,7 +2155,7 @@ def ReplaceWhenDiffExceedsRange(DateTime,Destination,Primary,Secondary,RList):
     index = numpy.ma.where((abs(d_data)<Lower)|(abs(d_data)>Upper))
     p_data[index] = s_data[index]
     p_flag[index] = 35
-    Destination['Data'] = numpy.ma.filled(p_data,float(-9999))
+    Destination['Data'] = numpy.ma.filled(p_data,float(c.missing_value))
     Destination['Flag'] = p_flag.copy()
     Destination['Attr']['long_name'] = 'Replaced original with alternate when difference exceeded threshold'
     Destination['Attr']['units'] = Primary['Attr']['units']
@@ -2180,14 +2184,14 @@ def savitzky_golay(y, window_size, order, deriv=0):
     return numpy.convolve( m, y, mode='valid')
 
 def Square(Series):
-    tmp = numpy.array([-9999]*numpy.size(Series),Series.dtype)
-    index = numpy.where(Series!=float(-9999))[0]
+    tmp = numpy.array([c.missing_value]*numpy.size(Series),Series.dtype)
+    index = numpy.where(Series!=float(c.missing_value))[0]
     tmp[index] = Series[index] ** 2
     return tmp
 
 def SquareRoot(Series):
-    tmp = numpy.array([-9999]*numpy.size(Series),Series.dtype)
-    index = numpy.where(Series!=float(-9999))[0]
+    tmp = numpy.array([c.missing_value]*numpy.size(Series),Series.dtype)
+    index = numpy.where(Series!=float(c.missing_value))[0]
     tmp[index] = Series[index] ** .5
     return tmp
 
@@ -2220,9 +2224,9 @@ def TransformAlternate(TList,DateTime,Series,ts=30):
     #print time.strftime('%X')+' Applying polynomial transform to '+ThisOne
     si = qcutils.GetDateIndex(DateTime,TList[0],ts=ts,default=0,match='exact')
     ei = qcutils.GetDateIndex(DateTime,TList[1],ts=ts,default=-1,match='exact')
-    Series = numpy.ma.masked_where(abs(Series-float(-9999))<c.eps,Series)
+    Series = numpy.ma.masked_where(abs(Series-float(c.missing_value))<c.eps,Series)
     Series[si:ei] = qcutils.polyval(TList[2],Series[si:ei])
-    Series = numpy.ma.filled(Series,float(-9999))
+    Series = numpy.ma.filled(Series,float(c.missing_value))
 
 def UstarFromFh(cf,ds,us_out='uscalc',T_in='Ta', Ah_in='Ah', p_in='ps', Fh_in='Fh', u_in='Ws_CSAT', us_in='ustar'):
     # Calculate ustar from sensible heat flux, wind speed and
@@ -2256,17 +2260,17 @@ def UstarFromFh(cf,ds,us_out='uscalc',T_in='Ta', Ah_in='Ah', p_in='ps', Fh_in='F
     Fh,Fh_flag,Fh_attr = qcutils.GetSeries(ds,Fh_in)
     u,u_flag,u_attr = qcutils.GetSeries(ds,u_in)
     nRecs = numpy.size(Fh)
-    us = numpy.zeros(nRecs,dtype=numpy.float64) + numpy.float64(-9999)
+    us = numpy.zeros(nRecs,dtype=numpy.float64) + numpy.float64(c.missing_value)
     us_flag = numpy.zeros(nRecs,dtype=numpy.int)
     for i in range(nRecs):
-        if((abs(T[i]-float(-9999))>c.eps)&(abs(Ah[i]-float(-9999))>c.eps)&
-           (abs(p[i]-float(-9999))>c.eps)&(abs(Fh[i]-float(-9999))>c.eps)&
-           (abs(u[i]-float(-9999))>c.eps)):
+        if((abs(T[i]-float(c.missing_value))>c.eps)&(abs(Ah[i]-float(c.missing_value))>c.eps)&
+           (abs(p[i]-float(c.missing_value))>c.eps)&(abs(Fh[i]-float(c.missing_value))>c.eps)&
+           (abs(u[i]-float(c.missing_value))>c.eps)):
             #print ds.series['DateTime']['Data'][i],T[i]
             us[i] = qcutils.Wegstein(T[i], Ah[i], p[i], Fh[i], u[i], z, z0)
             us_flag[i] = 36
         else:
-            us[i] = numpy.float64(-9999)
+            us[i] = numpy.float64(c.missing_value)
             us_flag[i] = 37
     attr = qcutils.MakeAttributeDictionary(long_name='ustar from (Fh,Ta,Ah,p,u)',units='m/s')
     qcutils.CreateSeries(ds,us_out,us,Flag=us_flag,Attr=attr)
@@ -2321,7 +2325,7 @@ def write_sums(cf,ds,ThisOne,xlCol,xlSheet,DoSum='False',DoMinMax='False',DoMean
         xlSheet.write(xlRow,xlCol,ThisOne+'_neg')
         xlSheet.write(xlRow-1,xlCol,Units)
     
-    data = numpy.ma.masked_where(abs(ds.series[ThisOne]['Data']-float(-9999))<c.eps,ds.series[ThisOne]['Data'])
+    data = numpy.ma.masked_where(abs(ds.series[ThisOne]['Data']-float(c.missing_value))<c.eps,ds.series[ThisOne]['Data'])
     for month in range(M1st,M2nd+1):
         if month == 1 or month == 3 or month == 5 or month == 7 or month == 8 or month == 10 or month == 12:
             dRan = 31

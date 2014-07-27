@@ -18,14 +18,14 @@ log = logging.getLogger('qc.plot')
 
 def get_diurnalstats(DecHour,Data,dt):
     nInts = 24*int((60/dt)+0.5)
-    Hr = numpy.array([-9999]*nInts,dtype=numpy.float64)
-    Av = numpy.array([-9999]*nInts,dtype=numpy.float64)
-    Sd = numpy.array([-9999]*nInts,dtype=numpy.float64)
-    Mx = numpy.array([-9999]*nInts,dtype=numpy.float64)
-    Mn = numpy.array([-9999]*nInts,dtype=numpy.float64)
+    Hr = numpy.array([c.missing_value]*nInts,dtype=numpy.float64)
+    Av = numpy.array([c.missing_value]*nInts,dtype=numpy.float64)
+    Sd = numpy.array([c.missing_value]*nInts,dtype=numpy.float64)
+    Mx = numpy.array([c.missing_value]*nInts,dtype=numpy.float64)
+    Mn = numpy.array([c.missing_value]*nInts,dtype=numpy.float64)
     for i in range(nInts):
         Hr[i] = float(i)*dt/60.
-        li = numpy.where((abs(DecHour-Hr[i])<c.eps)&(abs(Data-float(-9999))>c.eps))
+        li = numpy.where((abs(DecHour-Hr[i])<c.eps)&(abs(Data-float(c.missing_value))>c.eps))
         if numpy.size(li)!=0:
             Av[i] = numpy.mean(Data[li])
             Sd[i] = numpy.std(Data[li])
@@ -73,7 +73,7 @@ def get_ticks(start, end):
     return loc,fmt
 
 def get_yarray(ds,ThisOne,si=0,ei=-1):
-    yarray = numpy.ma.masked_where(abs(ds.series[ThisOne]['Data'][si:ei]-float(-9999))<c.eps,
+    yarray = numpy.ma.masked_where(abs(ds.series[ThisOne]['Data'][si:ei]-float(c.missing_value))<c.eps,
                                         ds.series[ThisOne]['Data'][si:ei])
     nRecs = numpy.ma.size(yarray)
     nNotM = numpy.ma.count(yarray)
@@ -223,10 +223,10 @@ def plottimeseries(cf,nFig,dsa,dsb,si,ei):
             #Plot the diurnal averages.
             Hr2,Av2,Sd2,Mx2,Mn2=get_diurnalstats(dsb.series['Hdh']['Data'][si:ei],
                                                 dsb.series[ThisOne]['Data'][si:ei],dt)
-            Av2 = numpy.ma.masked_where(Av2==-9999,Av2)
-            Sd2 = numpy.ma.masked_where(Sd2==-9999,Sd2)
-            Mx2 = numpy.ma.masked_where(Mx2==-9999,Mx2)
-            Mn2 = numpy.ma.masked_where(Mn2==-9999,Mn2)
+            Av2 = numpy.ma.masked_where(Av2==c.missing_value,Av2)
+            Sd2 = numpy.ma.masked_where(Sd2==c.missing_value,Sd2)
+            Mx2 = numpy.ma.masked_where(Mx2==c.missing_value,Mx2)
+            Mn2 = numpy.ma.masked_where(Mn2==c.missing_value,Mn2)
             hr2_ax = fig.add_axes([p['hr1_XAxOrg'],p['YAxOrg'],p['hr2_XAxLen'],p['ts_YAxLen']])
             hr2_ax.hold(True)
             hr2_ax.plot(Hr2,Av2,'y-',Hr2,Mx2,'r-',Hr2,Mn2,'b-')
