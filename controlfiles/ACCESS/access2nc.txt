@@ -1,0 +1,229 @@
+[Sites]
+    [[AliceSpringsMulga]]
+        in_filepath = ../../ACCESS/AliceSpringsMulga/2012/
+        in_filename = access_Alice_Springs_Mulga_2012*.nc
+        out_filepath = ../../Sites/AliceSpringsMulga/Data/ACCESS/2012/
+        out_filename = AliceSpringsMulga_2012_ACCESS.nc
+        interpolate = Yes
+        site_timezone = Australia/Darwin
+    [[Arcturus]]
+        in_filepath = ../../ACCESS/Arcturus/2012/
+        in_filename = access_Arcturus_2012*.nc
+        out_filepath = ../../Sites/Arcturus/Data/ACCESS/2012/
+        out_filename = Arcturus_2012_ACCESS.nc
+        interpolate = Yes
+        site_timezone = Australia/Brisbane
+    [[Calperum]]
+        in_filepath = ../../ACCESS/Calperum/2012/
+        in_filename = access_Calperum_2012*.nc
+        out_filepath = ../../Sites/Calperum/Data/ACCESS/2012/
+        out_filename = Calperum_2012_ACCESS.nc
+        interpolate = Yes
+        site_timezone = Australia/Adelaide
+    [[CapeTribulation]]
+        in_filepath = ../../ACCESS/CapeTribulation/2012/
+        in_filename = access_Cape_Tribulation_2012*.nc
+        out_filepath = ../../Sites/CapeTribulation/Data/ACCESS/2012/
+        out_filename = CapeTribulation_2012_ACCESS.nc
+        interpolate = Yes
+        site_timezone = Australia/Brisbane
+    [[CumberlandPlains]]
+        in_filepath = ../../ACCESS/CumberlandPlains/2012/
+        in_filename = access_Cumberland_Plains_2012*.nc
+        out_filepath = ../../Sites/CumberlandPlains/Data/ACCESS/2012/
+        out_filename = CumberlandPlains_2012_ACCESS.nc
+        interpolate = Yes
+        site_timezone = Australia/Sydney
+    [[Daintree]]
+        in_filepath = ../../ACCESS/Daintree/2012/
+        in_filename = access_Daintree_2012*.nc
+        out_filepath = ../../Sites/Daintree/Data/ACCESS/2012/
+        out_filename = Daintree_2012_ACCESS.nc
+        interpolate = Yes
+        site_timezone = Australia/Brisbane
+    [[DalyPasture]]
+        in_filepath = ../../ACCESS/DalyPasture/2012/
+        in_filename = access_Daly_Pasture_2012*.nc
+        out_filepath = ../../Sites/DalyPasture/Data/ACCESS/2012/
+        out_filename = DalyPasture_2012_ACCESS.nc
+        interpolate = Yes
+        site_timezone = Australia/Darwin
+    [[DalyUncleared]]
+        in_filepath = ../../ACCESS/DalyUncleared/2012/
+        in_filename = access_Daly_Uncleared_2012*.nc
+        out_filepath = ../../Sites/DalyUncleared/Data/ACCESS/2012/
+        out_filename = DalyUncleared_2012_ACCESS.nc
+        interpolate = Yes
+        site_timezone = Australia/Darwin
+    [[Darbalara]]
+        in_filepath = ../../ACCESS/Darbalara/2012/
+        in_filename = access_Darbalara_2012*.nc
+        out_filepath = ../../Sites/Darbalara/Data/ACCESS/2012/
+        out_filename = Darbalara_2012_ACCESS.nc
+        interpolate = Yes
+        site_timezone = Australia/Brisbane
+    [[Dargo]]
+        in_filepath = ../../ACCESS/Dargo/2012/
+        in_filename = access_Dargo_2012*.nc
+        out_filepath = ../../Sites/Dargo/Data/ACCESS/2012/
+        out_filename = Dargo_2012_ACCESS.nc
+        interpolate = Yes
+        site_timezone = Australia/Melbourne
+    [[DryRiver]]
+        in_filepath = ../../ACCESS/DryRiver/2012/
+        in_filename = access_Dry_River_2012*.nc
+        out_filepath = ../../Sites/DryRiver/Data/ACCESS/2012/
+        out_filename = DryRiver_2012_ACCESS.nc
+        interpolate = Yes
+        site_timezone = Australia/Darwin
+    [[Gingin]]
+        in_filepath = ../../ACCESS/Gingin/2012/
+        in_filename = access_Gingin_2012*.nc
+        out_filepath = ../../Sites/Gingin/Data/ACCESS/2012/
+        out_filename = Gingin_2012_ACCESS.nc
+        interpolate = Yes
+        site_timezone = Australia/Perth
+    [[GreatWesternWoodlands]]
+        in_filepath = ../../ACCESS/GreatWesternWoodlands/2012/
+        in_filename = access_Great_Western_Woodlands_2012*.nc
+        out_filepath = ../../Sites/GreatWesternWoodlands/Data/ACCESS/2012/
+        out_filename = GreatWesternWoodlands_2012_ACCESS.nc
+        interpolate = Yes
+        site_timezone = Australia/Perth
+    [[HowardSprings]]
+        in_filepath = ../../ACCESS/HowardSprings/2012/
+        in_filename = access_Howard_Springs_2012*.nc
+        out_filepath = ../../Sites/HowardSprings/Data/ACCESS/2012/
+        out_filename = HowardSprings_2012_ACCESS.nc
+        interpolate = Yes
+        site_timezone = Australia/Darwin
+    [[Jaxa]]
+        in_filepath = ../../ACCESS/Jaxa/2012/
+        in_filename = access_Jaxa_2012*.nc
+        out_filepath = ../../Sites/Jaxa/Data/ACCESS/2012/
+        out_filename = Jaxa_2012_ACCESS.nc
+        interpolate = Yes
+        site_timezone = Australia/Sydney
+    [[Litchfield]]
+        in_filepath = ../../ACCESS/Litchfield/2012/
+        in_filename = access_Litchfield_2012*.nc
+        out_filepath = ../../Sites/Litchfield/Data/ACCESS/2012/
+        out_filename = Litchfield_2012_ACCESS.nc
+        interpolate = Yes
+        site_timezone = Australia/Darwin
+    [[Nimmo]]
+        in_filepath = ../../ACCESS/Nimmo/2012/
+        in_filename = access_Nimmo_2012*.nc
+        out_filepath = ../../Sites/Nimmo/Data/ACCESS/2012/
+        out_filename = Nimmo_2012_ACCESS.nc
+        interpolate = Yes
+        site_timezone = Australia/Sydney
+    [[RedDirtMelonFarm]]
+        in_filepath = ../../ACCESS/RedDirtMelonFarm/2012/
+        in_filename = access_Red_Dirt_Melon_Farm_2012*.nc
+        out_filepath = ../../Sites/RedDirtMelonFarm/Data/ACCESS/2012/
+        out_filename = RedDirtMelonFarm_2012_ACCESS.nc
+        interpolate = Yes
+        site_timezone = Australia/Darwin
+    [[RiggsCreek]]
+        in_filepath = ../../ACCESS/RiggsCreek/2012/
+        in_filename = access_Riggs_Creek_2012*.nc
+        out_filepath = ../../Sites/RiggsCreek/Data/ACCESS/2012/
+        out_filename = RiggsCreek_2012_ACCESS.nc
+        interpolate = Yes
+        site_timezone = Australia/Melbourne
+    [[RobsonCreek]]
+        in_filepath = ../../ACCESS/RobsonCreek/2012/
+        in_filename = access_Robson_Creek_2012*.nc
+        out_filepath = ../../Sites/RobsonCreek/Data/ACCESS/2012/
+        out_filename = RobsonCreek_2012_ACCESS.nc
+        interpolate = Yes
+        site_timezone = Australia/Brisbane
+    [[Samford]]
+        in_filepath = ../../ACCESS/Samford/2012/
+        in_filename = access_Samford_2012*.nc
+        out_filepath = ../../Sites/Samford/Data/ACCESS/2012/
+        out_filename = Samford_2012_ACCESS.nc
+        interpolate = Yes
+        site_timezone = Australia/Brisbane
+    [[SturtPlains]]
+        in_filepath = ../../ACCESS/SturtPlains/2012/
+        in_filename = access_Sturt_Plains_2012*.nc
+        out_filepath = ../../Sites/SturtPlains/Data/ACCESS/2012/
+        out_filename = SturtPlains_2012_ACCESS.nc
+        interpolate = Yes
+        site_timezone = Australia/Darwin
+    [[TiTreeEast]]
+        in_filepath = ../../ACCESS/TiTreeEast/2012/
+        in_filename = access_Ti_Tree_East_2012*.nc
+        out_filepath = ../../Sites/TiTreeEast/Data/ACCESS/2012/
+        out_filename = TiTreeEast_2012_ACCESS.nc
+        interpolate = Yes
+        site_timezone = Australia/Darwin
+    [[Tumbarumba]]
+        in_filepath = ../../ACCESS/Tumbarumba/2012/
+        in_filename = access_Tumbarumba_2012*.nc
+        out_filepath = ../../Sites/Tumbarumba/Data/ACCESS/2012/
+        out_filename = Tumbarumba_2012_ACCESS.nc
+        interpolate = No
+        site_timezone = Australia/Sydney
+    [[WallabyCreek]]
+        in_filepath = ../../ACCESS/WallabyCreek/2012/
+        in_filename = access_Wallaby_Creek_2012*.nc
+        out_filepath = ../../Sites/WallabyCreek/Data/ACCESS/2012/
+        out_filename = WallabyCreek_2012_ACCESS.nc
+        interpolate = Yes
+        site_timezone = Australia/Melbourne
+    [[Warra]]
+        in_filepath = ../../ACCESS/Warra/2012/
+        in_filename = access_Warra_2012*.nc
+        out_filepath = ../../Sites/Warra/Data/ACCESS/2012/
+        out_filename = Warra_2012_ACCESS.nc
+        interpolate = Yes
+        site_timezone = Australia/Hobart
+    [[Whroo]]
+        in_filepath = ../../ACCESS/Whroo/2012/
+        in_filename = access_Whroo_2012*.nc
+        out_filepath = ../../Sites/Whroo/Data/ACCESS/2012/
+        out_filename = Whroo_2012_ACCESS.nc
+        interpolate = Yes
+        site_timezone = Australia/Melbourne
+    [[WombatStateForest]]
+        in_filepath = ../../ACCESS/WombatStateForest/2012/
+        in_filename = access_Wombat_State_Forest_2012*.nc
+        out_filepath = ../../Sites/WombatStateForest/Data/ACCESS/2012/
+        out_filename = WombatStateForest_2012_ACCESS.nc
+        interpolate = Yes
+        site_timezone = Australia/Melbourne
+
+[Variables]
+    [[Fsd]]
+        access_name = av_swsfcdown
+    [[Fn_sw]]
+        access_name = av_netswsfc
+    [[Fld]]
+        access_name = av_lwsfcdown
+    [[Fn_lw]]
+        access_name = av_netlwsfc
+    [[Ta]]
+        access_name = temp_scrn
+    [[q]]
+        access_name = qsair_scrn
+    [[Sws]]
+        access_name = soil_mois
+    [[Ts]]
+        access_name = soil_temp
+    [[u]]
+        access_name = uwnd10m
+    [[v]]
+        access_name = vwnd10m
+    [[ps]]
+        access_name = sfc_pres
+    [[Precip]]
+        access_name = accum_prcp
+    [[ustar]]
+        access_name = fric_vel
+    [[Fh]]
+        access_name = sens_hflx
+    [[Fe]]
+        access_name = lat_hflx
