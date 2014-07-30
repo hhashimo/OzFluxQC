@@ -212,11 +212,15 @@ def AverageSeriesByElements(cf,ds,Av_out):
         tmp_flag = ds.series[srclist[0]]['Flag'].copy()
         tmp_attr = ds.series[srclist[0]]['Attr'].copy()
         Av_data = numpy.ma.masked_where(tmp_data==float(c.missing_value),tmp_data)
-        Mx_flag = tmp_flag
+        Mn_flag = tmp_flag
         SeriesNameString = srclist[0]
     else:
         tmp_data = ds.series[srclist[0]]['Data'].copy()
         tmp_flag = ds.series[srclist[0]]['Flag'].copy()
+
+        index = numpy.where(numpy.mod(tmp_flag,10)==0)    # find the elements with flag = 0, 10, 20 etc
+        tmp_flag[index] = 0                               # set them all to 0
+        
         tmp_attr = ds.series[srclist[0]]['Attr'].copy()
         SeriesNameString = srclist[0]
         srclist.remove(srclist[0])
@@ -226,13 +230,13 @@ def AverageSeriesByElements(cf,ds,Av_out):
             tmp_flag = numpy.vstack((tmp_flag,ds.series[ThisOne]['Flag'].copy()))
         tmp_data = numpy.ma.masked_where(tmp_data==float(c.missing_value),tmp_data)
         Av_data = numpy.ma.average(tmp_data,axis=0)
-        Mx_flag = numpy.min(tmp_flag,axis=0)
+        Mn_flag = numpy.min(tmp_flag,axis=0)
     ds.averageserieslist.append(Av_out)
     #attr = qcutils.MakeAttributeDictionary(long_name='Element-wise average of series '+SeriesNameString,
                                        #standard_name=standardname,units=ds.series[srclist[0]]['Attr']['units'])
     # this is a temporary fix, better to have a routine update the attr dictionary
     tmp_attr["long_name"] = "Element-wise average of series " + SeriesNameString
-    qcutils.CreateSeries(ds,Av_out,Av_data,FList=srclist,Attr=tmp_attr)
+    qcutils.CreateSeries(ds,Av_out,Av_data,Flag=Mn_flag,Attr=tmp_attr)
 
 def CalculateAvailableEnergy(ds,Fa_out='Fa',Fn_in='Fn',Fg_in='Fg'):
     """
@@ -947,7 +951,7 @@ def CorrectIndividualFgForStorage(cf,ds):
             CorrectFgForStorage(cf,ds,Fg_out=CFgArgs[0],Fg_in=CFgArgs[1],Ts_in=CFgArgs[2],SWC_in=CFgArgs[3])
         return
 
-def CorrectFgForStorage(cf,ds,Fg_out='Fg',Fg_in='Fg',Ts_in='Ts',SWC_in='Sws'):
+def CorrectFgForStorage(cf,ds,Fg_out='Fg',Fg_in='Fg',Ts_in='Ts',Sws_in='Sws'):
     """
         Correct ground heat flux for storage in the layer above the heat flux plate
         
@@ -978,27 +982,36 @@ def CorrectFgForStorage(cf,ds,Fg_out='Fg',Fg_in='Fg',Ts_in='Ts',SWC_in='Sws'):
     nRecs = len(Fg)                               # number of records in series
     Ts,f,a = qcutils.GetSeriesasMA(ds,Ts_in)        # soil temperature
     Sws_default = min(1.0,max(0.0,float(cf['Soil']['SwsDefault'])))
-    if len(SWC_in) == 0:
+    if len(Sws_in) == 0:
         slist = []
         if qcutils.cfkeycheck(cf,Base='Soil',ThisOne='SwsSeries'):
             slist = ast.literal_eval(cf['Soil']['SwsSeries'])
         if len(slist)==0:
             log.info('  CorrectFgForStorage: Sws_default used for whole series')
             Sws = numpy.ones(nRecs)*Sws_default
+            Sws_flag = numpy.zeros(nRecs,dtype=numpy.int32)
         elif len(slist)==1:
-            Sws,f,a = qcutils.GetSeriesasMA(ds,slist[0])
+            Sws,Sws_flag,a = qcutils.GetSeriesasMA(ds,slist[0])
         else:
             MergeSeries(ds,'Sws',slist,[0,10])
-            Sws,f,a = qcutils.GetSeriesasMA(ds,'Sws')
+            Sws,Sws_flag,a = qcutils.GetSeriesasMA(ds,'Sws')
     else:
-        slist = SWC_in
-        Sws,f,a = qcutils.GetSeriesasMA(ds,SWC_in)
-    iom = numpy.where(numpy.mod(f,10)!=0)[0]
+        slist = Sws_in
+        Sws,Sws_flag,Sws_attr = qcutils.GetSeriesasMA(ds,Sws_in)
+    iom = numpy.where(numpy.mod(Sws_flag,10)!=0)[0]
     if len(iom)!=0:
         log.info('  CorrectFgForStorage: Sws_default used for '+str(len(iom))+' values')
         Sws[iom] = Sws_default
+        Sws_flag[iom] = numpy.int32(0)
     dTs = numpy.ma.zeros(nRecs)
-    dTs[1:] = numpy.diff(Ts)
+    dTs[1:] = numpy.ma.diff(Ts)
+    # write the temperature difference into the data structure so we can use its flag later
+    flag = numpy.zeros(nRecs,dtype=numpy.int32)
+    index = numpy.ma.where(dTs.mask==True)[0]
+    flag[index] = numpy.int32(1)
+    attr = qcutils.MakeAttributeDictionary(long_name='Change in soil temperature',units='C')
+    qcutils.CreateSeries(ds,"dTs",dTs,Flag=flag,Attr=attr)
+    # get the time difference
     dt = numpy.ma.zeros(nRecs)
     dt[1:] = numpy.diff(date2num(ds.series['DateTime']['Data']))*float(86400)
     dt[0] = dt[1]
@@ -1006,14 +1019,14 @@ def CorrectFgForStorage(cf,ds,Fg_out='Fg',Fg_in='Fg',Ts_in='Ts',SWC_in='Sws'):
     S = Cs*(dTs/dt)*d
     Fg_o = Fg + S
     attr= qcutils.MakeAttributeDictionary(long_name='Soil heat flux corrected for storage',units='W/m2',standard_name='downward_heat_flux_in_soil')
-    qcutils.CreateSeries(ds,Fg_out,Fg_o,FList=[Fg_in],Attr=attr)
+    qcutils.CreateSeries(ds,Fg_out,Fg_o,FList=[Fg_in,Ts_in,Sws_in,"dTs"],Attr=attr)
     # save the input (uncorrected) soil heat flux series, this will be used if the correction is relaxed
     attr = qcutils.MakeAttributeDictionary(long_name='Soil heat flux uncorrected for storage',units='W/m2')
     qcutils.CreateSeries(ds,'Fg_Av',Fg,Flag=Fg_flag,Attr=attr)
     attr = qcutils.MakeAttributeDictionary(long_name='Soil heat flux storage',units='W/m2')
-    qcutils.CreateSeries(ds,'S',S,FList=[Fg_in],Attr=attr)
+    qcutils.CreateSeries(ds,'S',S,FList=[Ts_in,Sws_in],Attr=attr)
     attr = qcutils.MakeAttributeDictionary(long_name='Specific heat capacity',units='J/m3/K')
-    qcutils.CreateSeries(ds,'Cs',Cs,FList=[Fg_in],Attr=attr)
+    qcutils.CreateSeries(ds,'Cs',Cs,FList=[Sws_in],Attr=attr)
     if 'CorrectFgForStorage' not in ds.globalattributes['Functions']:
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', CorrectFgForStorage'
     if qcutils.cfoptionskey(cf,Key='RelaxFgStorage'):
@@ -1952,15 +1965,18 @@ def MergeSeries_L4(ds):
         for ThisOne in srclist:
             if ThisOne in ds.series.keys():
                 SeriesNameString = SeriesNameString+', '+ThisOne
-                indx1 = numpy.zeros(numpy.size(data),dtype=numpy.int)
-                indx2 = numpy.zeros(numpy.size(data),dtype=numpy.int)
-                for okflag in okflags:
-                    index = numpy.where((flag==okflag))[0]                             # index of acceptable primary values
-                    indx1[index] = 1                                                   # set primary index to 1 when primary good
-                    index = numpy.where((ds.series[ThisOne]['Flag']==okflag))[0]       # same process for secondary
-                    indx2[index] = 1
-                index = numpy.where((indx1!=1)&(indx2==1))[0]           # index where primary bad but secondary good
-                data[index] = ds.series[ThisOne]['Data'][index]         # replace bad primary with good secondary
+                #indx1 = numpy.zeros(numpy.size(data),dtype=numpy.int)
+                #indx2 = numpy.zeros(numpy.size(data),dtype=numpy.int)
+                #for okflag in okflags:
+                    #index = numpy.where((flag==okflag))[0]                             # index of acceptable primary values
+                    #indx1[index] = 1                                                   # set primary index to 1 when primary good
+                    #index = numpy.where((ds.series[ThisOne]['Flag']==okflag))[0]       # same process for secondary
+                    #indx2[index] = 1
+                #index = numpy.where((indx1!=1)&(indx2==1))[0]           # index where primary bad but secondary good
+                index = numpy.where(numpy.mod(flag,10)==0)            # find the elements with flag = 0, 10, 20 etc
+                flag[index] = 0                                       # set them all to 0
+                index = numpy.where(flag!=0)                          # index of flag values other than 0,10,20,30 ...
+                data[index] = ds.series[ThisOne]['Data'][index]       # replace bad primary with good secondary
                 flag[index] = ds.series[ThisOne]['Flag'][index]
             else:
                 log.error('  MergeSeries: secondary input series'+ThisOne+'not found')

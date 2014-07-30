@@ -483,33 +483,51 @@ def gfClimatology_createdict(cf,ds,series):
     else:
         ds.climatology[series]["method"] = cf[section][series]["GapFillFromClimatology"]["method"]
 
+def gfSOLO_createdict(cf,ds,series):
+    """ Creates a dictionary in ds to hold information about the SOLO data used
+        to gap fill the tower data."""
+    # get the section of the control file containing the series
+    section = qcutils.get_cfsection(cf,series=series,mode="quiet")
+    # return without doing anything if the series isn't in a control file section
+    if len(section)==0:
+        log.error("GapFillUsingSOLO: Series "+series+" not found in control file, skipping ...")
+        return
+    # create the solo directory in the data structure
+    if "solo" not in dir(ds): ds.solo = {}
+    # create the dictionary keys for this series
+    ds.solo[series] = {}
+    # site name
+    ds.solo[series]["site_name"] = ds.globalattributes["site_name"]
+    # list of drivers
+    ds.solo[series]["drivers"] = ast.literal_eval(cf[section][series]["GapFillUsingSOLO"]["drivers"])
+    # name of SOLO output series in ds
+    ds.solo[series]["output"] = cf[section][series]["GapFillUsingSOLO"]["output"]
+    # results of best fit for plotting later on
+    ds.solo[series]["results"] = {"startdate":[],"enddate":[],"No. points":[],"r":[],
+                                  "Bias":[],"RMSE":[],"Frac Bias":[],"NMSE":[],
+                                  "Avg (obs)":[],"Avg (SOLO)":[],
+                                  "Var (obs)":[],"Var (SOLO)":[],"Var ratio":[],
+                                  "m_ols":[],"b_ols":[]}
+
 def GapFillParseControlFile(cf,ds,series=""):
     # find the section containing the series
     section = qcutils.get_cfsection(cf,series=series,mode="quiet")
     # return empty handed if the series is not in a section
     if len(section)==0: return
     if "GapFillFromACCESS" in cf[section][series].keys():
-        # check that the requested series is in the data structure
-        if series not in ds.series.keys():
-            log.error("gfACCESS: Requested series "+series+" not in data structure")
-        else:
-            # create the ACCESS dictionary in ds
-            gfACCESS_createdict(cf,ds,series)
-            # create an empty series in ds if the ACCESS output series doesn't exist yet
-            if ds.access[series]["output"] not in ds.series.keys():
-                data,flag,attr = qcutils.MakeEmptySeries(ds,ds.access[series]["output"])
-                qcutils.CreateSeries(ds,ds.access[series]["output"],data,Flag=flag,Attr=attr)
+        # create the ACCESS dictionary in ds
+        gfACCESS_createdict(cf,ds,series)
+        # create an empty series in ds if the ACCESS output series doesn't exist yet
+        if ds.access[series]["output"] not in ds.series.keys():
+            data,flag,attr = qcutils.MakeEmptySeries(ds,ds.access[series]["output"])
+            qcutils.CreateSeries(ds,ds.access[series]["output"],data,Flag=flag,Attr=attr)
     if "GapFillUsingSOLO" in cf[section][series].keys():
-        # create the SOLO directory in the data structure
-        if "solo" not in dir(ds): ds.solo = {}
-        # create a dictionary for this series
-        ds.solo[series] = {}
-        ds.solo[series]["drivers"] = ast.literal_eval(cf[section][series]["GapFillUsingSOLO"]["drivers"])
-        ds.solo[series]["output"] = cf[section][series]["GapFillUsingSOLO"]["output"]
-        ds.solo[series]["results"] = {"startdate":[],"middate":[],"enddate":[],"n":[],"r_max":[],
-                                      "bias":[],"rmse":[],"var_obs":[],"var_mod":[],"m_ols":[],"b_ols":[]}
-        data,flag,attr = qcutils.MakeEmptySeries(ds,ds.solo[series]["output"])
-        qcutils.CreateSeries(ds,ds.solo[series]["output"],data,Flag=flag,Attr=attr)
+        # create the SOLO dictionary in ds
+        gfSOLO_createdict(cf,ds,series)
+        # create an empty series in ds if the SOLO output series doesn't exist yet
+        if ds.solo[series]["output"] not in ds.series.keys():
+            data,flag,attr = qcutils.MakeEmptySeries(ds,ds.solo[series]["output"])
+            qcutils.CreateSeries(ds,ds.solo[series]["output"],data,Flag=flag,Attr=attr)
     if "GapFillFromClimatology" in cf[section][series].keys():
         # create the climatology dictionary in the data structure
         gfClimatology_createdict(cf,ds,series)
@@ -545,18 +563,21 @@ def GapFillFromACCESS(ds4):
     ldt_tower = ds4.series["DateTime"]["Data"]
     # we need the start and end time of the period of overlap between the ACCESS and tower data
     # read the ACCESS data file
+    if os.path.exists(access_file_list[0]):
+        log.error(" GapFillFromACCESS: ACCESS file "+access_file_list[0]+" not found")
+        return
     ds_access = qcio.nc_read_series(access_file_list[0])
     # check the time step of the tower and ACCESS data are the same
     if int(ds4.globalattributes["time_step"])!=int(ds_access.globalattributes["time_step"]):
-        log.error(" ACCESS and tower time steps are different")
+        log.error(" GapFillFromACCESS: ACCESS and tower time steps are different")
         return
     ldt_access = ds_access.series["DateTime"]["Data"]
     # check that the ACCESS and tower data overlap
     if ldt_access[0]>ldt_tower[-1]:
-        log.error(" ACCESS data starts after tower data finishes")
+        log.error(" GapFillFromACCESS: ACCESS data starts after tower data finishes")
         return
     if ldt_access[-1]<ldt_tower[0]:
-        log.error(" ACCESS data end before tower data starts")
+        log.error(" GapFillFromACCESS: ACCESS data end before tower data starts")
         return
     # store the start and end date of the overlap period
     startdate = max([ldt_tower[0],ldt_access[0]])
@@ -640,7 +661,7 @@ def gfACCESS_progress(access_gui,text):
         """
     access_gui.progress.destroy()
     access_gui.progress = Tkinter.Label(access_gui, text=text)
-    access_gui.progress.grid(row=9,column=0,columnspan=2,sticky="W")
+    access_gui.progress.grid(row=9,column=0,columnspan=6,sticky="W")
     access_gui.update()
 
 def gfACCESS_done(ds,access_gui):
@@ -700,6 +721,9 @@ def gfACCESS_plotsummary(ds):
         figlab = ""
         # now loop over the variables in the group list
         for col,label in enumerate(var_list):
+            if label not in ds.access.keys():
+                log.error("Series "+label+" requested for summary plot is not available")
+                continue
             # append the variable name to the variable name string
             figlab = figlab+label
             # and loop over rows in plot
@@ -1166,6 +1190,10 @@ def GapFillUsingSOLO(dsa,dsb):
     if "solo" not in dir(dsb): return
     # local pointer to the datetime series
     ldt = dsb.series["DateTime"]["Data"]
+    startdate = ldt[0]
+    enddate = ldt[-1]
+    solo_info = {"file_startdate":startdate.strftime("%Y-%m-%d %H:%M"),
+                 "file_enddate":enddate.strftime("%Y-%m-%d %H:%M")}
     # set up the GUI
     solo_gui = Tkinter.Toplevel()
     solo_gui.wm_title("SOLO GUI")
@@ -1223,15 +1251,41 @@ def GapFillUsingSOLO(dsa,dsb):
     solo_gui.endLabel.grid(row=nrow,column=0,columnspan=3)
     solo_gui.endEntry = Tkinter.Entry(solo_gui)
     solo_gui.endEntry.grid(row=nrow,column=3,columnspan=3)
-    # bottom row
+    # seventh row
     nrow = nrow + 1
-    solo_gui.doneButton = Tkinter.Button (solo_gui, text="Done",command=lambda:gfSOLO_finish(dsb,solo_gui))
+    solo_gui.peropt = Tkinter.IntVar()
+    solo_gui.peropt.set(1)
+    solo_gui.manualperiod = Tkinter.Radiobutton(solo_gui,text="Manual",variable=solo_gui.peropt,value=1)
+    solo_gui.manualperiod.grid(row=nrow,column=0,columnspan=3,sticky="W")
+    solo_gui.automonthly = Tkinter.Radiobutton(solo_gui,text="Monthly",variable=solo_gui.peropt,value=2)
+    solo_gui.automonthly.grid(row=nrow,column=3,columnspan=3,sticky="W")
+    # eigth row
+    nrow = nrow + 1
+    solo_gui.daysperiod = Tkinter.Radiobutton(solo_gui,text="No. days",variable=solo_gui.peropt,value=3)
+    solo_gui.daysperiod.grid(row=nrow,column=0,sticky="W")
+    solo_gui.daysentry = Tkinter.Entry(solo_gui,width=5)
+    solo_gui.daysentry.grid(row=nrow,column=1,columnspan=1,sticky="W")
+    solo_gui.pointsperiod = Tkinter.Radiobutton(solo_gui,text="No. pts",variable=solo_gui.peropt,value=4)
+    solo_gui.pointsperiod.grid(row=nrow,column=3,sticky="W")
+    solo_gui.pointsentry = Tkinter.Entry(solo_gui,width=5)
+    solo_gui.pointsentry.grid(row=nrow,column=4,columnspan=1,sticky="W")
+    # ninth row
+    nrow = nrow + 1
+    solo_gui.doneButton = Tkinter.Button (solo_gui, text="Done",command=lambda:gfSOLO_done(dsb,solo_gui))
     solo_gui.doneButton.grid(row=nrow,column=0,columnspan=3)
-    solo_gui.runButton = Tkinter.Button (solo_gui, text="Run",command=lambda:gfSOLO_main(dsa,dsb,solo_gui))
+    solo_gui.runButton = Tkinter.Button (solo_gui, text="Run",command=lambda:gfSOLO_run(dsa,dsb,solo_gui,solo_info))
     solo_gui.runButton.grid(row=nrow,column=3,columnspan=3)
+    # tenth row
+    nrow = nrow + 1
+    solo_gui.progress_row = nrow
+    solo_gui.progress = Tkinter.Label(solo_gui, text='Waiting for input ...')
+    solo_gui.progress.grid(row=nrow,column=0,columnspan=6,sticky="W")
+
     solo_gui.wait_window(solo_gui)
 
-def gfSOLO_finish(ds,solo_gui):
+def gfSOLO_done(ds,solo_gui):
+    # plot the summary statistics if required
+    if solo_gui.peropt.get()==1: gfSOLO_plotsummary(ds)
     # destroy the SOLO GUI
     solo_gui.destroy()
     # write Excel spreadsheet with fit statistics
@@ -1247,15 +1301,17 @@ def gfSOLO_getserieslist(cf):
         if "GapFillUsingSOLO" in cf["Fluxes"][series]: series_list.append(series)
     return series_list
 
-def gfSOLO_main(dsa,dsb,solo_gui):
+def gfSOLO_main(dsa,dsb,solo_gui,solo_info):
     '''
     This is the main routine for running SOLO, an artifical neural network for gap filling fluxes.
     '''
-    log.info(" Gap filling "+str(dsb.solo.keys())+" using SOLO ANN")
+    startdate = solo_info["startdate"]
+    enddate = solo_info["enddate"]
+    log.info(" Gap filling using SOLO: "+startdate+" to "+enddate)
     # read the control file again, this allows the contents of the control file to
     # be changed with the SOLO GUI still displayed
     cfname = dsb.globalattributes["controlfile_name"]
-    cf = qcio.get_controlfilecontents(cfname)
+    cf = qcio.get_controlfilecontents(cfname,mode="quiet")
     solo_series = gfSOLO_getserieslist(cf)
     #for series in dsb.solo.keys():
     for series in solo_series:
@@ -1270,8 +1326,6 @@ def gfSOLO_main(dsa,dsb,solo_gui):
     ts = dsb.globalattributes["time_step"]
     ldt = dsb.series["DateTime"]["Data"]
     xldt = dsb.series["xlDateTime"]["Data"]
-    startdate = solo_gui.startEntry.get()
-    enddate = solo_gui.endEntry.get()
     # get the start and end datetime indices
     si = qcutils.GetDateIndex(ldt,startdate,ts=ts,default=0,match="exact")
     ei = qcutils.GetDateIndex(ldt,enddate,ts=ts,default=-1,match="exact")
@@ -1289,7 +1343,6 @@ def gfSOLO_main(dsa,dsb,solo_gui):
     for series in solo_series:
         dsb.solo[series]["results"]["startdate"].append(xldt[si])
         dsb.solo[series]["results"]["enddate"].append(xldt[ei])
-        dsb.solo[series]["results"]["middate"].append(numpy.average([xldt[si],xldt[ei]]))
         drivers = dsb.solo[series]["drivers"]
         output = dsb.solo[series]["output"]
         # set the number of nodes for the inf files
@@ -1323,6 +1376,15 @@ def gfSOLO_setnodesEntry(solo_gui,drivers):
         solo_gui.nodesEntry.delete(0,Tkinter.END)
         solo_gui.nodesEntry.insert(0,str(len(drivers)+1))
     return nodesAuto
+
+def gfSOLO_progress(solo_gui,text):
+    """
+        Update progress message in SOLO GUI
+        """
+    solo_gui.progress.destroy()
+    solo_gui.progress = Tkinter.Label(solo_gui, text=text)
+    solo_gui.progress.grid(row=10,column=0,columnspan=6,sticky="W")
+    solo_gui.update()
 
 def gfSOLO_resetnodesEntry(solo_gui):
     solo_gui.nodesEntry.delete(0,Tkinter.END)
@@ -1559,6 +1621,51 @@ def gfSOLO_runsolo(dsa,dsb,driverlist,targetlabel,nRecs,si=0,ei=-1):
         log.error(' gfSOLO_runsolo: SOLO did not run correctly, check the SOLO GUI and the log files')
         return 0
 
+def gfSOLO_run(dsa,dsb,solo_gui,solo_info):
+    # populate the solo_info dictionary with things that will be useful
+    solo_info["peropt"] = solo_gui.peropt.get()
+    solo_info["site_name"] = dsb.globalattributes["site_name"]
+    solo_info["time_step"] = int(dsb.globalattributes["time_step"])
+    solo_info["nperhr"] = int(float(60)/solo_info["time_step"]+0.5)
+    solo_info["nperday"] = int(float(24)*solo_info["nperhr"]+0.5)
+    solo_info["maxlags"] = int(float(12)*solo_info["nperhr"]+0.5)
+    solo_info["tower"] = {}
+    solo_info["access"] = {}
+    log.info(" Gap filling "+str(dsb.solo.keys())+" using SOLO")
+    if solo_gui.peropt.get()==1:
+        gfSOLO_progress(solo_gui,"Starting manual run ...")
+        # get the start and end datetimes entered in the SOLO GUI
+        solo_info["startdate"] = solo_gui.startEntry.get()
+        if len(solo_info["startdate"])==0: solo_info["startdate"] = solo_info["file_startdate"]
+        solo_info["enddate"] = solo_gui.endEntry.get()
+        if len(solo_info["enddate"])==0: solo_info["enddate"] = solo_info["file_enddate"]
+        gfSOLO_main(dsa,dsb,solo_gui,solo_info)
+        gfSOLO_progress(solo_gui,"Finished manual run ...")
+    elif solo_gui.peropt.get()==2:
+        gfSOLO_progress(solo_gui,"Starting auto (monthly) run ...")
+        # get the start datetime entered in the SOLO GUI
+        solo_info["startdate"] = solo_gui.startEntry.get()
+        if len(solo_info["startdate"])==0: solo_info["startdate"] = solo_info["file_startdate"]
+        startdate = dateutil.parser.parse(solo_info["startdate"])
+        file_startdate = dateutil.parser.parse(solo_info["file_startdate"])
+        file_enddate = dateutil.parser.parse(solo_info["file_enddate"])
+        enddate = startdate+dateutil.relativedelta.relativedelta(months=1)
+        enddate = min([file_enddate,enddate])
+        solo_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d")
+        while startdate<file_enddate:
+            gfSOLO_main(dsa,dsb,solo_gui,solo_info)
+            startdate = enddate
+            enddate = startdate+dateutil.relativedelta.relativedelta(months=1)
+            solo_info["startdate"] = startdate.strftime("%Y-%m-%d")
+            solo_info["enddate"] = enddate.strftime("%Y-%m-%d")
+        # plot the summary statistics
+        gfSOLO_plotsummary(dsb)
+        gfSOLO_progress(solo_gui,"Finished auto (monthly) run ...")
+    elif solo_gui.peropt.get()==3:
+        pass
+    elif solo_gui.peropt.get()==4:
+        pass
+
 def gfSOLO_runseqsolo(dsa,dsb,driverlist,targetlabel,outputlabel,nRecs,si=0,ei=-1):
     '''
     Run SEQSOLO.
@@ -1613,13 +1720,6 @@ def gfSOLO_runseqsolo(dsa,dsb,driverlist,targetlabel,outputlabel,nRecs,si=0,ei=-
         # now read in the seqsolo results, use the seqOut2 file so that the learning capability of
         # seqsolo can be used via the "learning rate" and "Iterations" GUI options
         seqdata = numpy.genfromtxt('solo/output/seqOut2.out')
-        # if no output series exists then create one now
-        if outputlabel not in dsb.series.keys():
-            # qcutils.GetSeriesasMA will create a blank series if it doesn't already exist
-            flux,flag,attr = qcutils.GetSeriesasMA(dsb,outputlabel)
-            attr = qcutils.MakeAttributeDictionary(long_name=targetlabel+' modelled by SOLO',
-                                                   units=dsa.series[targetlabel]['Attr']['units'])
-            qcutils.CreateSeries(dsb,outputlabel,flux,Flag=flag,Attr=attr)
         # put the SOLO modelled data back into the data series
         if ei==-1:
             dsb.series[outputlabel]['Data'][si:][goodindex] = seqdata[:,1]
@@ -1627,6 +1727,10 @@ def gfSOLO_runseqsolo(dsa,dsb,driverlist,targetlabel,outputlabel,nRecs,si=0,ei=-
         else:
             dsb.series[outputlabel]['Data'][si:ei+1][goodindex] = seqdata[:,1]
             dsb.series[outputlabel]['Flag'][si:ei+1][goodindex] = numpy.int32(30)
+        # set the attributes
+        for attr in dsa.series[targetlabel]["Attr"].keys():
+            dsb.series[outputlabel]["Attr"][attr] = dsa.series[targetlabel]["Attr"][attr]
+        dsb.series[outputlabel]["Attr"]["long_name"] = dsb.series[outputlabel]["Attr"]["long_name"]+", modeled by SOLO"
         return 1
     else:
         log.error(' gfSOLO_runseqsolo: SEQSOLO did not run correctly, check the SOLO GUI and the log files')
@@ -1699,11 +1803,11 @@ def gfSOLO_plot(pd,dsa,dsb,driverlist,targetlabel,outputlabel,solo_gui,si=0,ei=-
     numfilled = numpy.ma.count(mod)-numpy.ma.count(obs)
     diff = mod - obs
     bias = numpy.ma.average(diff)
-    dsb.solo[targetlabel]["results"]["bias"].append(bias)
+    dsb.solo[targetlabel]["results"]["Bias"].append(bias)
     rmse = numpy.ma.sqrt(numpy.ma.mean((obs-mod)*(obs-mod)))
     plt.figtext(0.65,0.225,'No. points')
     plt.figtext(0.75,0.225,str(numpoints))
-    dsb.solo[targetlabel]["results"]["n"].append(numpoints)
+    dsb.solo[targetlabel]["results"]["No. points"].append(numpoints)
     plt.figtext(0.65,0.200,'Nodes')
     plt.figtext(0.75,0.200,str(solo_gui.nodesEntry.get()))
     plt.figtext(0.65,0.175,'Training')
@@ -1724,14 +1828,18 @@ def gfSOLO_plot(pd,dsa,dsb,driverlist,targetlabel,outputlabel,solo_gui,si=0,ei=-
     dsb.solo[targetlabel]["results"]["b_ols"].append(coefs[1])
     plt.figtext(0.815,0.150,'r')
     plt.figtext(0.915,0.150,str(qcutils.round2sig(r[0][1],sig=4)))
-    dsb.solo[targetlabel]["results"]["r_max"].append(r[0][1])
+    dsb.solo[targetlabel]["results"]["r"].append(r[0][1])
     plt.figtext(0.815,0.125,'RMSE')
     plt.figtext(0.915,0.125,str(qcutils.round2sig(rmse,sig=4)))
-    dsb.solo[targetlabel]["results"]["rmse"].append(rmse)
+    dsb.solo[targetlabel]["results"]["RMSE"].append(rmse)
     var_obs = numpy.ma.var(obs)
-    dsb.solo[targetlabel]["results"]["var_obs"].append(var_obs)
+    dsb.solo[targetlabel]["results"]["Var (obs)"].append(var_obs)
     var_mod = numpy.ma.var(mod)
-    dsb.solo[targetlabel]["results"]["var_mod"].append(var_mod)
+    dsb.solo[targetlabel]["results"]["Var (SOLO)"].append(var_mod)
+    dsb.solo[targetlabel]["results"]["Var ratio"].append(var_obs/var_mod)
+    dsb.solo[targetlabel]["results"]["Avg (obs)"].append(numpy.ma.average(obs))
+    dsb.solo[targetlabel]["results"]["Avg (SOLO)"].append(numpy.ma.average(mod))
+    
     # time series of drivers and target
     ts_axes = []
     rect = [pd["margin_left"],pd["ts_bottom"],pd["ts_width"],pd["ts_height"]]
@@ -1761,6 +1869,94 @@ def gfSOLO_plot(pd,dsa,dsb,driverlist,targetlabel,outputlabel,solo_gui,si=0,ei=-
     plt.draw()
     # turn off interactive plotting
     plt.ioff()
+
+def gfSOLO_plotsummary(ds):
+    """ Plot single pages of summary results for groups of variables. """
+    # get a list of variables for which SOLO data was available
+    label_list = ds.solo.keys()
+    if len(ds.solo[label_list[0]]["results"]["startdate"])==0:
+        log.info("gfSOLO: no summary data to plot")
+        return
+    # get the Excel datemode, needed to convert the Excel datetime to Python datetimes
+    datemode = int(ds.globalattributes['xl_datemode'])
+    # site name for titles
+    site_name = ds.globalattributes["site_name"]
+    # datetimes are stored in ds.access as Excel datetimes, here we convert to Python datetimes
+    # for ease of handling and plotting.
+    # start datetimes of the periods compared first
+    basedate = datetime.datetime(1899, 12, 30)
+    dt_start = []
+    for xldt in ds.solo[label_list[0]]["results"]["startdate"]:
+        dt_start.append(basedate+datetime.timedelta(days=xldt+1462*datemode))
+    startdate = min(dt_start)
+    # and then the end datetimes
+    dt_end = []
+    for xldt in ds.solo[label_list[0]]["results"]["enddate"]:
+        dt_end.append(basedate+datetime.timedelta(days=xldt+1462*datemode))
+    enddate = max(dt_end)
+    # get the major tick locator and label format
+    MTLoc = mdt.AutoDateLocator(minticks=3,maxticks=5)
+    MTFmt = mdt.DateFormatter('%b')
+    # group lists of the resuts to be plotted
+    result_list = ["r","Bias","RMSE","Var ratio","m_ols","b_ols"]
+    ylabel_list = ["r","Bias","RMSE","Var ratio","Slope","Offset"]
+    # turn on interactive plotting
+    plt.ion()
+    # now loop over the group lists
+    for nFig in ds.cf["SOLO_Summary"].keys():
+        plot_title = ds.cf["SOLO_Summary"][str(nFig)]["Title"]
+        var_list = ast.literal_eval(ds.cf["SOLO_Summary"][str(nFig)]["Variables"])
+        # set up the subplots on the page
+        fig,axs = plt.subplots(len(result_list),len(var_list),figsize=(13,9))
+        fig.canvas.set_window_title("SOLO summary: "+plot_title)
+        # make a title string for the plot and render it
+        title_str = "SOLO: "+plot_title+"; "+site_name+" "+datetime.datetime.strftime(startdate,"%Y-%m-%d")
+        title_str = title_str+" to "+datetime.datetime.strftime(enddate,"%Y-%m-%d")
+        fig.suptitle(title_str, fontsize=14, fontweight='bold')
+        # initialise a string to take the concatenated variable names, used in the name of the hard-copy of the plot
+        figlab = ""
+        # now loop over the variables in the group list
+        for col,label in enumerate(var_list):
+            # append the variable name to the variable name string
+            figlab = figlab+label
+            # and loop over rows in plot
+            for row,rlabel,ylabel in zip(range(len(result_list)),result_list,ylabel_list):
+                # get the results to be plotted
+                result = numpy.ma.masked_equal(ds.solo[label]["results"][rlabel],float(c.missing_value))
+                # put the data into the right order to be plotted
+                dt,data = gfSOLO_plotsummary_getdata(dt_start,dt_end,result)
+                # plot the results
+                axs[row,col].plot(dt,data)
+                # put in the major ticks
+                axs[row,col].xaxis.set_major_locator(MTLoc)
+                # if this is the left-most column, add the Y axis labels
+                if col==0: axs[row,col].set_ylabel(ylabel,visible=True)
+                # if this is not the last row, hide the tick mark labels
+                if row<len(result_list)-1: plt.setp(axs[row,col].get_xticklabels(),visible=False)
+                # if this is the first row, add the column title
+                if row==0: axs[row,col].set_title(label)
+                # if this is the last row, add the major tick mark and axis labels
+                if row==len(result_list)-1:
+                    axs[row,col].xaxis.set_major_formatter(MTFmt)
+                    axs[row,col].set_xlabel('Month',visible=True)
+        # draw the plot
+        plt.draw()
+        # make the hard-copy file name and save the plot as a PNG file
+        sdt = startdate.strftime("%Y%m%d")
+        edt = enddate.strftime("%Y%m%d")
+        figname = "plots/"+site_name.replace(" ","")+"_SOLO_FitStatistics_"+figlab
+        figname = figname+"_"+sdt+"_"+edt+".png"
+        fig.savefig(figname,format="png")
+
+def gfSOLO_plotsummary_getdata(dt_start,dt_end,result):
+    dt = []
+    data = []
+    for s,e,r in zip(dt_start,dt_end,result):
+        dt.append(s)
+        data.append(r)
+        dt.append(e)
+        data.append(r)
+    return dt,data
 
 def gf_getdiurnalstats(DecHour,Data,dt):
     nInts = 24*int((60/dt)+0.5)

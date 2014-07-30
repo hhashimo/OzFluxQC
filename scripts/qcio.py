@@ -5,6 +5,8 @@ import copy
 import constants as c
 import csv
 import datetime
+import dateutil
+import meteorologicalfunctions as mf
 import numpy
 import os
 import sys
@@ -174,6 +176,7 @@ def read_eddypro_full(csvname):
     ds.series['Fc'] = {}
     ds.series['Fc']['Data'] = numpy.array(Fc_data_list,dtype=numpy.float64)
     ds.series['Fc']['Flag'] = numpy.array(Fc_flag_list,dtype=numpy.int32)
+    ds.globalattributes["nc_nrecs"] = nRecs
     return ds
     
 def xl2nc(cf,InLevel):
@@ -207,6 +210,172 @@ def xl2nc(cf,InLevel):
     ncFile = nc_open_write(outfilename)
     nc_write_series(ncFile,ds)
     return 0
+
+def fn_write_csv(cf):
+    # get the file names
+    ncFileName = get_infilename_from_cf(cf)
+    csvFileName = get_outfilename_from_cf(cf)
+    # open the csv file
+    csvfile = open(csvFileName,'wb')
+    writer = csv.writer(csvfile)
+    # read the netCDF file
+    ds = nc_read_series(ncFileName)
+    # Tumbarumba doesn't have RH in the netCDF files
+    if "RH" not in ds.series.keys():
+        Ah,f,a = qcutils.GetSeriesasMA(ds,'Ah')
+        Ta,f,a = qcutils.GetSeriesasMA(ds,'Ta')
+        RH = mf.RHfromabsolutehumidity(Ah, Ta)
+        attr = qcutils.MakeAttributeDictionary(long_name='Relative humidity',units='%',standard_name='not defined')
+        qcutils.CreateSeries(ds,"RH",RH,FList=['Ta','Ah'],Attr=attr)
+    ts = int(ds.globalattributes["time_step"])
+    ts_delta = datetime.timedelta(minutes=ts)
+    # get the datetime series
+    dt = ds.series["DateTime"]["Data"]
+    # check the start datetime of the series and adjust if necessary
+    start_datetime = dateutil.parser.parse(str(cf["General"]["start_datetime"]))
+    if dt[0]<start_datetime:
+        # requested start_datetime is after the start of the file
+        log.info(" Truncating start of file")
+        si = qcutils.GetDateIndex(dt,str(start_datetime),ts=ts,match="exact")
+        for thisone in ds.series.keys():
+            ds.series[thisone]["Data"] = ds.series[thisone]["Data"][si:]
+            ds.series[thisone]["Flag"] = ds.series[thisone]["Flag"][si:]
+        ds.globalattributes["nc_nrecs"] = str(len(ds.series["DateTime"]["Data"]))
+    elif dt[0]>start_datetime:
+        # requested start_datetime is before the start of the file
+        log.info(" Padding start of file")
+        dt_patched = [ldt for ldt in qcutils.perdelta(start_datetime, dt[0], ts_delta)]
+        data_patched = numpy.ones(len(dt_patched))*float(c.missing_value)
+        flag_patched = numpy.ones(len(dt_patched))
+        # list of series in the data structure
+        series_list = ds.series.keys()
+        # ds.series["DateTime"]["Data"] is a list not a numpy array so we must treat it differently
+        ds.series["DateTime"]["Data"] = dt_patched+ds.series["DateTime"]["Data"]
+        ds.series["DateTime"]["Flag"] = numpy.concatenate((flag_patched,ds.series["DateTime"]["Flag"]))
+        series_list.remove("DateTime")
+        for thisone in series_list:
+            ds.series[thisone]["Data"] = numpy.concatenate((data_patched,ds.series[thisone]["Data"]))
+            ds.series[thisone]["Flag"] = numpy.concatenate((flag_patched,ds.series[thisone]["Flag"]))
+        ds.globalattributes["nc_nrecs"] = str(len(ds.series["DateTime"]["Data"]))
+        # refresh the year, month, day etc arrays now that we have padded the datetime series
+        qcutils.get_ymdhms_from_datetime(ds)
+    # now check the end datetime of the file
+    end_datetime = dateutil.parser.parse(str(cf["General"]["end_datetime"]))
+    if dt[-1]>end_datetime:
+        # requested end_datetime is before the end of the file
+        msg = " Truncating end of file "+dt[-1].strftime("%Y-%m-%d %H:%M")+" "+end_datetime.strftime("%Y-%m-%d %H:%M")
+        log.info(msg)
+        ei = qcutils.GetDateIndex(dt,str(end_datetime),ts=ts,match="exact")
+        for thisone in ds.series.keys():
+            ds.series[thisone]["Data"] = ds.series[thisone]["Data"][:ei+1]
+            ds.series[thisone]["Flag"] = ds.series[thisone]["Flag"][:ei+1]
+        ds.globalattributes["nc_nrecs"] = str(len(ds.series["DateTime"]["Data"]))
+    elif dt[-1]<end_datetime:
+        # requested start_datetime is before the start of the file
+        msg = " Padding end of file "+dt[-1].strftime("%Y-%m-%d %H:%M")+" "+end_datetime.strftime("%Y-%m-%d %H:%M")
+        log.info(msg)
+        dt_patched = [ldt for ldt in qcutils.perdelta(dt[-1]+ts_delta, end_datetime+ts_delta, ts_delta)]
+        data_patched = numpy.ones(len(dt_patched))*float(c.missing_value)
+        flag_patched = numpy.ones(len(dt_patched))
+        # list of series in the data structure
+        series_list = ds.series.keys()
+        # ds.series["DateTime"]["Data"] is a list not a numpy array so we must treat it differently
+        ds.series["DateTime"]["Data"] = ds.series["DateTime"]["Data"]+dt_patched
+        ds.series["DateTime"]["Flag"] = numpy.concatenate((ds.series["DateTime"]["Flag"],flag_patched))
+        series_list.remove("DateTime")
+        for thisone in series_list:
+            ds.series[thisone]["Data"] = numpy.concatenate((ds.series[thisone]["Data"],data_patched))
+            ds.series[thisone]["Flag"] = numpy.concatenate((ds.series[thisone]["Flag"],flag_patched))
+        ds.globalattributes["nc_nrecs"] = str(len(ds.series["DateTime"]["Data"]))
+        # refresh the year, month, day etc arrays now that we have padded the datetime series
+        qcutils.get_ymdhms_from_datetime(ds)
+    if ts==30:
+        nRecs_year = 17520
+        nRecs_leapyear = 17568
+    elif ts==60:
+        nRecs_year = 8760
+        nRecs_leapyear = 8784
+    else:
+        log.error(" Unrecognised time step ("+str(ts)+")")
+        return
+    if (int(ds.globalattributes["nc_nrecs"])!=nRecs_year) & (int(ds.globalattributes["nc_nrecs"])!=nRecs_leapyear):
+        log.error(" Number of records in file does not equal "+str(nRecs_year)+" or "+str(nRecs_leapyear))
+        log.error(len(ds.series["DateTime"]["Data"]),ds.series["DateTime"]["Data"][0],ds.series["DateTime"]["Data"][-1])
+        return
+    # get the date and time data
+    Day,flag,attr = qcutils.GetSeries(ds,'Day')
+    Month,flag,attr = qcutils.GetSeries(ds,'Month')
+    Year,flag,attr = qcutils.GetSeries(ds,'Year')
+    Hour,flag,attr = qcutils.GetSeries(ds,'Hour')
+    Minute,flag,attr = qcutils.GetSeries(ds,'Minute')
+    # get the data
+    data = {}
+    series_list = cf["Variables"].keys()
+    for series in series_list:
+        ncname = cf["Variables"][series]["ncname"]
+        if ncname not in ds.series.keys():
+            log.error("Series "+ncname+" not in netCDF file, skipping ...")
+            series_list.remove(series)
+            continue
+        data[series] = ds.series[ncname]
+        fmt = cf["Variables"][series]["format"]
+        if "." in fmt:
+            numdec = len(fmt) - (fmt.index(".") + 1)
+            strfmt = "{0:."+str(numdec)+"f}"
+        else:
+            strfmt = "{0:d}"
+        data[series]["fmt"] = strfmt
+    #adjust units if required
+    for series in series_list:
+        if series=="FC" and data[series]["Attr"]["units"]=='mg/m2/s':
+            data[series]["Data"] = mf.Fc_umolpm2psfrommgpm2ps(data[series]["Data"])
+            data[series]["Attr"]["units"] = "umol/m2/s"
+        if series=="CO2" and data[series]["Attr"]["units"]=='mg/m3':
+            CO2 = data["CO2"]["Data"]
+            TA = data["TA"]["Data"]
+            PA = data["PA"]["Data"]
+            data[series]["Data"] = mf.co2_ppmfrommgpm3(CO2,TA,PA)
+            data[series]["Attr"]["units"] = "umol/mol"
+        if series=="H2O" and data[series]["Attr"]["units"]=='g/m3':
+            H2O = data["H2O"]["Data"]
+            TA = data["TA"]["Data"]
+            PA = data["PA"]["Data"]
+            data[series]["Data"] = mf.h2o_mmolpmolfromgpm3(H2O,TA,PA)
+            data[series]["Attr"]["units"] = "mmol/mol"
+        if series=="RH" and data[series]["Attr"]["units"] in ["fraction","frac"]:
+            data[series]["Data"] = float(100)*data[series]["Data"]
+            data[series]["Attr"]["units"] = "%"
+    # write the general information to csv file
+    for item in cf["General"]:
+        writer.writerow([item,str(cf['General'][item])])
+    # write the variable names to the csv file
+    row_list = ['DateTime','Year','Month','Day','HHMM']
+    for item in series_list:
+        row_list.append(item)
+    writer.writerow(row_list)
+    # write the units line to the csv file
+    units_list = ["-","-","-","-","-"]
+    for item in series_list:
+        units_list.append(data[item]["Attr"]["units"])
+    writer.writerow(units_list)
+    # now write the data
+    for i in range(len(Year)):
+        # get the datetime string
+        dtstr = '%02d/%02d/%d %02d:%02d'%(Day[i],Month[i],Year[i],Hour[i],Minute[i])
+        hrmn = '%02d%02d'%(Hour[i],Minute[i])
+        dttup = datetime.datetime(Year[i],Month[i],Day[i],Hour[i],Minute[i]).timetuple()
+        doy = float(dttup.tm_yday) + float(dttup.tm_hour)/24 + float(dttup.tm_min)/1440
+        data_list = [dtstr,'%d'%(Year[i]),'%02d'%(Month[i]),'%02d'%(Day[i]),hrmn]
+        for series in series_list:
+            strfmt = data[series]["fmt"]
+            if "d" in strfmt:
+                data_list.append(strfmt.format(int(round(data[series]["Data"][i]))))
+            else:
+                data_list.append(strfmt.format(data[series]["Data"][i]))
+        writer.writerow(data_list)
+    # close the csv file
+    csvfile.close()
+    return
 
 def get_controlfilecontents(ControlFileName,mode="verbose"):
     if mode!="quiet": log.info(' Processing the control file ')
@@ -499,9 +668,9 @@ def nc_read_series(ncFullName):
     netCDF4.default_encoding = 'latin-1'
     ds = DataStructure()
     # check to see if the requested file exists, return empty ds if it doesn't
-    if not os.path.exists(ncFullName):
+    if not qcutils.file_exists(ncFullName,mode="quiet"):
         log.error(' netCDF file '+ncFullName+' not found')
-        return ds
+        raise Exception("GapFillFromACCESS: ACCESS file not found")
     # file probably exists, so let's read it
     ncFile = netCDF4.Dataset(ncFullName,'r')
     # now deal with the global attributes
@@ -749,11 +918,15 @@ def xl_write_SOLOStats(ds):
     # open the Excel file
     xlfile = xlwt.Workbook()
     # list of outputs to write to the Excel file
-    date_list = ["startdate","middate","enddate"]
+    date_list = ["startdate","enddate"]
     output_list = ["n","r_max","bias","rmse","var_obs","var_mod","m_ols","b_ols"]
     # loop over the series that have been gap filled using ACCESS data
     d_xf = xlwt.easyxf(num_format_str='dd/mm/yyyy hh:mm')
     for label in ds.solo.keys():
+        # get the list of values to output with the start and end dates removed
+        output_list = ds.solo[label]["results"].keys()
+        for item in date_list:
+            if item in output_list: output_list.remove(item)
         # add a sheet with the series label
         xlResultsSheet = xlfile.add_sheet(label)
         xlRow = 10
@@ -769,7 +942,8 @@ def xl_write_SOLOStats(ds):
             xlResultsSheet.write(xlRow,xlCol,output)
             for item in ds.solo[label]["results"][output]:
                 xlRow = xlRow + 1
-                xlResultsSheet.write(xlRow,xlCol,item)
+                # xlwt under Anaconda seems to only allow float64!
+                xlResultsSheet.write(xlRow,xlCol,numpy.float64(item))
             xlRow = 10
             xlCol = xlCol + 1
     xlfile.save(xl_filename)

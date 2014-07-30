@@ -277,19 +277,6 @@
         [[[RangeCheck]]]
             Lower      = "[0]*12"
             Upper      = "[60]*12"
-    [[Wd]]
-        [[[GapFillFromACCESS]]]
-            file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_<year>_ACCESS.nc
-            output = "Wd_acc"
-        [[[GapFillFromClimatology]]]
-            file_name = ../Sites/<site_name>/Data/Processed/<year>/<site_name>_<year>_L3_Climatology.xls
-            method = "interpolated daily"
-            output = "Wd_cli"
-        [[[MergeSeries]]]
-            Source     = "['Wd','Wd_acc','Wd_cli']"
-        [[[RangeCheck]]]
-            Lower      = "[0]*12"
-            Upper      = "[360]*12"
     [[Ws]]
         [[[GapFillFromACCESS]]]
             file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_<year>_ACCESS.nc
@@ -378,13 +365,9 @@
         Variables = "['Fsd','Fld','Fn','Fa']"
     [[2]]
         Title = "Meteorology"
-        Variables = "['Ta','Ah','Ws','ps']"
-    [[3]]
-        Title = "Soil"
-        Variables = "['Ts','Sws','Fg']"
-#    [[1]]
-#        Title = "Basic 1"
-#        Variables = "['Fsd','Fn','Ta','Ah']"
-#    [[2]]
-#        Title = "Basic 2"
-#        Variables = "['Ws','Ts','ps']"
+        Variables = "['Ta','Ah','Ws','ps','Ts']"
+
+[SOLO_Summary]
+    [[1]]
+        Title = "Fluxes"
+        Variables = "['ustar','Fh','Fe','Fc']"

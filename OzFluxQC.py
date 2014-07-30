@@ -124,6 +124,7 @@ class qcgui(tk.Tk):
         filemenu = tk.Menu(menubar,tearoff=0)
         filemenu.add_command(label="Concatenate netCDF",command=self.do_ncconcat)
         filemenu.add_command(label="List netCDF contents",command=self.option_not_implemented)
+        filemenu.add_command(label="nc to FluxNet",command=self.do_nc2fn)
         filemenu.add_command(label="nc to xls",command=self.do_nc2xls)
         filemenu.add_command(label="xls to nc",command=self.option_not_implemented)
         filemenu.add_separator()
@@ -154,7 +155,11 @@ class qcgui(tk.Tk):
         menubar.add_cascade(label="Plot",menu=plotmenu)
         # and the "Utilities" menu
         utilsmenu = tk.Menu(menubar,tearoff=0)
-        utilsmenu.add_command(label="Climatology",command=self.do_climatology)
+        climatologymenu = tk.Menu(menubar,tearoff=0)
+        climatologymenu.add_command(label="Standard",command=lambda:self.do_climatology(mode="standard"))
+        climatologymenu.add_command(label="Custom",command=lambda:self.do_climatology(mode="custom"))
+        utilsmenu.add_cascade(label="Climatology",menu=climatologymenu)
+        utilsmenu.add_command(label="Compare EP",command=self.do_compare_eddypro)
         ustarmenu = tk.Menu(menubar,tearoff=0)
         ustarmenu.add_command(label="Reichstein",command=self.option_not_implemented)
         ustarmenu.add_command(label="Change Point Detection",command=self.option_not_implemented)
@@ -170,23 +175,28 @@ class qcgui(tk.Tk):
 
         self.config(menu=menubar)
 
-    def do_climatology(self):
+    def do_climatology(self,mode="standard"):
         """
         Calls qcclim.climatology
         """
         self.do_progress(text='Doing climatology ...')
-        stdname = "controlfiles/standard/climatology.txt"
-        if os.path.exists(stdname):
-            cf = qcio.get_controlfilecontents(stdname)
-            self.do_progress(text='Opening input file ...')
-            filename = qcio.get_filename_dialog(path='../Sites',title='Choose an input file')
-            if len(filename)==0:
-                log.info( " Climatology: no input file chosen")
-                self.do_progress(text='Waiting for input ...')
-                return
-            if "Files" not in dir(cf): cf["Files"] = {}
-            cf["Files"]["file_path"] = ntpath.split(filename)[0]+"/"
-            cf["Files"]["in_filename"] = ntpath.split(filename)[1]
+        if mode=="standard":
+            stdname = "controlfiles/standard/climatology.txt"
+            if os.path.exists(stdname):
+                cf = qcio.get_controlfilecontents(stdname)
+                self.do_progress(text='Opening input file ...')
+                filename = qcio.get_filename_dialog(path='../Sites',title='Choose an input file')
+                if len(filename)==0:
+                    log.info( " Climatology: no input file chosen")
+                    self.do_progress(text='Waiting for input ...')
+                    return
+                if "Files" not in dir(cf): cf["Files"] = {}
+                cf["Files"]["file_path"] = ntpath.split(filename)[0]+"/"
+                cf["Files"]["in_filename"] = ntpath.split(filename)[1]
+            else:
+                self.do_progress(text='Loading control file ...')
+                cf = qcio.load_controlfile(path='controlfiles')
+                if len(cf)==0: self.do_progress(text='Waiting for input ...'); return
         else:
             self.do_progress(text='Loading control file ...')
             cf = qcio.load_controlfile(path='controlfiles')
@@ -209,6 +219,16 @@ class qcgui(tk.Tk):
             matplotlib.pyplot.close(n)
         self.do_progress(text='Waiting for input ...')             # tell the user what we're doing
         log.info(' Waiting for input ...')
+
+    def do_compare_eddypro(self):
+        """
+        Calls qcclim.compare_ep
+        Compares the results OzFluxQC (L3) with those from EddyPro (full output).
+        """
+        self.do_progress(text='Comparing EddyPro and OzFlux results ...')
+        qcclim.compare_eddypro()
+        self.do_progress(text='Finished comparing EddyPro and OzFlux')
+        log.info(' Finished comparing EddyPro and OzFlux')
 
     def do_l2qc(self):
         """
@@ -384,6 +404,7 @@ class qcgui(tk.Tk):
         if len(self.cf)==0: self.do_progress(text='Waiting for input ...'); return
         infilename = qcio.get_infilename_from_cf(self.cf)
         if len(infilename)==0: self.do_progress(text='An error occurred, check the console ...'); return
+        if not qcutils.file_exists(infilename): self.do_progress(text='An error occurred, check the console ...'); return
         self.ds3 = qcio.nc_read_series(infilename)
         if len(self.ds3.series.keys())==0: self.do_progress(text='An error occurred, check the console ...'); del self.ds3; return
         self.ds3.globalattributes['controlfile_name'] = self.cf['controlfile_name']
@@ -402,6 +423,16 @@ class qcgui(tk.Tk):
         qcio.nc_write_series(ncFile,self.ds4,outputlist=outputlist)             # save the L4 data
         self.do_progress(text='Finished saving L4 gap filled NetCDF data')      # tell the user we are done
         log.info(' Finished saving L4 gap filled NetCDF data')
+
+    def do_nc2fn(self):
+        """ Calls qcio.fn_write_csv. """
+        self.do_progress(text='Load control file ...')
+        self.cf = qcio.load_controlfile(path='controlfiles')
+        if len(self.cf)==0: self.do_progress(text='Waiting for input ...'); return
+        self.do_progress(text='Converting nc to FluxNet CSV ...')
+        qcio.fn_write_csv(self.cf)
+        log.info(' Finished conversion')
+        self.do_progress(text='Finished conversion')
 
     def do_nc2xls(self):
         """ Calls qcio.nc_2xls. """

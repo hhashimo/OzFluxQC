@@ -1,3 +1,4 @@
+import numpy
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
@@ -25,6 +26,23 @@ Fe_of,f,a = qcutils.GetSeriesasMA(ds_of,'Fe',si=si,ei=ei)
 Fe_ep,f,a = qcutils.GetSeriesasMA(ds_ep,'Fe')
 Fc_of,f,a = qcutils.GetSeriesasMA(ds_of,'Fc',si=si,ei=ei)
 Fc_ep,f,a = qcutils.GetSeriesasMA(ds_ep,'Fc')
+
+us_of.mask = numpy.ma.mask_or(us_of.mask,us_ep.mask)
+us_ep.mask = numpy.ma.mask_or(us_of.mask,us_ep.mask)
+print "us_of: ",numpy.ma.maximum(us_of),numpy.ma.minimum(us_of)
+print "us_ep: ",numpy.ma.maximum(us_ep),numpy.ma.minimum(us_ep)
+Fh_of.mask = numpy.ma.mask_or(Fh_of.mask,Fh_ep.mask)
+Fh_ep.mask = numpy.ma.mask_or(Fh_of.mask,Fh_ep.mask)
+print "Fh_of: ",numpy.ma.maximum(Fh_of),numpy.ma.minimum(Fh_of)
+print "Fh_ep: ",numpy.ma.maximum(Fh_ep),numpy.ma.minimum(Fh_ep)
+Fe_of.mask = numpy.ma.mask_or(Fe_of.mask,Fe_ep.mask)
+Fe_ep.mask = numpy.ma.mask_or(Fe_of.mask,Fe_ep.mask)
+print "Fe_of: ",numpy.ma.maximum(Fe_of),numpy.ma.minimum(Fe_of)
+print "Fe_ep: ",numpy.ma.maximum(Fe_ep),numpy.ma.minimum(Fe_ep)
+Fc_of.mask = numpy.ma.mask_or(Fc_of.mask,Fc_ep.mask)
+Fc_ep.mask = numpy.ma.mask_or(Fc_of.mask,Fc_ep.mask)
+print "Fc_of: ",numpy.ma.maximum(Fc_of),numpy.ma.minimum(Fc_of)
+print "Fc_ep: ",numpy.ma.maximum(Fc_ep),numpy.ma.minimum(Fc_ep)
 
 fig = plt.figure(1,figsize=(8,8))
 qcplot.xyplot(us_ep,us_of,sub=[2,2,1],regr=1,xlabel='u*_EP (m/s)',ylabel='u*_OF (m/s)')

@@ -217,6 +217,14 @@ def CreateDatetimeRange(start,stop,step=datetime.timedelta(minutes=30)):
         start = start + step
     return result
 
+def file_exists(filename,mode="verbose"):
+    if not os.path.exists(filename):
+        if mode=="verbose":
+            log.error(' File '+filename+' not found')
+        return False
+    else:
+        return True
+
 def FixTimeGaps(ds):
     """
     Purpose:
@@ -915,6 +923,15 @@ def nxMom_nxScalar_alpha(zoL):
     nxScalar[stable] = 2.0 - 1.915 / (1 + 0.5 * zoL[stable])
     alpha[stable] = 1
     return nxMom, nxScalar, alpha
+
+def perdelta(start, end, delta):
+    """
+    Yields an iterator of datetime objects from start to end with time step delta.
+    """
+    curr = start
+    while curr < end:
+        yield curr
+        curr += delta
 
 def polyval(p,x):
     """

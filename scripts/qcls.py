@@ -168,7 +168,7 @@ def l3qc(cf,ds2):
         qcts.AverageSeriesByElements(cf,ds3,'Fg')
         qcts.AverageSeriesByElements(cf,ds3,'Ts')
         qcts.AverageSeriesByElements(cf,ds3,'Sws')
-        qcts.CorrectFgForStorage(cf,ds3,Fg_out='Fg',Fg_in='Fg',Ts_in='Ts',SWC_in='Sws')
+        qcts.CorrectFgForStorage(cf,ds3,Fg_out='Fg',Fg_in='Fg',Ts_in='Ts',Sws_in='Sws')
     # calculate the available energy
     qcts.CalculateAvailableEnergy(ds3,Fa_out='Fa',Fn_in='Fn',Fg_in='Fg')
     # create new series using MergeSeries or AverageSeries
@@ -220,6 +220,7 @@ def l4qc(cf,ds3):
         qcts.CalculateAvailableEnergy(ds4,Fa_out='Fa',Fn_in='Fn',Fg_in='Fg')
     # now do the meteorological driver gap filling
     for ThisOne in cf["Drivers"].keys():
+        if ThisOne not in ds4.series.keys(): log.error("Series "+ThisOne+" not in data structure"); continue
         # interpolate over short gaps
         qcts.InterpolateOverMissing(ds4,series=ThisOne,maxlen=6)
         # parse the control file for information on how the user wants to do the gap filling

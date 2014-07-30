@@ -154,13 +154,16 @@ def Fc_mgpm2psfromumolpm2ps(Fc_umolpm2ps):
     if WasND: Fc_mgpm2ps, WasMA = MAtoSeries(Fc_mgpm2ps)
     return Fc_mgpm2ps
 
-def gamma(ps,Cpm,Lv):
-    # Calculate the approximate psychrometric coefficient
-    #  ps - atmopsheric pressure, kPa
-    # Returns
-    #  gamma, kPa/K
-    gamma = (Cpm * ps) / (0.622 * (Lv / 1000))
-    return gamma
+# the following code is not used as of 29/7/2014
+# Tom van Neil has reported that the units of gamma given in the
+# comments (kPa/K) are inconsistent with the equations used.
+#def gamma(ps,Cpm,Lv):
+    ## Calculate the approximate psychrometric coefficient
+    ##  ps - atmopsheric pressure, kPa
+    ## Returns
+    ##  gamma, kPa/K
+    #gamma = (Cpm * ps) / (0.622 * (Lv / 1000))
+    #return gamma
 
 def h2o_mmolpmolfromgpm3(h_gpm3,T,p):
     """
