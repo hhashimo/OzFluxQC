@@ -563,7 +563,7 @@ def GapFillFromACCESS(ds4):
     ldt_tower = ds4.series["DateTime"]["Data"]
     # we need the start and end time of the period of overlap between the ACCESS and tower data
     # read the ACCESS data file
-    if os.path.exists(access_file_list[0]):
+    if not os.path.exists(access_file_list[0]):
         log.error(" GapFillFromACCESS: ACCESS file "+access_file_list[0]+" not found")
         return
     ds_access = qcio.nc_read_series(access_file_list[0])
@@ -671,8 +671,12 @@ def gfACCESS_done(ds,access_gui):
     access_gui.destroy()
     # write Excel spreadsheet with fit statistics
     qcio.xl_write_ACCESSStats(ds)
-    # remove the ACCESS dictionary from the data structure
-    del ds.access
+    ## refresh the Ah, q and RH data depending on which was just gap filled
+    #if "Ah" not in ds.access.keys(): qcts.RefreshAh(ds)
+    #if "q" not in ds.access.keys(): qcts.Refreshq(ds)
+    #if "RH" not in ds.access.keys(): qcts.RefreshRH(ds)
+    ## remove the ACCESS dictionary from the data structure
+    #del ds.access
 
 def gfACCESS_plotsummary(ds):
     """ Plot single pages of summary results for groups of variables. """
@@ -987,9 +991,9 @@ def gfACCESS_main(ds_tower,ds_access,access_info):
                      "data_access_lagcorr":data_access_lagcorr,"data_access_lagolscorr":data_access_lagolscorr}
         tower_wholedays,access_wholedays = gfACCESS_getdateindices(ldt_tower,ldt_access,access_info,"startnextday","endpreviousday")
         data_tower_2d = gfACCESS_getdataas2d(ldt_tower,odt_tower,data_tower,tower_wholedays,access_info)
+        data_access_2d = gfACCESS_getdataas2d(ldt_access,odt_access,data_access,access_wholedays,access_info)
         data_plot["data_tower_dailyavg"] = numpy.ma.average(data_tower_2d,axis=1)
         data_plot["data_tower_hourlyavg"] = numpy.ma.average(data_tower_2d,axis=0)
-        data_access_2d = gfACCESS_getdataas2d(ldt_access,odt_access,data_access,access_wholedays,access_info)
         data_plot["data_access_dailyavg"] = numpy.ma.average(data_access_2d,axis=1)
         data_plot["data_access_hourlyavg"] = numpy.ma.average(data_access_2d,axis=0)
         data_access_lagcorr_2d = gfACCESS_getdataas2d(ldt_access,odt_access,data_access_lagcorr,access_wholedays,access_info)
@@ -1156,7 +1160,7 @@ def gfACCESS_plotdetailed(nfig,label,data_plot,access_info,pd):
         ax6.plot(data_plot["odt_tower"],data_plot["data_tower"],'ro',label="Tower")
         ax6.plot(data_plot["odt_access"],data_plot["data_access_lagolscorr"],'g-',label="ACCESS (OLS)")
     else:
-        log.error("Less than 100 points available for series "+label+" ...")
+        log.error("gfACCESS: Less than 100 points available for series "+label+" ...")
     # put up the legends
     ax5.legend(loc='upper right',frameon=False,prop={'size':8})
     ax6.legend(loc='upper right',frameon=False,prop={'size':8})
@@ -1271,11 +1275,22 @@ def GapFillUsingSOLO(dsa,dsb):
     solo_gui.pointsentry.grid(row=nrow,column=4,columnspan=1,sticky="W")
     # ninth row
     nrow = nrow + 1
+    solo_gui.minptsLabel = Tkinter.Label(solo_gui,text="Min points")
+    solo_gui.minptsLabel.grid(row=nrow,column=0,columnspan=1,sticky="E")
+    solo_gui.minpts = Tkinter.Entry(solo_gui,width=5)
+    solo_gui.minpts.grid(row=nrow,column=1,columnspan=1,sticky="W")
+    solo_gui.minpts.insert(0,"200")
+    solo_gui.owopt = Tkinter.IntVar()
+    solo_gui.owopt.set(1)
+    solo_gui.overwrite = Tkinter.Checkbutton(solo_gui, text="Overwrite", variable=solo_gui.owopt)
+    solo_gui.overwrite.grid(row=nrow,column=3,columnspan=2,sticky="w")
+    # tenth row
+    nrow = nrow + 1
     solo_gui.doneButton = Tkinter.Button (solo_gui, text="Done",command=lambda:gfSOLO_done(dsb,solo_gui))
     solo_gui.doneButton.grid(row=nrow,column=0,columnspan=3)
     solo_gui.runButton = Tkinter.Button (solo_gui, text="Run",command=lambda:gfSOLO_run(dsa,dsb,solo_gui,solo_info))
     solo_gui.runButton.grid(row=nrow,column=3,columnspan=3)
-    # tenth row
+    # eleventh row
     nrow = nrow + 1
     solo_gui.progress_row = nrow
     solo_gui.progress = Tkinter.Label(solo_gui, text='Waiting for input ...')
@@ -1339,10 +1354,23 @@ def gfSOLO_main(dsa,dsb,solo_gui,solo_info):
     else:
         nRecs = ei - si + 1
     # loop over the series to be gap filled using solo
+    # close any open plot windows
+    if len(plt.get_fignums())!=0:
+        for i in plt.get_fignums(): plt.close(i)
     fig_num = 0
     for series in solo_series:
         dsb.solo[series]["results"]["startdate"].append(xldt[si])
         dsb.solo[series]["results"]["enddate"].append(xldt[ei])
+        d,f,a = qcutils.GetSeriesasMA(dsb,series,si=si,ei=ei)
+        if numpy.ma.count(d)<solo_info["min_points"]:
+            log.error("gfSOLO: Less than "+str(solo_info["min_points"])+" points available for series "+series+" ...")
+            dsb.solo[series]["results"]["No. points"].append(float(0))
+            results_list = dsb.solo[series]["results"].keys()
+            for item in ["startdate","enddate","No. points"]:
+                if item in results_list: results_list.remove(item)
+            for item in results_list:
+                dsb.solo[series]["results"][item].append(float(c.missing_value))
+            continue
         drivers = dsb.solo[series]["drivers"]
         output = dsb.solo[series]["output"]
         # set the number of nodes for the inf files
@@ -1383,7 +1411,7 @@ def gfSOLO_progress(solo_gui,text):
         """
     solo_gui.progress.destroy()
     solo_gui.progress = Tkinter.Label(solo_gui, text=text)
-    solo_gui.progress.grid(row=10,column=0,columnspan=6,sticky="W")
+    solo_gui.progress.grid(row=solo_gui.progress_row,column=0,columnspan=6,sticky="W")
     solo_gui.update()
 
 def gfSOLO_resetnodesEntry(solo_gui):
@@ -1624,6 +1652,7 @@ def gfSOLO_runsolo(dsa,dsb,driverlist,targetlabel,nRecs,si=0,ei=-1):
 def gfSOLO_run(dsa,dsb,solo_gui,solo_info):
     # populate the solo_info dictionary with things that will be useful
     solo_info["peropt"] = solo_gui.peropt.get()
+    solo_info["min_points"] = int(solo_gui.minpts.get())
     solo_info["site_name"] = dsb.globalattributes["site_name"]
     solo_info["time_step"] = int(dsb.globalattributes["time_step"])
     solo_info["nperhr"] = int(float(60)/solo_info["time_step"]+0.5)
@@ -1769,15 +1798,18 @@ def gfSOLO_plot(pd,dsa,dsb,driverlist,targetlabel,outputlabel,solo_gui,si=0,ei=-
     rect1 = [0.10,pd["margin_bottom"],pd["xy_width"],pd["xy_height"]]
     ax1 = plt.axes(rect1)
     # get the diurnal stats of the observations
-    Hr1,Av1,Sd1,Mx1,Mn1 = gf_getdiurnalstats(Hdh,obs,ts)
+    mask = numpy.ma.mask_or(obs.mask,mod.mask)
+    obs_mor = numpy.ma.array(obs,mask=mask)
+    Hr1,Av1,Sd1,Mx1,Mn1 = gf_getdiurnalstats(Hdh,obs_mor,ts)
     ax1.plot(Hr1,Av1,'b-',label="Obs")
     # get the diurnal stats of all SOLO predictions
-    Hr2,Av2,Sd2,Mx2,Mn2 = gf_getdiurnalstats(Hdh,mod,ts)
+    mod_mor = numpy.ma.array(mod,mask=mask)
+    Hr2,Av2,Sd2,Mx2,Mn2 = gf_getdiurnalstats(Hdh,mod_mor,ts)
     ax1.plot(Hr2,Av2,'r-',label="SOLO(all)")
     if numpy.ma.count_masked(obs)!=0:
         index = numpy.ma.where(obs.mask==False)[0]
         # get the diurnal stats of SOLO predictions when observations are present
-        Hr3,Av3,Sd3,Mx3,Mn3=gf_getdiurnalstats(Hdh[index],mod[index],ts)
+        Hr3,Av3,Sd3,Mx3,Mn3=gf_getdiurnalstats(Hdh[index],mod_mor[index],ts)
         ax1.plot(Hr3,Av3,'g-',label="SOLO(obs)")
     plt.xlim(0,24)
     plt.xticks([0,6,12,18,24])
@@ -1838,8 +1870,7 @@ def gfSOLO_plot(pd,dsa,dsb,driverlist,targetlabel,outputlabel,solo_gui,si=0,ei=-
     dsb.solo[targetlabel]["results"]["Var (SOLO)"].append(var_mod)
     dsb.solo[targetlabel]["results"]["Var ratio"].append(var_obs/var_mod)
     dsb.solo[targetlabel]["results"]["Avg (obs)"].append(numpy.ma.average(obs))
-    dsb.solo[targetlabel]["results"]["Avg (SOLO)"].append(numpy.ma.average(mod))
-    
+    dsb.solo[targetlabel]["results"]["Avg (SOLO)"].append(numpy.ma.average(mod))    
     # time series of drivers and target
     ts_axes = []
     rect = [pd["margin_left"],pd["ts_bottom"],pd["ts_width"],pd["ts_height"]]

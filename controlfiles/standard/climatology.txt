@@ -3,6 +3,10 @@
         Format = "0.00"
     [[Ah]]
         Format = "0.00"
+    [[RH]]
+        Format = "0"
+    [[q]]
+        Format = "0.0000"
     [[Cc]]
         Format = "0.0"
     [[Ws]]

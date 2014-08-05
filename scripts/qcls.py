@@ -124,6 +124,9 @@ def l3qc(cf,ds2):
     qcts.TaFromTv(cf,ds3)
     # merge the HMP and corrected CSAT data
     qcts.MergeSeries(cf,ds3,'Ta',[0,10])
+    # get merged series of relative humidity and specific humidity
+    qcts.RelativeHumidityFromAh(ds3)
+    qcts.SpecificHumidityFromRH(ds3)
     # merge the 7500 CO2 concentration
     qcts.MergeSeries(cf,ds3,'Cc',[0,10])
     # add relevant meteorological values to L3 data
@@ -234,6 +237,8 @@ def l4qc(cf,ds3):
     qcgf.GapFillFromClimatology(ds4)
     # merge the gap filled drivers into a single series
     qcts.MergeSeries_L4(ds4)
+    # re-calculate the water vapour concentrations
+    qcts.CalculateHumidities(ds4)
     # re-calculate the meteorological variables
     qcts.CalculateMeteorologicalVariables(ds4)
     # now do the flux gap filling methods

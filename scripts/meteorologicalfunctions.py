@@ -290,19 +290,20 @@ def specificheatcapacitydryair(Tv):
     cpd = float(1005)+((Tv+23.12)**2)/float(3364)
     return cpd
 
-def specificheatcapacitywatervapour(Ta, RH):
+def specificheatcapacitywatervapour(Ta, Ah):
     '''
     Specific heat capacity of water vapour at constant pressure.
     USEAGE:
-     cpv = mf.cpv(Ta,RH)
+     cpv = mf.cpv(Ta,Ah)
     INPUT:
      Ta - air temperature, C
-     RH - relative humidity, %
+     Ah - absolute humidity, %
     OUTPUT:
      cpv - specific heat capacity of water vapour at constant pressure, J/kg/K
     SOURCE:
      EddyPro source code
     '''
+    RH = RHfromabsolutehumidity(Ah,Ta)
     cpv = float(1859)+0.13*RH+(0.193+0.0056*RH)*Ta+(0.001+0.00005*RH)*Ta**2
     return cpv
 

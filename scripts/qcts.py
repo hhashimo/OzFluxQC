@@ -351,7 +351,149 @@ def CalculateLongwave(ds,Fl_out,Fl_in,Tbody_in):
     attr = qcutils.MakeAttributeDictionary(long_name='Calculated longwave radiation using '+Fl_in+','+Tbody_in,units='W/m2')
     qcutils.CreateSeries(ds,Fl_out,Fl,FList=[Fl_in,Tbody_in],Attr=attr)
 
-def CalculateMeteorologicalVariables(ds,Ta_name='Ta',Tv_name='Tv_CSAT',ps_name='ps',Ah_name='Ah',RH_name='RH',Cc_name='Cc'):
+def CalculateHumidities(ds):
+    if "Ah" not in ds.access.keys(): RefreshAh(ds)
+    if "q" not in ds.access.keys(): Refreshq(ds)
+    if "RH" not in ds.access.keys(): RefreshRH(ds)
+    # remove the ACCESS dictionary from the data structure
+    del ds.access
+    
+def RefreshAh(ds):
+    if "q" in ds.access.keys():
+        # q has been gap filled but not Ah so calculate Ah from q
+        AbsoluteHumidityFromq(ds)
+    elif "RH" in ds.access.keys():
+        # RH has been gap filled but not Ah so calculate Ah from RH
+        AbsoluteHumidityFromRH(ds)
+
+def Refreshq(ds):
+    if "Ah" in ds.access.keys():
+        SpecificHumidityFromAh(ds)
+    elif "RH" in ds.access.keys():
+        SpecificHumidityFromRH(ds)
+
+def RefreshRH(ds):
+    if "Ah" in ds.access.keys():
+        RelativeHumidityFromAh(ds)
+    elif "q" in ds.access.keys():
+        RelativeHumidityFromq(ds)
+
+def AbsoluteHumidityFromRH(ds):
+    """ Calculate absolute humidity from relative humidity. """
+    log.info(' Calculating absolute humidity from relative humidity')
+    Ta,Ta_flag,a = qcutils.GetSeriesasMA(ds,"Ta")
+    RH,RH_flag,a = qcutils.GetSeriesasMA(ds,"RH")
+    Ah_new_flag = qcutils.MergeQCFlag([Ta_flag,RH_flag])
+    Ah_new = mf.absolutehumidityfromRH(Ta,RH)
+    if "Ah" in ds.series.keys():
+        Ah,Ah_flag,Ah_attr = qcutils.GetSeriesasMA(ds,"Ah")
+        index = numpy.ma.where(Ah.mask==True)[0]
+        Ah[index] = Ah_new[index]
+        Ah_flag[index] = Ah_new_flag[index]
+        Ah_attr["long_name"] = Ah_attr["long_name"]+", merged with Ah calculated from RH"
+        qcutils.CreateSeries(ds,"Ah",Ah,Flag=Ah_flag,Attr=Ah_attr)
+    else:
+        attr = qcutils.MakeAttributeDictionary(long_name='Absolute humidity',units='g/m3',standard_name='not defined')
+        qcutils.CreateSeries(ds,'Ah',Ah_new,Flag=Ah_new_flag,Attr=attr)
+
+def AbsoluteHumidityFromq(ds):
+    """ Calculate absolute humidity from specific humidity. """
+    log.info(' Calculating absolute humidity from specific humidity')
+    Ta,Ta_flag,a = qcutils.GetSeriesasMA(ds,"Ta")
+    ps,ps_flag,a = qcutils.GetSeriesasMA(ds,"ps")
+    q,q_flag,a = qcutils.GetSeriesasMA(ds,"q")
+    Ah_new_flag = qcutils.MergeQCFlag([Ta_flag,ps_flag,q_flag])
+    RH = mf.RHfromspecifichumidity(q,Ta,ps)
+    Ah_new = mf.absolutehumidityfromRH(Ta,RH)
+    if "Ah" in ds.series.keys():
+        Ah,Ah_flag,Ah_attr = qcutils.GetSeriesasMA(ds,"Ah")
+        index = numpy.ma.where(Ah.mask==True)[0]
+        Ah[index] = Ah_new[index]
+        Ah_flag[index] = Ah_new_flag[index]
+        Ah_attr["long_name"] = Ah_attr["long_name"]+", merged with Ah calculated from q"
+        qcutils.CreateSeries(ds,"Ah",Ah,Flag=Ah_flag,Attr=Ah_attr)
+    else:
+        attr = qcutils.MakeAttributeDictionary(long_name='Absolute humidity',units='g/m3',standard_name='not defined')
+        qcutils.CreateSeries(ds,"Ah",Ah_new,Flag=Ah_new_flag,Attr=attr)
+
+def RelativeHumidityFromq(ds):
+    """ Calculate relative humidity from specific humidity. """
+    log.info(' Calculating relative humidity from specific humidity')
+    Ta,Ta_flag,a = qcutils.GetSeriesasMA(ds,"Ta")
+    ps,ps_flag,a = qcutils.GetSeriesasMA(ds,"ps")
+    q,q_flag,a = qcutils.GetSeriesasMA(ds,"q")
+    RH_new_flag = qcutils.MergeQCFlag([Ta_flag,ps_flag,q_flag])
+    RH_new = mf.RHfromspecifichumidity(q,Ta,ps)
+    if "RH" in ds.series.keys():
+        RH,RH_flag,RH_attr = qcutils.GetSeriesasMA(ds,"RH")
+        index = numpy.ma.where(RH.mask==True)[0]
+        RH[index] = RH_new[index]
+        RH_flag[index] = RH_new_flag[index]
+        RH_attr["long_name"] = RH_attr["long_name"]+", merged with RH calculated from q"
+        qcutils.CreateSeries(ds,"RH",RH,Flag=RH_flag,Attr=RH_attr)
+    else:
+        attr = qcutils.MakeAttributeDictionary(long_name='Relative humidity',units='%',standard_name='not defined')
+        qcutils.CreateSeries(ds,'RH',RH_new,Flag=RH_new_flag,Attr=attr)
+    
+def RelativeHumidityFromAh(ds):
+    """ Calculate relative humidity from absolute humidity. """
+    log.info(' Calculating relative humidity from absolute humidity')
+    Ta,Ta_flag,a = qcutils.GetSeriesasMA(ds,"Ta")
+    Ah,Ah_flag,a = qcutils.GetSeriesasMA(ds,"Ah")
+    RH_new_flag = qcutils.MergeQCFlag([Ta_flag,Ah_flag])
+    RH_new = mf.RHfromabsolutehumidity(Ah,Ta)     # relative humidity in units of percent
+    if "RH" in ds.series.keys():
+        RH,RH_flag,RH_attr = qcutils.GetSeriesasMA(ds,"RH")
+        index = numpy.ma.where(RH.mask==True)[0]
+        RH[index] = RH_new[index]
+        RH_flag[index] = RH_new_flag[index]
+        RH_attr["long_name"] = RH_attr["long_name"]+", merged with RH calculated from Ah"
+        qcutils.CreateSeries(ds,"RH",RH,Flag=RH_flag,Attr=RH_attr)
+    else:
+        attr = qcutils.MakeAttributeDictionary(long_name='Relative humidity',units='%',standard_name='not defined')
+        qcutils.CreateSeries(ds,"RH",RH_new,Flag=RH_new_flag,Attr=attr)
+
+def SpecificHumidityFromAh(ds):
+    """ Calculate specific humidity from absolute humidity. """
+    log.info(' Calculating specific humidity from absolute humidity')
+    Ta,Ta_flag,a = qcutils.GetSeriesasMA(ds,"Ta")
+    ps,ps_flag,a = qcutils.GetSeriesasMA(ds,"ps")
+    Ah,Ah_flag,a = qcutils.GetSeriesasMA(ds,"Ah")
+    q_new_flag = qcutils.MergeQCFlag([Ta_flag,ps_flag,Ah_flag])
+    RH = mf.RHfromabsolutehumidity(Ah,Ta)
+    q_new = mf.specifichumidityfromRH(RH, Ta, ps)
+    if "q" in ds.series.keys():
+        q,q_flag,q_attr = qcutils.GetSeriesasMA(ds,"q")
+        index = numpy.ma.where(q.mask==True)[0]
+        q[index] = q_new[index]
+        q_flag[index] = q_new_flag[index]
+        q_attr["long_name"] = q_attr["long_name"]+", merged with q calculated from Ah"
+        qcutils.CreateSeries(ds,"q",q,Flag=q_flag,Attr=q_attr)
+    else:
+        attr = qcutils.MakeAttributeDictionary(long_name='Specific humidity',units='kg/kg',standard_name='specific_humidity')
+        qcutils.CreateSeries(ds,'q',q_new,Flag=q_new_flag,Attr=attr)
+
+def SpecificHumidityFromRH(ds):
+    """ Calculate specific humidity from relative humidity."""
+    log.info(' Calculating specific humidity from relative humidity')
+    Ta,Ta_flag,a = qcutils.GetSeriesasMA(ds,"Ta")
+    ps,ps_flag,a = qcutils.GetSeriesasMA(ds,"ps")
+    RH,RH_flag,a = qcutils.GetSeriesasMA(ds,"RH")
+    q_new_flag = qcutils.MergeQCFlag([Ta_flag,ps_flag,RH_flag])
+    q_new = mf.specifichumidityfromRH(RH,Ta,ps)   # specific humidity in units of kg/kg
+    if "q" in ds.series.keys():
+        q,q_flag,q_attr = qcutils.GetSeriesasMA(ds,"q")
+        index = numpy.ma.where(q.mask==True)[0]
+        q[index] = q_new[index]
+        q_flag[index] = q_new_flag[index]
+        q_attr["long_name"] = q_attr["long_name"]+", merged with q calculated from RH"
+        qcutils.CreateSeries(ds,"q",q,Flag=q_flag,Attr=q_attr)
+    else:        
+        attr = qcutils.MakeAttributeDictionary(long_name='Specific humidity',units='kg/kg',standard_name='specific_humidity')
+        qcutils.CreateSeries(ds,"q",q_new,Flag=q_new_flag,Attr=attr)
+
+def CalculateMeteorologicalVariables(ds,Ta_name='Ta',Tv_name='Tv_CSAT',ps_name='ps',
+                                     q_name="q",Ah_name='Ah',RH_name='RH',Cc_name='Cc'):
     """
         Add time series of meteorological variables based on fundamental
         relationships (Stull 1988)
@@ -361,6 +503,7 @@ def CalculateMeteorologicalVariables(ds,Ta_name='Ta',Tv_name='Tv_CSAT',ps_name='
         Ta_name: data series name for air temperature
         ps_name: data series name for pressure
         Ah_name: data series name for absolute humidity
+        q_name : data series name for specific humidity
         RH_name: data series for relative humidity
 
         Variables added:
@@ -372,11 +515,6 @@ def CalculateMeteorologicalVariables(ds,Ta_name='Ta',Tv_name='Tv_CSAT',ps_name='
             VPD: vapour pressure deficit, VPD = esat - e
         """
     log.info(' Adding standard met variables to database')
-    #if qcutils.cfkeycheck(cf,Base='FunctionArgs',ThisOne='MetVars'):
-        #vars = ast.literal_eval(cf['FunctionArgs']['MetVars'])
-        #Ta_name = vars[0]
-        #ps_name = vars[1]
-        #Ah_name = vars[2]
     # get the required data series
     Ta,f,a = qcutils.GetSeriesasMA(ds,Ta_name)
     # use Tv_CSAT if it is in the data structure, otherwise use Ta
@@ -385,11 +523,8 @@ def CalculateMeteorologicalVariables(ds,Ta_name='Ta',Tv_name='Tv_CSAT',ps_name='
     ps,f,a = qcutils.GetSeriesasMA(ds,ps_name)
     Ah,f,a = qcutils.GetSeriesasMA(ds,Ah_name)
     Cc,f,a = qcutils.GetSeriesasMA(ds,Cc_name)
-    # calculate RH if it has not been read from the L1 spreadsheet
-    if RH_name not in ds.series.keys():
-        RH = mf.RHfromabsolutehumidity(Ah,Ta)     # relative humidity in units of percent
-    else:
-        RH,f,a = qcutils.GetSeriesasMA(ds,RH_name)
+    Cc_units = a["units"]
+    q,f,a = qcutils.GetSeriesasMA(ds,q_name)
     # do the calculations
     e = mf.vapourpressure(Ah,Ta)                  # vapour pressure from absolute humidity and temperature
     esat = mf.es(Ta)                              # saturation vapour pressure
@@ -399,20 +534,19 @@ def CalculateMeteorologicalVariables(ds,Ta_name='Ta',Tv_name='Tv_CSAT',ps_name='
     Lv = mf.Lv(Ta)                                # latent heat of vapourisation
     mr = mf.mixingratio(ps,e)                     # mixing ratio
     mrsat = mf.mixingratio(ps,esat)               # saturation mixing ratio
-    q = mf.specifichumidity(mr)                   # specific humidity from mixing ratio
     qsat = mf.specifichumidity(mrsat)             # saturation specific humidity from saturation mixing ratio
     Cpd = mf.specificheatcapacitydryair(Tv)
-    Cpw = mf.specificheatcapacitywatervapour(Ta,RH)
+    Cpw = mf.specificheatcapacitywatervapour(Ta,Ah)
     RhoCp = mf.densitytimesspecificheat(rhow,Cpw,rhod,Cpd)
     Cpm = mf.specificheatmoistair(q)              # specific heat of moist air
     VPD = esat - e                                # vapour pressure deficit
     SHD = qsat - q                                # specific humidity deficit
-    c_ppm = mf.co2_ppmfrommgpm3(Cc,Ta,ps)         # CO2 concentration in units of umol/mol
+    if Cc_units=="mg/m3":
+        c_ppm = mf.co2_ppmfrommgpm3(Cc,Ta,ps)     # CO2 concentration in units of umol/mol
+    else:
+        c_ppm = Cc
     h_ppt = mf.h2o_mmolpmolfromgpm3(Ah,Ta,ps)     # H2O concentration in units of mmol/mol
     # write the meteorological series to the data structure
-    if RH_name not in ds.series.keys():
-        attr = qcutils.MakeAttributeDictionary(long_name='Relative humidity',units='%',standard_name='not defined')
-        qcutils.CreateSeries(ds,RH_name,RH,FList=[Ta_name,Ah_name],Attr=attr)
     attr = qcutils.MakeAttributeDictionary(long_name='Vapour pressure',units='kPa',standard_name='water_vapor_partial_pressure_in_air')
     qcutils.CreateSeries(ds,'e',e,FList=[Ta_name,Ah_name],Attr=attr)
     attr = qcutils.MakeAttributeDictionary(long_name='Saturation vapour pressure',units='kPa')
@@ -428,13 +562,11 @@ def CalculateMeteorologicalVariables(ds,Ta_name='Ta',Tv_name='Tv_CSAT',ps_name='
     attr = qcutils.MakeAttributeDictionary(long_name='Specific heat capacity of dry air',units='J/kg-K')
     qcutils.CreateSeries(ds,'Cpd',Cpd,FList=[Tv_name],Attr=attr)
     attr = qcutils.MakeAttributeDictionary(long_name='Specific heat capacity of water vapour',units='J/kg-K')
-    qcutils.CreateSeries(ds,'Cpw',Cpw,FList=[Ta_name,RH_name],Attr=attr)
+    qcutils.CreateSeries(ds,'Cpw',Cpw,FList=[Ta_name,Ah_name],Attr=attr)
     attr = qcutils.MakeAttributeDictionary(long_name='Specific heat capacity of moist air',units='J/kg-K')
     qcutils.CreateSeries(ds,'Cpm',Cpm,FList=[Ta_name,ps_name,Ah_name],Attr=attr)
     attr = qcutils.MakeAttributeDictionary(long_name='Product of air density and specific heat capacity',units='J/m3-K')
-    qcutils.CreateSeries(ds,'RhoCp',RhoCp,FList=[Ta_name,Tv_name,RH_name],Attr=attr)
-    attr = qcutils.MakeAttributeDictionary(long_name='Specific humidity',units='kg/kg',standard_name='specific_humidity')
-    qcutils.CreateSeries(ds,'q',q,FList=[Ta_name,ps_name,Ah_name],Attr=attr)
+    qcutils.CreateSeries(ds,'RhoCp',RhoCp,FList=[Ta_name,Tv_name,Ah_name],Attr=attr)
     attr = qcutils.MakeAttributeDictionary(long_name='Vapour pressure deficit',units='kPa',standard_name='water_vapor_saturation_deficit_in_air')
     qcutils.CreateSeries(ds,'VPD',VPD,FList=[Ta_name,Ah_name],Attr=attr)
     attr = qcutils.MakeAttributeDictionary(long_name='Specific humidity deficit',units='kg/kg')

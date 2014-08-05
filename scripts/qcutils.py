@@ -911,6 +911,18 @@ def MAtoSeries(Series):
         Series = numpy.ma.filled(Series,float(c.missing_value))
     return Series, WasMA
 
+def MergeQCFlag(QCFlag_list):
+    """ Merge a list of QC flags by taking the element-wise maximum."""
+    if len(QCFlag_list)==0: return None
+    if len(QCFlag_list)==1: return QCFlag_list[0]
+    flag = QCFlag_list[0].copy()                            # get a copy of the first flag
+    for item in QCFlag_list[1:]:                            # loop over the list of flags
+        tmp_flag = item.copy()                              # get a copy of the next flag
+        index = numpy.where(numpy.mod(tmp_flag,10)==0)      # find the elements with flag = 0, 10, 20 etc
+        tmp_flag[index] = 0                                 # set them all to 0
+        flag = numpy.maximum(flag,tmp_flag)                 # now take the maximum
+    return flag
+
 def nxMom_nxScalar_alpha(zoL):
     nRecs = numpy.size(zoL)
     nxMom = numpy.ma.ones(nRecs) * 0.079

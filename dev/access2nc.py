@@ -78,6 +78,8 @@ for site in site_list:
         ds_60minutes.globalattributes[attr] = getattr(f,attr)
     # add a value for the Excel datemode, assume Windows date system (1900)
     ds_60minutes.globalattributes['xl_datemode'] = str(0)
+    # number of records
+    ds_60minutes.globalattributes["nc_nrecs"] = nRecs
     # put the ACCESS data into the 60 minute data structure ds_60minutes
     # make a QC flag with a value of 0
     flag_60minutes = numpy.zeros(nRecs)
@@ -223,6 +225,8 @@ for site in site_list:
             u,f,a = qcutils.GetSeriesasMA(ds_60minutes,u_label)
             v,f,a = qcutils.GetSeriesasMA(ds_60minutes,v_label)
             Wd = float(270) - numpy.ma.arctan2(v,u)*float(180)/numpy.pi
+            index = numpy.ma.where(Wd>360)[0]
+            if len(index)>0: Wd[index] = Wd[index] - float(360)
             attr = qcutils.MakeAttributeDictionary(long_name="Wind direction",units="degrees",height="10m")
             qcutils.CreateSeries(ds_60minutes,Wd_label,Wd,Flag=f,Attr=attr)
     # relative humidity from temperature, specific humidity and pressure
