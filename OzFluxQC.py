@@ -26,10 +26,13 @@ import qcplot
 import qcts
 import qcutils
 # now check the logfiles and plots directories are present
-if not os.path.exists("./logfiles/"):
-    os.makedirs("./logfiles/")
-if not os.path.exists("./plots/"):
-    os.makedirs("./plots/")
+dir_list = ["./logfiles/","./plots/"]
+for item in dir_list:
+    if not os.path.exists(item): os.makedirs(item)
+# now check the solo/inf, solo/input, solo/log and solo/output directories are present
+dir_list = ["./solo/inf","./solo/input","./solo/log","./solo/output"]
+for item in dir_list:
+    if not os.path.exists(item): os.makedirs(item)
 
 class qcgui(tk.Tk):
     """
