@@ -49,6 +49,22 @@ def cfoptionskey(cf,Key='',default=False):
         returnValue = default
     return returnValue
 
+def CheckQCFlags(ds):
+    """
+    Purpose:
+     Make sure that all values of -9999 in a data series have a non-zero QC flag value.
+    Usage:
+     qcutils.CheckQCFlags(ds)
+    Author: PRI
+    Date: August 2014
+    """
+    for ThisOne in ds.series.keys():
+        data = ds.series[ThisOne]["Data"]
+        flag = ds.series[ThisOne]["Flag"]
+        index = numpy.where((abs(data-float(-9999))<c.eps)&(abs(flag-float(0))<c.eps))[0]
+        if len(index)!=0:
+            ds.series[ThisOne]["Flag"][index] = numpy.int32(8)
+
 def CheckTimeStep(ds,fix=None):
     """
     Purpose:

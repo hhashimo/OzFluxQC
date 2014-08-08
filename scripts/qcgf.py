@@ -11,6 +11,7 @@ import matplotlib as mpl
 import matplotlib.dates as mdt
 import matplotlib.pyplot as plt
 import os
+import platform
 import qcio
 import qcts
 import qcutils
@@ -813,7 +814,26 @@ def gfACCESS_run(ds_tower,ds_access,access_gui,access_info):
         gfACCESS_plotsummary(ds_tower)
         gfACCESS_progress(access_gui,"Finished auto (monthly) run ...")
     elif access_gui.peropt.get()==3:
-        pass
+        gfACCESS_progress(access_gui,"Starting auto (days) run ...")
+        # get the start datetime entered in the ACCESS GUI
+        access_info["startdate"] = access_gui.startEntry.get()
+        if len(access_info["startdate"])==0: access_info["startdate"] = access_info["overlap_startdate"]
+        startdate = dateutil.parser.parse(access_info["startdate"])
+        overlap_startdate = dateutil.parser.parse(access_info["overlap_startdate"])
+        overlap_enddate = dateutil.parser.parse(access_info["overlap_enddate"])
+        nDays = int(access_gui.daysentry.get())
+        enddate = startdate+dateutil.relativedelta.relativedelta(days=nDays)
+        enddate = min([overlap_enddate,enddate])
+        access_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d")
+        while startdate<overlap_enddate:
+            gfACCESS_main(ds_tower,ds_access,access_info)
+            startdate = enddate
+            enddate = startdate+dateutil.relativedelta.relativedelta(days=nDays)
+            access_info["startdate"] = startdate.strftime("%Y-%m-%d")
+            access_info["enddate"] = enddate.strftime("%Y-%m-%d")
+        # plot the summary statistics
+        gfACCESS_plotsummary(ds_tower)
+        gfACCESS_progress(access_gui,"Finished auto (days) run ...")
     elif access_gui.peropt.get()==4:
         pass
 
@@ -1563,7 +1583,7 @@ def gfSOLO_runsofm(dsa,dsb,solo_gui,driverlist,targetlabel,nRecs,si=0,ei=-1):
     # now run SOFM
     #log.info(' GapFillUsingSOLO: running SOFM')
     sofmlogfile = open('solo/log/sofm.log','wb')
-    if 'win' in sys.platform:
+    if platform.system()=="Windows":
         subprocess.call(['./solo/bin/sofm.exe','solo/inf/sofm.inf'],stdout=sofmlogfile)
     else:
         subprocess.call(['./solo/bin/sofm','solo/inf/sofm.inf'],stdout=sofmlogfile)
@@ -1637,7 +1657,7 @@ def gfSOLO_runsolo(dsa,dsb,driverlist,targetlabel,nRecs,si=0,ei=-1):
     # now run SOLO
     #log.info(' GapFillUsingSOLO: running SOLO')
     solologfile = open('solo/log/solo.log','wb')
-    if 'win' in sys.platform:
+    if platform.system()=="Windows":
         subprocess.call(['./solo/bin/solo.exe','solo/inf/solo.inf'],stdout=solologfile)
     else:
         subprocess.call(['./solo/bin/solo','solo/inf/solo.inf'],stdout=solologfile)
@@ -1691,7 +1711,26 @@ def gfSOLO_run(dsa,dsb,solo_gui,solo_info):
         gfSOLO_plotsummary(dsb)
         gfSOLO_progress(solo_gui,"Finished auto (monthly) run ...")
     elif solo_gui.peropt.get()==3:
-        pass
+        gfSOLO_progress(solo_gui,"Starting auto (monthly) run ...")
+        # get the start datetime entered in the SOLO GUI
+        solo_info["startdate"] = solo_gui.startEntry.get()
+        if len(solo_info["startdate"])==0: solo_info["startdate"] = solo_info["file_startdate"]
+        startdate = dateutil.parser.parse(solo_info["startdate"])
+        file_startdate = dateutil.parser.parse(solo_info["file_startdate"])
+        file_enddate = dateutil.parser.parse(solo_info["file_enddate"])
+        nDays = int(solo_gui.daysentry.get())
+        enddate = startdate+dateutil.relativedelta.relativedelta(days=nDays)
+        enddate = min([file_enddate,enddate])
+        solo_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d")
+        while startdate<file_enddate:
+            gfSOLO_main(dsa,dsb,solo_gui,solo_info)
+            startdate = enddate
+            enddate = startdate+dateutil.relativedelta.relativedelta(days=nDays)
+            solo_info["startdate"] = startdate.strftime("%Y-%m-%d")
+            solo_info["enddate"] = enddate.strftime("%Y-%m-%d")
+        # plot the summary statistics
+        gfSOLO_plotsummary(dsb)
+        gfSOLO_progress(solo_gui,"Finished auto (monthly) run ...")
     elif solo_gui.peropt.get()==4:
         pass
 
@@ -1739,7 +1778,7 @@ def gfSOLO_runseqsolo(dsa,dsb,driverlist,targetlabel,outputlabel,nRecs,si=0,ei=-
     # now run SEQSOLO
     #log.info(' GapFillUsingSOLO: running SEQSOLO')
     seqsolologfile = open('solo/log/seqsolo.log','wb')
-    if 'win' in sys.platform:
+    if platform.system()=="Windows":
         subprocess.call(['./solo/bin/seqsolo.exe','solo/inf/seqsolo.inf'],stdout=seqsolologfile)
     else:
         subprocess.call(['./solo/bin/seqsolo','solo/inf/seqsolo.inf'],stdout=seqsolologfile)

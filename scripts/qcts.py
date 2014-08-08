@@ -2081,8 +2081,6 @@ def MassmanStandard(cf,ds,Ta_in='Ta',Ah_in='Ah',ps_in='ps',ustar_in='ustar',usta
 def MergeSeries_L4(ds):
     # check that ds has a "merge" attribute
     if "merge" not in dir(ds): return
-    # set the OK flags
-    okflags = [0,10,20,30,40,50]
     # loop over the entries in ds.merge
     for label,srclist in zip(ds.merge["series"],ds.merge["source"]):
         log.info(' Merging '+str(srclist)+' ==> '+label)
@@ -2097,14 +2095,6 @@ def MergeSeries_L4(ds):
         for ThisOne in srclist:
             if ThisOne in ds.series.keys():
                 SeriesNameString = SeriesNameString+', '+ThisOne
-                #indx1 = numpy.zeros(numpy.size(data),dtype=numpy.int)
-                #indx2 = numpy.zeros(numpy.size(data),dtype=numpy.int)
-                #for okflag in okflags:
-                    #index = numpy.where((flag==okflag))[0]                             # index of acceptable primary values
-                    #indx1[index] = 1                                                   # set primary index to 1 when primary good
-                    #index = numpy.where((ds.series[ThisOne]['Flag']==okflag))[0]       # same process for secondary
-                    #indx2[index] = 1
-                #index = numpy.where((indx1!=1)&(indx2==1))[0]           # index where primary bad but secondary good
                 index = numpy.where(numpy.mod(flag,10)==0)            # find the elements with flag = 0, 10, 20 etc
                 flag[index] = 0                                       # set them all to 0
                 index = numpy.where(flag!=0)                          # index of flag values other than 0,10,20,30 ...

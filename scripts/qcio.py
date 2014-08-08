@@ -9,6 +9,7 @@ import dateutil
 import meteorologicalfunctions as mf
 import numpy
 import os
+import platform
 import sys
 import time
 import Tkinter, tkFileDialog
@@ -702,6 +703,8 @@ def nc_read_series(ncFullName):
                 for vattr in vattrlist:
                     ds.series[ThisOne]['Attr'][vattr] = getattr(ncFile.variables[ThisOne],vattr)
     ncFile.close()
+    # make sure all values of -9999 have non-zero QC flag
+    qcutils.CheckQCFlags(ds)
     # get a series of Python datetime objects
     qcutils.get_datetimefromymdhms(ds)
     # get series of UTC datetime
@@ -1007,16 +1010,18 @@ def xl_write_series(ds, xlfullname, outputlist=None):
             xlAttrSheet.write(xlrow,xlcol_attrvalue,str(ds.series[ThisOne]['Attr'][Attr]))
             xlrow = xlrow + 1
     # write the Excel date/time to the data and the QC flags as the first column
-    if "xlDateTime" in ds.series.keys():
-        log.info(' Writing the datetime to Excel file '+xlfullname)
-        d_xf = xlwt.easyxf(num_format_str='dd/mm/yyyy hh:mm')
-        xlDataSheet.write(2,xlcol,'xlDateTime')
-        for j in range(nRecs):
-            xlDataSheet.write(j+3,xlcol,ds.series['xlDateTime']['Data'][j],d_xf)
-            xlFlagSheet.write(j+3,xlcol,ds.series['xlDateTime']['Data'][j],d_xf)
-        # remove xlDateTime from the list of variables to be written to the Excel file
-        if 'xlDateTime' in outputlist:
-            outputlist.remove('xlDateTime')
+    datemode = 0
+    if platform.system()=="Darwin": datemode = 1
+    ldt = ds.series["DateTime"]["Data"]
+    xlDateTime = qcutils.get_xldate_from_datetime(ldt,datemode=datemode)
+    log.info(' Writing the datetime to Excel file '+xlfullname)
+    d_xf = xlwt.easyxf(num_format_str='dd/mm/yyyy hh:mm')
+    xlDataSheet.write(2,xlcol,'xlDateTime')
+    for j in range(nRecs):
+        xlDataSheet.write(j+3,xlcol,xlDateTime[j],d_xf)
+        xlFlagSheet.write(j+3,xlcol,xlDateTime[j],d_xf)
+    # remove xlDateTime from the list of variables to be written to the Excel file
+    if "xlDateTime" in outputlist: outputlist.remove("xlDateTime")
     # now start looping over the other variables in the xl file
     xlcol = xlcol + 1
     # loop over variables to be output to xl file
