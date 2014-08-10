@@ -1,3 +1,5 @@
+# the following line needed for unicode character in convert_anglestring
+# -*- coding: latin-1 -*-
 import ast
 import constants as c
 import datetime
@@ -179,6 +181,28 @@ def ConvertFcUnits(cf,ds,Fc='Fc',Fc_storage='Fc_storage'):
                 CreateSeries(ds,Fc_storage,Fc_storage_mgpm2ps,Flag=flag,Attr=attr)
             else:
                 log.info('  ConvertFcUnits: input or output units for Fc_storage unrecognised')
+
+def convert_anglestring(anglestring):
+    """
+    Purpose:
+     Attempt to convert an angle string to a float.
+    Usage:
+     a = qcutils.convert_anglestring(astr)
+     Acceptable input formats:
+      astr = '''34 12' 24" S'''
+      astr = '''34 12'24.123"S''
+      astr = '''34.123 S'''
+      astr = '''-34.123'''
+    """
+    try:
+        return float(anglestring)
+    except ValueError:
+        direction = {'N':1, 'S':-1, 'E': 1, 'W':-1}
+        new = anglestring.replace(u'°',' ').replace('\'',' ').replace('"',' ')
+        new = new.split()
+        new_dir = new.pop()
+        new.extend([0,0,0])
+        return (float(new[0])+float(new[1])/60.0+float(new[2])/3600.0) * direction[new_dir]    
 
 def CreateSeries(ds,Label,Data,FList=None,Flag=None,Attr=None):
     """

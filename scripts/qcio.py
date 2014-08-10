@@ -681,18 +681,23 @@ def nc_read_series(ncFullName):
             ds.globalattributes[gattr] = getattr(ncFile,gattr)
             if 'time_step' in ds.globalattributes: c.ts = ds.globalattributes['time_step']
     for ThisOne in ncFile.variables.keys():
+        # skip variables that do not have time as a dimension
+        if "time" not in ncFile.variables[ThisOne].dimensions: continue
         if '_QCFlag' not in ThisOne:
             # create the series in the data structure
             ds.series[unicode(ThisOne)] = {}
             # get the data variable object
-            ds.series[ThisOne]['Data'] = ncFile.variables[ThisOne][:]
+            if len(ncFile.variables[ThisOne].shape)==1:
+                ds.series[ThisOne]['Data'] = ncFile.variables[ThisOne][:]
+            if len(ncFile.variables[ThisOne].shape)==3:
+                ds.series[ThisOne]['Data'] = ncFile.variables[ThisOne][:,0,0]
             # netCDF4 returns a masked array if the "missing_variable" attribute has been set
             # for the variable, here we trap this and force the array in ds.series to be ndarray
             if numpy.ma.isMA(ds.series[ThisOne]["Data"]):
                 ds.series[ThisOne]["Data"],dummy = qcutils.MAtoSeries(ds.series[ThisOne]["Data"])
             # check for a QC flag and if it exists, load it
             if ThisOne+'_QCFlag' in ncFile.variables.keys():
-                ds.series[ThisOne]['Flag'] = ncFile.variables[ThisOne+'_QCFlag'][:]
+                ds.series[ThisOne]['Flag'] = ncFile.variables[ThisOne+'_QCFlag'][:,0,0]
             else:
                 nRecs = numpy.size(ds.series[ThisOne]['Data'])
                 ds.series[ThisOne]['Flag'] = numpy.zeros(nRecs,dtype=numpy.int32)
@@ -730,46 +735,51 @@ def nc_write_series(ncFile,ds,outputlist=None):
     # we specify the size of the Time dimension because netCDF4 is slow to write files
     # when the Time dimension is unlimited
     nRecs = int(ds.globalattributes['nc_nrecs'])
-    ncFile.createDimension('Time',nRecs)
-    SeriesList = ds.series.keys()
+    ncFile.createDimension("time",nRecs)
+    ncFile.createDimension("lat",1)
+    ncFile.createDimension("lon",1)
     if outputlist==None:
-        outputlist = SeriesList
+        outputlist = ds.series.keys()
     else:
         for ThisOne in outputlist:
-            if ThisOne not in SeriesList:
+            if ThisOne not in ds.series.keys():
                 log.info(' Requested series '+ThisOne+' not found in data structure')
                 outputlist.remove(ThisOne)
-        if len(outputlist)==0:
-            outputlist = SeriesList
+        if len(outputlist)==0: outputlist = ds.series.keys()
     # can't write an array of Python datetime objects to a netCDF file
     # actually, this could be written as characters
     for ThisOne in ["DateTime","DateTime_UTC"]:
-        if ThisOne in outputlist: SeriesList.remove(ThisOne)
+        if ThisOne in outputlist: outputlist.remove(ThisOne)
     # now make sure the date and time series are in outputlist
-    for ThisOne in ['xlDateTime','Year','Month','Day','Hour','Minute','Second','Hdh']:
-        if ThisOne not in outputlist: outputlist.append(ThisOne)
-    # sort the output list into alphabetic order
-    outputlist.sort()
+    datetimelist = ['xlDateTime','Year','Month','Day','Hour','Minute','Second','Hdh']
+    for ThisOne in sorted(datetimelist):
+        nc_write_var(ncFile,ds,ThisOne,("time",))
+        if ThisOne in outputlist: outputlist.remove(ThisOne)
     # write everything else to the netCDF file
-    for ThisOne in outputlist:
-        dt = get_ncdtype(ds.series[ThisOne]['Data'])
-        ncVar = ncFile.createVariable(ThisOne,dt,('Time',))
-        #print nRecs,ThisOne,len(ds.series[ThisOne]['Data'])
-        if len(ds.series[ThisOne]["Data"])!=nRecs:
-            slen = str(len(ds.series[ThisOne]["Data"]))
-            log.error(ThisOne+" length ("+slen+") not equal to Time dimension length "+str(nRecs))
-            ncFile.close()
-            return
-        ncVar[:] = ds.series[ThisOne]['Data'].tolist()
-        for attr in ds.series[ThisOne]['Attr']:
-            setattr(ncVar,attr,ds.series[ThisOne]['Attr'][attr])
-        dt = get_ncdtype(ds.series[ThisOne]['Flag'])
-        ncVar = ncFile.createVariable(ThisOne+'_QCFlag',dt,('Time',))
-        ncVar[:] = ds.series[ThisOne]['Flag'].tolist()
-        setattr(ncVar,'long_name','QC flag')
-        setattr(ncVar,'units','none')
+    for ThisOne in sorted(outputlist):
+        nc_write_var(ncFile,ds,ThisOne,("time","lat","lon"))
+    # now write the lat and lon dimensions
+    ncVar = ncFile.createVariable("lat","d",("lat",))
+    ncVar = qcutils.convert_anglestring(str(ds.globalattributes["latitude"]))
+    ncVar = ncFile.createVariable("lon","d",("lon",))
+    ncVar = qcutils.convert_anglestring(str(ds.globalattributes["longitude"]))
     ncFile.close()
 
+def nc_write_var(ncFile,ds,ThisOne,dim):
+    dt = get_ncdtype(ds.series[ThisOne]['Data'])
+    ncVar = ncFile.createVariable(ThisOne,dt,dim)
+    #ncVar = ncFile.createVariable(ThisOne,dt,("time",))
+    if len(dim)==1: ncVar[:] = ds.series[ThisOne]['Data'].tolist()
+    if len(dim)==3: ncVar[:,0,0] = ds.series[ThisOne]['Data'].tolist()
+    for attr in ds.series[ThisOne]['Attr']:
+        setattr(ncVar,attr,ds.series[ThisOne]['Attr'][attr])
+    dt = get_ncdtype(ds.series[ThisOne]['Flag'])
+    ncVar = ncFile.createVariable(ThisOne+'_QCFlag',dt,("time","lat","lon"))
+    #ncVar = ncFile.createVariable(ThisOne+'_QCFlag',dt,("time",))
+    ncVar[:] = ds.series[ThisOne]['Flag'].tolist()
+    setattr(ncVar,'long_name','QC flag')
+    setattr(ncVar,'units','none')
+    
 def xl_read_flags(cf,ds,level,VariablesInFile):
     # First data row in Excel worksheets.
     FirstDataRow = int(get_keyvalue_from_cf(cf['Files'][level],'first_data_row')) - 1

@@ -117,6 +117,8 @@ for site in site_list:
             dt = datetime.datetime.strptime(str(int(valid_date[i-1])),"%Y%m%d")
             dt = dt+datetime.timedelta(days=1)
             valid_date[i] = datetime.datetime.strftime(dt,"%Y%m%d")
+    # replace missing days with blocks of missing data
+    
     # copy the precipitation from the n*24th record to the n*25th record
     # The daily files of ACCESS data provided by Lawrie start at 0000 UTC, have 25 records and
     # end at 0000 UTC on the next day.  The 25th record in the file is included to get the
@@ -314,6 +316,18 @@ for site in site_list:
             attr = qcutils.MakeAttributeDictionary(long_name='Calculated available energy',
                                  standard_name='not defined',units='W/m2')
             qcutils.CreateSeries(ds_60minutes,label_Fa,Fa,Flag=f,Attr=attr)
+    # accumulated precipitation to mm per timestep
+    #for i in range(0,3):
+        #for j in range(0,3):
+            #label_Fg = "Fg_"+str(i)+str(j)
+            #label_Fn = "Fn_"+str(i)+str(j)
+            #label_Fa = "Fa_"+str(i)+str(j)
+            #Fn,f,a = qcutils.GetSeriesasMA(ds_60minutes,label_Fn)
+            #Fg,f,a = qcutils.GetSeriesasMA(ds_60minutes,label_Fg)
+            #Fa = Fn - Fg
+            #attr = qcutils.MakeAttributeDictionary(long_name='Calculated available energy',
+                                 #standard_name='not defined',units='W/m2')
+            #qcutils.CreateSeries(ds_60minutes,label_Fa,Fa,Flag=f,Attr=attr)
 
     # dump to an Excel file so we can see what is going on
     #xlfullname= outfilename.replace('.nc','.xls')
