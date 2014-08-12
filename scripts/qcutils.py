@@ -194,11 +194,17 @@ def convert_anglestring(anglestring):
       astr = '''34.123 S'''
       astr = '''-34.123'''
     """
+    quadlist=["N","E","S","W"]
     try:
         return float(anglestring)
     except ValueError:
         direction = {'N':1, 'S':-1, 'E': 1, 'W':-1}
         new = anglestring.replace(u'°',' ').replace('\'',' ').replace('"',' ')
+        for item in quadlist:
+            if item in new: quadletter=item
+        i=new.index(quadletter)
+        if new[i-1] != " ":
+            new = new[0:i]+" "+new[i:]
         new = new.split()
         new_dir = new.pop()
         new.extend([0,0,0])
