@@ -679,34 +679,53 @@ def nc_read_series(ncFullName):
     if len(gattrlist)!=0:
         for gattr in gattrlist:
             ds.globalattributes[gattr] = getattr(ncFile,gattr)
-            if 'time_step' in ds.globalattributes: c.ts = ds.globalattributes['time_step']
-    for ThisOne in ncFile.variables.keys():
+            if "time_step" in ds.globalattributes: c.ts = ds.globalattributes["time_step"]
+    # get a list of the variables in the netCDF file (not their QC flags)
+    varlist = [x for x in ncFile.variables.keys() if "_QCFlag" not in x]
+    for ThisOne in varlist:
         # skip variables that do not have time as a dimension
-        if "time" not in ncFile.variables[ThisOne].dimensions: continue
-        if '_QCFlag' not in ThisOne:
-            # create the series in the data structure
-            ds.series[unicode(ThisOne)] = {}
-            # get the data variable object
-            if len(ncFile.variables[ThisOne].shape)==1:
-                ds.series[ThisOne]['Data'] = ncFile.variables[ThisOne][:]
-            if len(ncFile.variables[ThisOne].shape)==3:
-                ds.series[ThisOne]['Data'] = ncFile.variables[ThisOne][:,0,0]
+        dimlist = [x.lower() for x in ncFile.variables[ThisOne].dimensions]
+        if "time" not in dimlist: continue
+        # create the series in the data structure
+        ds.series[unicode(ThisOne)] = {}
+        # get the data and the QC flag
+        nDims = len(ncFile.variables[ThisOne].shape)
+        if nDims==1:
+            # single dimension
+            ds.series[ThisOne]["Data"] = ncFile.variables[ThisOne][:]
             # netCDF4 returns a masked array if the "missing_variable" attribute has been set
             # for the variable, here we trap this and force the array in ds.series to be ndarray
             if numpy.ma.isMA(ds.series[ThisOne]["Data"]):
                 ds.series[ThisOne]["Data"],dummy = qcutils.MAtoSeries(ds.series[ThisOne]["Data"])
-            # check for a QC flag and if it exists, load it
+            # check for a QC flag
             if ThisOne+'_QCFlag' in ncFile.variables.keys():
-                ds.series[ThisOne]['Flag'] = ncFile.variables[ThisOne+'_QCFlag'][:,0,0]
+                # load it from the netCDF file
+                ds.series[ThisOne]["Flag"] = ncFile.variables[ThisOne+'_QCFlag'][:]
             else:
-                nRecs = numpy.size(ds.series[ThisOne]['Data'])
-                ds.series[ThisOne]['Flag'] = numpy.zeros(nRecs,dtype=numpy.int32)
-            # get the variable attributes
-            vattrlist = ncFile.variables[ThisOne].ncattrs()
-            if len(vattrlist)!=0:
-                ds.series[ThisOne]['Attr'] = {}
-                for vattr in vattrlist:
-                    ds.series[ThisOne]['Attr'][vattr] = getattr(ncFile.variables[ThisOne],vattr)
+                # create an empty flag series if it does not exist
+                nRecs = numpy.size(ds.series[ThisOne]["Data"])
+                ds.series[ThisOne]["Flag"] = numpy.zeros(nRecs,dtype=numpy.int32)
+        elif nDims==3:
+            # 3 dimensions
+            ds.series[ThisOne]["Data"] = ncFile.variables[ThisOne][:,0,0]
+            # netCDF4 returns a masked array if the "missing_variable" attribute has been set
+            # for the variable, here we trap this and force the array in ds.series to be ndarray
+            if numpy.ma.isMA(ds.series[ThisOne]["Data"]):
+                ds.series[ThisOne]["Data"],dummy = qcutils.MAtoSeries(ds.series[ThisOne]["Data"])
+            # check for a QC flag
+            if ThisOne+'_QCFlag' in ncFile.variables.keys():
+                # load it from the netCDF file
+                ds.series[ThisOne]["Flag"] = ncFile.variables[ThisOne+'_QCFlag'][:,0,0]
+            else:
+                # create an empty flag series if it does not exist
+                nRecs = numpy.size(ds.series[ThisOne]["Data"])
+                ds.series[ThisOne]["Flag"] = numpy.zeros(nRecs,dtype=numpy.int32)
+        # get the variable attributes
+        vattrlist = ncFile.variables[ThisOne].ncattrs()
+        ds.series[ThisOne]["Attr"] = {}
+        if len(vattrlist)!=0:
+            for vattr in vattrlist:
+                ds.series[ThisOne]["Attr"][vattr] = getattr(ncFile.variables[ThisOne],vattr)
     ncFile.close()
     # make sure all values of -9999 have non-zero QC flag
     qcutils.CheckQCFlags(ds)
@@ -715,6 +734,91 @@ def nc_read_series(ncFullName):
     # get series of UTC datetime
     qcutils.get_UTCfromlocaltime(ds)
     return ds
+
+#def nc_read_series(ncFullName):
+    #''' Read a netCDF file and put the data and meta-data into a DataStructure'''
+    #log.info(' Reading netCDF file '+ncFullName)
+    #netCDF4.default_encoding = 'latin-1'
+    #ds = DataStructure()
+    ## check to see if the requested file exists, return empty ds if it doesn't
+    #if not qcutils.file_exists(ncFullName,mode="quiet"):
+        #log.error(' netCDF file '+ncFullName+' not found')
+        #raise Exception("GapFillFromACCESS: ACCESS file not found")
+    ## file probably exists, so let's read it
+    #ncFile = netCDF4.Dataset(ncFullName,'r')
+    ## now deal with the global attributes
+    #gattrlist = ncFile.ncattrs()
+    #if len(gattrlist)!=0:
+        #for gattr in gattrlist:
+            #ds.globalattributes[gattr] = getattr(ncFile,gattr)
+            #if "time_step" in ds.globalattributes: c.ts = ds.globalattributes["time_step"]
+    ## get a list of the variables in the netCDF file (not their QC flags)
+    #varlist = [x for x in ncFile.variables.keys() if "_QCFlag" not in x]
+    #for ThisOne in varlist:
+        ## skip variables that do not have time as a dimension
+        #dimlist = [x.lower() for x in ncFile.variables[ThisOne].dimensions]
+        #if "time" not in dimlist: continue
+        ## create the series in the data structure
+        #ds.series[unicode(ThisOne)] = {}
+        ## get the data and the QC flag
+        #data,flag,attr = nc_read_var(ncFile,ThisOne)
+        #ds.series[ThisOne]["Data"] = numpy.array(data,dtype=numpy.float64)
+        #ds.series[ThisOne]["Flag"] = numpy.array(flag,dtype=numpy.int32)
+        #ds.series[ThisOne]["Attr"] = attr
+    #ncFile.close()
+    ## make sure all values of -9999 have non-zero QC flag
+    #qcutils.CheckQCFlags(ds)
+    ## get a series of Python datetime objects
+    #qcutils.get_datetimefromymdhms(ds)
+    ## get series of UTC datetime
+    #qcutils.get_UTCfromlocaltime(ds)
+    #return ds
+
+def nc_read_var(ncFile,ThisOne):
+    """ Reads a variable from a netCDF file and returns the data, the QC flag and the variable
+        attribute dictionary.
+    """
+    # check the number of dimensions
+    nDims = len(ncFile.variables[ThisOne].shape)
+    if nDims not in [1,3]:
+        msg = "nc_read_var: unrecognised number of dimensions ("+str(nDims)
+        msg = msg+") for netCDF variable "+ ThisOne
+        raise Exception(msg)
+    if nDims==1:
+        # single dimension
+        data = ncFile.variables[ThisOne][:]
+        # netCDF4 returns a masked array if the "missing_variable" attribute has been set
+        # for the variable, here we trap this and force the array in ds.series to be ndarray
+        if numpy.ma.isMA(data): data,dummy = qcutils.MAtoSeries(data)
+        # check for a QC flag
+        if ThisOne+'_QCFlag' in ncFile.variables.keys():
+            # load it from the netCDF file
+            flag = ncFile.variables[ThisOne+'_QCFlag'][:]
+        else:
+            # create an empty flag series if it does not exist
+            nRecs = numpy.size(data)
+            flag = numpy.zeros(nRecs,dtype=numpy.int32)
+    elif nDims==3:
+        # 3 dimensions
+        data = ncFile.variables[ThisOne][:,0,0]
+        # netCDF4 returns a masked array if the "missing_variable" attribute has been set
+        # for the variable, here we trap this and force the array in ds.series to be ndarray
+        if numpy.ma.isMA(data): data,dummy = qcutils.MAtoSeries(data)
+        # check for a QC flag
+        if ThisOne+'_QCFlag' in ncFile.variables.keys():
+            # load it from the netCDF file
+            flag = ncFile.variables[ThisOne+'_QCFlag'][:,0,0]
+        else:
+            # create an empty flag series if it does not exist
+            nRecs = numpy.size(data)
+            flag = numpy.zeros(nRecs,dtype=numpy.int32)
+    # get the variable attributes
+    vattrlist = ncFile.variables[ThisOne].ncattrs()
+    attr = {}
+    if len(vattrlist)!=0:
+        for vattr in vattrlist:
+            attr[vattr] = getattr(ncFile.variables[ThisOne],vattr)
+    return data,flag,attr
 
 def nc_open_write(ncFullName,nctype='NETCDF4'):
     log.info(' Opening netCDF file '+ncFullName+' for writing')

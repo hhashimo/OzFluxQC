@@ -61,11 +61,11 @@ def CheckQCFlags(ds):
     Date: August 2014
     """
     for ThisOne in ds.series.keys():
-        data = ds.series[ThisOne]["Data"]
-        flag = ds.series[ThisOne]["Flag"]
-        index = numpy.where((abs(data-float(-9999))<c.eps)&(abs(flag-float(0))<c.eps))[0]
-        if len(index)!=0:
-            ds.series[ThisOne]["Flag"][index] = numpy.int32(8)
+        data = numpy.ma.masked_values(ds.series[ThisOne]["Data"],-9999)
+        flag = numpy.ma.masked_equal(ds.series[ThisOne]["Flag"],0)
+        mask = data.mask&flag.mask
+        index = numpy.ma.where(mask==True)[0]
+        ds.series[ThisOne]["Flag"][index] = numpy.int32(8)
 
 def CheckTimeStep(ds,fix=None):
     """
