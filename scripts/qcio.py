@@ -743,7 +743,7 @@ def nc_read_series(ncFullName):
     # check to see if the requested file exists, return empty ds if it doesn't
     if not qcutils.file_exists(ncFullName,mode="quiet"):
         log.error(' netCDF file '+ncFullName+' not found')
-        raise Exception("GapFillFromACCESS: ACCESS file not found")
+        raise Exception("nc_read_series: file not found")
     # file probably exists, so let's read it
     ncFile = netCDF4.Dataset(ncFullName,'r')
     # now deal with the global attributes

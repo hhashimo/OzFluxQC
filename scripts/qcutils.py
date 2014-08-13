@@ -924,6 +924,7 @@ def MakeAttributeDictionary(**kwargs):
         if item in default_list: default_list.remove(item)
     if len(default_list)!=0:
         for item in default_list: attr[item] = 'not defined'
+    attr["missing_value"] = c.missing_value
     return attr
 
 def MakeQCFlag(ds,SeriesList):
