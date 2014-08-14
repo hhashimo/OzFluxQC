@@ -235,7 +235,7 @@ def AverageSeriesByElements(cf,ds,Av_out):
     #attr = qcutils.MakeAttributeDictionary(long_name='Element-wise average of series '+SeriesNameString,
                                        #standard_name=standardname,units=ds.series[srclist[0]]['Attr']['units'])
     # this is a temporary fix, better to have a routine update the attr dictionary
-    tmp_attr["long_name"] = "Element-wise average of series " + SeriesNameString
+    tmp_attr["long_name"] = tmp_attr["long_name"]+"Element-wise average of series " + SeriesNameString
     qcutils.CreateSeries(ds,Av_out,Av_data,Flag=Mn_flag,Attr=tmp_attr)
 
 def CalculateAvailableEnergy(ds,Fa_out='Fa',Fn_in='Fn',Fg_in='Fg'):
@@ -2102,7 +2102,7 @@ def MergeSeries_L4(ds):
                 flag[index] = ds.series[ThisOne]['Flag'][index]
             else:
                 log.error('  MergeSeries: secondary input series'+ThisOne+'not found')
-        attr["long_name"] = "Merged from " + SeriesNameString
+        attr["long_name"] = attr["long_name"]+"Merged from " + SeriesNameString
         qcutils.CreateSeries(ds,label,data,Flag=flag,Attr=attr)
     # remove the "merge" attribute from ds
     del ds.merge
@@ -2168,7 +2168,7 @@ def MergeSeries(cf,ds,series,okflags):
     ds.mergeserieslist.append(series)
     #attr = qcutils.MakeAttributeDictionary(long_name='Merged from '+SeriesNameString,
                              #standard_name=standardname,units=SeriesUnitString)
-    attr["long_name"] = "Merged from " + SeriesNameString
+    attr["long_name"] = attr["long_name"]+"Merged from " + SeriesNameString
     qcutils.CreateSeries(ds,series,data,Flag=flag,Attr=attr)
 
 def PT100(ds,T_out,R_in,m):

@@ -127,9 +127,12 @@ class qcgui(tk.Tk):
         filemenu = tk.Menu(menubar,tearoff=0)
         filemenu.add_command(label="Concatenate netCDF",command=self.do_ncconcat)
         filemenu.add_command(label="List netCDF contents",command=self.option_not_implemented)
-        filemenu.add_command(label="nc to FluxNet",command=self.do_nc2fn)
-        filemenu.add_command(label="nc to xls",command=self.do_nc2xls)
-        filemenu.add_command(label="xls to nc",command=self.option_not_implemented)
+        fileconvertmenu = tk.Menu(menubar,tearoff=0)
+        fileconvertmenu.add_command(label="V2.7 to V2.8",command=self.do_v27tov28)
+        fileconvertmenu.add_command(label="nc to FluxNet",command=self.do_nc2fn)
+        fileconvertmenu.add_command(label="nc to xls",command=self.do_nc2xls)
+        fileconvertmenu.add_command(label="xls to nc",command=self.option_not_implemented)
+        filemenu.add_cascade(label="Convert",menu=fileconvertmenu)
         filemenu.add_separator()
         filemenu.add_command(label="Quit",command=self.do_quit)
         menubar.add_cascade(label="File",menu=filemenu)
@@ -679,6 +682,13 @@ class qcgui(tk.Tk):
         self.do_progress(text='Finished L4 Data Export')              # tell the user we are done
         log.info(' Finished saving L4 data')
 
+    def do_v27tov28(self):
+        """ Conversy from V2.7 format (1D) to V2.8 (3D). """
+        self.do_progress(text='Converting V2.7 to V2.8 ...')
+        qcio.convert_v27tov28()
+        log.info(' Finished conversion')
+        self.do_progress(text='Finished conversion')
+        
     def do_xl2ncL1(self):
         """
         Calls do_xl2nc with in_level set to L1

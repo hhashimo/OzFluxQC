@@ -12,6 +12,7 @@ import os
 import pytz
 import sys
 import time
+import Tkinter,tkSimpleDialog
 import xlrd
 import xlwt
 
@@ -130,14 +131,16 @@ def ConvertCO2Units(cf,ds,Cc='Cc'):
             T,f,a = GetSeriesasMA(ds,'Ta')
             p,f,a = GetSeriesasMA(ds,'ps')
             c_ppm = mf.co2_ppmfrommgpm3(c_mgpm3,T,p)
-            attr = MakeAttributeDictionary(long_name='converted to umol/mol',units=Cc_units_out)
+            long_name = attr["long_name"]+"converted to umol/mol"
+            attr = MakeAttributeDictionary(long_name=long_name,units=Cc_units_out)
             CreateSeries(ds,Cc,c_ppm,Flag=flag,Attr=attr)
         elif Cc_units_out=="mg/m3" and Cc_units_in=="umol/mol":
             c_ppm,flag,attr = GetSeriesasMA(ds,Cc)
             T,f,a = GetSeriesasMA(ds,'Ta')
             p,f,a = GetSeriesasMA(ds,'ps')
             c_mgpm3 = mf.co2_mgpm3fromppm(c_ppm,T,p)
-            attr = MakeAttributeDictionary(long_name='converted to mg/m3',units=Cc_units_out)
+            long_name = attr["long_name"]+"converted to mg/m3"
+            attr = MakeAttributeDictionary(long_name=long_name,units=Cc_units_out)
             CreateSeries(ds,Cc,c_mgpm3,Flag=flag,Attr=attr)
         else:
             log.info('  ConvertCO2Units: input or output units for CO2 concentration not recognised')
@@ -155,12 +158,14 @@ def ConvertFcUnits(cf,ds,Fc='Fc',Fc_storage='Fc_storage'):
             if Fc_units_out=="umol/m2/s" and Fc_units_in=="mg/m2/s":
                 Fc_mgpm2ps,flag,attr = GetSeriesasMA(ds,Fc)
                 Fc_umolpm2ps = mf.Fc_umolpm2psfrommgpm2ps(Fc_mgpm2ps)
-                attr =MakeAttributeDictionary(long_name='converted to umol/m2/s',units=Fc_units_out)
+                long_name = attr["long_name"]+'converted to umol/m2/s'
+                attr =MakeAttributeDictionary(long_name=long_name,units=Fc_units_out)
                 CreateSeries(ds,Fc,Fc_umolpm2ps,Flag=flag,Attr=attr)
             elif Fc_units_out=="mg/m2/s" and Fc_units_in=="umol/m2/s":
                 Fc_umolpm2ps,f,a = GetSeriesasMA(ds,Fc)
                 Fc_mgpm2ps = mf.Fc_mgpm2psfromumolpm2ps(Fc_umolpm2ps)
-                attr = MakeAttributeDictionary(long_name='converted to mg/m2/s',units=Fc_units_out)
+                long_name = attr["long_name"]+'converted to mg/m2/s'
+                attr = MakeAttributeDictionary(long_name=long_name,units=Fc_units_out)
                 CreateSeries(ds,Fc,Fc_mgpm2ps,Flag=flag,Attr=attr)
             else:
                 log.info('  ConvertFcUnits: input or output units for Fc unrecognised')
@@ -172,12 +177,14 @@ def ConvertFcUnits(cf,ds,Fc='Fc',Fc_storage='Fc_storage'):
             if Fc_units_out=="umol/m2/s" and Fc_storage_units_in=="mg/m2/s":
                 Fc_storage_mgpm2ps,flag,attr = GetSeriesasMA(ds,Fc_storage)
                 Fc_storage_umolpm2ps = mf.Fc_umolpm2psfrommgpm2ps(Fc_storage_mgpm2ps)
-                attr =MakeAttributeDictionary(long_name='converted to umol/m2/s',units=Fc_units_out)
+                long_name = attr["long_name"]+"converted to umol/m2/s"
+                attr =MakeAttributeDictionary(long_name=long_name,units=Fc_units_out)
                 CreateSeries(ds,Fc_storage,Fc_storage_umolpm2ps,Flag=flag,Attr=attr)
             elif Fc_units_out=="mg/m2/s" and Fc_storage_units_in=="umol/m2/s":
                 Fc_storage_umolpm2ps,f,a = GetSeriesasMA(ds,Fc_storage)
                 Fc_storage_mgpm2ps = mf.Fc_mgpm2psfromumolpm2ps(Fc_storage_umolpm2ps)
-                attr = MakeAttributeDictionary(long_name='converted to mg/m2/s',units=Fc_units_out)
+                long_name = attr["long_name"]+"converted to mg/m2/s"
+                attr = MakeAttributeDictionary(long_name=long_name,units=Fc_units_out)
                 CreateSeries(ds,Fc_storage,Fc_storage_mgpm2ps,Flag=flag,Attr=attr)
             else:
                 log.info('  ConvertFcUnits: input or output units for Fc_storage unrecognised')
@@ -777,7 +784,52 @@ def get_nrecs(ds):
     else:
         nRecs = len(ds.series[SeriesList[0]]['Data'])
     return nRecs
-    
+
+def get_timezone(site_name):
+    """ Return the time zone based on the site name."""
+    tz_dict = {"adelaideriver":"Australia/Darwin",
+               "alicespringsmulga":"Australia/Darwin",
+               "arcturus":"Australia/Brisbane",
+               "calperum":"Australia/Adelaide",
+               "capetribulation":"Australia/Brisbane",
+               "cumberlandplains":"Australia/Sydney",
+               "cup_ec":"Australia/Sydney",
+               "daintree":"Australia/Brisbane",
+               "dalypasture":"Australia/Darwin",
+               "dalyregrowth":"Australia/Darwin",
+               "dalyuncleared":"Australia/Darwin",
+               "dargo":"Australia/Melbourne",
+               "dryriver":"Australia/Darwin",
+               "foggdam":"Australia/Darwin",
+               "gingin":"Australia/Perth",
+               "greatwestern":"Australia/Perth",
+               "howardsprings":"Australia/Darwin",
+               "litchfield":"Australia/Darwin",
+               "nimmo":"Australia/Sydney",
+               "reddirt":"Australia/Darwin",
+               "riggs":"Australia/Melbourne",
+               "robson":"Australia/Brisbane",
+               "samford":"Australia/Brisbane",
+               "sturtplains":"Australia/Darwin",
+               "titreeeast":"Australia/Darwin",
+               "tumbarumba":"Australia/Canberra",
+               "wallaby":"Australia/Melbourne",
+               "warra":"Australia/Hobart",
+               "whroo":"Australia/Melbourne",
+               "wombat":"Australia/Melbourne",
+               "yanco_jaxa":"Australia/Sydney"}
+    # strip out spaces and commas from the site name
+    site_name = site_name.replace(" ","").replace(",","")
+    for item in tz_dict.keys():
+        if item in site_name.lower():
+            time_zone = tz_dict[item]
+        else:
+            # cant find the site in the dictionary so ask the user
+            root = Tkinter.Tk()
+            root.withdraw()
+            time_zone = tkSimpleDialog.askstring("Time zone","Enter time zone")
+    return time_zone
+
 def get_UTCfromlocaltime(ds):
     '''
     PURPOSE:

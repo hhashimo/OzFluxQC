@@ -32,6 +32,27 @@ class DataStructure(object):
         self.soloserieslist = []
         self.climatologyserieslist = []
 
+def convert_v27tov28():
+    """ Convert V2.7 (1D) netCDF files to V2.8 (3D). """
+    # get the file names
+    ncV27name = get_filename_dialog(path="../Sites")
+    ncV28name = ncV27name.replace(".nc","_V28.nc")
+    # read the V2.7 file
+    ds = nc_read_series(ncV27name)
+    # add the "time_zone" global attribute if it is not present
+    if "time_zone" not in ds.globalattributes.keys():
+        for gattr in ["site_name","SiteName"]:
+            if gattr in ds.globalattributes.keys():
+                time_zone = qcutils.get_timezone(ds.globalattributes[gattr])
+        ds.globalattributes["time_zone"] = time_zone
+    # add the "missing_value" attribute if it is not present
+    for ThisOne in ds.series.keys():
+        if "missing_value" not in ds.series[ThisOne]["Attr"].keys():
+            ds.series[ThisOne]["Attr"]["missing_value"] = c.missing_value
+    # write the V2.8 file
+    ncFile = nc_open_write(ncV28name,nctype='NETCDF4')
+    nc_write_series(ncFile, ds)
+
 def copy_datastructure(cf,ds_in):
     '''
     Return a copy of a data structure based on the following rules:
@@ -830,6 +851,7 @@ def nc_open_write(ncFullName,nctype='NETCDF4'):
     return ncFile
 
 def nc_write_series(ncFile,ds,outputlist=None):
+    ldt = ds.series["DateTime"]["Data"]
     ds.globalattributes['QC_version'] = str(cfg.version_name)+' '+str(cfg.version_number)
     for ThisOne in ds.globalattributes.keys():
         setattr(ncFile,ThisOne,ds.globalattributes[ThisOne])
@@ -840,8 +862,8 @@ def nc_write_series(ncFile,ds,outputlist=None):
     # when the Time dimension is unlimited
     nRecs = int(ds.globalattributes['nc_nrecs'])
     ncFile.createDimension("time",nRecs)
-    ncFile.createDimension("lat",1)
-    ncFile.createDimension("lon",1)
+    ncFile.createDimension("latitude",1)
+    ncFile.createDimension("longitude",1)
     if outputlist==None:
         outputlist = ds.series.keys()
     else:
@@ -857,33 +879,53 @@ def nc_write_series(ncFile,ds,outputlist=None):
     # now make sure the date and time series are in outputlist
     datetimelist = ['xlDateTime','Year','Month','Day','Hour','Minute','Second','Hdh']
     for ThisOne in sorted(datetimelist):
-        nc_write_var(ncFile,ds,ThisOne,("time",))
+        nc_write_var(ncFile,ds,ThisOne,("time","latitude","longitude"))
         if ThisOne in outputlist: outputlist.remove(ThisOne)
     # write everything else to the netCDF file
     for ThisOne in sorted(outputlist):
-        nc_write_var(ncFile,ds,ThisOne,("time","lat","lon"))
-    # now write the lat and lon dimensions
-    ncVar = ncFile.createVariable("lat","d",("lat",))
+        nc_write_var(ncFile,ds,ThisOne,("time","latitude","longitude"))
+    # now write the latitude and longitude variables
+    ncVar = ncFile.createVariable("latitude","d",("latitude",))
     ncVar = qcutils.convert_anglestring(str(ds.globalattributes["latitude"]))
-    ncVar = ncFile.createVariable("lon","d",("lon",))
+    setattr(ncVar,'long_name','latitude')
+    setattr(ncVar,'standard_name','latitude')
+    setattr(ncVar,'units','degrees north')
+    ncVar = ncFile.createVariable("longitude","d",("longitude",))
     ncVar = qcutils.convert_anglestring(str(ds.globalattributes["longitude"]))
+    setattr(ncVar,'long_name','longitude')
+    setattr(ncVar,'standard_name','longitude')
+    setattr(ncVar,'units','degrees east')
+    # write the time variable
+    time = netCDF4.date2num(ldt,"days since 1800-01-01 00:00:00.0",calendar="gregorian")
+    ncVar = ncFile.createVariable("time","d",("time",))
+    ncVar = time.tolist()
+    setattr(ncVar,"long_name","time")
+    setattr(ncVar,"standard_name","time")
+    setattr(ncVar,"units","days since 1800-01-01 00:00:00.0")
+    setattr(ncVar,"calendar","gregorian")
+    # write the coordinate reference system (crs) variable
+    ncVar = ncFile.createVariable("crs","i",())
+    setattr(ncVar,"grid_mapping_name","latitude_longitude")
+    setattr(ncVar,"long_name","WGS 1984 datum")
+    setattr(ncVar,"longitude_of_prime_meridian","0.0")
+    setattr(ncVar,"semi_major_axis","6378137.0")
+    setattr(ncVar,"inverse_flattening","298.257223563")
     ncFile.close()
 
 def nc_write_var(ncFile,ds,ThisOne,dim):
     dt = get_ncdtype(ds.series[ThisOne]['Data'])
     ncVar = ncFile.createVariable(ThisOne,dt,dim)
-    #ncVar = ncFile.createVariable(ThisOne,dt,("time",))
     if len(dim)==1: ncVar[:] = ds.series[ThisOne]['Data'].tolist()
     if len(dim)==3: ncVar[:,0,0] = ds.series[ThisOne]['Data'].tolist()
     for attr in ds.series[ThisOne]['Attr']:
         setattr(ncVar,attr,ds.series[ThisOne]['Attr'][attr])
     dt = get_ncdtype(ds.series[ThisOne]['Flag'])
-    ncVar = ncFile.createVariable(ThisOne+'_QCFlag',dt,("time","lat","lon"))
-    #ncVar = ncFile.createVariable(ThisOne+'_QCFlag',dt,("time",))
-    ncVar[:] = ds.series[ThisOne]['Flag'].tolist()
-    setattr(ncVar,'long_name','QC flag')
+    ncVar = ncFile.createVariable(ThisOne+'_QCFlag',dt,dim)
+    if len(dim)==1: ncVar[:] = ds.series[ThisOne]['Flag'].tolist()
+    if len(dim)==3: ncVar[:,0,0] = ds.series[ThisOne]['Data'].tolist()
+    setattr(ncVar,'long_name',ThisOne+'QC flag')
     setattr(ncVar,'units','none')
-    
+
 def xl_read_flags(cf,ds,level,VariablesInFile):
     # First data row in Excel worksheets.
     FirstDataRow = int(get_keyvalue_from_cf(cf['Files'][level],'first_data_row')) - 1
