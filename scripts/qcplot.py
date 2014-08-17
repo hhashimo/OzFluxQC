@@ -183,6 +183,48 @@ def plot_fingerprint(cf):
         plt.draw()
     plt.ioff()
 
+def plot_fluxnet(cf):
+    """ Plot the FluxNet style plots. """
+    
+    series_list = cf["Variables"].keys()
+    infilename = qcio.get_infilename_from_cf(cf)
+    
+    ds = qcio.nc_read_series(infilename)
+    site_name = ds.globalattributes["site_name"]
+    
+    ldt=ds.series["DateTime"]["Data"]
+    sdt = ldt[0]
+    edt = ldt[-1]
+    # Tumbarumba doesn't have RH in the netCDF files
+    if "RH" not in ds.series.keys():
+        Ah,f,a = qcutils.GetSeriesasMA(ds,'Ah')
+        Ta,f,a = qcutils.GetSeriesasMA(ds,'Ta')
+        RH = mf.RHfromabsolutehumidity(Ah, Ta)
+        attr = qcutils.MakeAttributeDictionary(long_name='Relative humidity',units='%',standard_name='not defined')
+        qcutils.CreateSeries(ds,"RH",RH,FList=['Ta','Ah'],Attr=attr)
+    
+    nFig = 0
+    plt.ion()
+    for series in series_list:
+        if series not in ds.series.keys():
+            log.error("Series "+series+" not found in input file, skipping ...")
+            continue
+        log.info("Doing plot for "+series)
+        data,flag,attr = qcutils.GetSeriesasMA(ds,qcutils.GetAltName(cf,ds,series))
+        nFig = nFig + 1
+        fig = plt.figure(nFig,figsize=(10.9,7.5))
+        fig.canvas.set_window_title(series)
+        plt.plot(ldt,data,"b.")
+        plt.xlim(sdt,edt)
+        plt.xlabel("Date")
+        plt.ylabel(series+" ("+attr["units"]+")")
+        title_str = site_name+": "+sdt.strftime("%Y-%m-%d")+" to "+edt.strftime("%Y-%m-%d")+"; "+series
+        plt.title(title_str)
+        figname='plots/'+ds.globalattributes['site_name'].replace(' ','')+'_'+ds.globalattributes['nc_level']+'_FC_'+series+'.png'
+        fig.savefig(figname,format='png')
+        plt.draw()
+    plt.ioff()
+
 def plottimeseries(cf,nFig,dsa,dsb,si,ei):
     SiteName = dsa.globalattributes['site_name']
     Level = dsb.globalattributes['nc_level']

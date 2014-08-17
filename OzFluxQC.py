@@ -152,7 +152,7 @@ class qcgui(tk.Tk):
         plotmenu.add_command(label="Plot L5",command=self.option_not_implemented)
         pltsummenu = tk.Menu(menubar,tearoff=0)
         pltsummenu.add_command(label="Fingerprint",command=self.do_plotfingerprint)
-        #pltsummenu.add_command(label="Full check",command=self.option_not_implemented)
+        pltsummenu.add_command(label="FluxNet",command=self.do_plotfluxnet)
         pltsummenu.add_command(label="Quick check",command=self.do_plotquickcheck)
         #pltsummenu.add_command(label="Years check",command=self.option_not_implemented)
         plotmenu.add_cascade(label="Summary",menu=pltsummenu)
@@ -178,6 +178,11 @@ class qcgui(tk.Tk):
         respirationmenu.add_command(label="van Gorsel",command=self.option_not_implemented)
         utilsmenu.add_cascade(label="Respiration",menu=respirationmenu)
         menubar.add_cascade(label="Utilities",menu=utilsmenu)
+        # and the "Help" menu
+        helpmenu = tk.Menu(menubar,tearoff=0)
+        helpmenu.add_command(label="Contents",command=self.option_not_implemented)
+        helpmenu.add_command(label="About",command=self.option_not_implemented)
+        menubar.add_cascade(label="Help",menu=helpmenu)
 
         self.config(menu=menubar)
 
@@ -480,6 +485,25 @@ class qcgui(tk.Tk):
         qcplot.plot_fingerprint(cf)
         self.do_progress(text='Finished plotting fingerprint')
         log.info(' Finished plotting fingerprint')
+
+    def do_plotfluxnet(self):
+        """ Plot FluxNet style time series of data."""
+        self.do_progress(text='Loading control file ...')
+        stdname = "controlfiles/standard/fluxnet.txt"
+        if os.path.exists(stdname):
+            cf = qcio.get_controlfilecontents(stdname)
+            filename = qcio.get_filename_dialog(path='../Sites',title='Choose an input file')
+            if len(filename)==0: self.do_progress(text='Waiting for input ...'); return
+            if "Files" not in dir(cf): cf["Files"] = {}
+            cf["Files"]["file_path"] = ntpath.split(filename)[0]+"/"
+            cf["Files"]["in_filename"] = ntpath.split(filename)[1]
+        else:
+            cf = qcio.load_controlfile(path='controlfiles')
+        if len(cf)==0: self.do_progress(text='Waiting for input ...'); return
+        self.do_progress(text='Plotting FluxNet style plots ...')
+        qcplot.plot_fluxnet(cf)
+        self.do_progress(text='Finished FluxNet plotting')
+        log.info(' Finished FluxNet plotting')
 
     def do_plotquickcheck(self):
         """ Plot quickcheck"""

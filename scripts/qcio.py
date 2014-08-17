@@ -486,66 +486,66 @@ def get_seriesstats(cf,ds):
     xlFile = xlwt.Workbook()
     xlFlagSheet = xlFile.add_sheet('Flag')
     # get the flag statistics
-    xlRow = 0
-    xlCol = 0
-    xlFlagSheet.write(xlRow,xlCol,'0:')
-    xlFlagSheet.write(xlRow,xlCol+1,ds.globalattributes['Flag0'])
-    xlFlagSheet.write(xlRow,xlCol+2,'1:')
-    xlFlagSheet.write(xlRow,xlCol+3,ds.globalattributes['Flag1'])
-    xlFlagSheet.write(xlRow,xlCol+4,'2:')
-    xlFlagSheet.write(xlRow,xlCol+5,ds.globalattributes['Flag2'])
-    xlFlagSheet.write(xlRow,xlCol+6,'3:')
-    xlFlagSheet.write(xlRow,xlCol+7,ds.globalattributes['Flag3'])
-    xlFlagSheet.write(xlRow,xlCol+8,'4:')
-    xlFlagSheet.write(xlRow,xlCol+9,ds.globalattributes['Flag4'])
-    xlFlagSheet.write(xlRow,xlCol+10,'5:')
-    xlFlagSheet.write(xlRow,xlCol+11,ds.globalattributes['Flag5'])
-    xlFlagSheet.write(xlRow,xlCol+12,'6:')
-    xlFlagSheet.write(xlRow,xlCol+13,ds.globalattributes['Flag6'])
-    xlFlagSheet.write(xlRow,xlCol+14,'7:')
-    xlFlagSheet.write(xlRow,xlCol+15,ds.globalattributes['Flag7'])
-    xlRow = xlRow + 1
-    xlFlagSheet.write(xlRow,xlCol,'10:')
-    xlFlagSheet.write(xlRow,xlCol+1,ds.globalattributes['Flag10'])
-    xlFlagSheet.write(xlRow,xlCol+2,'11:')
-    xlFlagSheet.write(xlRow,xlCol+3,ds.globalattributes['Flag11'])
-    xlFlagSheet.write(xlRow,xlCol+4,'12:')
-    xlFlagSheet.write(xlRow,xlCol+5,ds.globalattributes['Flag12'])
-    xlFlagSheet.write(xlRow,xlCol+6,'13:')
-    xlFlagSheet.write(xlRow,xlCol+7,ds.globalattributes['Flag13'])
-    xlFlagSheet.write(xlRow,xlCol+8,'14:')
-    xlFlagSheet.write(xlRow,xlCol+9,ds.globalattributes['Flag14'])
-    xlFlagSheet.write(xlRow,xlCol+10,'15:')
-    xlFlagSheet.write(xlRow,xlCol+11,ds.globalattributes['Flag15'])
-    xlFlagSheet.write(xlRow,xlCol+12,'16:')
-    xlFlagSheet.write(xlRow,xlCol+13,ds.globalattributes['Flag16'])
-    xlFlagSheet.write(xlRow,xlCol+14,'17:')
-    xlFlagSheet.write(xlRow,xlCol+15,ds.globalattributes['Flag17'])
-    xlFlagSheet.write(xlRow,xlCol+16,'18:')
-    xlFlagSheet.write(xlRow,xlCol+17,ds.globalattributes['Flag18'])
-    xlFlagSheet.write(xlRow,xlCol+18,'19:')
-    xlFlagSheet.write(xlRow,xlCol+19,ds.globalattributes['Flag19'])
-    xlRow = xlRow + 1
-    xlFlagSheet.write(xlRow,xlCol,'30:')
-    xlFlagSheet.write(xlRow,xlCol+1,ds.globalattributes['Flag30'])
-    xlFlagSheet.write(xlRow,xlCol+2,'31:')
-    xlFlagSheet.write(xlRow,xlCol+3,ds.globalattributes['Flag31'])
-    xlFlagSheet.write(xlRow,xlCol+4,'32:')
-    xlFlagSheet.write(xlRow,xlCol+5,ds.globalattributes['Flag32'])
-    xlFlagSheet.write(xlRow,xlCol+6,'33:')
-    xlFlagSheet.write(xlRow,xlCol+7,ds.globalattributes['Flag33'])
-    xlFlagSheet.write(xlRow,xlCol+8,'34:')
-    xlFlagSheet.write(xlRow,xlCol+9,ds.globalattributes['Flag34'])
-    xlFlagSheet.write(xlRow,xlCol+10,'35:')
-    xlFlagSheet.write(xlRow,xlCol+11,ds.globalattributes['Flag35'])
-    xlFlagSheet.write(xlRow,xlCol+12,'36:')
-    xlFlagSheet.write(xlRow,xlCol+13,ds.globalattributes['Flag36'])
-    xlFlagSheet.write(xlRow,xlCol+14,'37:')
-    xlFlagSheet.write(xlRow,xlCol+15,ds.globalattributes['Flag37'])
-    xlFlagSheet.write(xlRow,xlCol+16,'38:')
-    xlFlagSheet.write(xlRow,xlCol+17,ds.globalattributes['Flag38'])
-    xlFlagSheet.write(xlRow,xlCol+18,'39:')
-    xlFlagSheet.write(xlRow,xlCol+19,ds.globalattributes['Flag39'])
+    #xlRow = 0
+    #xlCol = 0
+    #xlFlagSheet.write(xlRow,xlCol,'0:')
+    #xlFlagSheet.write(xlRow,xlCol+1,ds.globalattributes['Flag00'])
+    #xlFlagSheet.write(xlRow,xlCol+2,'1:')
+    #xlFlagSheet.write(xlRow,xlCol+3,ds.globalattributes['Flag01'])
+    #xlFlagSheet.write(xlRow,xlCol+4,'2:')
+    #xlFlagSheet.write(xlRow,xlCol+5,ds.globalattributes['Flag02'])
+    #xlFlagSheet.write(xlRow,xlCol+6,'3:')
+    #xlFlagSheet.write(xlRow,xlCol+7,ds.globalattributes['Flag03'])
+    #xlFlagSheet.write(xlRow,xlCol+8,'4:')
+    #xlFlagSheet.write(xlRow,xlCol+9,ds.globalattributes['Flag04'])
+    #xlFlagSheet.write(xlRow,xlCol+10,'5:')
+    #xlFlagSheet.write(xlRow,xlCol+11,ds.globalattributes['Flag05'])
+    #xlFlagSheet.write(xlRow,xlCol+12,'6:')
+    #xlFlagSheet.write(xlRow,xlCol+13,ds.globalattributes['Flag06'])
+    #xlFlagSheet.write(xlRow,xlCol+14,'7:')
+    #xlFlagSheet.write(xlRow,xlCol+15,ds.globalattributes['Flag07'])
+    #xlRow = xlRow + 1
+    #xlFlagSheet.write(xlRow,xlCol,'10:')
+    #xlFlagSheet.write(xlRow,xlCol+1,ds.globalattributes['Flag10'])
+    #xlFlagSheet.write(xlRow,xlCol+2,'11:')
+    #xlFlagSheet.write(xlRow,xlCol+3,ds.globalattributes['Flag11'])
+    #xlFlagSheet.write(xlRow,xlCol+4,'12:')
+    #xlFlagSheet.write(xlRow,xlCol+5,ds.globalattributes['Flag12'])
+    #xlFlagSheet.write(xlRow,xlCol+6,'13:')
+    #xlFlagSheet.write(xlRow,xlCol+7,ds.globalattributes['Flag13'])
+    #xlFlagSheet.write(xlRow,xlCol+8,'14:')
+    #xlFlagSheet.write(xlRow,xlCol+9,ds.globalattributes['Flag14'])
+    #xlFlagSheet.write(xlRow,xlCol+10,'15:')
+    #xlFlagSheet.write(xlRow,xlCol+11,ds.globalattributes['Flag15'])
+    #xlFlagSheet.write(xlRow,xlCol+12,'16:')
+    #xlFlagSheet.write(xlRow,xlCol+13,ds.globalattributes['Flag16'])
+    #xlFlagSheet.write(xlRow,xlCol+14,'17:')
+    #xlFlagSheet.write(xlRow,xlCol+15,ds.globalattributes['Flag17'])
+    #xlFlagSheet.write(xlRow,xlCol+16,'18:')
+    #xlFlagSheet.write(xlRow,xlCol+17,ds.globalattributes['Flag18'])
+    #xlFlagSheet.write(xlRow,xlCol+18,'19:')
+    #xlFlagSheet.write(xlRow,xlCol+19,ds.globalattributes['Flag19'])
+    #xlRow = xlRow + 1
+    #xlFlagSheet.write(xlRow,xlCol,'30:')
+    #xlFlagSheet.write(xlRow,xlCol+1,ds.globalattributes['Flag30'])
+    #xlFlagSheet.write(xlRow,xlCol+2,'31:')
+    #xlFlagSheet.write(xlRow,xlCol+3,ds.globalattributes['Flag31'])
+    #xlFlagSheet.write(xlRow,xlCol+4,'32:')
+    #xlFlagSheet.write(xlRow,xlCol+5,ds.globalattributes['Flag32'])
+    #xlFlagSheet.write(xlRow,xlCol+6,'33:')
+    #xlFlagSheet.write(xlRow,xlCol+7,ds.globalattributes['Flag33'])
+    #xlFlagSheet.write(xlRow,xlCol+8,'34:')
+    #xlFlagSheet.write(xlRow,xlCol+9,ds.globalattributes['Flag34'])
+    #xlFlagSheet.write(xlRow,xlCol+10,'35:')
+    #xlFlagSheet.write(xlRow,xlCol+11,ds.globalattributes['Flag35'])
+    #xlFlagSheet.write(xlRow,xlCol+12,'36:')
+    #xlFlagSheet.write(xlRow,xlCol+13,ds.globalattributes['Flag36'])
+    #xlFlagSheet.write(xlRow,xlCol+14,'37:')
+    #xlFlagSheet.write(xlRow,xlCol+15,ds.globalattributes['Flag37'])
+    #xlFlagSheet.write(xlRow,xlCol+16,'38:')
+    #xlFlagSheet.write(xlRow,xlCol+17,ds.globalattributes['Flag38'])
+    #xlFlagSheet.write(xlRow,xlCol+18,'39:')
+    #xlFlagSheet.write(xlRow,xlCol+19,ds.globalattributes['Flag39'])
     bins = numpy.arange(-0.5,23.5)
     xlRow = 5
     xlCol = 1
@@ -885,44 +885,68 @@ def nc_write_series(ncFile,ds,outputlist=None):
     for ThisOne in sorted(outputlist):
         nc_write_var(ncFile,ds,ThisOne,("time","latitude","longitude"))
     # now write the latitude and longitude variables
-    ncVar = ncFile.createVariable("latitude","d",("latitude",))
-    ncVar = qcutils.convert_anglestring(str(ds.globalattributes["latitude"]))
-    setattr(ncVar,'long_name','latitude')
-    setattr(ncVar,'standard_name','latitude')
-    setattr(ncVar,'units','degrees north')
-    ncVar = ncFile.createVariable("longitude","d",("longitude",))
-    ncVar = qcutils.convert_anglestring(str(ds.globalattributes["longitude"]))
-    setattr(ncVar,'long_name','longitude')
-    setattr(ncVar,'standard_name','longitude')
-    setattr(ncVar,'units','degrees east')
+    if "latitude" not in outputlist:
+        ncVar = ncFile.createVariable("latitude","d",("latitude",))
+        ncVar[:] = qcutils.convert_anglestring(str(ds.globalattributes["latitude"]))
+        setattr(ncVar,'long_name','latitude')
+        setattr(ncVar,'standard_name','latitude')
+        setattr(ncVar,'units','degrees north')
+    if "longitude" not in outputlist:
+        ncVar = ncFile.createVariable("longitude","d",("longitude",))
+        ncVar[:] = qcutils.convert_anglestring(str(ds.globalattributes["longitude"]))
+        setattr(ncVar,'long_name','longitude')
+        setattr(ncVar,'standard_name','longitude')
+        setattr(ncVar,'units','degrees east')
     # write the time variable
-    time = netCDF4.date2num(ldt,"days since 1800-01-01 00:00:00.0",calendar="gregorian")
-    ncVar = ncFile.createVariable("time","d",("time",))
-    ncVar = time.tolist()
-    setattr(ncVar,"long_name","time")
-    setattr(ncVar,"standard_name","time")
-    setattr(ncVar,"units","days since 1800-01-01 00:00:00.0")
-    setattr(ncVar,"calendar","gregorian")
+    if "time" not in outputlist:
+        nc_time = netCDF4.date2num(ldt,"days since 1800-01-01 00:00:00.0",calendar="gregorian")
+        ncVar = ncFile.createVariable("time","d",("time",))
+        ncVar[:] = nc_time
+        setattr(ncVar,"long_name","time")
+        setattr(ncVar,"standard_name","time")
+        setattr(ncVar,"units","days since 1800-01-01 00:00:00.0")
+        setattr(ncVar,"calendar","gregorian")
     # write the coordinate reference system (crs) variable
-    ncVar = ncFile.createVariable("crs","i",())
-    setattr(ncVar,"grid_mapping_name","latitude_longitude")
-    setattr(ncVar,"long_name","WGS 1984 datum")
-    setattr(ncVar,"longitude_of_prime_meridian","0.0")
-    setattr(ncVar,"semi_major_axis","6378137.0")
-    setattr(ncVar,"inverse_flattening","298.257223563")
+    if "crs" not in outputlist:
+        ncVar = ncFile.createVariable("crs","i",())
+        setattr(ncVar,"grid_mapping_name","latitude_longitude")
+        setattr(ncVar,"long_name","WGS 1984 datum")
+        setattr(ncVar,"longitude_of_prime_meridian","0.0")
+        setattr(ncVar,"semi_major_axis","6378137.0")
+        setattr(ncVar,"inverse_flattening","298.257223563")
     ncFile.close()
 
 def nc_write_var(ncFile,ds,ThisOne,dim):
+    """
+    PURPOSE:
+     Function to write data from a series in the data structure to a netCDF variable.
+    USAGE:
+     nc_write_var(ncFile,ds,ThisOne,("time","latitude","longitude"))
+      where ncFile is a netCDF file object
+            ds is the data structure
+            ThisOne is the label of a series in ds
+            ("time","latitude","longitude") is the dimension tuple
+    AUTHOR: PRI
+    DATE: August 2014
+    """
+    # get the data type of the series in ds
     dt = get_ncdtype(ds.series[ThisOne]['Data'])
+    # create the netCDF variable
     ncVar = ncFile.createVariable(ThisOne,dt,dim)
+    # different writes to the variable depending on whether it is 1D or 3D
     if len(dim)==1: ncVar[:] = ds.series[ThisOne]['Data'].tolist()
     if len(dim)==3: ncVar[:,0,0] = ds.series[ThisOne]['Data'].tolist()
+    # write the attributes
     for attr in ds.series[ThisOne]['Attr']:
         setattr(ncVar,attr,ds.series[ThisOne]['Attr'][attr])
+    # get the data type of the QC flag
     dt = get_ncdtype(ds.series[ThisOne]['Flag'])
+    # create the variable
     ncVar = ncFile.createVariable(ThisOne+'_QCFlag',dt,dim)
+    # write 1D or 3D
     if len(dim)==1: ncVar[:] = ds.series[ThisOne]['Flag'].tolist()
-    if len(dim)==3: ncVar[:,0,0] = ds.series[ThisOne]['Data'].tolist()
+    if len(dim)==3: ncVar[:,0,0] = ds.series[ThisOne]['Flag'].tolist()
+    # set the attributes
     setattr(ncVar,'long_name',ThisOne+'QC flag')
     setattr(ncVar,'units','none')
 
@@ -1128,11 +1152,11 @@ def xl_write_series(ds, xlfullname, outputlist=None):
     xlrow = xlrow + 1
     globalattrlist = ds.globalattributes.keys()
     globalattrlist.sort()
-    for ThisOne in [x for x in globalattrlist if 'Flag' not in x]:
+    for ThisOne in sorted([x for x in globalattrlist if 'Flag' not in x]):
         xlAttrSheet.write(xlrow,xlcol,ThisOne)
         xlAttrSheet.write(xlrow,xlcol+1,str(ds.globalattributes[ThisOne]))
         xlrow = xlrow + 1
-    for ThisOne in [x for x in globalattrlist if 'Flag' in x]:
+    for ThisOne in sorted([x for x in globalattrlist if 'Flag' in x]):
         xlAttrSheet.write(xlrow,xlcol,ThisOne)
         xlAttrSheet.write(xlrow,xlcol+1,str(ds.globalattributes[ThisOne]))
         xlrow = xlrow + 1

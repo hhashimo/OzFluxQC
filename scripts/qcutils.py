@@ -426,9 +426,9 @@ def GetAltName(cf,ds,ThisOne):
         if ThisOne in cf['Variables'].keys():
             ThisOne = cf['Variables'][ThisOne]['AltVarName']
             if ThisOne not in ds.series.keys():
-                print 'GetAltName: alternate variable name not in ds'
+                log.error('GetAltName: alternate variable name not in ds')
         else:
-            print 'GetAltName: cant find ',ThisOne,' in ds or control file'
+            log.error('GetAltName: cant find ',ThisOne,' in ds or control file')
     return ThisOne
 
 def GetAltNameFromCF(cf,ThisOne):
@@ -825,9 +825,9 @@ def get_timezone(site_name):
             time_zone = tz_dict[item]
         else:
             # cant find the site in the dictionary so ask the user
-            root = Tkinter.Tk()
-            root.withdraw()
-            time_zone = tkSimpleDialog.askstring("Time zone","Enter time zone")
+            root = Tkinter.Tk(); root.withdraw()
+            time_zone = tkSimpleDialog.askstring("Time zone","Enter time zone eg Australia/Melbourne")
+            root.destroy()
     return time_zone
 
 def get_UTCfromlocaltime(ds):
