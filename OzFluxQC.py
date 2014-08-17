@@ -8,6 +8,7 @@ import numpy
 import ntpath
 import time
 import Tkinter as tk
+import tkMessageBox
 import os
 import sys
 
@@ -180,7 +181,7 @@ class qcgui(tk.Tk):
         menubar.add_cascade(label="Utilities",menu=utilsmenu)
         # and the "Help" menu
         helpmenu = tk.Menu(menubar,tearoff=0)
-        helpmenu.add_command(label="Contents",command=self.option_not_implemented)
+        helpmenu.add_command(label="Contents",command=self.do_helpcontents)
         helpmenu.add_command(label="About",command=self.option_not_implemented)
         menubar.add_cascade(label="Help",menu=helpmenu)
 
@@ -241,6 +242,9 @@ class qcgui(tk.Tk):
         self.do_progress(text='Finished comparing EddyPro and OzFlux')
         log.info(' Finished comparing EddyPro and OzFlux')
 
+    def do_helpcontents(self):
+        tkMessageBox.showinfo("Obi Wan says ...","Read the source, Luke!")
+        
     def do_l2qc(self):
         """
             Call qcls.l2qc function
