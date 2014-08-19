@@ -850,7 +850,7 @@ def nc_open_write(ncFullName,nctype='NETCDF4'):
         ncFile = ''
     return ncFile
 
-def nc_write_series(ncFile,ds,outputlist=None):
+def nc_write_series(ncFile,ds,outputlist=None,ndims=3):
     ldt = ds.series["DateTime"]["Data"]
     ds.globalattributes['QC_version'] = str(cfg.version_name)+' '+str(cfg.version_number)
     for ThisOne in ds.globalattributes.keys():
@@ -862,8 +862,12 @@ def nc_write_series(ncFile,ds,outputlist=None):
     # when the Time dimension is unlimited
     nRecs = int(ds.globalattributes['nc_nrecs'])
     ncFile.createDimension("time",nRecs)
-    ncFile.createDimension("latitude",1)
-    ncFile.createDimension("longitude",1)
+    if ndims==3:
+        ncFile.createDimension("latitude",1)
+        ncFile.createDimension("longitude",1)
+        dims = ("time","latitude","longitude")
+    else:
+        dims = ("time",)
     if outputlist==None:
         outputlist = ds.series.keys()
     else:
@@ -876,27 +880,6 @@ def nc_write_series(ncFile,ds,outputlist=None):
     # actually, this could be written as characters
     for ThisOne in ["DateTime","DateTime_UTC"]:
         if ThisOne in outputlist: outputlist.remove(ThisOne)
-    # now make sure the date and time series are in outputlist
-    datetimelist = ['xlDateTime','Year','Month','Day','Hour','Minute','Second','Hdh']
-    for ThisOne in sorted(datetimelist):
-        nc_write_var(ncFile,ds,ThisOne,("time","latitude","longitude"))
-        if ThisOne in outputlist: outputlist.remove(ThisOne)
-    # write everything else to the netCDF file
-    for ThisOne in sorted(outputlist):
-        nc_write_var(ncFile,ds,ThisOne,("time","latitude","longitude"))
-    # now write the latitude and longitude variables
-    if "latitude" not in outputlist:
-        ncVar = ncFile.createVariable("latitude","d",("latitude",))
-        ncVar[:] = qcutils.convert_anglestring(str(ds.globalattributes["latitude"]))
-        setattr(ncVar,'long_name','latitude')
-        setattr(ncVar,'standard_name','latitude')
-        setattr(ncVar,'units','degrees north')
-    if "longitude" not in outputlist:
-        ncVar = ncFile.createVariable("longitude","d",("longitude",))
-        ncVar[:] = qcutils.convert_anglestring(str(ds.globalattributes["longitude"]))
-        setattr(ncVar,'long_name','longitude')
-        setattr(ncVar,'standard_name','longitude')
-        setattr(ncVar,'units','degrees east')
     # write the time variable
     if "time" not in outputlist:
         nc_time = netCDF4.date2num(ldt,"days since 1800-01-01 00:00:00.0",calendar="gregorian")
@@ -906,6 +889,29 @@ def nc_write_series(ncFile,ds,outputlist=None):
         setattr(ncVar,"standard_name","time")
         setattr(ncVar,"units","days since 1800-01-01 00:00:00.0")
         setattr(ncVar,"calendar","gregorian")
+    # now write the latitude and longitude variables
+    if ndims==3:
+        if "latitude" not in outputlist:
+            ncVar = ncFile.createVariable("latitude","d",("latitude",))
+            ncVar[:] = qcutils.convert_anglestring(str(ds.globalattributes["latitude"]))
+            setattr(ncVar,'long_name','latitude')
+            setattr(ncVar,'standard_name','latitude')
+            setattr(ncVar,'units','degrees north')
+        if "longitude" not in outputlist:
+            ncVar = ncFile.createVariable("longitude","d",("longitude",))
+            ncVar[:] = qcutils.convert_anglestring(str(ds.globalattributes["longitude"]))
+            setattr(ncVar,'long_name','longitude')
+            setattr(ncVar,'standard_name','longitude')
+            setattr(ncVar,'units','degrees east')
+    # now make sure the date and time series are in outputlist
+    datetimelist = ['xlDateTime','xlDateTime_UTC','Year','Month','Day','Hour','Minute','Second','Hdh']
+    # and write them to the netCDF file
+    for ThisOne in sorted(datetimelist):
+        if ThisOne in ds.series.keys(): nc_write_var(ncFile,ds,ThisOne,dims)
+        if ThisOne in outputlist: outputlist.remove(ThisOne)
+    # write everything else to the netCDF file
+    for ThisOne in sorted(outputlist):
+        nc_write_var(ncFile,ds,ThisOne,dims)
     # write the coordinate reference system (crs) variable
     if "crs" not in outputlist:
         ncVar = ncFile.createVariable("crs","i",())
@@ -1200,8 +1206,17 @@ def xl_write_series(ds, xlfullname, outputlist=None):
     for j in range(nRecs):
         xlDataSheet.write(j+3,xlcol,xlDateTime[j],d_xf)
         xlFlagSheet.write(j+3,xlcol,xlDateTime[j],d_xf)
+    # output the xl datetime as UTC if it exists in the file
+    #if "xlDateTime_UTC" in ds.series.keys():
+        #xlcol = xlcol + 1
+        #xlDateTime = ds.series["xlDateTime_UTC"]["Data"]
+        #xlDataSheet.write(2,xlcol,"xlDateTime_UTC")
+        #for j in range(nRecs):
+            #xlDataSheet.write(j+3,xlcol,xlDateTime[j],d_xf)
+            #xlFlagSheet.write(j+3,xlcol,xlDateTime[j],d_xf)
     # remove xlDateTime from the list of variables to be written to the Excel file
     if "xlDateTime" in outputlist: outputlist.remove("xlDateTime")
+    if "xlDateTime_UTC" in outputlist: outputlist.remove("xlDateTime_UTC")
     # now start looping over the other variables in the xl file
     xlcol = xlcol + 1
     # loop over variables to be output to xl file

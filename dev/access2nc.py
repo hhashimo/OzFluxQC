@@ -25,6 +25,21 @@ def perdelta(start,end,delta):
         yield curr
         curr += delta
 
+def find_indices(a,b):
+    len_a = len(a)
+    len_b = len(b)
+    indices = []
+    idx = -1
+    if len_a>=len_b:
+        for item in b:
+            idx = a.index(item,idx+1)
+            indices.append(idx)
+    else:
+        for item in a:
+            idx = b.index(item,idx+1)
+            indices.append(idx)
+    return indices
+
 # open the logging file
 #logging.basicConfig()
 log = qcutils.startlog('access2nc','../logfiles/access2nc.log')
@@ -316,23 +331,11 @@ for site in site_list:
             attr = qcutils.MakeAttributeDictionary(long_name='Calculated available energy',
                                  standard_name='not defined',units='W/m2')
             qcutils.CreateSeries(ds_60minutes,label_Fa,Fa,Flag=f,Attr=attr)
-    # accumulated precipitation to mm per timestep
-    #for i in range(0,3):
-        #for j in range(0,3):
-            #label_Fg = "Fg_"+str(i)+str(j)
-            #label_Fn = "Fn_"+str(i)+str(j)
-            #label_Fa = "Fa_"+str(i)+str(j)
-            #Fn,f,a = qcutils.GetSeriesasMA(ds_60minutes,label_Fn)
-            #Fg,f,a = qcutils.GetSeriesasMA(ds_60minutes,label_Fg)
-            #Fa = Fn - Fg
-            #attr = qcutils.MakeAttributeDictionary(long_name='Calculated available energy',
-                                 #standard_name='not defined',units='W/m2')
-            #qcutils.CreateSeries(ds_60minutes,label_Fa,Fa,Flag=f,Attr=attr)
 
     # dump to an Excel file so we can see what is going on
     #xlfullname= outfilename.replace('.nc','.xls')
     #qcio.xl_write_series(ds_60minutes, xlfullname, outputlist=None)
-    
+
     # interpolate from 60 to 30 minutes if requested
     if interpolate:
         log.info("Interpolating site "+site+" to 30 minute time step")
@@ -343,36 +346,74 @@ for site in site_list:
         ds_30minutes.globalattributes["time_step"] = 30
         # generate the 30 minute datetime series
         dt_loc_30minutes = [x for x in perdelta(dt_loc_60minutes[0],dt_loc_60minutes[-1],datetime.timedelta(minutes=30))]
+        dt_utc_30minutes = [x for x in perdelta(dt_utc_60minutes[0],dt_utc_60minutes[-1],datetime.timedelta(minutes=30))]
         nRecs_30minutes = len(dt_loc_30minutes)
         # update the global attribute "nc_nrecs"
         ds_30minutes.globalattributes['nc_nrecs'] = nRecs_30minutes
         flag_30minutes = numpy.zeros(nRecs_30minutes)
         ds_30minutes.series["DateTime"] = {}
         ds_30minutes.series["DateTime"]["Data"] = dt_loc_30minutes
+        ds_30minutes.series["DateTime_UTC"] = {}
+        ds_30minutes.series["DateTime_UTC"]["Data"] = dt_utc_30minutes
         # get the year, month etc from the datetime
-        xl_date = qcutils.get_xldate_from_datetime(dt_loc_30minutes)
-        attr = qcutils.MakeAttributeDictionary(long_name="Date/time in Excel format",units="days since 1899-12-31 00:00:00")
-        qcutils.CreateSeries(ds_30minutes,"xlDateTime",xl_date,Flag=flag_30minutes,Attr=attr)
+        xl_date_loc = qcutils.get_xldate_from_datetime(dt_loc_30minutes)
+        attr = qcutils.MakeAttributeDictionary(long_name="Date/time (local) in Excel format",units="days since 1899-12-31 00:00:00")
+        qcutils.CreateSeries(ds_30minutes,"xlDateTime",xl_date_loc,Flag=flag_30minutes,Attr=attr)
         qcutils.get_ymdhms_from_datetime(ds_30minutes)
+        xl_date_utc = qcutils.get_xldate_from_datetime(dt_utc_30minutes)
+        attr = qcutils.MakeAttributeDictionary(long_name="Date/time (UTC) in Excel format",units="days since 1899-12-31 00:00:00")
+        qcutils.CreateSeries(ds_30minutes,"xlDateTime_UTC",xl_date_utc,Flag=flag_30minutes,Attr=attr)
         # interpolate to 30 minutes
         x_60minutes = numpy.arange(0,nRecs,1)
         x_30minutes = numpy.arange(0,nRecs-0.5,0.5)
         varlist_60 = ds_60minutes.series.keys()
         # strip out the date and time variables already done
-        for this_one in ["DateTime","xlDateTime","Year","Month","Day","Hour","Minute","Second"]:
-            if this_one in varlist_60: varlist_60.remove(this_one)
+        for item in ["DateTime","DateTime_UTC","xlDateTime","xlDateTime_UTC","Year","Month","Day","Hour","Minute","Second"]:
+            if item in varlist_60: varlist_60.remove(item)
+        # now do the interpolation (its OK to interpolate accumulated precipitation)
         for label in varlist_60:
             series_60minutes,flag,attr = qcutils.GetSeriesasMA(ds_60minutes,label)
             int_fn = interp1d(x_60minutes,series_60minutes)
             series_30minutes = int_fn(x_30minutes)
             qcutils.CreateSeries(ds_30minutes,label,series_30minutes,Flag=flag_30minutes,Attr=attr)
+        # now get precipitation per time step from the interpolated precipitation accumulated over the day
+        for i in range(0,3):
+            for j in range(0,3):
+                label = "Precip_"+str(i)+str(j)
+                accum_24hr,flag,attr = qcutils.GetSeriesasMA(ds_30minutes,label)
+                index = numpy.ma.where(accum_24hr<0.001)[0]
+                accum_24hr[index] = float(0)
+                precip = numpy.ma.ediff1d(accum_24hr,to_begin=0)
+                index = [x for x in range(len(dt_utc_30minutes)) if (dt_utc_30minutes[x].hour==0) and (dt_utc_30minutes[x].minute==30)]
+                precip[index] = float(0)
+                index = [x for x in range(len(dt_utc_30minutes)) if (dt_utc_30minutes[x].hour==1) and (dt_utc_30minutes[x].minute==0)]
+                precip[index] = accum_24hr[index]
+                attr["long_name"] = "Precipitation total over time step"
+                attr["units"] = "mm/30 minutes"
+                qcutils.CreateSeries(ds_30minutes,label,precip,Flag=flag_30minutes,Attr=attr)
         # now write out the ACCESS data interpolated to 30 minutes
         ncfile = qcio.nc_open_write(outfilename)
-        qcio.nc_write_series(ncfile, ds_30minutes)
+        qcio.nc_write_series(ncfile, ds_30minutes,ndims=1)
         log.info("Finished site : "+site)
     else:
+        # get the xlDateTime as UTC
+        xl_date_utc = qcutils.get_xldate_from_datetime(dt_utc_60minutes)
+        attr = qcutils.MakeAttributeDictionary(long_name="Date/time (UTC) in Excel format",units="days since 1899-12-31 00:00:00")
+        qcutils.CreateSeries(ds_60minutes,"xlDateTime_UTC",xl_date_utc,Flag=flag_60minutes,Attr=attr)
+        # now get precipitation per time step from the precipitation accumulated over the day
+        for i in range(0,3):
+            for j in range(0,3):
+                label = "Precip_"+str(i)+str(j)
+                accum_24hr,flag,attr = qcutils.GetSeriesasMA(ds_60minutes,label)
+                index = numpy.ma.where(accum_24hr<0.001)[0]
+                accum_24hr[index] = float(0)
+                precip = numpy.ma.ediff1d(accum_24hr,to_begin=0)
+                index = [x for x in range(len(dt_utc_60minutes)) if (dt_utc_60minutes[x].hour==1) and (dt_utc_60minutes[x].minute==0)]
+                precip[index] = accum_24hr[index]
+                attr["long_name"] = "Precipitation total over time step"
+                attr["units"] = "mm/hr"
+                qcutils.CreateSeries(ds_60minutes,label,precip,Flag=flag_60minutes,Attr=attr)
         # write out the ACCESS data
         ncfile = qcio.nc_open_write(outfilename)
-        qcio.nc_write_series(ncfile, ds_60minutes)
+        qcio.nc_write_series(ncfile, ds_60minutes,ndims=1)
         log.info("Finished site : "+site)
-        

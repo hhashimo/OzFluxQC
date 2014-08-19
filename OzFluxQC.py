@@ -155,7 +155,7 @@ class qcgui(tk.Tk):
         pltsummenu.add_command(label="Fingerprint",command=self.do_plotfingerprint)
         pltsummenu.add_command(label="FluxNet",command=self.do_plotfluxnet)
         pltsummenu.add_command(label="Quick check",command=self.do_plotquickcheck)
-        #pltsummenu.add_command(label="Years check",command=self.option_not_implemented)
+        pltsummenu.add_command(label="Years check",command=self.option_not_implemented)
         plotmenu.add_cascade(label="Summary",menu=pltsummenu)
         plotmenu.add_separator()
         plotmenu.add_command(label="Close plots",command=self.do_closeplotwindows)
