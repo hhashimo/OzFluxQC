@@ -68,7 +68,7 @@ def CheckQCFlags(ds):
         index = numpy.ma.where(mask==True)[0]
         ds.series[ThisOne]["Flag"][index] = numpy.int32(8)
 
-def CheckTimeStep(ds,fix=None):
+def CheckTimeStep(ds,fix='gaps'):
     """
     Purpose:
      Checks the datetime series in the data structure ds to see if there are
@@ -243,7 +243,10 @@ def CreateSeries(ds,Label,Data,FList=None,Flag=None,Attr=None):
     """
     ds.series['_tmp_'] = {}                       # create a temporary series to avoid premature overwrites
     # put the data into the temporary series
-    ds.series['_tmp_']['Data'] = numpy.ma.filled(Data,float(c.missing_value))
+    if numpy.ma.isMA(Data):
+        ds.series['_tmp_']['Data'] = numpy.ma.filled(Data,float(c.missing_value))
+    else:
+        ds.series['_tmp_']['Data'] = numpy.array(Data)
     # copy or make the QC flag
     if Flag == None:
         ds.series['_tmp_']['Flag'] = MakeQCFlag(ds,FList)
@@ -297,8 +300,8 @@ def FixTimeGaps(ds):
      has_gaps = CheckTimeStep(ds)
      if has_gaps:
          FixTimeGaps(ds)
-     Author: PRI
-     Date: April 2013
+    Author: PRI
+    Date: April 2013
     """
     log.info(' FixTimeGaps: fixing time gaps')
     ts_minutes = int(ds.globalattributes['time_step'])
@@ -345,11 +348,11 @@ def FixTimeGaps(ds):
     # update the global attribute containing the number of records
     ds.globalattributes['nc_nrecs'] = str(len(ds.series['xlDateTime']['Data']))
     # remove the datetime-related series from data structure
-    DateTimeList = ['xlDateTime','DateTime','DateTime_UTC','Year','Month','Day','Hour','Minute','Second','Hdh','Ddd']
+    DateTimeList = ["xlDateTime","xlDateTime_UTC","DateTime","DateTime_UTC",
+                    "Year","Month","Day","Hour","Minute","Second","Hdh","Ddd"]
     SeriesList = ds.series.keys()
     for item in DateTimeList:
-        if item in SeriesList:
-            SeriesList.remove(item)
+        if item in SeriesList: SeriesList.remove(item)
     # replace the "gappy" data with the "no gap" data
     for ThisOne in SeriesList:
         attr = GetAttributeDictionary(ds,ThisOne)

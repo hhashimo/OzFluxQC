@@ -19,6 +19,59 @@ import qcio
 import qcutils
 from scipy.interpolate import interp1d
 
+class ACCESSData(object):
+    def __init__(self):
+        self.globalattr = {}
+        self.variables = {}
+        self.varattr = {}
+
+def access_read_mfiles(file_list=[],var_list=[]):
+    #ds = qcio.DataStructure()
+    f = ACCESSData()
+    #print file_list[0]
+    ncfile = Dataset(file_list[0])
+    # get the global attributes
+    for gattr in ncfile.ncattrs():
+        f.globalattr[gattr] = getattr(ncfile,gattr)
+    dims = ncfile.dimensions
+    shape = (len(dims["time"]),len(dims["lat"]),len(dims["lon"]))
+    if len(var_list)==0: var_list=ncfile.variables.keys()
+    # load the data from the first file into the data structure
+    for var in var_list:
+        access_name = cf["Variables"][var]["access_name"]
+        if access_name in ncfile.variables.keys():
+            f.variables[access_name] = ncfile.variables[access_name][:]
+            f.varattr[access_name] = {}
+            for this_attr in ncfile.variables[access_name].ncattrs():
+                f.varattr[access_name][this_attr] = getattr(ncfile.variables[access_name],this_attr)
+        else:
+            print "ACCESS variable "+access_name+" not found in "+file_list[0]
+            f.variables[access_name] = makedummyseries(shape)
+    ncfile.close()
+    if len(file_list)>1:
+        # loop over the remaining files and append the data
+        for filename in file_list[1:]:
+            #print filename
+            ncfile = Dataset(filename)
+            for var in var_list:
+                access_name = cf["Variables"][var]["access_name"]
+                #print var,ncfile.variables[access_name].shape
+                if access_name in ncfile.variables.keys():
+                    f.variables[access_name] = numpy.concatenate((f.variables[access_name],ncfile.variables[access_name][:]),axis=0)
+                    if access_name not in f.varattr.keys():
+                        f.varattr[access_name] = {}
+                        for this_attr in ncfile.variables[access_name].ncattrs():
+                            f.varattr[access_name][this_attr] = getattr(ncfile.variables[access_name],this_attr) 
+                else:
+                    print "ACCESS variable "+access_name+" not found in "+filename
+                    empty_series = makedummyseries(shape)
+                    f.variables[access_name] = numpy.concatenate((f.variables[access_name],empty_series),axis=0)
+            ncfile.close()
+    return f
+
+def makedummyseries(shape):
+    return numpy.ma.masked_all(shape)
+
 def perdelta(start,end,delta):
     curr = start
     while curr <= end:
@@ -47,9 +100,10 @@ log = qcutils.startlog('access2nc','../logfiles/access2nc.log')
 # get the control file
 cf = qcio.load_controlfile(path='../controlfiles')
 if len(cf)==0: sys.exit()
-varlist = cf["Variables"].keys()
+var_list = cf["Variables"].keys()
 site_list = cf["Sites"].keys()
 for site in site_list:
+    var_list = cf["Variables"].keys()
     log.info("Starting site: "+site)
     # get the input file mask
     infilename = cf["Sites"][site]["in_filepath"]+cf["Sites"][site]["in_filename"]
@@ -70,7 +124,8 @@ for site in site_list:
     ds_60minutes = qcio.DataStructure()
     ds_30minutes = qcio.DataStructure()
     # read the netCDF files
-    f = MFDataset(infilename)
+    #f = MFDataset(infilename)
+    f = access_read_mfiles(file_list=file_list,var_list=var_list)
     # get the date and time
     valid_date = f.variables["valid_date"][:]
     valid_time = f.variables["valid_time"][:]
@@ -89,8 +144,8 @@ for site in site_list:
         continue
     # seems safe to proceed
     # map the ACCESS file global attributes to the OzFluxQC file
-    for attr in f.ncattrs():
-        ds_60minutes.globalattributes[attr] = getattr(f,attr)
+    for attr in f.globalattr:
+        ds_60minutes.globalattributes[attr] = f.globalattr[attr]
     # add a value for the Excel datemode, assume Windows date system (1900)
     ds_60minutes.globalattributes['xl_datemode'] = str(0)
     # number of records
@@ -99,15 +154,18 @@ for site in site_list:
     # make a QC flag with a value of 0
     flag_60minutes = numpy.zeros(nRecs)
     # loop over the variables defined in the control file
-    for label in varlist:
+    for item in ["valid_date","valid_time"]:
+        if item in var_list: var_list.remove(item)
+    for label in var_list:
         # get the name of the ACCESS variable
         access_name = cf["Variables"][label]["access_name"]
         if access_name not in f.variables.keys():
             log.error("Requested variable "+access_name+" not found in ACCESS data")
             continue
         attr = {}
-        for this_attr in f.variables[access_name].ncattrs():
-            attr[this_attr] = getattr(f.variables[access_name],this_attr)
+        for this_attr in f.varattr[access_name].keys():
+            attr[this_attr] = f.varattr[access_name][this_attr]
+        attr["missing_value"] = c.missing_value
         # loop over all ACCESS grids and give them standard OzFlux names with the grid idices appended
         for i in range(0,3):
             for j in range(0,3):
@@ -122,7 +180,6 @@ for site in site_list:
                 else:
                     print "Unrecognised variable ("+label+") dimension in ACCESS file"
                     #sys.exit()
-    f.close()
     # trap valid_date==0 occurrences, these happened in some of the files produced
     # in the second batch while the accum_prcp was being sorted out
     index = numpy.where(valid_date==0)[0]
@@ -186,7 +243,8 @@ for site in site_list:
     ds_60minutes.series["DateTime"] = {}
     ds_60minutes.series["DateTime"]["Data"] = dt_loc_60minutes
     # get the year, month etc from the datetime
-    flag_60minutes = numpy.zeros(nRecs)
+    flag_60minutes = numpy.zeros(nRecs,dtype=numpy.int32)
+    ds_60minutes.series["DateTime"]["Flag"] = flag_60minutes
     xl_date = qcutils.get_xldate_from_datetime(dt_loc_60minutes)
     attr = qcutils.MakeAttributeDictionary(long_name="Date/time in Excel format",units="days since 1899-12-31 00:00:00")
     qcutils.CreateSeries(ds_60minutes,"xlDateTime",xl_date,Flag=flag_60minutes,Attr=attr)
@@ -336,6 +394,9 @@ for site in site_list:
     #xlfullname= outfilename.replace('.nc','.xls')
     #qcio.xl_write_series(ds_60minutes, xlfullname, outputlist=None)
 
+    # check for time gaps in the file
+    if qcutils.CheckTimeStep(ds_60minutes): qcutils.FixTimeGaps(ds_60minutes)
+
     # interpolate from 60 to 30 minutes if requested
     if interpolate:
         log.info("Interpolating site "+site+" to 30 minute time step")
@@ -364,6 +425,7 @@ for site in site_list:
         attr = qcutils.MakeAttributeDictionary(long_name="Date/time (UTC) in Excel format",units="days since 1899-12-31 00:00:00")
         qcutils.CreateSeries(ds_30minutes,"xlDateTime_UTC",xl_date_utc,Flag=flag_30minutes,Attr=attr)
         # interpolate to 30 minutes
+        nRecs = len(ds_60minutes.series["DateTime"]["Data"])
         x_60minutes = numpy.arange(0,nRecs,1)
         x_30minutes = numpy.arange(0,nRecs-0.5,0.5)
         varlist_60 = ds_60minutes.series.keys()
@@ -372,9 +434,16 @@ for site in site_list:
             if item in varlist_60: varlist_60.remove(item)
         # now do the interpolation (its OK to interpolate accumulated precipitation)
         for label in varlist_60:
-            series_60minutes,flag,attr = qcutils.GetSeriesasMA(ds_60minutes,label)
+            series_60minutes,flag,attr = qcutils.GetSeries(ds_60minutes,label)
+            ci_60minutes = numpy.zeros(len(series_60minutes))
+            index = numpy.where(abs(series_60minutes-float(c.missing_value))<c.eps)[0]
+            ci_60minutes[index] = float(1)
             int_fn = interp1d(x_60minutes,series_60minutes)
             series_30minutes = int_fn(x_30minutes)
+            int_fn = interp1d(x_60minutes,ci_60minutes)
+            ci_30minutes = int_fn(x_30minutes)
+            index = numpy.where(abs(ci_30minutes-float(0))>c.eps)[0]
+            series_30minutes[index] = numpy.float64(c.missing_value)
             qcutils.CreateSeries(ds_30minutes,label,series_30minutes,Flag=flag_30minutes,Attr=attr)
         # now get precipitation per time step from the interpolated precipitation accumulated over the day
         for i in range(0,3):
@@ -397,9 +466,9 @@ for site in site_list:
         log.info("Finished site : "+site)
     else:
         # get the xlDateTime as UTC
-        xl_date_utc = qcutils.get_xldate_from_datetime(dt_utc_60minutes)
+        xl_date_utc = qcutils.get_xldate_from_datetime(ds_60minutes.series["DateTime"]["Data"])
         attr = qcutils.MakeAttributeDictionary(long_name="Date/time (UTC) in Excel format",units="days since 1899-12-31 00:00:00")
-        qcutils.CreateSeries(ds_60minutes,"xlDateTime_UTC",xl_date_utc,Flag=flag_60minutes,Attr=attr)
+        qcutils.CreateSeries(ds_60minutes,"xlDateTime_UTC",xl_date_utc,Flag=ds_60minutes.series["DateTime"]["Flag"],Attr=attr)
         # now get precipitation per time step from the precipitation accumulated over the day
         for i in range(0,3):
             for j in range(0,3):
@@ -412,7 +481,7 @@ for site in site_list:
                 precip[index] = accum_24hr[index]
                 attr["long_name"] = "Precipitation total over time step"
                 attr["units"] = "mm/hr"
-                qcutils.CreateSeries(ds_60minutes,label,precip,Flag=flag_60minutes,Attr=attr)
+                qcutils.CreateSeries(ds_60minutes,label,precip,Flag=flag,Attr=attr)
         # write out the ACCESS data
         ncfile = qcio.nc_open_write(outfilename)
         qcio.nc_write_series(ncfile, ds_60minutes,ndims=1)
