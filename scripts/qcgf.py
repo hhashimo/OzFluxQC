@@ -274,7 +274,7 @@ def GapFillFromClimatology(ds):
     if 'GapFillFromClimatology' not in ds.globalattributes['Functions']:
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', GapFillFromClimatology'
     # remove the "climatology" attribute from ds
-    del ds.climatology
+    #del ds.climatology
 
 def gfClimatology_monthly(ds,series,output,xlbook):
     thissheet = xlbook.sheet_by_name(series)
@@ -475,6 +475,11 @@ def gfClimatology_createdict(cf,ds,series):
     ds.climatology[series]["site_name"] = ds.globalattributes["site_name"]
     # Climatology file name
     ds.climatology[series]["file_name"] = cf[section][series]["GapFillFromClimatology"]["file_name"]
+    # climatology variable name if different from name used in control file
+    if "climatology_name" in cf[section][series]["GapFillFromClimatology"]:
+        ds.climatology[series]["climatology_name"] = cf[section][series]["GapFillFromClimatology"]["climatology_name"]
+    else:
+        ds.climatology[series]["climatology_name"] = series
     # name of climatology output series in ds
     ds.climatology[series]["output"] = cf[section][series]["GapFillFromClimatology"]["output"]
     # climatology gap filling method

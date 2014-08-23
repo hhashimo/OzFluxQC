@@ -4,6 +4,7 @@ import datetime
 import netCDF4
 import numpy
 import os
+import sys
 import time
 import Tkinter,tkFileDialog,tkSimpleDialog
 
@@ -191,7 +192,7 @@ def nc_open_write(ncFullName,nctype='NETCDF4'):
         ncFile = ''
     return ncFile
 
-def nc_write_series(ncFile,ds,outputlist=None):
+def nc_write_series(ncFile,ds,outputlist=None,ndims=3):
     ldt = ds.series["DateTime"]["Data"]
     ds.globalattributes['QC_version'] = "OzFluxQC V2.8.1"
     for ThisOne in ds.globalattributes.keys():
@@ -203,67 +204,97 @@ def nc_write_series(ncFile,ds,outputlist=None):
     # when the Time dimension is unlimited
     nRecs = int(ds.globalattributes['nc_nrecs'])
     ncFile.createDimension("time",nRecs)
-    ncFile.createDimension("latitude",1)
-    ncFile.createDimension("longitude",1)
+    if ndims==3:
+        ncFile.createDimension("latitude",1)
+        ncFile.createDimension("longitude",1)
+        dims = ("time","latitude","longitude")
+    else:
+        dims = ("time",)
     if outputlist==None:
         outputlist = ds.series.keys()
     else:
         for ThisOne in outputlist:
             if ThisOne not in ds.series.keys():
-                print ' Requested series '+ThisOne+' not found in data structure'
+                log.info(' Requested series '+ThisOne+' not found in data structure')
                 outputlist.remove(ThisOne)
         if len(outputlist)==0: outputlist = ds.series.keys()
     # can't write an array of Python datetime objects to a netCDF file
     # actually, this could be written as characters
     for ThisOne in ["DateTime","DateTime_UTC"]:
         if ThisOne in outputlist: outputlist.remove(ThisOne)
+    # write the time variable
+    if "time" not in outputlist:
+        nc_time = netCDF4.date2num(ldt,"days since 1800-01-01 00:00:00.0",calendar="gregorian")
+        ncVar = ncFile.createVariable("time","d",("time",))
+        ncVar[:] = nc_time
+        setattr(ncVar,"long_name","time")
+        setattr(ncVar,"standard_name","time")
+        setattr(ncVar,"units","days since 1800-01-01 00:00:00.0")
+        setattr(ncVar,"calendar","gregorian")
+    # now write the latitude and longitude variables
+    if ndims==3:
+        if "latitude" not in outputlist:
+            ncVar = ncFile.createVariable("latitude","d",("latitude",))
+            ncVar[:] = convert_anglestring(str(ds.globalattributes["latitude"]))
+            setattr(ncVar,'long_name','latitude')
+            setattr(ncVar,'standard_name','latitude')
+            setattr(ncVar,'units','degrees north')
+        if "longitude" not in outputlist:
+            ncVar = ncFile.createVariable("longitude","d",("longitude",))
+            ncVar[:] = convert_anglestring(str(ds.globalattributes["longitude"]))
+            setattr(ncVar,'long_name','longitude')
+            setattr(ncVar,'standard_name','longitude')
+            setattr(ncVar,'units','degrees east')
     # now make sure the date and time series are in outputlist
-    datetimelist = ['xlDateTime','Year','Month','Day','Hour','Minute','Second','Hdh']
+    datetimelist = ['xlDateTime','xlDateTime_UTC','Year','Month','Day','Hour','Minute','Second','Hdh']
+    # and write them to the netCDF file
     for ThisOne in sorted(datetimelist):
-        nc_write_var(ncFile,ds,ThisOne,("time","latitude","longitude"))
+        if ThisOne in ds.series.keys(): nc_write_var(ncFile,ds,ThisOne,dims)
         if ThisOne in outputlist: outputlist.remove(ThisOne)
     # write everything else to the netCDF file
     for ThisOne in sorted(outputlist):
-        nc_write_var(ncFile,ds,ThisOne,("time","latitude","longitude"))
-    # now write the latitude and longitude variables
-    ncVar = ncFile.createVariable("latitude","d",("latitude",))
-    ncVar[:] = convert_anglestring(str(ds.globalattributes["latitude"]))
-    setattr(ncVar,'long_name','latitude')
-    setattr(ncVar,'standard_name','latitude')
-    setattr(ncVar,'units','degrees north')
-    ncVar = ncFile.createVariable("longitude","d",("longitude",))
-    ncVar[:] = convert_anglestring(str(ds.globalattributes["longitude"]))
-    setattr(ncVar,'long_name','longitude')
-    setattr(ncVar,'standard_name','longitude')
-    setattr(ncVar,'units','degrees east')
-    # write the time variable
-    nc_time = netCDF4.date2num(ldt,"days since 1800-01-01 00:00:00.0",calendar="gregorian")
-    ncVar = ncFile.createVariable("time","d",("time",))
-    ncVar[:] = nc_time
-    setattr(ncVar,"long_name","time")
-    setattr(ncVar,"standard_name","time")
-    setattr(ncVar,"units","days since 1800-01-01 00:00:00.0")
-    setattr(ncVar,"calendar","gregorian")
+        nc_write_var(ncFile,ds,ThisOne,dims)
     # write the coordinate reference system (crs) variable
-    ncVar = ncFile.createVariable("crs","i",())
-    setattr(ncVar,"grid_mapping_name","latitude_longitude")
-    setattr(ncVar,"long_name","WGS 1984 datum")
-    setattr(ncVar,"longitude_of_prime_meridian","0.0")
-    setattr(ncVar,"semi_major_axis","6378137.0")
-    setattr(ncVar,"inverse_flattening","298.257223563")
+    if "crs" not in outputlist:
+        ncVar = ncFile.createVariable("crs","i",())
+        setattr(ncVar,"grid_mapping_name","latitude_longitude")
+        setattr(ncVar,"long_name","WGS 1984 datum")
+        setattr(ncVar,"longitude_of_prime_meridian","0.0")
+        setattr(ncVar,"semi_major_axis","6378137.0")
+        setattr(ncVar,"inverse_flattening","298.257223563")
     ncFile.close()
 
 def nc_write_var(ncFile,ds,ThisOne,dim):
+    """
+    PURPOSE:
+     Function to write data from a series in the data structure to a netCDF variable.
+    USAGE:
+     nc_write_var(ncFile,ds,ThisOne,("time","latitude","longitude"))
+      where ncFile is a netCDF file object
+            ds is the data structure
+            ThisOne is the label of a series in ds
+            ("time","latitude","longitude") is the dimension tuple
+    AUTHOR: PRI
+    DATE: August 2014
+    """
+    # get the data type of the series in ds
     dt = get_ncdtype(ds.series[ThisOne]['Data'])
+    # create the netCDF variable
     ncVar = ncFile.createVariable(ThisOne,dt,dim)
+    # different writes to the variable depending on whether it is 1D or 3D
     if len(dim)==1: ncVar[:] = ds.series[ThisOne]['Data'].tolist()
     if len(dim)==3: ncVar[:,0,0] = ds.series[ThisOne]['Data'].tolist()
+    # write the attributes
     for attr in ds.series[ThisOne]['Attr']:
         setattr(ncVar,attr,ds.series[ThisOne]['Attr'][attr])
+    # get the data type of the QC flag
     dt = get_ncdtype(ds.series[ThisOne]['Flag'])
+    # create the variable
     ncVar = ncFile.createVariable(ThisOne+'_QCFlag',dt,dim)
+    # write 1D or 3D
     if len(dim)==1: ncVar[:] = ds.series[ThisOne]['Flag'].tolist()
-    if len(dim)==3: ncVar[:,0,0] = ds.series[ThisOne]['Data'].tolist()
+    if len(dim)==3: ncVar[:,0,0] = ds.series[ThisOne]['Flag'].tolist()
+    # set the attributes
     setattr(ncVar,'long_name',ThisOne+'QC flag')
     setattr(ncVar,'units','none')
 
@@ -302,32 +333,66 @@ def get_timezone(site_name):
                "yanco_jaxa":"Australia/Sydney"}
     # strip out spaces and commas from the site name
     site_name = site_name.replace(" ","").replace(",","")
+    found_tz = False
     for item in tz_dict.keys():
         if item in site_name.lower():
             time_zone = tz_dict[item]
-        else:
-            # cant find the site in the dictionary so ask the user
-            root = Tkinter.Tk(); root.withdraw()
-            time_zone = tkSimpleDialog.askstring("Time zone","Enter time zone eg Australia/Melbourne")
-            root.destroy()
+            found_tz = True
+            break
+    if not found_tz:
+        # cant find the site in the dictionary so ask the user
+        print item
+        print site_name.lower()
+        root = Tkinter.Tk(); root.withdraw()
+        time_zone = tkSimpleDialog.askstring("Time zone","Enter time zone eg Australia/Melbourne")
+        root.destroy()
     return time_zone
 
 """ Convert V2.7 (1D) netCDF files to V2.8 (3D). """
-# get the file names
-ncV27name = get_filename_dialog(path="../Sites")
-ncV28name = ncV27name.replace(".nc","_V28.nc")
-# read the V2.7 file
-ds = nc_read_series(ncV27name)
-# add the "time_zone" global attribute if it is not present
-if "time_zone" not in ds.globalattributes.keys():
-    for gattr in ["site_name","SiteName"]:
-        if gattr in ds.globalattributes.keys():
-            time_zone = get_timezone(ds.globalattributes[gattr])
-    ds.globalattributes["time_zone"] = time_zone
-# add the "missing_value" variable attribute if it is not present
-for ThisOne in ds.series.keys():
-    if "missing_value" not in ds.series[ThisOne]["Attr"].keys():
-        ds.series[ThisOne]["Attr"]["missing_value"] = str(-9999)
-# write the V2.8 file
-ncFile = nc_open_write(ncV28name,nctype='NETCDF4')
-nc_write_series(ncFile, ds)
+ncV27name_list = []
+# use the following lines of code to have the script prompt the user for a file name
+# put up an open file dialog to get the file name
+# !!! start open file dialog block !!!
+#ncV27name = get_filename_dialog(path="../../Sites",title="Choose a V27 netCDF file ...")
+#if len(ncV27name)==0: sys.exit()
+#ncV27name_list.append(ncV27name)
+# !!! end open file dialog block !!!
+# use the following line of code to read a file name from the command line
+# get the file name from the command line
+# !!! start command line entry block !!!
+#ncV27name_list = []
+#ncV27name = sys.argv[1]
+#ncV27name_list.append(ncV27name)
+# !!! end command line entry block !!!
+# use the following lines of code to read a control file containing file names
+# !!! start control file block !!!
+filename_listfile = get_filename_dialog(path="../controlfiles",title="Choose a control file ...")
+if len(filename_listfile)==0: sys.exit()
+f = open(filename_listfile)
+while 1:
+    line = f.readline()
+    if not line: break
+    ncV27name_list.append(line.strip("\n"))
+# !!! end control file block !!!
+
+for ncV27name in ncV27name_list:
+    if not os.path.exists(ncV27name):
+        print "File "+ncV27name+" not found ..."
+        continue
+    print "Processing file: "+ncV27name
+    # read the V2.7 file
+    ds = nc_read_series(ncV27name)
+    # add the "time_zone" global attribute if it is not present
+    if "time_zone" not in ds.globalattributes.keys():
+        for gattr in ["site_name","SiteName"]:
+            if gattr in ds.globalattributes.keys():
+                time_zone = get_timezone(ds.globalattributes[gattr])
+        ds.globalattributes["time_zone"] = time_zone
+    # add the "missing_value" variable attribute if it is not present
+    for ThisOne in ds.series.keys():
+        if "missing_value" not in ds.series[ThisOne]["Attr"].keys():
+            ds.series[ThisOne]["Attr"]["missing_value"] = str(-9999)
+    # write the V2.8 file
+    ncV28name = ncV27name.replace(".nc","_V28.nc")
+    ncFile = nc_open_write(ncV28name,nctype='NETCDF4')
+    nc_write_series(ncFile, ds)

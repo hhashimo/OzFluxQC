@@ -352,31 +352,60 @@ def CalculateLongwave(ds,Fl_out,Fl_in,Tbody_in):
     qcutils.CreateSeries(ds,Fl_out,Fl,FList=[Fl_in,Tbody_in],Attr=attr)
 
 def CalculateHumidities(ds):
-    if "Ah" not in ds.access.keys(): RefreshAh(ds)
-    if "q" not in ds.access.keys(): Refreshq(ds)
-    if "RH" not in ds.access.keys(): RefreshRH(ds)
-    # remove the ACCESS dictionary from the data structure
-    del ds.access
-    
-def RefreshAh(ds):
-    if "q" in ds.access.keys():
-        # q has been gap filled but not Ah so calculate Ah from q
-        AbsoluteHumidityFromq(ds)
-    elif "RH" in ds.access.keys():
-        # RH has been gap filled but not Ah so calculate Ah from RH
-        AbsoluteHumidityFromRH(ds)
+    if "access" in dir(ds):
+        if "Ah" not in ds.access.keys():
+            if "q" in ds.access.keys():
+                AbsoluteHumidityFromq(ds)    # q has been gap filled but not Ah so calculate Ah from q
+            elif "RH" in ds.access.keys():
+                AbsoluteHumidityFromRH(ds)   # RH has been gap filled but not Ah so calculate Ah from RH
+        if "q" not in ds.access.keys():
+            if "Ah" in ds.access.keys():
+                SpecificHumidityFromAh(ds)
+            elif "RH" in ds.access.keys():
+                SpecificHumidityFromRH(ds)
+        if "RH" not in ds.access.keys():
+            if "Ah" in ds.access.keys():
+                RelativeHumidityFromAh(ds)
+            elif "q" in ds.access.keys():
+                RelativeHumidityFromq(ds)
+        del ds.access
+    if "climatology" in dir(ds):
+        if "Ah" not in ds.climatology.keys():
+            if "q" in ds.climatology.keys():
+                AbsoluteHumidityFromq(ds)    # q has been gap filled but not Ah so calculate Ah from q
+            elif "RH" in ds.climatology.keys():
+                AbsoluteHumidityFromRH(ds)   # RH has been gap filled but not Ah so calculate Ah from RH
+        if "q" not in ds.climatology.keys():
+            if "Ah" in ds.climatology.keys():
+                SpecificHumidityFromAh(ds)
+            elif "RH" in ds.climatology.keys():
+                SpecificHumidityFromRH(ds)
+        if "RH" not in ds.climatology.keys():
+            if "Ah" in ds.climatology.keys():
+                RelativeHumidityFromAh(ds)
+            elif "q" in ds.climatology.keys():
+                RelativeHumidityFromq(ds)
+        del ds.climatology
 
-def Refreshq(ds):
-    if "Ah" in ds.access.keys():
-        SpecificHumidityFromAh(ds)
-    elif "RH" in ds.access.keys():
-        SpecificHumidityFromRH(ds)
+#def RefreshAh(ds):
+    #if "q" in ds.access.keys():
+        ## q has been gap filled but not Ah so calculate Ah from q
+        #AbsoluteHumidityFromq(ds)
+    #elif "RH" in ds.access.keys():
+        ## RH has been gap filled but not Ah so calculate Ah from RH
+        #AbsoluteHumidityFromRH(ds)
 
-def RefreshRH(ds):
-    if "Ah" in ds.access.keys():
-        RelativeHumidityFromAh(ds)
-    elif "q" in ds.access.keys():
-        RelativeHumidityFromq(ds)
+#def Refreshq(ds):
+    #if "Ah" in ds.access.keys():
+        #SpecificHumidityFromAh(ds)
+    #elif "RH" in ds.access.keys():
+        #SpecificHumidityFromRH(ds)
+
+#def RefreshRH(ds):
+    #if "Ah" in ds.access.keys():
+        #RelativeHumidityFromAh(ds)
+    #elif "q" in ds.access.keys():
+        #RelativeHumidityFromq(ds)
 
 def AbsoluteHumidityFromRH(ds):
     """ Calculate absolute humidity from relative humidity. """

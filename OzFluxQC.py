@@ -176,6 +176,7 @@ class qcgui(tk.Tk):
         respirationmenu.add_command(label="Cleverly",command=self.option_not_implemented)
         respirationmenu.add_command(label="Lasslop",command=self.option_not_implemented)
         respirationmenu.add_command(label="Lloyd-Taylor",command=self.option_not_implemented)
+        respirationmenu.add_command(label="SOLO",command=self.option_not_implemented)
         respirationmenu.add_command(label="van Gorsel",command=self.option_not_implemented)
         utilsmenu.add_cascade(label="Respiration",menu=respirationmenu)
         menubar.add_cascade(label="Utilities",menu=utilsmenu)

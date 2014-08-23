@@ -214,9 +214,12 @@ def climatology(cf):
         if "AltVarName" in cf['Variables'][ThisOne].keys(): ThisOne = cf['Variables'][ThisOne]["AltVarName"]
         if ThisOne in ds.series.keys():
             log.info("Doing climatology for "+ThisOne)
+            data,f,a = qcutils.GetSeriesasMA(ds,ThisOne,si=si,ei=ei)
+            if numpy.ma.count(data)==0:
+                log.info(" No data for "+ThisOne+", skipping ...")
+                continue
             fmt_str = get_formatstring(cf,ThisOne,fmt_def='')
             xlSheet = xlFile.add_sheet(ThisOne)
-            data,f,a = qcutils.GetSeriesasMA(ds,ThisOne,si=si,ei=ei)
             Av_all = do_diurnalstats(Month,Hdh,data,xlSheet,format_string=fmt_str,ts=ts)
             # now do it for each day
             data_daily = data.reshape(nDays,ntsInDay)

@@ -962,12 +962,18 @@ def plot_setup(cf,nFig):
     p['hr2_XAxLen'] = p['hr_XAxLen']
     p['bar_XAxOrg'] = p['hr1_XAxOrg']+p['hr1_XAxLen']+0.05+p['hr1_XAxLen']+0.05
     p['bar_XAxLen'] = p['hr_XAxLen']
+    p['ts_ax'] = []
     return p
 
 def plot_onetimeseries_left(fig,n,ThisOne,xarray,yarray,p):
-    ts_ax = fig.add_axes([p['ts_XAxOrg'],p['YAxOrg'],p['ts_XAxLen'],p['ts_YAxLen']])
+    if n==0:
+        rect = [p['ts_XAxOrg'],p['YAxOrg'],p['ts_XAxLen'],p['ts_YAxLen']]
+        ts_ax = fig.add_axes(rect)
+    else:
+        rect = [p['ts_XAxOrg'],p['YAxOrg'],p['ts_XAxLen'],p['ts_YAxLen']]
+        ts_ax = fig.add_axes(rect,sharex=p['ts_ax'][0])
     ts_ax.hold(False)
-    p['ts_ax'] = ts_ax
+    p['ts_ax'].append(ts_ax)
     ts_ax.plot(xarray,yarray,'b-')
     ts_ax.xaxis.set_major_locator(p['loc'])
     ts_ax.xaxis.set_major_formatter(p['fmt'])
@@ -984,18 +990,19 @@ def plot_onetimeseries_left(fig,n,ThisOne,xarray,yarray,p):
     if n > 0: plt.setp(ts_ax.get_xticklabels(),visible=False)
 
 def plot_onetimeseries_right(fig,n,ThisOne,xarray,yarray,p):
-    if not p.has_key('ts_ax'):
-        ts_ax = fig.add_axes([p['ts_XAxOrg'],p['YAxOrg'],p['ts_XAxLen'],p['ts_YAxLen']])
-        ts_ax.hold(False)
-        ts_ax.yaxis.tick_right()
-        TextStr = ThisOne+'('+p['Units']+')'
-        txtXLoc = p['ts_XAxOrg']+0.01
-        txtYLoc = p['YAxOrg']+p['ts_YAxLen']-0.025
-        plt.figtext(txtXLoc,txtYLoc,TextStr,color='b',horizontalalignment='left')
-    else:
-        ts_ax = p['ts_ax'].twinx()
-    colour = 'r'
-    if p.has_key('ts_ax'): del p['ts_ax']
+    #if not p['ts_ax'].has_key(n):
+        #ts_ax = fig.add_axes([p['ts_XAxOrg'],p['YAxOrg'],p['ts_XAxLen'],p['ts_YAxLen']])
+        #ts_ax.hold(False)
+        #ts_ax.yaxis.tick_right()
+        #TextStr = ThisOne+'('+p['Units']+')'
+        #txtXLoc = p['ts_XAxOrg']+0.01
+        #txtYLoc = p['YAxOrg']+p['ts_YAxLen']-0.025
+        #plt.figtext(txtXLoc,txtYLoc,TextStr,color='b',horizontalalignment='left')
+    #else:
+        #ts_ax = p['ts_ax'][n].twinx()
+    #colour = 'r'
+    #if p.has_key('ts_ax'): del p['ts_ax']
+    ts_ax = p['ts_ax'][n].twinx()
     ts_ax.plot(xarray,yarray,'r-')
     ts_ax.xaxis.set_major_locator(p['loc'])
     ts_ax.xaxis.set_major_formatter(p['fmt'])
