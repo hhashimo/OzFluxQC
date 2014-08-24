@@ -24,6 +24,7 @@ import qcgf
 import qcio
 import qcls
 import qcplot
+import qcrp
 import qcts
 import qcutils
 # now check the logfiles and plots directories are present
@@ -73,8 +74,10 @@ class qcgui(tk.Tk):
         L3Label.grid(row=0,column=2,columnspan=1)
         L4Label = tk.Label(self.org_frame,text='L4: Gap fill')
         L4Label.grid(row=0,column=3,columnspan=1)
+        #L5Label = tk.Label(self.org_frame,text='L5: Partitioning')
+        #L5Label.grid(row=0,column=4,columnspan=1)
         # things in the second row of the GUI
-        doL1Button = tk.Button (self.org_frame, text="Read L1 Excel file", command=self.do_xl2ncL1 )
+        doL1Button = tk.Button (self.org_frame, text="Read L1 file", command=self.do_xl2ncL1 )
         doL1Button.grid(row=1,column=0,columnspan=1)
         doL2Button = tk.Button (self.org_frame, text="Do L2 QA/QC", command=self.do_l2qc )
         doL2Button.grid(row=1,column=1,columnspan=1)
@@ -82,6 +85,8 @@ class qcgui(tk.Tk):
         doL3Button.grid(row=1,column=2,columnspan=1)
         doL4Button = tk.Button (self.org_frame, text="Do L4 gap filling", command=self.do_l4qc )
         doL4Button.grid(row=1,column=3,columnspan=1)
+        #doL5Button = tk.Button (self.org_frame, text="Do L5 partitioning", command=self.do_l5qc )
+        #doL5Button.grid(row=1,column=4,columnspan=1)
         # things in the third row of the GUI
         filestartLabel = tk.Label(self.org_frame,text='File start date')
         filestartLabel.grid(row=2,column=1,columnspan=1)
@@ -109,8 +114,10 @@ class qcgui(tk.Tk):
         plotL1L2Button.grid(row=6,column=1,columnspan=1)
         plotL3L3Button = tk.Button (self.org_frame, text="Plot L3 Data", command=self.do_plotL3L3 )
         plotL3L3Button.grid(row=6,column=2,columnspan=1)
-        plotL3L3Button = tk.Button (self.org_frame, text="Plot L3 & L4 Data", command=self.do_plotL3L4 )
-        plotL3L3Button.grid(row=6,column=3,columnspan=1)
+        plotL3L4Button = tk.Button (self.org_frame, text="Plot L3 & L4 Data", command=self.do_plotL3L4 )
+        plotL3L4Button.grid(row=6,column=3,columnspan=1)
+        #plotL4L5Button = tk.Button (self.org_frame, text="Plot L4 & L5 Data", command=self.do_plotL4L5 )
+        #plotL4L5Button.grid(row=6,column=4,columnspan=1)
         # things in the eigth row of the GUI
         quitButton = tk.Button (self.org_frame, text='Quit', command=self.do_quit )
         quitButton.grid(row=7,column=0,columnspan=1)
@@ -120,6 +127,8 @@ class qcgui(tk.Tk):
         savexL3Button.grid(row=7,column=2,columnspan=1)
         savexL4Button = tk.Button (self.org_frame, text='Write L4 Excel file', command=self.do_savexL4 )
         savexL4Button.grid(row=7,column=3,columnspan=1)
+        #savexL5Button = tk.Button (self.org_frame, text='Write L5 Excel file', command=self.do_savexL5 )
+        #savexL5Button.grid(row=7,column=4,columnspan=1)
         # other things in the GUI
         self.progress = tk.Label(self.org_frame, text='Waiting for input ...')
         self.progress.grid(row=8,column=0,columnspan=2,sticky="W")
@@ -143,7 +152,7 @@ class qcgui(tk.Tk):
         runmenu.add_command(label="Do L2 QA/QC",command=self.do_l2qc)
         runmenu.add_command(label="Do L3 processing",command=self.do_l3qc)
         runmenu.add_command(label="Do L4 gap filling",command=self.do_l4qc)
-        runmenu.add_command(label="Do L5 partitioning",command=self.option_not_implemented)
+        runmenu.add_command(label="Do L5 partitioning",command=self.do_l5qc)
         menubar.add_cascade(label="Run",menu=runmenu)
         # then the "Plot" menu
         plotmenu = tk.Menu(menubar,tearoff=0)
@@ -171,14 +180,14 @@ class qcgui(tk.Tk):
         ustarmenu.add_command(label="Reichstein",command=self.option_not_implemented)
         ustarmenu.add_command(label="Change Point Detection",command=self.option_not_implemented)
         utilsmenu.add_cascade(label="u* threshold",menu=ustarmenu)
-        respirationmenu = tk.Menu(menubar,tearoff=0)
-        #respirationmenu.add_command(label="ANN",command=self.option_not_implemented)
-        respirationmenu.add_command(label="Cleverly",command=self.option_not_implemented)
-        respirationmenu.add_command(label="Lasslop",command=self.option_not_implemented)
-        respirationmenu.add_command(label="Lloyd-Taylor",command=self.option_not_implemented)
-        respirationmenu.add_command(label="SOLO",command=self.option_not_implemented)
-        respirationmenu.add_command(label="van Gorsel",command=self.option_not_implemented)
-        utilsmenu.add_cascade(label="Respiration",menu=respirationmenu)
+        #respirationmenu = tk.Menu(menubar,tearoff=0)
+        ##respirationmenu.add_command(label="ANN",command=self.option_not_implemented)
+        #respirationmenu.add_command(label="Cleverly",command=self.option_not_implemented)
+        #respirationmenu.add_command(label="Lasslop",command=self.option_not_implemented)
+        #respirationmenu.add_command(label="Lloyd-Taylor",command=self.option_not_implemented)
+        #respirationmenu.add_command(label="SOLO",command=self.do_recousingSOLO)
+        #respirationmenu.add_command(label="van Gorsel",command=self.option_not_implemented)
+        #utilsmenu.add_cascade(label="Respiration",menu=respirationmenu)
         menubar.add_cascade(label="Utilities",menu=utilsmenu)
         # and the "Help" menu
         helpmenu = tk.Menu(menubar,tearoff=0)
@@ -440,6 +449,34 @@ class qcgui(tk.Tk):
         self.do_progress(text='Finished saving L4 gap filled NetCDF data')      # tell the user we are done
         log.info(' Finished saving L4 gap filled NetCDF data')
 
+    def do_l5qc(self):
+        """
+            Call qcls.l5 function
+        """
+        self.cf = qcio.load_controlfile(path='controlfiles')
+        if len(self.cf)==0: self.do_progress(text='Waiting for input ...'); return
+        infilename = qcio.get_infilename_from_cf(self.cf)
+        if len(infilename)==0: self.do_progress(text='An error occurred, check the console ...'); return
+        if not qcutils.file_exists(infilename): self.do_progress(text='An error occurred, check the console ...'); return
+        self.ds4 = qcio.nc_read_series(infilename)
+        if len(self.ds4.series.keys())==0: self.do_progress(text='An error occurred, check the console ...'); del self.ds4; return
+        self.ds4.globalattributes['controlfile_name'] = self.cf['controlfile_name']
+        self.update_startenddate(str(self.ds4.series['DateTime']['Data'][0]),
+                                 str(self.ds4.series['DateTime']['Data'][-1]))
+        sitename = self.ds4.globalattributes['site_name']
+        self.do_progress(text='Doing L5 partitioning: '+sitename+' ...')
+        self.ds5 = qcls.l5qc(self.cf,self.ds4)
+        self.do_progress(text='Finished L5: '+sitename)
+        log.info(' Finished L5: '+sitename)
+        self.do_progress(text='Saving L5 partitioned data ...')           # put up the progress message
+        outfilename = qcio.get_outfilename_from_cf(self.cf)
+        if len(outfilename)==0: self.do_progress(text='An error occurred, check the console ...'); return
+        ncFile = qcio.nc_open_write(outfilename)
+        outputlist = qcio.get_outputlist_from_cf(self.cf,'nc')
+        qcio.nc_write_series(ncFile,self.ds5,outputlist=outputlist)             # save the L5 data
+        self.do_progress(text='Finished saving L5 partitioned data')      # tell the user we are done
+        log.info(' Finished saving L5 partitioned data')
+
     def do_nc2fn(self):
         """ Calls qcio.fn_write_csv. """
         self.do_progress(text='Load control file ...')
@@ -642,6 +679,37 @@ class qcgui(tk.Tk):
         self.do_progress(text='Finished plotting L4')
         log.info(' Finished plotting L4, check the GUI')
 
+    def do_plotL4L5(self):
+        """
+            Plot L4 (Gap filled) and L5 (Partitioned) data.
+            """
+        pass
+        #if 'ds3' not in dir(self) or 'ds4' not in dir(self):
+            #self.cf = qcio.load_controlfile(path='controlfiles')
+            #if len(self.cf)==0:
+                #self.do_progress(text='Waiting for input ...')
+                #return
+            #l3filename = qcio.get_infilename_from_cf(self.cf)
+            #if len(l3filename)==0: self.do_progress(text='An error occurred, check the console ...'); return
+            #self.ds3 = qcio.nc_read_series(l3filename)
+            #if len(self.ds3.series.keys())==0: self.do_progress(text='An error occurred, check the console ...'); del self.ds3; return
+            #l4filename = qcio.get_outfilename_from_cf(self.cf)
+            #self.ds4 = qcio.nc_read_series(l4filename)
+            #if len(self.ds4.series.keys())==0: self.do_progress(text='An error occurred, check the console ...'); del self.ds4; return
+            #self.update_startenddate(str(self.ds3.series['DateTime']['Data'][0]),
+                                     #str(self.ds3.series['DateTime']['Data'][-1]))
+        #self.do_progress(text='Plotting L3 and L4 QC ...')
+        #cfname = self.ds4.globalattributes['controlfile_name']
+        #self.cf = qcio.get_controlfilecontents(cfname)
+        #for nFig in self.cf['Plots'].keys():
+            #si = qcutils.GetDateIndex(self.ds3.series['DateTime']['Data'],self.plotstartEntry.get(),
+                                      #ts=self.ds3.globalattributes['time_step'],default=0,match='exact')
+            #ei = qcutils.GetDateIndex(self.ds3.series['DateTime']['Data'],self.plotendEntry.get(),
+                                      #ts=self.ds3.globalattributes['time_step'],default=-1,match='exact')
+            #qcplot.plottimeseries(self.cf,nFig,self.ds3,self.ds4,si,ei)
+        #self.do_progress(text='Finished plotting L4')
+        #log.info(' Finished plotting L4, check the GUI')
+
     def do_progress(self,text):
         """
             Update progress message in QC Data GUI
@@ -662,6 +730,18 @@ class qcgui(tk.Tk):
         self.do_progress(text='Quitting ...')                         # tell the user what we're doing
         log.info(' Quitting ...')
         self.quit()
+
+    def do_recousingSOLO(self):
+        """
+        Calls qcrp.RecoUsingSOLO
+        """
+        self.do_progress(text='Loading control file ...')
+        cf = qcio.load_controlfile(path='controlfiles')
+        if len(cf)==0: self.do_progress(text='Waiting for input ...'); return
+        self.do_progress(text='Estimating Reco using SOLO')
+        qcrp.RecoUsingSOLO(cf)
+        self.do_progress(text='Finished estimating Reco using SOLO')
+        log.info(' Finished estimating Reco using SOLO')
 
     def do_savexL2(self):
         """
@@ -710,6 +790,22 @@ class qcgui(tk.Tk):
         qcio.nc_2xls(outfilename,outputlist=outputlist)
         self.do_progress(text='Finished L4 Data Export')              # tell the user we are done
         log.info(' Finished saving L4 data')
+
+    def do_savexL5(self):
+        """
+            Call nc2xl function
+            Exports excel data from NetCDF file
+            
+            Outputs L5 Excel file containing Data and Flag worksheets
+            """
+        self.do_progress(text='Exporting L5 NetCDF -> Xcel ...')                     # put up the progress message
+        # get the output filename
+        outfilename = qcio.get_outfilename_from_cf(self.cf)
+        # get the output list
+        outputlist = get_outputlist_from_cf(self.cf,'xl')
+        qcio.nc_2xls(outfilename,outputlist=outputlist)
+        self.do_progress(text='Finished L5 Data Export')              # tell the user we are done
+        log.info(' Finished saving L5 data')
 
     def do_v27tov28(self):
         """ Conversy from V2.7 format (1D) to V2.8 (3D). """

@@ -408,10 +408,10 @@ def get_controlfilecontents(ControlFileName,mode="verbose"):
         cf = ConfigObj()
     return cf
 
-def get_controlfilename(path=''):
+def get_controlfilename(path='.',title='Choose a control file'):
     log.info(' Choosing the control file ')
     root = Tkinter.Tk(); root.withdraw()
-    name = tkFileDialog.askopenfilename(initialdir=path)
+    name = tkFileDialog.askopenfilename(parent=root,initialdir=path,title=title)
     root.destroy()
     return name
 
@@ -568,13 +568,13 @@ def get_seriesstats(cf,ds):
         xlRow = xlRow + 1
     xlFile.save(xl_filename)
 
-def load_controlfile(path=''):
+def load_controlfile(path='.',title='Choose a control file'):
     ''' 
     Returns a control file object.
     USAGE: cf = load_controlfile([path=<some_path_to_a_controlfile>])
     The "path" keyword is optional.
     '''
-    name = get_controlfilename(path=path)
+    name = get_controlfilename(path=path,title=title)
     cf = get_controlfilecontents(name)
     return cf
 
@@ -938,7 +938,11 @@ def nc_write_var(ncFile,ds,ThisOne,dim):
     # get the data type of the series in ds
     dt = get_ncdtype(ds.series[ThisOne]['Data'])
     # create the netCDF variable
-    ncVar = ncFile.createVariable(ThisOne,dt,dim)
+    try:
+        ncVar = ncFile.createVariable(ThisOne,dt,dim)
+    except RuntimeError:
+        print ThisOne
+        raise Exception("Error writing variable to netCDF file")
     # different writes to the variable depending on whether it is 1D or 3D
     if len(dim)==1: ncVar[:] = ds.series[ThisOne]['Data'].tolist()
     if len(dim)==3: ncVar[:,0,0] = ds.series[ThisOne]['Data'].tolist()

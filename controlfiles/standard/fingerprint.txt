@@ -78,7 +78,7 @@
         AltVarName = "Fg"
         Ticks = "[-300,-150,0,150,300]"
         Lower = -300
-        Upper = 300
+        Upper = 450
     [[Ts]]
         AltVarName = "Ts"
         Ticks = "[-10,0,20,40,60]"

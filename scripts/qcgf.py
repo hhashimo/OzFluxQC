@@ -25,153 +25,6 @@ import xlrd
 
 log = logging.getLogger('qc.gf')
 
-def EstimateReco(cf,ds):
-    # check to see if there is an Reco section in the control file
-    section = qcutils.get_cfsection(cf,series='Reco',mode='quiet')
-    if len(section)==0: return
-    # step through the methods given in the control file
-    method_list = cf[section]['Reco'].keys()
-    for ThisMethod in method_list:
-        if ThisMethod == 'LloydTaylor': EstimateRecoUsingLloydTaylor(cf,ds)
-        if ThisMethod == 'SOLO': EstimateRecoUsingSOLO(cf,ds)
-
-def EstimateRecoUsingLloydTaylor(cf,ds):
-    # need to check that all information required is in the control file
-    section = qcutils.get_cfsection(cf,series='Reco',mode='quiet')
-    if len(section)==0:
-        log.error('Reco section not found in control file')
-        return
-    if 'LloydTaylor' not in cf[section]['Reco']:
-        log.error('LloydTaylor section not found in control file')
-        return
-    # get the driver
-    if 'drivers' not in cf[section]['Reco']['LloydTaylor']:
-        log.error('drivers key not found in LloydTaylor section of control file')
-        return
-    else:
-        driver_list = eval(cf[section]['Reco']['LloydTaylor']['drivers'])
-        driver_label = driver_list[0]
-    # get the monthly values for the activation energy, E0
-    if 'E0' not in cf[section]['Reco']['LloydTaylor']:
-        log.error('E0 key not found in LloydTaylor section of control file')
-        return
-    else:
-        E0_monthly = numpy.array(eval(cf[section]['Reco']['LloydTaylor']['E0']))
-    # get the monthly values for the base respiration, rb
-    if 'rb' not in cf[section]['Reco']['LloydTaylor']:
-        log.error('rb key not found in LloydTaylor section of control file')
-        return
-    else:
-        rb_monthly = numpy.array(eval(cf[section]['Reco']['LloydTaylor']['rb']))
-    # get the output label
-    if 'output' not in cf[section]['Reco']['LloydTaylor']:
-        log.error('output key not found in LloydTaylor section of control file')
-        return
-    else:
-        out_label = cf[section]['Reco']['LloydTaylor']['output']
-    # ... and make an array of values for each month
-    nRecs = int(ds.globalattributes['nc_nrecs'])
-    E0 = numpy.ma.ones(nRecs)
-    rb = numpy.ma.zeros(nRecs)
-    month = ds.series['Month']['Data']
-    lwr = numpy.max(numpy.array([numpy.min(month),1]))
-    upr = numpy.min(numpy.array([numpy.max(month),12]))
-    for m in range(lwr,upr+1):
-        index = numpy.where(month==m)[0]
-        E0[index] = E0_monthly[m-1]
-        rb[index] = rb_monthly[m-1]
-    # get the driver data
-    Ts,flag,attr = qcutils.GetSeriesasMA(ds,driver_label)
-    # estimate Reco using the Lloyd-Taylor expression
-    t1 = 1/(c.Tref-c.T0)
-    t2 = 1/(Ts-c.T0)
-    Reco = rb*numpy.exp(E0*(t1-t2))
-    # put the estimated Reco into the data structure
-    units=qcutils.GetUnitsFromds(ds, 'Fc')
-    attr = qcutils.MakeAttributeDictionary(long_name='Reco estimated using Lloyd-Taylor',units=units)
-    qcutils.CreateSeries(ds,out_label,Reco,Flag=flag,Attr=attr)
-    
-def EstimateRecoUsingSOLO(cf,ds):
-    log.info('Estimating Reco using SOLO is not implemented yet')
-    pass
-
-def CalculateNEE(cf,ds):
-    # now get a single series of NEE using the following rules:
-    #  - when Fsd > 10 W/m2 (day time)
-    #    - use Fc gap filled by chosen method
-    #  - when Fsd < 10 W/m2 (night time)
-    #    - use observed Fc (Fc_flag=0) when u* > ustar_threshold
-    #    - use modelled Reco when Fc_flag!=0 or u* < ustar_threshold
-    Fsd,Fsd_flag,Fsd_attr = qcutils.GetSeriesasMA(ds,'Fsd')
-    ustar,ustar_flag,ustar_attr = qcutils.GetSeriesasMA(ds,'ustar')
-    Fc_label = str(cf['Derived']['NEE']['Fc'])
-    Fc,Fc_flag,Fc_attr = qcutils.GetSeriesasMA(ds,Fc_label)
-    Reco_label = str(cf['Derived']['NEE']['Reco'])
-    Reco,Reco_flag,Reco_attr = qcutils.GetSeriesasMA(ds,Reco_label)
-    Fsd_threshold = float(cf['Params']['Fsd_threshold'])
-    ustar_threshold = float(cf['Params']['ustar_threshold'])
-    # create a series for NEE and the NEE QC flag
-    nRecs = int(ds.globalattributes['nc_nrecs'])
-    NEE = numpy.ma.array([c.missing_value]*nRecs,dtype=numpy.float64)
-    NEE_flag = numpy.ma.array([0]*nRecs,dtype=numpy.int32)
-    # fill the day time NEE
-    index = numpy.ma.where(Fsd>Fsd_threshold)[0]
-    NEE[index] = Fc[index]
-    # fill the night time NEE when ustar is above the threshold
-    index = numpy.ma.where((Fsd<=Fsd_threshold)&(ustar>ustar_threshold))[0]
-    NEE[index] = Fc[index]
-    # fill the night time NEE when ustar is below the threshold
-    index = numpy.ma.where((Fsd<=Fsd_threshold)&(ustar<=ustar_threshold))[0]
-    NEE[index] = Reco[index]
-    # create the NEE series in the data structure
-    units=qcutils.GetUnitsFromds(ds,Fc_label)
-    attr = qcutils.MakeAttributeDictionary(long_name='Net ecosystem exchange',units=units)
-    qcutils.CreateSeries(ds,'NEE',NEE,Flag=NEE_flag,Attr=attr)
-
-def PartitionNEE(cf,ds):
-    # check that there is a GPP section in the control file
-    section = qcutils.get_cfsection(cf,series='GPP',mode='quiet')
-    if len(section)==0:
-        log.info('PartitionNEE: GPP section not found in control file')
-        return
-    # now check that the GPP section in the control file contains the
-    # information needed.
-    if 'NEE' not in cf[section]['GPP']:
-        log.info('PartitionNEE: NEE key not in GPP section of control file')
-        return
-    else:
-        NEE_label = str(cf[section]['GPP']['NEE'])
-    if 'Reco' not in cf[section]['GPP']:
-        log.info('PartitionNEE: Reco key not in GPP section of control file')
-        return
-    else:
-        Reco_label = str(cf[section]['GPP']['Reco'])
-    # now check that the requested series are in the data structure
-    if NEE_label not in ds.series.keys():
-        log.info('PartitionNEE: requested series '+NEE_label+' is not in the data structure')
-        return
-    else:
-        NEE,f,a = qcutils.GetSeriesasMA(ds,NEE_label)
-    if Reco_label not in ds.series.keys():
-        log.info('PartitionNEE: requested series '+Reco_label+' is not in the data structure')
-        return
-    else:
-        Reco,f,a = qcutils.GetSeriesasMA(ds,Reco_label)
-    # check the units
-    NEE_units=qcutils.GetUnitsFromds(ds,NEE_label)
-    Reco_units=qcutils.GetUnitsFromds(ds,Reco_label)
-    if NEE_units!=Reco_units:
-        log.error('Units of NEE ('+NEE_label+') and Reco ('+Reco_label+') are different')
-        return
-    # ... at last, we can do the partitioning
-    GEP = NEE - Reco
-    # create the GEP QC flag
-    nRecs = int(ds.globalattributes['nc_nrecs'])
-    GEP_flag = numpy.ma.array([0]*nRecs,dtype=numpy.int32)
-    # now check for non-zero values of GPP at night
-    attr = qcutils.MakeAttributeDictionary(long_name='Gross ecosystem productivity',units=NEE_units)
-    qcutils.CreateSeries(ds,'GEP',GEP,Flag=GEP_flag,Attr=attr)
-
 def GapFillFromAlternate(cf,ds,series=''):
     """
         Gap fill using data from alternate sites specified in the control file
@@ -1225,7 +1078,7 @@ def GapFillUsingSOLO(dsa,dsb):
                  "file_enddate":enddate.strftime("%Y-%m-%d %H:%M")}
     # set up the GUI
     solo_gui = Tkinter.Toplevel()
-    solo_gui.wm_title("SOLO GUI")
+    solo_gui.wm_title("SOLO GUI (Fluxes)")
     solo_gui.grid()
     # top row
     nrow = 0
@@ -1623,10 +1476,6 @@ def gfSOLO_savethissofmrun(sofmoutname,sofminfname):
 def gfSOLO_runsolo(dsa,dsb,driverlist,targetlabel,nRecs,si=0,ei=-1):
     '''
     Run SOLO.
-    Note that although we pass in <targetlabel>, we will use <targetlabel>_L3 as the
-    real target (<targetlabel>_L3 is the data at L3, prior to any gap filling).  This
-    is to avoid using gap filled data (in <targetlabel> from a previous run) to train
-    the neural network.
     '''
     ndrivers = len(driverlist)
     # add an extra column for the target data
@@ -1716,7 +1565,7 @@ def gfSOLO_run(dsa,dsb,solo_gui,solo_info):
         gfSOLO_plotsummary(dsb)
         gfSOLO_progress(solo_gui,"Finished auto (monthly) run ...")
     elif solo_gui.peropt.get()==3:
-        gfSOLO_progress(solo_gui,"Starting auto (monthly) run ...")
+        gfSOLO_progress(solo_gui,"Starting auto (days) run ...")
         # get the start datetime entered in the SOLO GUI
         solo_info["startdate"] = solo_gui.startEntry.get()
         if len(solo_info["startdate"])==0: solo_info["startdate"] = solo_info["file_startdate"]
@@ -1735,7 +1584,7 @@ def gfSOLO_run(dsa,dsb,solo_gui,solo_info):
             solo_info["enddate"] = enddate.strftime("%Y-%m-%d")
         # plot the summary statistics
         gfSOLO_plotsummary(dsb)
-        gfSOLO_progress(solo_gui,"Finished auto (monthly) run ...")
+        gfSOLO_progress(solo_gui,"Finished auto (days) run ...")
     elif solo_gui.peropt.get()==4:
         pass
 

@@ -1,0 +1,32 @@
+[Files]
+    file_path = ../Sites/Calperum/Data/Processed/2013/
+    in_filename = Calperum_2013_L4.nc
+    out_filename = Calperum_2013_L5.nc
+
+[Options]
+    UseExistingOutFile    = No
+
+[Params]
+    zmd             = 15     # instrument height above displacement plane, m
+    z0              = 0.3    # roughness length, m
+    Fsd_threshold   = 10     # Fsd threshold for determining day or night time
+    ustar_threshold = 0.3    # ustar threshold for filtering out low turbulence conditions
+
+[Variables]
+    [[Reco]]
+        [[[RecoUsingSOLO]]]
+            drivers = "['Ts','Ta']"
+            output = 'Reco_SOLO'
+#        [[[RecoUsingLloydTaylor]]]
+#            drivers = "['Ts']"
+#            output = 'Reco_LT'
+        [[[MergeSeries]]]
+            Source     = "['Reco','Reco_SOLO']"
+
+[Derived]
+    [[NEE]]
+        Fc   = Fc
+        Reco = Reco_LT
+    [[GPP]]
+        NEE  = NEE
+        Reco = Reco_LT

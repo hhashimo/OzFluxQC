@@ -18,6 +18,7 @@ import numpy
 import qcck
 import qcgf
 import qcio
+import qcrp
 import qcts
 import qcutils
 import time
@@ -287,3 +288,47 @@ def l4qc(cf,ds3):
     qcutils.get_coverage_groups(ds4)
 
     return ds4
+
+def l5qc(cf,ds4):
+    ds5 = qcio.copy_datastructure(cf,ds4)
+    # ds4 will be empty (logical false) if an error occurs in copy_datastructure
+    # return from this routine if this is the case
+    if not ds5: return ds5
+    # set some attributes for this level    
+    ds5.globalattributes["nc_level"] = "L5"
+    ds5.globalattributes["EPDversion"] = sys.version
+    # put the control file name into the global attributes
+    ds5.globalattributes["controlfile_name"] = cf["controlfile_name"]
+    # filter for night time and ustar threshold
+    # this will create a series in ds5 called "Reco"
+    Fsd,flag,attr = qcutils.GetSeriesasMA(ds5,"Fsd")
+    if "Fsd_syn" in ds5.series.keys():
+        Fsd_syn,flag,attr = qcutils.GetSeriesasMA(ds5,"Fsd_syn")
+        index = numpy.ma.where(Fsd.mask==True)[0]
+        Fsd[index] = Fsd_syn[index]
+    ustar,flag,attr = qcutils.GetSeriesasMA(ds5,"ustar")
+    ustar_threshold = float(cf["Params"]["ustar_threshold"])
+    Fc,Fc_flag,Fc_attr = qcutils.GetSeriesasMA(ds5,"Fc")
+    Reco1 = numpy.ma.masked_where(Fsd>10,Fc,copy=True)
+    Reco2 = numpy.ma.masked_where(ustar<ustar_threshold,Reco1,copy=True)
+    Reco3 = numpy.ma.masked_where(Reco2<0,Reco2,copy=True)
+    attr = qcutils.MakeAttributeDictionary(long_name='Ecosystem respiration (observed)',units=Fc_attr["units"])
+    qcutils.CreateSeries(ds5,"Reco",Reco3,Flag=Fc_flag,Attr=attr)
+    # estimate Reco using SOLO
+    qcrp.RecoUsingSOLO(cf,ds5)
+    # estimate Reco using Lloyd-Taylor
+    qcrp.RecoUsingLloydTaylor(cf,ds5)
+    # merge the estimates of Reco with the observations
+    pass
+    ## estimate Reco using the methods specified in the control file
+    #qcgf.EstimateReco(cf,ds4)
+    # get a single series of NEE
+    #qcrp.CalculateNEE(cf,ds5)
+    # ... and partition NEE into GPP and Reco
+    #qcrp.PartitionNEE(cf,ds5)
+    # write the percentage of good data as a variable attribute
+    #qcutils.get_coverage_individual(ds5)
+    # write the percentage of good data for groups
+    #qcutils.get_coverage_groups(ds5)
+
+    return ds5

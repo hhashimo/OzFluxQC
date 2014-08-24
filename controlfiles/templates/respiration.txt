@@ -1,0 +1,8 @@
+[Files]
+    file_path = ../../Sites/Calperum/Data/Processed/2012/
+    in_filename = Calperum_2012_L3.nc
+
+[Params]
+    Fsd_lower = 10
+    Fsd_upper = 1200
+    ustar_threshold = 0.27
