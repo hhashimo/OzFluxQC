@@ -316,6 +316,8 @@ def l5qc(cf,ds4):
     qcutils.CreateSeries(ds5,"Reco",Reco3,Flag=Fc_flag,Attr=attr)
     # estimate Reco using SOLO
     qcrp.RecoUsingSOLO(cf,ds5)
+    # estimate Reco using FFNET
+    qcrp.RecoUsingFFNET(cf,ds5)
     # estimate Reco using Lloyd-Taylor
     qcrp.RecoUsingLloydTaylor(cf,ds5)
     # merge the estimates of Reco with the observations
