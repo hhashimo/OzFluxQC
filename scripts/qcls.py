@@ -237,7 +237,7 @@ def l4qc(cf,ds3):
     # gap fill using climatology
     qcgf.GapFillFromClimatology(ds4)
     # merge the gap filled drivers into a single series
-    qcts.MergeSeries_L4(ds4)
+    qcts.MergeSeriesUsingDict(ds4)
     # re-calculate the water vapour concentrations
     qcts.CalculateHumidities(ds4)
     # re-calculate the meteorological variables
@@ -258,30 +258,7 @@ def l4qc(cf,ds3):
     # gap fill using climatology
     qcgf.GapFillFromClimatology(ds4)
     # merge the gap filled drivers into a single series
-    qcts.MergeSeries_L4(ds4)
-    ## now re-apply the quality control checks
-    #for ThisOne in cf['Drivers'].keys():
-        ## re-apply the quality control checks (range, diurnal and rules)
-        #qcck.do_qcchecks_oneseries(cf,ds4,series=ThisOne)
-        ## interpolate over any remaining gaps up to 3 hours in length
-        #qcts.InterpolateOverMissing(ds4,series=ThisOne,maxlen=3)
-        ## fill any remaining gaps climatology
-        #qcgf.GapFillFromClimatology(cf,ds4,series=ThisOne)
-    #for ThisOne in cf['Targets'].keys():
-        ## gap fill the observations using gap fill data in the order specified in cf
-        #qcts.MergeSeries(cf,ds4,ThisOne,[0,10,20,30,40,50])
-        ## re-apply the quality control checks (range, diurnal and rules)
-        #qcck.do_qcchecks_oneseries(cf,ds4,series=ThisOne)
-        ## interpolate over any remaining gaps up to 3 hours in length
-        #qcts.InterpolateOverMissing(ds4,series=ThisOne,maxlen=3)
-        ## fill any remaining gaps climatology
-        #qcgf.GapFillFromClimatology(cf,ds4,series=ThisOne)
-    ## estimate Reco using the methods specified in the control file
-    #qcgf.EstimateReco(cf,ds4)
-    ## get a single series of NEE
-    #qcgf.CalculateNEE(cf,ds4)
-    ## ... and partition NEE into GPP and Reco
-    #qcgf.PartitionNEE(cf,ds4)
+    qcts.MergeSeriesUsingDict(ds4)
     # write the percentage of good data as a variable attribute
     qcutils.get_coverage_individual(ds4)
     # write the percentage of good data for groups
@@ -299,38 +276,27 @@ def l5qc(cf,ds4):
     ds5.globalattributes["EPDversion"] = sys.version
     # put the control file name into the global attributes
     ds5.globalattributes["controlfile_name"] = cf["controlfile_name"]
-    # filter for night time and ustar threshold
-    # this will create a series in ds5 called "Reco"
-    Fsd,flag,attr = qcutils.GetSeriesasMA(ds5,"Fsd")
-    if "Fsd_syn" in ds5.series.keys():
-        Fsd_syn,flag,attr = qcutils.GetSeriesasMA(ds5,"Fsd_syn")
-        index = numpy.ma.where(Fsd.mask==True)[0]
-        Fsd[index] = Fsd_syn[index]
-    ustar,flag,attr = qcutils.GetSeriesasMA(ds5,"ustar")
-    ustar_threshold = float(cf["Params"]["ustar_threshold"])
-    Fc,Fc_flag,Fc_attr = qcutils.GetSeriesasMA(ds5,"Fc")
-    Reco1 = numpy.ma.masked_where(Fsd>10,Fc,copy=True)
-    Reco2 = numpy.ma.masked_where(ustar<ustar_threshold,Reco1,copy=True)
-    Reco3 = numpy.ma.masked_where(Reco2<0,Reco2,copy=True)
-    attr = qcutils.MakeAttributeDictionary(long_name='Ecosystem respiration (observed)',units=Fc_attr["units"])
-    qcutils.CreateSeries(ds5,"Reco",Reco3,Flag=Fc_flag,Attr=attr)
+    # parse the control file
+    qcrp.ParseL5ControlFile(cf,ds5)
+    # filter Fc for night time and ustar threshold, write to ds as "Fre"
+    qcrp.GetFreFromFc(cf,ds5)
     # estimate Reco using SOLO
-    qcrp.RecoUsingSOLO(cf,ds5)
+    qcrp.FreUsingSOLO(cf,ds5)
     # estimate Reco using FFNET
-    qcrp.RecoUsingFFNET(cf,ds5)
+    qcrp.FreUsingFFNET(cf,ds5)
     # estimate Reco using Lloyd-Taylor
-    qcrp.RecoUsingLloydTaylor(cf,ds5)
+    qcrp.FreUsingLloydTaylor(cf,ds5)
+    # estimate Reco using Lasslop et al
+    qcrp.FreUsingLasslop(cf,ds5)
     # merge the estimates of Reco with the observations
-    pass
-    ## estimate Reco using the methods specified in the control file
-    #qcgf.EstimateReco(cf,ds4)
-    # get a single series of NEE
-    #qcrp.CalculateNEE(cf,ds5)
-    # ... and partition NEE into GPP and Reco
-    #qcrp.PartitionNEE(cf,ds5)
+    qcts.MergeSeriesUsingDict(ds5)
+    # calculate NEE from Fc and Fre
+    qcrp.CalculateNEE(cf,ds5)
+    # partition NEE into GPP and Reco
+    qcrp.PartitionNEE(cf,ds5)
     # write the percentage of good data as a variable attribute
-    #qcutils.get_coverage_individual(ds5)
+    qcutils.get_coverage_individual(ds5)
     # write the percentage of good data for groups
-    #qcutils.get_coverage_groups(ds5)
+    qcutils.get_coverage_groups(ds5)
 
     return ds5

@@ -11,162 +11,78 @@ import platform
 import qcio
 import qcutils
 import subprocess
+import sys
 import Tkinter
 
 log = logging.getLogger('qc.rp')
-
+# lets see if ffnet is installed
 try:
     import ffnet
 except ImportError:
-    log.error("RecoUsingFFNET: Unable to import module ffnet")
+    #log.error("FreUsingFFNET: Unable to import module ffnet")
+    pass
 
 def CalculateNEE(cf,ds):
-    # now get a single series of NEE using the following rules:
-    #  - when Fsd > 10 W/m2 (day time)
-    #    - use Fc gap filled by chosen method
-    #  - when Fsd < 10 W/m2 (night time)
-    #    - use observed Fc (Fc_flag=0) when u* > ustar_threshold
-    #    - use modelled Reco when Fc_flag!=0 or u* < ustar_threshold
-    Fsd,Fsd_flag,Fsd_attr = qcutils.GetSeriesasMA(ds,'Fsd')
-    ustar,ustar_flag,ustar_attr = qcutils.GetSeriesasMA(ds,'ustar')
-    Fc_label = str(cf['Derived']['NEE']['Fc'])
-    Fc,Fc_flag,Fc_attr = qcutils.GetSeriesasMA(ds,Fc_label)
-    Reco_label = str(cf['Derived']['NEE']['Reco'])
-    Reco,Reco_flag,Reco_attr = qcutils.GetSeriesasMA(ds,Reco_label)
+    """
+    Purpose:
+     Calculate NEE from observed Fc and observed/modeled Fre.
+     Input and output names are held in ds.nee.
+    Usage:
+     qcrp.CalculateNEE(cf,ds)
+      where cf is a conbtrol file object
+            ds is a data structure
+    Side effects:
+     Series to hold the NEE data are created in ds.
+    Author: PRI
+    Date: August 2014
+    """
+    if "nee" not in dir(ds): return
+    # get the Fsd and ustar thresholds
     Fsd_threshold = float(cf['Params']['Fsd_threshold'])
     ustar_threshold = float(cf['Params']['ustar_threshold'])
-    # create a series for NEE and the NEE QC flag
-    nRecs = int(ds.globalattributes['nc_nrecs'])
-    NEE = numpy.ma.array([c.missing_value]*nRecs,dtype=numpy.float64)
-    NEE_flag = numpy.ma.array([0]*nRecs,dtype=numpy.int32)
-    # fill the day time NEE
-    index = numpy.ma.where(Fsd>Fsd_threshold)[0]
-    NEE[index] = Fc[index]
-    # fill the night time NEE when ustar is above the threshold
-    index = numpy.ma.where((Fsd<=Fsd_threshold)&(ustar>ustar_threshold))[0]
-    NEE[index] = Fc[index]
-    # fill the night time NEE when ustar is below the threshold
-    index = numpy.ma.where((Fsd<=Fsd_threshold)&(ustar<=ustar_threshold))[0]
-    NEE[index] = Reco[index]
-    # create the NEE series in the data structure
-    units=qcutils.GetUnitsFromds(ds,Fc_label)
-    attr = qcutils.MakeAttributeDictionary(long_name='Net ecosystem exchange',units=units)
-    qcutils.CreateSeries(ds,'NEE',NEE,Flag=NEE_flag,Attr=attr)
+    # get the incoming shortwave radiation and friction velocity
+    Fsd,Fsd_flag,Fsd_attr = qcutils.GetSeriesasMA(ds,"Fsd")
+    if "Fsd_syn" in ds.series.keys():
+        Fsd_syn,flag,attr = qcutils.GetSeriesasMA(ds,"Fsd_syn")
+        index = numpy.ma.where(Fsd.mask==True)[0]
+        Fsd[index] = Fsd_syn[index]
+    ustar,ustar_flag,ustar_attr = qcutils.GetSeriesasMA(ds,"ustar")
+    for label in ds.nee.keys():
+        Fc_label = ds.nee[label]["Fc"]
+        Fre_label = ds.nee[label]["Fre"]
+        output_label = ds.nee[label]["output"]
+        Fc,Fc_flag,Fc_attr = qcutils.GetSeriesasMA(ds,Fc_label)
+        Fre,Fre_flag,Fre_attr = qcutils.GetSeriesasMA(ds,Fre_label)
+        # put the day time Fc into the NEE series
+        index = numpy.ma.where(Fsd>=Fsd_threshold)[0]
+        ds.series[output_label]["Data"][index] = Fc[index]
+        ds.series[output_label]["Flag"][index] = Fc_flag[index]
+        # put the night time Fre into the NEE series
+        index = numpy.ma.where(Fsd<Fsd_threshold)[0]
+        ds.series[output_label]["Data"][index] = Fre[index]
+        ds.series[output_label]["Flag"][index] = Fre_flag[index]
+        # copy the attributes
+        attr = ds.series[output_label]["Attr"]
+        attr["units"] = Fc_attr["units"]
+        attr["long_name"] = "Net Ecosystem Exchange calculated from "+Fc_label+" (Fc) "
+        attr["long_name"] = attr["long_name"]+" and "+Fre_label+" (Fre)"
+    del ds.nee
 
-def EstimateReco(cf,ds):
-    # check to see if there is an Reco section in the control file
-    section = qcutils.get_cfsection(cf,series='Reco',mode='quiet')
-    if len(section)==0: return
-    # step through the methods given in the control file
-    method_list = cf[section]['Reco'].keys()
-    for ThisMethod in method_list:
-        if ThisMethod == 'LloydTaylor': EstimateRecoUsingLloydTaylor(cf,ds)
-        if ThisMethod == 'SOLO': EstimateRecoUsingSOLO(cf,ds)
-
-def EstimateRecoUsingLloydTaylor(cf,ds):
-    # need to check that all information required is in the control file
-    section = qcutils.get_cfsection(cf,series='Reco',mode='quiet')
-    if len(section)==0:
-        log.error('Reco section not found in control file')
+def FreUsingFFNET(cf,ds):
+    """
+    Purpose:
+     Estimate ecosystem respiration using the ffnet neural network.
+    Usage:
+     qcrp.FreUsingFFNET(cf,ds)
+      where cf is a control file object
+            ds is a data structure
+    Author: PRI
+    Date: August 2014
+    """
+    if "ffnet" not in dir(ds): return
+    if "ffnet" not in sys.modules.keys():
+        log.error("FreUsingFFNET: I don't think ffnet is installed ...")
         return
-    if 'LloydTaylor' not in cf[section]['Reco']:
-        log.error('LloydTaylor section not found in control file')
-        return
-    # get the driver
-    if 'drivers' not in cf[section]['Reco']['LloydTaylor']:
-        log.error('drivers key not found in LloydTaylor section of control file')
-        return
-    else:
-        driver_list = eval(cf[section]['Reco']['LloydTaylor']['drivers'])
-        driver_label = driver_list[0]
-    # get the monthly values for the activation energy, E0
-    if 'E0' not in cf[section]['Reco']['LloydTaylor']:
-        log.error('E0 key not found in LloydTaylor section of control file')
-        return
-    else:
-        E0_monthly = numpy.array(eval(cf[section]['Reco']['LloydTaylor']['E0']))
-    # get the monthly values for the base respiration, rb
-    if 'rb' not in cf[section]['Reco']['LloydTaylor']:
-        log.error('rb key not found in LloydTaylor section of control file')
-        return
-    else:
-        rb_monthly = numpy.array(eval(cf[section]['Reco']['LloydTaylor']['rb']))
-    # get the output label
-    if 'output' not in cf[section]['Reco']['LloydTaylor']:
-        log.error('output key not found in LloydTaylor section of control file')
-        return
-    else:
-        out_label = cf[section]['Reco']['LloydTaylor']['output']
-    # ... and make an array of values for each month
-    nRecs = int(ds.globalattributes['nc_nrecs'])
-    E0 = numpy.ma.ones(nRecs)
-    rb = numpy.ma.zeros(nRecs)
-    month = ds.series['Month']['Data']
-    lwr = numpy.max(numpy.array([numpy.min(month),1]))
-    upr = numpy.min(numpy.array([numpy.max(month),12]))
-    for m in range(lwr,upr+1):
-        index = numpy.where(month==m)[0]
-        E0[index] = E0_monthly[m-1]
-        rb[index] = rb_monthly[m-1]
-    # get the driver data
-    Ts,flag,attr = qcutils.GetSeriesasMA(ds,driver_label)
-    # estimate Reco using the Lloyd-Taylor expression
-    t1 = 1/(c.Tref-c.T0)
-    t2 = 1/(Ts-c.T0)
-    Reco = rb*numpy.exp(E0*(t1-t2))
-    # put the estimated Reco into the data structure
-    units=qcutils.GetUnitsFromds(ds, 'Fc')
-    attr = qcutils.MakeAttributeDictionary(long_name='Reco estimated using Lloyd-Taylor',units=units)
-    qcutils.CreateSeries(ds,out_label,Reco,Flag=flag,Attr=attr)
-
-def PartitionNEE(cf,ds):
-    # check that there is a GPP section in the control file
-    section = qcutils.get_cfsection(cf,series='GPP',mode='quiet')
-    if len(section)==0:
-        log.info('PartitionNEE: GPP section not found in control file')
-        return
-    # now check that the GPP section in the control file contains the
-    # information needed.
-    if 'NEE' not in cf[section]['GPP']:
-        log.info('PartitionNEE: NEE key not in GPP section of control file')
-        return
-    else:
-        NEE_label = str(cf[section]['GPP']['NEE'])
-    if 'Reco' not in cf[section]['GPP']:
-        log.info('PartitionNEE: Reco key not in GPP section of control file')
-        return
-    else:
-        Reco_label = str(cf[section]['GPP']['Reco'])
-    # now check that the requested series are in the data structure
-    if NEE_label not in ds.series.keys():
-        log.info('PartitionNEE: requested series '+NEE_label+' is not in the data structure')
-        return
-    else:
-        NEE,f,a = qcutils.GetSeriesasMA(ds,NEE_label)
-    if Reco_label not in ds.series.keys():
-        log.info('PartitionNEE: requested series '+Reco_label+' is not in the data structure')
-        return
-    else:
-        Reco,f,a = qcutils.GetSeriesasMA(ds,Reco_label)
-    # check the units
-    NEE_units=qcutils.GetUnitsFromds(ds,NEE_label)
-    Reco_units=qcutils.GetUnitsFromds(ds,Reco_label)
-    if NEE_units!=Reco_units:
-        log.error('Units of NEE ('+NEE_label+') and Reco ('+Reco_label+') are different')
-        return
-    # ... at last, we can do the partitioning
-    GEP = NEE - Reco
-    # create the GEP QC flag
-    nRecs = int(ds.globalattributes['nc_nrecs'])
-    GEP_flag = numpy.ma.array([0]*nRecs,dtype=numpy.int32)
-    # now check for non-zero values of GPP at night
-    attr = qcutils.MakeAttributeDictionary(long_name='Gross ecosystem productivity',units=NEE_units)
-    qcutils.CreateSeries(ds,'GEP',GEP,Flag=GEP_flag,Attr=attr)
-
-def RecoUsingFFNET(cf,ds):
-    """ Estimate Reco using ffnet. """
-    # create a dictionary to hold the results and the input information
-    rpFFNET_createdict(cf,ds,"Reco")
     # local pointer to the datetime series
     ldt = ds.series["DateTime"]["Data"]
     startdate = ldt[0]
@@ -259,7 +175,7 @@ def RecoUsingFFNET(cf,ds):
     rpFFNET_gui.overwrite.grid(row=nrow,column=2,columnspan=2,sticky="w")
     # tenth row
     nrow = nrow + 1
-    rpFFNET_gui.doneButton = Tkinter.Button (rpFFNET_gui, text="Done",command=lambda:rpFFNET_done(rpFFNET_gui))
+    rpFFNET_gui.doneButton = Tkinter.Button (rpFFNET_gui, text="Done",command=lambda:rpFFNET_done(ds,rpFFNET_gui))
     rpFFNET_gui.doneButton.grid(row=nrow,column=0,columnspan=2)
     rpFFNET_gui.runButton = Tkinter.Button (rpFFNET_gui, text="Run",command=lambda:rpFFNET_run(ds,rpFFNET_gui,rpFFNET_info))
     rpFFNET_gui.runButton.grid(row=nrow,column=2,columnspan=2)
@@ -271,15 +187,71 @@ def RecoUsingFFNET(cf,ds):
 
     rpFFNET_gui.wait_window(rpFFNET_gui)
 
-def RecoUsingLloydTaylor(cf,ds):
-    log.info('Estimating Reco using Lloyd-Taylor is not implemented yet')
+def FreUsingLasslop(cf,ds):
+    log.info('Estimating Fre using Lasslop et al is not implemented yet')
     pass
 
-def RecoUsingSOLO(cf,ds):
-    """ Estimate Reco using SOLO. """
-    if "RecoUsingSOLO" not in cf["Variables"]["Reco"].keys(): return
-    # create a dictionary to hold the results and the input information
-    rpSOLO_createdict(cf,ds,"Reco")
+def FreUsingLloydTaylor(cf,ds):
+    log.info('Estimating Fre using Lloyd-Taylor is not implemented yet')
+    pass
+    ## need to check that all information required is in the control file
+    #section = qcutils.get_cfsection(cf,series='Reco',mode='quiet')
+    #if len(section)==0:
+        #log.error('Reco section not found in control file')
+        #return
+    #if 'LloydTaylor' not in cf[section]['Reco']:
+        #log.error('LloydTaylor section not found in control file')
+        #return
+    ## get the driver
+    #if 'drivers' not in cf[section]['Reco']['LloydTaylor']:
+        #log.error('drivers key not found in LloydTaylor section of control file')
+        #return
+    #else:
+        #driver_list = eval(cf[section]['Reco']['LloydTaylor']['drivers'])
+        #driver_label = driver_list[0]
+    ## get the monthly values for the activation energy, E0
+    #if 'E0' not in cf[section]['Reco']['LloydTaylor']:
+        #log.error('E0 key not found in LloydTaylor section of control file')
+        #return
+    #else:
+        #E0_monthly = numpy.array(eval(cf[section]['Reco']['LloydTaylor']['E0']))
+    ## get the monthly values for the base respiration, rb
+    #if 'rb' not in cf[section]['Reco']['LloydTaylor']:
+        #log.error('rb key not found in LloydTaylor section of control file')
+        #return
+    #else:
+        #rb_monthly = numpy.array(eval(cf[section]['Reco']['LloydTaylor']['rb']))
+    ## get the output label
+    #if 'output' not in cf[section]['Reco']['LloydTaylor']:
+        #log.error('output key not found in LloydTaylor section of control file')
+        #return
+    #else:
+        #out_label = cf[section]['Reco']['LloydTaylor']['output']
+    ## ... and make an array of values for each month
+    #nRecs = int(ds.globalattributes['nc_nrecs'])
+    #E0 = numpy.ma.ones(nRecs)
+    #rb = numpy.ma.zeros(nRecs)
+    #month = ds.series['Month']['Data']
+    #lwr = numpy.max(numpy.array([numpy.min(month),1]))
+    #upr = numpy.min(numpy.array([numpy.max(month),12]))
+    #for m in range(lwr,upr+1):
+        #index = numpy.where(month==m)[0]
+        #E0[index] = E0_monthly[m-1]
+        #rb[index] = rb_monthly[m-1]
+    ## get the driver data
+    #Ts,flag,attr = qcutils.GetSeriesasMA(ds,driver_label)
+    ## estimate Reco using the Lloyd-Taylor expression
+    #t1 = 1/(c.Tref-c.T0)
+    #t2 = 1/(Ts-c.T0)
+    #Reco = rb*numpy.exp(E0*(t1-t2))
+    ## put the estimated Reco into the data structure
+    #units=qcutils.GetUnitsFromds(ds, 'Fc')
+    #attr = qcutils.MakeAttributeDictionary(long_name='Reco estimated using Lloyd-Taylor',units=units)
+    #qcutils.CreateSeries(ds,out_label,Reco,Flag=flag,Attr=attr)
+
+def FreUsingSOLO(cf,ds):
+    """ Estimate Fre using SOLO. """
+    if "solo" not in dir(ds): return
     # local pointer to the datetime series
     ldt = ds.series["DateTime"]["Data"]
     startdate = ldt[0]
@@ -288,7 +260,7 @@ def RecoUsingSOLO(cf,ds):
                  "file_enddate":enddate.strftime("%Y-%m-%d %H:%M")}
     # set up the GUI
     rpSOLO_gui = Tkinter.Toplevel()
-    rpSOLO_gui.wm_title("SOLO GUI (Reco)")
+    rpSOLO_gui.wm_title("SOLO GUI (Fre)")
     rpSOLO_gui.grid()
     # top row
     nrow = 0
@@ -348,16 +320,18 @@ def RecoUsingSOLO(cf,ds):
     rpSOLO_gui.peropt = Tkinter.IntVar()
     rpSOLO_gui.peropt.set(1)
     rpSOLO_gui.manualperiod = Tkinter.Radiobutton(rpSOLO_gui,text="Manual",variable=rpSOLO_gui.peropt,value=1)
-    rpSOLO_gui.manualperiod.grid(row=nrow,column=0,columnspan=3,sticky="W")
+    rpSOLO_gui.manualperiod.grid(row=nrow,column=0,columnspan=2,sticky="W")
     rpSOLO_gui.automonthly = Tkinter.Radiobutton(rpSOLO_gui,text="Monthly",variable=rpSOLO_gui.peropt,value=2)
-    rpSOLO_gui.automonthly.grid(row=nrow,column=3,columnspan=3,sticky="W")
+    rpSOLO_gui.automonthly.grid(row=nrow,column=2,columnspan=2,sticky="W")
+    rpSOLO_gui.autoyearly = Tkinter.Radiobutton(rpSOLO_gui,text="Yearly",variable=rpSOLO_gui.peropt,value=3)
+    rpSOLO_gui.autoyearly.grid(row=nrow,column=4,columnspan=2,sticky="W")
     # eigth row
     nrow = nrow + 1
-    rpSOLO_gui.daysperiod = Tkinter.Radiobutton(rpSOLO_gui,text="No. days",variable=rpSOLO_gui.peropt,value=3)
+    rpSOLO_gui.daysperiod = Tkinter.Radiobutton(rpSOLO_gui,text="No. days",variable=rpSOLO_gui.peropt,value=4)
     rpSOLO_gui.daysperiod.grid(row=nrow,column=0,sticky="W")
     rpSOLO_gui.daysentry = Tkinter.Entry(rpSOLO_gui,width=5)
     rpSOLO_gui.daysentry.grid(row=nrow,column=1,columnspan=1,sticky="W")
-    rpSOLO_gui.pointsperiod = Tkinter.Radiobutton(rpSOLO_gui,text="No. pts",variable=rpSOLO_gui.peropt,value=4)
+    rpSOLO_gui.pointsperiod = Tkinter.Radiobutton(rpSOLO_gui,text="No. pts",variable=rpSOLO_gui.peropt,value=5)
     rpSOLO_gui.pointsperiod.grid(row=nrow,column=3,sticky="W")
     rpSOLO_gui.pointsentry = Tkinter.Entry(rpSOLO_gui,width=5)
     rpSOLO_gui.pointsentry.grid(row=nrow,column=4,columnspan=1,sticky="W")
@@ -374,7 +348,7 @@ def RecoUsingSOLO(cf,ds):
     rpSOLO_gui.overwrite.grid(row=nrow,column=3,columnspan=2,sticky="w")
     # tenth row
     nrow = nrow + 1
-    rpSOLO_gui.doneButton = Tkinter.Button (rpSOLO_gui, text="Done",command=lambda:rpSOLO_done(rpSOLO_gui))
+    rpSOLO_gui.doneButton = Tkinter.Button (rpSOLO_gui, text="Done",command=lambda:rpSOLO_done(ds,rpSOLO_gui))
     rpSOLO_gui.doneButton.grid(row=nrow,column=0,columnspan=3)
     rpSOLO_gui.runButton = Tkinter.Button (rpSOLO_gui, text="Run",command=lambda:rpSOLO_run(ds,rpSOLO_gui,rpSOLO_info))
     rpSOLO_gui.runButton.grid(row=nrow,column=3,columnspan=3)
@@ -385,6 +359,118 @@ def RecoUsingSOLO(cf,ds):
     rpSOLO_gui.progress.grid(row=nrow,column=0,columnspan=6,sticky="W")
 
     rpSOLO_gui.wait_window(rpSOLO_gui)
+
+def GetFreFromFc(cf,ds):
+    """
+    Purpose:
+     Get tehe observed ecosystem respiration from measurements of Fc by
+     filtering out daytime periods and periods when ustar is less than
+     a threshold value.
+     The Fsd threshold for determining day time and night time and the
+     ustar threshold are set in the [Params] section of the L5 control
+     file.
+    Usage:
+     qcrp.GetFreFromFc(cf,ds)
+     where cf is a control file object
+           ds is a data structure
+    Side effects:
+     A new series called "Fre" is created in the data structure.
+    Author: PRI
+    Date: August 2014
+    """
+    if "Params" not in cf.keys():
+        log.error("GetFreFromFc: no [Params] section in control file")
+        raise Exception("GetFreFromFc: no [Params] section in control file")
+    if "Fsd_threshold" not in cf["Params"]:
+        log.error("GetFreFromFc: no Fsd threshold in control file")
+        raise "GetFreFromFc: no Fsd threshold in control file"
+    else:
+        Fsd_threshold = float(cf["Params"]["Fsd_threshold"])
+    if "ustar_threshold" not in cf["Params"]:
+        log.error("GetFreFromFc: no ustar threshold in control file")
+        raise "GetFreFromFc: no ustar threshold in control file"
+    else:
+        ustar_threshold = float(cf["Params"]["ustar_threshold"])
+    Fsd,flag,attr = qcutils.GetSeriesasMA(ds,"Fsd")
+    if "Fsd_syn" in ds.series.keys():
+        Fsd_syn,flag,attr = qcutils.GetSeriesasMA(ds,"Fsd_syn")
+        index = numpy.ma.where(Fsd.mask==True)[0]
+        Fsd[index] = Fsd_syn[index]
+    ustar,flag,attr = qcutils.GetSeriesasMA(ds,"ustar")
+    Fc,Fc_flag,Fc_attr = qcutils.GetSeriesasMA(ds,"Fc")
+    Fre1 = numpy.ma.masked_where(Fsd>Fsd_threshold,Fc,copy=True)
+    Fre2 = numpy.ma.masked_where(ustar<ustar_threshold,Fre1,copy=True)
+    #Fre3 = numpy.ma.masked_where(Fre2<0,Fre2,copy=True)
+    Fre_flag = numpy.array(Fc_flag)
+    index = numpy.ma.where(Fre2.mask==True)
+    Fre_flag[index] = numpy.int32(9)
+    attr = qcutils.MakeAttributeDictionary(long_name='Ecosystem respiration (observed)',units=Fc_attr["units"])
+    qcutils.CreateSeries(ds,"Fre",Fre2,Flag=Fre_flag,Attr=attr)
+    return True
+
+def ParseL5ControlFile(cf,ds):
+    """ Parse the L5 conbtrol file. """
+    # start with the repiration section
+    if "Respiration" in cf.keys():
+        for ThisOne in cf["Respiration"].keys():
+            if "FreUsingSOLO" in cf["Respiration"][ThisOne].keys():
+                rpSOLO_createdict(cf,ds,ThisOne)      # create the SOLO dictionary in ds
+            if "FreUsingFFNET" in cf["Respiration"][ThisOne].keys():
+                rpFFNET_createdict(cf,ds,ThisOne)     # create the FFNET dictionary in ds
+            if "MergeSeries" in cf["Respiration"][ThisOne].keys():
+                rpMerge_createdict(cf,ds,ThisOne)      # create the merge dictionary in ds
+    if "NEE" in cf.keys():
+        for ThisOne in cf["NEE"].keys():
+            rpNEE_createdict(cf,ds,ThisOne)
+    if "GPP" in cf.keys():
+        for ThisOne in cf["GPP"].keys():
+            rpGPP_createdict(cf,ds,ThisOne)
+
+def PartitionNEE(cf,ds):
+    """
+    Purpose:
+     Partition NEE into GPP and Fre.
+     Input and output names are held in ds.nee.
+    Usage:
+     qcrp.PartitionNEE(cf,ds)
+      where cf is a conbtrol file object
+            ds is a data structure
+    Side effects:
+     Series to hold the GPP data are created in ds.
+    Author: PRI
+    Date: August 2014
+    """
+    if "gpp" not in dir(ds): return
+    # get the Fsd thresholds
+    Fsd_threshold = float(cf['Params']['Fsd_threshold'])
+    # get the incoming shortwave radiation
+    Fsd,Fsd_flag,Fsd_attr = qcutils.GetSeriesasMA(ds,"Fsd")
+    if "Fsd_syn" in ds.series.keys():
+        Fsd_syn,flag,attr = qcutils.GetSeriesasMA(ds,"Fsd_syn")
+        index = numpy.ma.where(Fsd.mask==True)[0]
+        Fsd[index] = Fsd_syn[index]
+    # calculate GPP from NEE and Fre
+    for label in ds.gpp.keys():
+        NEE_label = ds.gpp[label]["NEE"]
+        Fre_label = ds.gpp[label]["Fre"]
+        output_label = ds.gpp[label]["output"]
+        NEE,NEE_flag,NEE_attr = qcutils.GetSeriesasMA(ds,NEE_label)
+        Fre,Fre_flag,Fre_attr = qcutils.GetSeriesasMA(ds,Fre_label)
+        # calculate GPP
+        GPP = NEE - Fre
+        # put the day time data into the GPP series
+        index = numpy.ma.where(Fsd>=Fsd_threshold)[0]
+        ds.series[output_label]["Data"][index] = GPP[index]
+        ds.series[output_label]["Flag"][index] = NEE_flag[index]
+        # put the night time Fre into the NEE series
+        index = numpy.ma.where(Fsd<Fsd_threshold)[0]
+        ds.series[output_label]["Data"][index] = numpy.float64(0)
+        ds.series[output_label]["Flag"][index] = numpy.int32(1)
+        # copy the attributes
+        attr = ds.series[output_label]["Attr"]
+        attr["units"] = NEE_attr["units"]
+        attr["long_name"] = "Gross Primary Productivity calculated from "+NEE_label+" (NEE) "
+        attr["long_name"] = attr["long_name"]+" and "+Fre_label+" (Fre)"
 
 def rp_getdiurnalstats(DecHour,Data,dt):
     nInts = 24*int((60/dt)+0.5)
@@ -422,10 +508,12 @@ def rpFFNET_createdict(cf,ds,series):
     ds.ffnet[series] = {}
     # site name
     ds.ffnet[series]["site_name"] = ds.globalattributes["site_name"]
+    # target series name
+    ds.ffnet[series]["target"] = cf[section][series]["FreUsingFFNET"]["target"]
     # list of drivers
-    ds.ffnet[series]["drivers"] = ast.literal_eval(cf[section][series]["RecoUsingFFNET"]["drivers"])
+    ds.ffnet[series]["drivers"] = ast.literal_eval(cf[section][series]["FreUsingFFNET"]["drivers"])
     # name of ffnet output series in ds
-    ds.ffnet[series]["output"] = cf[section][series]["RecoUsingFFNET"]["output"]
+    ds.ffnet[series]["output"] = cf[section][series]["FreUsingFFNET"]["output"]
     # results of best fit for plotting later on
     ds.ffnet[series]["results"] = {"startdate":[],"enddate":[],"No. points":[],"r":[],
                                   "Bias":[],"RMSE":[],"Frac Bias":[],"NMSE":[],
@@ -437,9 +525,278 @@ def rpFFNET_createdict(cf,ds,series):
         data,flag,attr = qcutils.MakeEmptySeries(ds,ds.ffnet[series]["output"])
         qcutils.CreateSeries(ds,ds.ffnet[series]["output"],data,Flag=flag,Attr=attr)
 
-def rpFFNET_done(rpFFNET_gui):
+def rpFFNET_done(ds,rpFFNET_gui):
     # destroy the FFNET GUI
     rpFFNET_gui.destroy()
+    if "ffnet" in dir(ds): del ds.ffnet
+
+def rpFFNET_initplot(**kwargs):
+    # set the margins, heights, widths etc
+    pd = {"margin_bottom":0.075,"margin_top":0.075,"margin_left":0.05,"margin_right":0.05,
+          "xy_height":0.20,"xy_width":0.20,"xyts_space":0.05,"xyts_space":0.05,
+          "ts_width":0.9}
+    # set the keyword arguments
+    for key, value in kwargs.iteritems():
+        pd[key] = value
+    # calculate bottom of the first time series and the height of the time series plots
+    pd["ts_bottom"] = pd["margin_bottom"]+pd["xy_height"]+pd["xyts_space"]
+    pd["ts_height"] = (1.0 - pd["margin_top"] - pd["ts_bottom"])/float(pd["nDrivers"]+1)
+    return pd
+
+def rpFFNET_main(ds,rpFFNET_gui,rpFFNET_info):
+    """
+    This is the main routine for running FFNET, an artifical neural network for estimating Reco.
+    """
+    startdate = rpFFNET_info["startdate"]
+    enddate = rpFFNET_info["enddate"]
+    log.info(" Estimating Reco using FFNET: "+startdate+" to "+enddate)
+    # read the control file again, this allows the contents of the control file to
+    # be changed with the FFNET GUI still displayed
+    cfname = ds.globalattributes["controlfile_name"]
+    cf = qcio.get_controlfilecontents(cfname,mode="quiet")
+    ffnet_series = ds.ffnet.keys()
+    for series in ffnet_series:
+        section = qcutils.get_cfsection(cf,series=series,mode="quiet")
+        if len(section)==0: continue
+        if series not in ds.series.keys(): continue
+        ds.ffnet[series]["target"] = cf[section][series]["FreUsingFFNET"]["target"]
+        ds.ffnet[series]["drivers"] = ast.literal_eval(cf[section][series]["FreUsingFFNET"]["drivers"])
+        ds.ffnet[series]["output"] = cf[section][series]["FreUsingFFNET"]["output"]
+    # get some useful things
+    site_name = ds.globalattributes["site_name"]
+    # get the time step and a local pointer to the datetime series
+    ts = ds.globalattributes["time_step"]
+    ldt = ds.series["DateTime"]["Data"]
+    xldt = ds.series["xlDateTime"]["Data"]
+    # get the start and end datetime indices
+    si = qcutils.GetDateIndex(ldt,startdate,ts=ts,default=0,match="exact")
+    ei = qcutils.GetDateIndex(ldt,enddate,ts=ts,default=-1,match="exact")
+    # check the start and end indices
+    if si >= ei:
+        log.error(" FreUsingFFNET: end datetime index ("+str(ei)+") smaller that start ("+str(si)+")")
+        return
+    if si==0 and ei==-1:
+        log.error(" FreUsingFFNET: no start and end datetime specified, using all data")
+        nRecs = int(ds.globalattributes["nc_nrecs"])
+    else:
+        nRecs = ei - si + 1
+    # loop over the series to be gap filled using ffnet
+    # close any open plot windows
+    if len(plt.get_fignums())!=0:
+        for i in plt.get_fignums(): plt.close(i)
+    fig_num = 0
+    #fignum_list = plt.get_fignums()
+    #fig_num = fignum_list[-1]
+    for series in ffnet_series:
+        ds.ffnet[series]["results"]["startdate"].append(xldt[si])
+        ds.ffnet[series]["results"]["enddate"].append(xldt[ei])
+        target = ds.ffnet[series]["target"]
+        d,f,a = qcutils.GetSeriesasMA(ds,target,si=si,ei=ei)
+        if numpy.ma.count(d)<rpFFNET_info["min_points"]:
+            log.error("rpFFNET: Less than "+str(rpFFNET_info["min_points"])+" points available for series "+series+" ...")
+            ds.ffnet[series]["results"]["No. points"].append(float(0))
+            results_list = ds.ffnet[series]["results"].keys()
+            for item in ["startdate","enddate","No. points"]:
+                if item in results_list: results_list.remove(item)
+            for item in results_list:
+                ds.ffnet[series]["results"][item].append(float(c.missing_value))
+            continue
+        drivers = ds.ffnet[series]["drivers"]
+        ndrivers = len(drivers)
+        output = ds.ffnet[series]["output"]
+        # prepare the input and target data for training
+        Reco,f,a = qcutils.GetSeriesasMA(ds,target)
+        mask = numpy.ma.getmask(Reco)
+        for val in drivers:
+            d,f,a = qcutils.GetSeriesasMA(ds,val)
+            mask = numpy.ma.mask_or(mask,d.mask)
+        Reco.mask = mask
+        nRecs = numpy.ma.count(Reco)
+        data_nm = numpy.empty((nRecs,len(drivers)+1))
+        for idx,val in enumerate(drivers):
+            d,f,a = qcutils.GetSeriesasMA(ds,val)
+            d.mask = mask
+            data_nm[:,idx] = numpy.ma.compressed(d)
+        data_nm[:,idx+1] = numpy.ma.compressed(Reco)
+        input_train = data_nm[:,0:idx+1]
+        target_train = data_nm[:,idx+1]
+        # design the network
+        arch = (ndrivers,int(rpFFNET_info["hidden"]),1)
+        conec = ffnet.mlgraph(arch,biases=True)
+        net = ffnet.ffnet(conec)
+        # train the network
+        if rpFFNET_info["train_type"].lower()=="tnc":
+            net.train_tnc(input_train,target_train)
+        elif rpFFNET_info["train_type"].lower()=="bfgs":
+            net.train_bfgs(input_train,target_train)
+        elif rpFFNET_info["train_type"].lower()=="cg":
+            net.train_cg(input_train,target_train)
+        elif rpFFNET_info["train_type"].lower()=="genetic":
+            net.train_genetic(input_train,target_train)
+        elif rpFFNET_info["train_type"].lower()=="back":
+            net.train_momentum(input_train,target_train)
+        elif rpFFNET_info["train_type"].lower()=="rprop":
+            net.train_rprop(input_train,target_train)
+        else:
+            raise Exception("rpFFNET: unrecognised FFNET training option")
+        #output,regress=net.test(input_train,target_train)
+        # get the predictions
+        input_predict = numpy.empty((len(Reco),len(drivers)))
+        for idx,val in enumerate(drivers):
+            d,f,a = qcutils.GetSeries(ds,val)
+            input_predict[:,idx] = d[:]
+        output_predict = net.call(input_predict)
+        if ei==-1:
+            ds.series[output]['Data'][si:] = output_predict[:,0]
+            ds.series[output]['Flag'][si:] = numpy.int32(30)
+        else:
+            ds.series[output]['Data'][si:ei+1] = output_predict[:,0]
+            ds.series[output]['Flag'][si:ei+1] = numpy.int32(30)
+        # set the attributes
+        ds.series[output]["Attr"]["units"] = ds.series[target]["Attr"]["units"]
+        if "modeled by FFNET" not in ds.series[output]["Attr"]["long_name"]:
+            ds.series[output]["Attr"]["long_name"] = "Ecosystem respiration modelled by FFNET"
+        # plot the results
+        fig_num = fig_num + 1
+        title = site_name+" : "+series+" estimated using FFNET"
+        pd = rpFFNET_initplot(site_name=site_name,label=target,fig_num=fig_num,title=title,
+                             nDrivers=len(drivers))
+        rpFFNET_plot(pd,ds,series,drivers,target,output,rpFFNET_info,si=si,ei=ei)
+    if 'FreUsingFFNET' not in ds.globalattributes['Functions']:
+        ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', FreUsingFFNET'
+
+def rpFFNET_plot(pd,ds,series,driverlist,targetlabel,outputlabel,rpFFNET_info,si=0,ei=-1):
+    """ Plot the results of the FFNET run. """
+    # get the time step
+    ts = int(ds.globalattributes['time_step'])
+    # get a local copy of the datetime series
+    xdt = numpy.array(ds.series['DateTime']['Data'][si:ei+1])
+    Hdh,f,a = qcutils.GetSeriesasMA(ds,'Hdh',si=si,ei=ei)
+    # get the observed and modelled values
+    obs,f,a = qcutils.GetSeriesasMA(ds,targetlabel,si=si,ei=ei)
+    mod,f,a = qcutils.GetSeriesasMA(ds,outputlabel,si=si,ei=ei)
+    # make the figure
+    plt.ion()
+    fig = plt.figure(pd["fig_num"],figsize=(13,9))
+    fig.clf()
+    fig.canvas.set_window_title(targetlabel)
+    plt.figtext(0.5,0.95,pd["title"],ha='center',size=16)
+    # XY plot of the diurnal variation
+    rect1 = [0.10,pd["margin_bottom"],pd["xy_width"],pd["xy_height"]]
+    ax1 = plt.axes(rect1)
+    # get the diurnal stats of the observations
+    mask = numpy.ma.mask_or(obs.mask,mod.mask)
+    obs_mor = numpy.ma.array(obs,mask=mask)
+    Hr1,Av1,Sd1,Mx1,Mn1 = rp_getdiurnalstats(Hdh,obs_mor,ts)
+    ax1.plot(Hr1,Av1,'b-',label="Obs")
+    # get the diurnal stats of all FFNET predictions
+    mod_mor = numpy.ma.array(mod,mask=mask)
+    #Hr2,Av2,Sd2,Mx2,Mn2 = rp_getdiurnalstats(Hdh,mod_mor,ts)
+    Hr2,Av2,Sd2,Mx2,Mn2 = rp_getdiurnalstats(Hdh,mod,ts)
+    ax1.plot(Hr2,Av2,'r-',label="FFNET(all)")
+    if numpy.ma.count_masked(obs)!=0:
+        index = numpy.ma.where(obs.mask==False)[0]
+        # get the diurnal stats of FFNET predictions when observations are present
+        Hr3,Av3,Sd3,Mx3,Mn3=rp_getdiurnalstats(Hdh[index],mod_mor[index],ts)
+        ax1.plot(Hr3,Av3,'g-',label="FFNET(obs)")
+    plt.xlim(0,24)
+    plt.xticks([0,6,12,18,24])
+    ax1.set_ylabel(targetlabel)
+    ax1.set_xlabel('Hour')
+    ax1.legend(loc='upper right',frameon=False,prop={'size':8})
+    # XY plot of the 30 minute data
+    rect2 = [0.40,pd["margin_bottom"],pd["xy_width"],pd["xy_height"]]
+    ax2 = plt.axes(rect2)
+    ax2.plot(mod,obs,'b.')
+    ax2.set_ylabel(targetlabel+'_obs')
+    ax2.set_xlabel(targetlabel+'_FFNET')
+    # plot the best fit line
+    coefs = numpy.ma.polyfit(numpy.ma.copy(mod),numpy.ma.copy(obs),1)
+    xfit = numpy.ma.array([numpy.ma.minimum(mod),numpy.ma.maximum(mod)])
+    yfit = numpy.polyval(coefs,xfit)
+    r = numpy.ma.corrcoef(mod,obs)
+    ax2.plot(xfit,yfit,'r--',linewidth=3)
+    eqnstr = 'y = %.3fx + %.3f, r = %.3f'%(coefs[0],coefs[1],r[0][1])
+    ax2.text(0.5,0.875,eqnstr,fontsize=8,horizontalalignment='center',transform=ax2.transAxes)
+    # write the fit statistics to the plot
+    numpoints = numpy.ma.count(obs)
+    numfilled = numpy.ma.count(mod)-numpy.ma.count(obs)
+    diff = mod - obs
+    bias = numpy.ma.average(diff)
+    ds.ffnet[series]["results"]["Bias"].append(bias)
+    rmse = numpy.ma.sqrt(numpy.ma.mean((obs-mod)*(obs-mod)))
+    plt.figtext(0.65,0.225,'No. points')
+    plt.figtext(0.75,0.225,str(numpoints))
+    ds.ffnet[series]["results"]["No. points"].append(numpoints)
+    plt.figtext(0.65,0.200,'Hidden nodes')
+    plt.figtext(0.75,0.200,str(rpFFNET_info["hidden"]))
+    plt.figtext(0.65,0.175,'Training')
+    plt.figtext(0.75,0.175,str(rpFFNET_info["iterations"]))
+    plt.figtext(0.65,0.150,'Training type')
+    plt.figtext(0.75,0.150,str(rpFFNET_info["train_type"]))
+    #plt.figtext(0.65,0.125,'Learning rate')
+    #plt.figtext(0.75,0.125,str(rpSOLO_gui.learningrateEntry.get()))
+    #plt.figtext(0.65,0.100,'Iterations')
+    #plt.figtext(0.75,0.100,str(rpSOLO_gui.iterationsEntry.get()))
+    plt.figtext(0.815,0.225,'No. filled')
+    plt.figtext(0.915,0.225,str(numfilled))
+    plt.figtext(0.815,0.200,'Slope')
+    plt.figtext(0.915,0.200,str(qcutils.round2sig(coefs[0],sig=4)))
+    ds.ffnet[series]["results"]["m_ols"].append(coefs[0])
+    plt.figtext(0.815,0.175,'Offset')
+    plt.figtext(0.915,0.175,str(qcutils.round2sig(coefs[1],sig=4)))
+    ds.ffnet[series]["results"]["b_ols"].append(coefs[1])
+    plt.figtext(0.815,0.150,'r')
+    plt.figtext(0.915,0.150,str(qcutils.round2sig(r[0][1],sig=4)))
+    ds.ffnet[series]["results"]["r"].append(r[0][1])
+    plt.figtext(0.815,0.125,'RMSE')
+    plt.figtext(0.915,0.125,str(qcutils.round2sig(rmse,sig=4)))
+    ds.ffnet[series]["results"]["RMSE"].append(rmse)
+    var_obs = numpy.ma.var(obs)
+    ds.ffnet[series]["results"]["Var (obs)"].append(var_obs)
+    var_mod = numpy.ma.var(mod)
+    ds.ffnet[series]["results"]["Var (FFNET)"].append(var_mod)
+    ds.ffnet[series]["results"]["Var ratio"].append(var_obs/var_mod)
+    ds.ffnet[series]["results"]["Avg (obs)"].append(numpy.ma.average(obs))
+    ds.ffnet[series]["results"]["Avg (FFNET)"].append(numpy.ma.average(mod))    
+    # time series of drivers and target
+    ts_axes = []
+    rect = [pd["margin_left"],pd["ts_bottom"],pd["ts_width"],pd["ts_height"]]
+    ts_axes.append(plt.axes(rect))
+    ts_axes[0].plot(xdt,obs,'b.',xdt,mod,'r-')
+    ts_axes[0].set_xlim(xdt[0],xdt[-1])
+    TextStr = targetlabel+'_obs ('+ds.series[targetlabel]['Attr']['units']+')'
+    ts_axes[0].text(0.05,0.85,TextStr,color='b',horizontalalignment='left',transform=ts_axes[0].transAxes)
+    TextStr = outputlabel+'('+ds.series[outputlabel]['Attr']['units']+')'
+    ts_axes[0].text(0.85,0.85,TextStr,color='r',horizontalalignment='right',transform=ts_axes[0].transAxes)
+    for ThisOne,i in zip(driverlist,range(1,pd["nDrivers"]+1)):
+        this_bottom = pd["ts_bottom"] + i*pd["ts_height"]
+        rect = [pd["margin_left"],this_bottom,pd["ts_width"],pd["ts_height"]]
+        ts_axes.append(plt.axes(rect,sharex=ts_axes[0]))
+        data,flag,attr = qcutils.GetSeriesasMA(ds,ThisOne,si=si,ei=ei)
+        ts_axes[i].plot(xdt,data)
+        plt.setp(ts_axes[i].get_xticklabels(),visible=False)
+        TextStr = ThisOne+'('+ds.series[ThisOne]['Attr']['units']+')'
+        ts_axes[i].text(0.05,0.85,TextStr,color='b',horizontalalignment='left',transform=ts_axes[i].transAxes)
+    # save a hard copy of the plot
+    sdt = xdt[0].strftime("%Y%m%d")
+    edt = xdt[-1].strftime("%Y%m%d")
+    figname = "plots/"+pd["site_name"].replace(" ","")+"_FFNET_"+pd["label"]
+    figname = figname+"_"+sdt+"_"+edt+'.png'
+    fig.savefig(figname,format='png')
+    # draw the plot on the screen
+    plt.draw()
+    # turn off interactive plotting
+    plt.ioff()
+    
+def rpFFNET_progress(rpFFNET_gui,text):
+    """
+        Update progress message in FFNET GUI
+        """
+    rpFFNET_gui.progress.destroy()
+    rpFFNET_gui.progress = Tkinter.Label(rpFFNET_gui, text=text)
+    rpFFNET_gui.progress.grid(row=rpFFNET_gui.progress_row,column=0,columnspan=4,sticky="W")
+    rpFFNET_gui.update()
 
 def rpFFNET_run(ds,rpFFNET_gui,rpFFNET_info):
     # populate the rpFFNET_info dictionary with things that will be useful
@@ -509,269 +866,57 @@ def rpFFNET_run(ds,rpFFNET_gui,rpFFNET_info):
     elif rpFFNET_gui.peropt.get()==4:
         pass
 
-def rpFFNET_initplot(**kwargs):
-    # set the margins, heights, widths etc
-    pd = {"margin_bottom":0.075,"margin_top":0.075,"margin_left":0.05,"margin_right":0.05,
-          "xy_height":0.20,"xy_width":0.20,"xyts_space":0.05,"xyts_space":0.05,
-          "ts_width":0.9}
-    # set the keyword arguments
-    for key, value in kwargs.iteritems():
-        pd[key] = value
-    # calculate bottom of the first time series and the height of the time series plots
-    pd["ts_bottom"] = pd["margin_bottom"]+pd["xy_height"]+pd["xyts_space"]
-    pd["ts_height"] = (1.0 - pd["margin_top"] - pd["ts_bottom"])/float(pd["nDrivers"]+1)
-    return pd
+def rpGPP_createdict(cf,ds,series):
+    """ Creates a dictionary in ds to hold information about calculating GPP."""
+    # create the ffnet directory in the data structure
+    if "gpp" not in dir(ds): ds.gpp = {}
+    # create the dictionary keys for this series
+    ds.gpp[series] = {}
+    # output series name
+    ds.gpp[series]["output"] = series
+    # CO2 flux
+    ds.gpp[series]["NEE"] = cf["GPP"][series]["NEE"]
+    # ecosystem respiration
+    ds.gpp[series]["Fre"] = cf["GPP"][series]["Fre"]
+    # create an empty series in ds if the output series doesn't exist yet
+    if ds.gpp[series]["output"] not in ds.series.keys():
+        data,flag,attr = qcutils.MakeEmptySeries(ds,ds.gpp[series]["output"])
+        qcutils.CreateSeries(ds,ds.gpp[series]["output"],data,Flag=flag,Attr=attr)
 
-def rpFFNET_main(ds,rpFFNET_gui,rpFFNET_info):
-    """
-    This is the main routine for running FFNET, an artifical neural network for estimating Reco.
-    """
-    startdate = rpFFNET_info["startdate"]
-    enddate = rpFFNET_info["enddate"]
-    log.info(" Estimating Reco using FFNET: "+startdate+" to "+enddate)
-    # read the control file again, this allows the contents of the control file to
-    # be changed with the FFNET GUI still displayed
-    cfname = ds.globalattributes["controlfile_name"]
-    cf = qcio.get_controlfilecontents(cfname,mode="quiet")
-    ffnet_series = cf["Variables"].keys()
-    for series in ffnet_series:
-        section = qcutils.get_cfsection(cf,series=series,mode="quiet")
-        if len(section)==0: continue
-        if series not in ds.series.keys(): continue
-        ds.ffnet[series]["drivers"] = ast.literal_eval(cf[section][series]["RecoUsingFFNET"]["drivers"])
-        ds.ffnet[series]["output"] = cf[section][series]["RecoUsingFFNET"]["output"]
-    # get some useful things
-    site_name = ds.globalattributes["site_name"]
-    # get the time step and a local pointer to the datetime series
-    ts = ds.globalattributes["time_step"]
-    ldt = ds.series["DateTime"]["Data"]
-    xldt = ds.series["xlDateTime"]["Data"]
-    # get the start and end datetime indices
-    si = qcutils.GetDateIndex(ldt,startdate,ts=ts,default=0,match="exact")
-    ei = qcutils.GetDateIndex(ldt,enddate,ts=ts,default=-1,match="exact")
-    # check the start and end indices
-    if si >= ei:
-        log.error(" RecoUsingFFNET: end datetime index ("+str(ei)+") smaller that start ("+str(si)+")")
-        return
-    if si==0 and ei==-1:
-        log.error(" RecoUsingFFNET: no start and end datetime specified, using all data")
-        nRecs = int(ds.globalattributes["nc_nrecs"])
-    else:
-        nRecs = ei - si + 1
-    # loop over the series to be gap filled using ffnet
-    # close any open plot windows
-    if len(plt.get_fignums())!=0:
-        for i in plt.get_fignums(): plt.close(i)
-    fig_num = 0
-    for series in ffnet_series:
-        ds.ffnet[series]["results"]["startdate"].append(xldt[si])
-        ds.ffnet[series]["results"]["enddate"].append(xldt[ei])
-        d,f,a = qcutils.GetSeriesasMA(ds,series,si=si,ei=ei)
-        if numpy.ma.count(d)<rpFFNET_info["min_points"]:
-            log.error("rpFFNET: Less than "+str(rpFFNET_info["min_points"])+" points available for series "+series+" ...")
-            ds.ffnet[series]["results"]["No. points"].append(float(0))
-            results_list = ds.ffnet[series]["results"].keys()
-            for item in ["startdate","enddate","No. points"]:
-                if item in results_list: results_list.remove(item)
-            for item in results_list:
-                ds.ffnet[series]["results"][item].append(float(c.missing_value))
-            continue
-        drivers = ds.ffnet[series]["drivers"]
-        ndrivers = len(drivers)
-        outputlabel = ds.ffnet[series]["output"]
-        # prepare the input and target data for training
-        Reco,f,a = qcutils.GetSeriesasMA(ds,"Reco")
-        mask = numpy.ma.getmask(Reco)
-        for val in drivers:
-            d,f,a = qcutils.GetSeriesasMA(ds,val)
-            mask = numpy.ma.mask_or(mask,d.mask)
-        Reco.mask = mask
-        nRecs = numpy.ma.count(Reco)
-        data_nm = numpy.empty((nRecs,len(drivers)+1))
-        for idx,val in enumerate(drivers):
-            d,f,a = qcutils.GetSeriesasMA(ds,val)
-            d.mask = mask
-            data_nm[:,idx] = numpy.ma.compressed(d)
-        data_nm[:,idx+1] = numpy.ma.compressed(Reco)
-        input_train = data_nm[:,0:idx+1]
-        target_train = data_nm[:,idx+1]
-        # design the network
-        arch = (ndrivers,int(rpFFNET_info["hidden"]),1)
-        conec = ffnet.mlgraph(arch,biases=True)
-        net = ffnet.ffnet(conec)
-        # train the network
-        if rpFFNET_info["train_type"].lower()=="tnc":
-            net.train_tnc(input_train,target_train)
-        elif rpFFNET_info["train_type"].lower()=="bfgs":
-            net.train_bfgs(input_train,target_train)
-        elif rpFFNET_info["train_type"].lower()=="cg":
-            net.train_cg(input_train,target_train)
-        elif rpFFNET_info["train_type"].lower()=="genetic":
-            net.train_genetic(input_train,target_train)
-        elif rpFFNET_info["train_type"].lower()=="back":
-            net.train_momentum(input_train,target_train)
-        elif rpFFNET_info["train_type"].lower()=="rprop":
-            net.train_rprop(input_train,target_train)
-        else:
-            raise Exception("rpFFNET: unrecognised FFNET training option")
-        #output,regress=net.test(input_train,target_train)
-        # get the predictions
-        input_predict = numpy.empty((len(Reco),len(drivers)))
-        for idx,val in enumerate(drivers):
-            d,f,a = qcutils.GetSeries(ds,val)
-            input_predict[:,idx] = d[:]
-        output = net.call(input_predict)
-        if ei==-1:
-            ds.series[outputlabel]['Data'][si:] = output[:,0]
-            ds.series[outputlabel]['Flag'][si:] = numpy.int32(30)
-        else:
-            ds.series[outputlabel]['Data'][si:ei+1] = output[:,0]
-            ds.series[outputlabel]['Flag'][si:ei+1] = numpy.int32(30)
-        # set the attributes
-        ds.series[outputlabel]["Attr"]["units"] = ds.series[series]["Attr"]["units"]
-        if "modeled by SOLO" not in ds.series[outputlabel]["Attr"]["long_name"]:
-            ds.series[outputlabel]["Attr"]["long_name"] = ds.series[outputlabel]["Attr"]["long_name"]+", modeled by FFNET"
-        # plot the results
-        fig_num = fig_num + 1
-        title = site_name+" : "+series+" estimated using FFNET"
-        pd = rpFFNET_initplot(site_name=site_name,label=series,fig_num=fig_num,title=title,
-                             nDrivers=len(drivers))
-        rpFFNET_plot(pd,ds,drivers,series,outputlabel,rpFFNET_info,si=si,ei=ei)
-    if 'RecoUsingFFNet' not in ds.globalattributes['Functions']:
-        ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', RecoUsingFFNET'
+def rpMerge_createdict(cf,ds,series):
+    """ Creates a dictionary in ds to hold information about the merging of gap filled
+        and tower data."""
+    # get the section of the control file containing the series
+    section = qcutils.get_cfsection(cf,series=series,mode="quiet")
+    # create the ffnet directory in the data structure
+    if "merge" not in dir(ds): ds.merge = {}
+    # create the dictionary keys for this series
+    ds.merge[series] = {}
+    # output series name
+    ds.merge[series]["output"] = series
+    # source
+    ds.merge[series]["source"] = ast.literal_eval(cf[section][series]["MergeSeries"]["Source"])
+    # create an empty series in ds if the output series doesn't exist yet
+    if ds.merge[series]["output"] not in ds.series.keys():
+        data,flag,attr = qcutils.MakeEmptySeries(ds,ds.merge[series]["output"])
+        qcutils.CreateSeries(ds,ds.merge[series]["output"],data,Flag=flag,Attr=attr)
 
-def rpFFNET_plot(pd,ds,driverlist,targetlabel,outputlabel,rpFFNET_info,si=0,ei=-1):
-    """ Plot the results of the FFNET run. """
-    # get the time step
-    ts = int(ds.globalattributes['time_step'])
-    # get a local copy of the datetime series
-    xdt = numpy.array(ds.series['DateTime']['Data'][si:ei+1])
-    Hdh,f,a = qcutils.GetSeriesasMA(ds,'Hdh',si=si,ei=ei)
-    # get the observed and modelled values
-    obs,f,a = qcutils.GetSeriesasMA(ds,targetlabel,si=si,ei=ei)
-    mod,f,a = qcutils.GetSeriesasMA(ds,outputlabel,si=si,ei=ei)
-    # make the figure
-    plt.ion()
-    fig = plt.figure(pd["fig_num"],figsize=(13,9))
-    fig.clf()
-    fig.canvas.set_window_title(targetlabel)
-    plt.figtext(0.5,0.95,pd["title"],ha='center',size=16)
-    # XY plot of the diurnal variation
-    rect1 = [0.10,pd["margin_bottom"],pd["xy_width"],pd["xy_height"]]
-    ax1 = plt.axes(rect1)
-    # get the diurnal stats of the observations
-    mask = numpy.ma.mask_or(obs.mask,mod.mask)
-    obs_mor = numpy.ma.array(obs,mask=mask)
-    Hr1,Av1,Sd1,Mx1,Mn1 = rp_getdiurnalstats(Hdh,obs_mor,ts)
-    ax1.plot(Hr1,Av1,'b-',label="Obs")
-    # get the diurnal stats of all FFNET predictions
-    mod_mor = numpy.ma.array(mod,mask=mask)
-    #Hr2,Av2,Sd2,Mx2,Mn2 = rp_getdiurnalstats(Hdh,mod_mor,ts)
-    Hr2,Av2,Sd2,Mx2,Mn2 = rp_getdiurnalstats(Hdh,mod,ts)
-    ax1.plot(Hr2,Av2,'r-',label="FFNET(all)")
-    if numpy.ma.count_masked(obs)!=0:
-        index = numpy.ma.where(obs.mask==False)[0]
-        # get the diurnal stats of FFNET predictions when observations are present
-        Hr3,Av3,Sd3,Mx3,Mn3=rp_getdiurnalstats(Hdh[index],mod_mor[index],ts)
-        ax1.plot(Hr3,Av3,'g-',label="FFNET(obs)")
-    plt.xlim(0,24)
-    plt.xticks([0,6,12,18,24])
-    ax1.set_ylabel(targetlabel)
-    ax1.set_xlabel('Hour')
-    ax1.legend(loc='upper right',frameon=False,prop={'size':8})
-    # XY plot of the 30 minute data
-    rect2 = [0.40,pd["margin_bottom"],pd["xy_width"],pd["xy_height"]]
-    ax2 = plt.axes(rect2)
-    ax2.plot(mod,obs,'b.')
-    ax2.set_ylabel(targetlabel+'_obs')
-    ax2.set_xlabel(targetlabel+'_FFNET')
-    # plot the best fit line
-    coefs = numpy.ma.polyfit(numpy.ma.copy(mod),numpy.ma.copy(obs),1)
-    xfit = numpy.ma.array([numpy.ma.minimum(mod),numpy.ma.maximum(mod)])
-    yfit = numpy.polyval(coefs,xfit)
-    r = numpy.ma.corrcoef(mod,obs)
-    ax2.plot(xfit,yfit,'r--',linewidth=3)
-    eqnstr = 'y = %.3fx + %.3f, r = %.3f'%(coefs[0],coefs[1],r[0][1])
-    ax2.text(0.5,0.875,eqnstr,fontsize=8,horizontalalignment='center',transform=ax2.transAxes)
-    # write the fit statistics to the plot
-    numpoints = numpy.ma.count(obs)
-    numfilled = numpy.ma.count(mod)-numpy.ma.count(obs)
-    diff = mod - obs
-    bias = numpy.ma.average(diff)
-    ds.ffnet[targetlabel]["results"]["Bias"].append(bias)
-    rmse = numpy.ma.sqrt(numpy.ma.mean((obs-mod)*(obs-mod)))
-    plt.figtext(0.65,0.225,'No. points')
-    plt.figtext(0.75,0.225,str(numpoints))
-    ds.ffnet[targetlabel]["results"]["No. points"].append(numpoints)
-    plt.figtext(0.65,0.200,'Hidden nodes')
-    plt.figtext(0.75,0.200,str(rpFFNET_info["hidden"]))
-    plt.figtext(0.65,0.175,'Training')
-    plt.figtext(0.75,0.175,str(rpFFNET_info["iterations"]))
-    plt.figtext(0.65,0.150,'Training type')
-    plt.figtext(0.75,0.150,str(rpFFNET_info["train_type"]))
-    #plt.figtext(0.65,0.125,'Learning rate')
-    #plt.figtext(0.75,0.125,str(rpSOLO_gui.learningrateEntry.get()))
-    #plt.figtext(0.65,0.100,'Iterations')
-    #plt.figtext(0.75,0.100,str(rpSOLO_gui.iterationsEntry.get()))
-    plt.figtext(0.815,0.225,'No. filled')
-    plt.figtext(0.915,0.225,str(numfilled))
-    plt.figtext(0.815,0.200,'Slope')
-    plt.figtext(0.915,0.200,str(qcutils.round2sig(coefs[0],sig=4)))
-    ds.ffnet[targetlabel]["results"]["m_ols"].append(coefs[0])
-    plt.figtext(0.815,0.175,'Offset')
-    plt.figtext(0.915,0.175,str(qcutils.round2sig(coefs[1],sig=4)))
-    ds.ffnet[targetlabel]["results"]["b_ols"].append(coefs[1])
-    plt.figtext(0.815,0.150,'r')
-    plt.figtext(0.915,0.150,str(qcutils.round2sig(r[0][1],sig=4)))
-    ds.ffnet[targetlabel]["results"]["r"].append(r[0][1])
-    plt.figtext(0.815,0.125,'RMSE')
-    plt.figtext(0.915,0.125,str(qcutils.round2sig(rmse,sig=4)))
-    ds.ffnet[targetlabel]["results"]["RMSE"].append(rmse)
-    var_obs = numpy.ma.var(obs)
-    ds.ffnet[targetlabel]["results"]["Var (obs)"].append(var_obs)
-    var_mod = numpy.ma.var(mod)
-    ds.ffnet[targetlabel]["results"]["Var (FFNET)"].append(var_mod)
-    ds.ffnet[targetlabel]["results"]["Var ratio"].append(var_obs/var_mod)
-    ds.ffnet[targetlabel]["results"]["Avg (obs)"].append(numpy.ma.average(obs))
-    ds.ffnet[targetlabel]["results"]["Avg (FFNET)"].append(numpy.ma.average(mod))    
-    # time series of drivers and target
-    ts_axes = []
-    rect = [pd["margin_left"],pd["ts_bottom"],pd["ts_width"],pd["ts_height"]]
-    ts_axes.append(plt.axes(rect))
-    ts_axes[0].plot(xdt,obs,'b.',xdt,mod,'r-')
-    ts_axes[0].set_xlim(xdt[0],xdt[-1])
-    TextStr = targetlabel+'_obs ('+ds.series[targetlabel]['Attr']['units']+')'
-    ts_axes[0].text(0.05,0.85,TextStr,color='b',horizontalalignment='left',transform=ts_axes[0].transAxes)
-    TextStr = outputlabel+'('+ds.series[outputlabel]['Attr']['units']+')'
-    ts_axes[0].text(0.85,0.85,TextStr,color='r',horizontalalignment='right',transform=ts_axes[0].transAxes)
-    for ThisOne,i in zip(driverlist,range(1,pd["nDrivers"]+1)):
-        this_bottom = pd["ts_bottom"] + i*pd["ts_height"]
-        rect = [pd["margin_left"],this_bottom,pd["ts_width"],pd["ts_height"]]
-        ts_axes.append(plt.axes(rect,sharex=ts_axes[0]))
-        data,flag,attr = qcutils.GetSeriesasMA(ds,ThisOne,si=si,ei=ei)
-        ts_axes[i].plot(xdt,data)
-        plt.setp(ts_axes[i].get_xticklabels(),visible=False)
-        TextStr = ThisOne+'('+ds.series[ThisOne]['Attr']['units']+')'
-        ts_axes[i].text(0.05,0.85,TextStr,color='b',horizontalalignment='left',transform=ts_axes[i].transAxes)
-    # save a hard copy of the plot
-    sdt = xdt[0].strftime("%Y%m%d")
-    edt = xdt[-1].strftime("%Y%m%d")
-    figname = "plots/"+pd["site_name"].replace(" ","")+"_FFNET_"+pd["label"]
-    figname = figname+"_"+sdt+"_"+edt+'.png'
-    fig.savefig(figname,format='png')
-    # draw the plot on the screen
-    plt.draw()
-    # turn off interactive plotting
-    plt.ioff()
-    
-def rpFFNET_progress(rpFFNET_gui,text):
-    """
-        Update progress message in FFNET GUI
-        """
-    rpFFNET_gui.progress.destroy()
-    rpFFNET_gui.progress = Tkinter.Label(rpFFNET_gui, text=text)
-    rpFFNET_gui.progress.grid(row=rpFFNET_gui.progress_row,column=0,columnspan=4,sticky="W")
-    rpFFNET_gui.update()
+def rpNEE_createdict(cf,ds,series):
+    """ Creates a dictionary in ds to hold information about calculating NEE."""
+    # create the ffnet directory in the data structure
+    if "nee" not in dir(ds): ds.nee = {}
+    # create the dictionary keys for this series
+    ds.nee[series] = {}
+    # output series name
+    ds.nee[series]["output"] = series
+    # CO2 flux
+    ds.nee[series]["Fc"] = cf["NEE"][series]["Fc"]
+    # ecosystem respiration
+    ds.nee[series]["Fre"] = cf["NEE"][series]["Fre"]
+    # create an empty series in ds if the output series doesn't exist yet
+    if ds.nee[series]["output"] not in ds.series.keys():
+        data,flag,attr = qcutils.MakeEmptySeries(ds,ds.nee[series]["output"])
+        qcutils.CreateSeries(ds,ds.nee[series]["output"],data,Flag=flag,Attr=attr)
 
 def rpSOLO_createdict(cf,ds,series):
     """ Creates a dictionary in ds to hold information about the SOLO data used
@@ -788,10 +933,12 @@ def rpSOLO_createdict(cf,ds,series):
     ds.solo[series] = {}
     # site name
     ds.solo[series]["site_name"] = ds.globalattributes["site_name"]
+    # target series name
+    ds.solo[series]["target"] = cf[section][series]["FreUsingSOLO"]["target"]
     # list of drivers
-    ds.solo[series]["drivers"] = ast.literal_eval(cf[section][series]["RecoUsingSOLO"]["drivers"])
+    ds.solo[series]["drivers"] = ast.literal_eval(cf[section][series]["FreUsingSOLO"]["drivers"])
     # name of SOLO output series in ds
-    ds.solo[series]["output"] = cf[section][series]["RecoUsingSOLO"]["output"]
+    ds.solo[series]["output"] = cf[section][series]["FreUsingSOLO"]["output"]
     # results of best fit for plotting later on
     ds.solo[series]["results"] = {"startdate":[],"enddate":[],"No. points":[],"r":[],
                                   "Bias":[],"RMSE":[],"Frac Bias":[],"NMSE":[],
@@ -803,9 +950,10 @@ def rpSOLO_createdict(cf,ds,series):
         data,flag,attr = qcutils.MakeEmptySeries(ds,ds.solo[series]["output"])
         qcutils.CreateSeries(ds,ds.solo[series]["output"],data,Flag=flag,Attr=attr)
 
-def rpSOLO_done(rpSOLO_gui):
+def rpSOLO_done(ds,rpSOLO_gui):
     # destroy the SOLO GUI
     rpSOLO_gui.destroy()
+    if "solo" in dir(ds): del ds.solo
 
 def rpSOLO_initplot(**kwargs):
     # set the margins, heights, widths etc
@@ -831,13 +979,14 @@ def rpSOLO_main(ds,rpSOLO_gui,rpSOLO_info):
     # be changed with the SOLO GUI still displayed
     cfname = ds.globalattributes["controlfile_name"]
     cf = qcio.get_controlfilecontents(cfname,mode="quiet")
-    solo_series = cf["Variables"].keys()
+    solo_series = ds.solo.keys()
     for series in solo_series:
         section = qcutils.get_cfsection(cf,series=series,mode="quiet")
         if len(section)==0: continue
         if series not in ds.series.keys(): continue
-        ds.solo[series]["drivers"] = ast.literal_eval(cf[section][series]["RecoUsingSOLO"]["drivers"])
-        ds.solo[series]["output"] = cf[section][series]["RecoUsingSOLO"]["output"]
+        ds.solo[series]["target"] = cf[section][series]["FreUsingSOLO"]["target"]
+        ds.solo[series]["drivers"] = ast.literal_eval(cf[section][series]["FreUsingSOLO"]["drivers"])
+        ds.solo[series]["output"] = cf[section][series]["FreUsingSOLO"]["output"]
     # get some useful things
     site_name = ds.globalattributes["site_name"]
     # get the time step and a local pointer to the datetime series
@@ -849,10 +998,10 @@ def rpSOLO_main(ds,rpSOLO_gui,rpSOLO_info):
     ei = qcutils.GetDateIndex(ldt,enddate,ts=ts,default=-1,match="exact")
     # check the start and end indices
     if si >= ei:
-        log.error(" RecoUsingSOLO: end datetime index ("+str(ei)+") smaller that start ("+str(si)+")")
+        log.error(" FreUsingSOLO: end datetime index ("+str(ei)+") smaller that start ("+str(si)+")")
         return
     if si==0 and ei==-1:
-        log.error(" RecoUsingSOLO: no start and end datetime specified, using all data")
+        log.error(" FreUsingSOLO: no start and end datetime specified, using all data")
         nRecs = int(ds.globalattributes["nc_nrecs"])
     else:
         nRecs = ei - si + 1
@@ -864,9 +1013,10 @@ def rpSOLO_main(ds,rpSOLO_gui,rpSOLO_info):
     for series in solo_series:
         ds.solo[series]["results"]["startdate"].append(xldt[si])
         ds.solo[series]["results"]["enddate"].append(xldt[ei])
-        d,f,a = qcutils.GetSeriesasMA(ds,series,si=si,ei=ei)
+        target = ds.solo[series]["target"]
+        d,f,a = qcutils.GetSeriesasMA(ds,target,si=si,ei=ei)
         if numpy.ma.count(d)<rpSOLO_info["min_points"]:
-            log.error("rpSOLO: Less than "+str(rpSOLO_info["min_points"])+" points available for series "+series+" ...")
+            log.error("rpSOLO: Less than "+str(rpSOLO_info["min_points"])+" points available for series "+target+" ...")
             ds.solo[series]["results"]["No. points"].append(float(0))
             results_list = ds.solo[series]["results"].keys()
             for item in ["startdate","enddate","No. points"]:
@@ -881,26 +1031,26 @@ def rpSOLO_main(ds,rpSOLO_gui,rpSOLO_info):
         # write the inf files for sofm, solo and seqsolo
         rpSOLO_writeinffiles(rpSOLO_gui)
         # run SOFM
-        result = rpSOLO_runsofm(ds,rpSOLO_gui,drivers,series,nRecs,si=si,ei=ei)
+        result = rpSOLO_runsofm(ds,rpSOLO_gui,drivers,target,nRecs,si=si,ei=ei)
         if result!=1: return
         # run SOLO
-        result = rpSOLO_runsolo(ds,drivers,series,nRecs,si=si,ei=ei)
+        result = rpSOLO_runsolo(ds,drivers,target,nRecs,si=si,ei=ei)
         if result!=1: return
         # run SEQSOLO and put the SOLO data into the data structure
-        result = rpSOLO_runseqsolo(ds,drivers,series,output,nRecs,si=si,ei=ei)
+        result = rpSOLO_runseqsolo(ds,drivers,target,output,nRecs,si=si,ei=ei)
         if result!=1: return
         # plot the results
         fig_num = fig_num + 1
         title = site_name+" : "+series+" estimated using SOLO"
-        pd = rpSOLO_initplot(site_name=site_name,label=series,fig_num=fig_num,title=title,
+        pd = rpSOLO_initplot(site_name=site_name,label=target,fig_num=fig_num,title=title,
                              nDrivers=len(drivers))
-        rpSOLO_plot(pd,ds,drivers,series,output,rpSOLO_gui,si=si,ei=ei)
+        rpSOLO_plot(pd,ds,series,drivers,target,output,rpSOLO_gui,si=si,ei=ei)
         # reset the nodesEntry in the rpSOLO_gui
         if nodesAuto: rpSOLO_resetnodesEntry(rpSOLO_gui)
-    if 'RecoUsingSOLO' not in ds.globalattributes['Functions']:
-        ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', RecoUsingSOLO'
+    if 'FreUsingSOLO' not in ds.globalattributes['Functions']:
+        ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', FreUsingSOLO'
 
-def rpSOLO_plot(pd,ds,driverlist,targetlabel,outputlabel,rpSOLO_gui,si=0,ei=-1):
+def rpSOLO_plot(pd,ds,series,driverlist,targetlabel,outputlabel,rpSOLO_gui,si=0,ei=-1):
     """ Plot the results of the SOLO run. """
     # get the time step
     ts = int(ds.globalattributes['time_step'])
@@ -958,11 +1108,11 @@ def rpSOLO_plot(pd,ds,driverlist,targetlabel,outputlabel,rpSOLO_gui,si=0,ei=-1):
     numfilled = numpy.ma.count(mod)-numpy.ma.count(obs)
     diff = mod - obs
     bias = numpy.ma.average(diff)
-    ds.solo[targetlabel]["results"]["Bias"].append(bias)
+    ds.solo[series]["results"]["Bias"].append(bias)
     rmse = numpy.ma.sqrt(numpy.ma.mean((obs-mod)*(obs-mod)))
     plt.figtext(0.65,0.225,'No. points')
     plt.figtext(0.75,0.225,str(numpoints))
-    ds.solo[targetlabel]["results"]["No. points"].append(numpoints)
+    ds.solo[series]["results"]["No. points"].append(numpoints)
     plt.figtext(0.65,0.200,'Nodes')
     plt.figtext(0.75,0.200,str(rpSOLO_gui.nodesEntry.get()))
     plt.figtext(0.65,0.175,'Training')
@@ -977,23 +1127,23 @@ def rpSOLO_plot(pd,ds,driverlist,targetlabel,outputlabel,rpSOLO_gui,si=0,ei=-1):
     plt.figtext(0.915,0.225,str(numfilled))
     plt.figtext(0.815,0.200,'Slope')
     plt.figtext(0.915,0.200,str(qcutils.round2sig(coefs[0],sig=4)))
-    ds.solo[targetlabel]["results"]["m_ols"].append(coefs[0])
+    ds.solo[series]["results"]["m_ols"].append(coefs[0])
     plt.figtext(0.815,0.175,'Offset')
     plt.figtext(0.915,0.175,str(qcutils.round2sig(coefs[1],sig=4)))
-    ds.solo[targetlabel]["results"]["b_ols"].append(coefs[1])
+    ds.solo[series]["results"]["b_ols"].append(coefs[1])
     plt.figtext(0.815,0.150,'r')
     plt.figtext(0.915,0.150,str(qcutils.round2sig(r[0][1],sig=4)))
-    ds.solo[targetlabel]["results"]["r"].append(r[0][1])
+    ds.solo[series]["results"]["r"].append(r[0][1])
     plt.figtext(0.815,0.125,'RMSE')
     plt.figtext(0.915,0.125,str(qcutils.round2sig(rmse,sig=4)))
-    ds.solo[targetlabel]["results"]["RMSE"].append(rmse)
+    ds.solo[series]["results"]["RMSE"].append(rmse)
     var_obs = numpy.ma.var(obs)
-    ds.solo[targetlabel]["results"]["Var (obs)"].append(var_obs)
+    ds.solo[series]["results"]["Var (obs)"].append(var_obs)
     var_mod = numpy.ma.var(mod)
-    ds.solo[targetlabel]["results"]["Var (SOLO)"].append(var_mod)
-    ds.solo[targetlabel]["results"]["Var ratio"].append(var_obs/var_mod)
-    ds.solo[targetlabel]["results"]["Avg (obs)"].append(numpy.ma.average(obs))
-    ds.solo[targetlabel]["results"]["Avg (SOLO)"].append(numpy.ma.average(mod))    
+    ds.solo[series]["results"]["Var (SOLO)"].append(var_mod)
+    ds.solo[series]["results"]["Var ratio"].append(var_obs/var_mod)
+    ds.solo[series]["results"]["Avg (obs)"].append(numpy.ma.average(obs))
+    ds.solo[series]["results"]["Avg (SOLO)"].append(numpy.ma.average(mod))    
     # time series of drivers and target
     ts_axes = []
     rect = [pd["margin_left"],pd["ts_bottom"],pd["ts_width"],pd["ts_height"]]
@@ -1078,7 +1228,7 @@ def rpSOLO_run(ds,rpSOLO_gui,rpSOLO_info):
         ## plot the summary statistics
         #gfSOLO_plotsummary(ds)
         rpSOLO_progress(rpSOLO_gui,"Finished auto (monthly) run ...")
-    elif rpSOLO_gui.peropt.get()==3:
+    elif rpSOLO_gui.peropt.get()==4:
         rpSOLO_progress(rpSOLO_gui,"Starting auto (days) run ...")
         # get the start datetime entered in the SOLO GUI
         rpSOLO_info["startdate"] = rpSOLO_gui.startEntry.get()
@@ -1166,7 +1316,7 @@ def rpSOLO_runseqsolo(ds,driverlist,targetlabel,outputlabel,nRecs,si=0,ei=-1):
         # set the attributes
         ds.series[outputlabel]["Attr"]["units"] = ds.series[targetlabel]["Attr"]["units"]
         if "modeled by SOLO" not in ds.series[outputlabel]["Attr"]["long_name"]:
-            ds.series[outputlabel]["Attr"]["long_name"] = ds.series[outputlabel]["Attr"]["long_name"]+", modeled by SOLO"
+            ds.series[outputlabel]["Attr"]["long_name"] = "Ecosystem respiration modelled by SOLO"
         return 1
     else:
         log.error(' SOLO_runseqsolo: SEQSOLO did not run correctly, check the SOLO GUI and the log files')

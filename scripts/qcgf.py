@@ -342,6 +342,32 @@ def gfClimatology_createdict(cf,ds,series):
     else:
         ds.climatology[series]["method"] = cf[section][series]["GapFillFromClimatology"]["method"]
 
+def gfMergeSeries_createdict(cf,ds,series):
+    """ Creates a dictionary in ds to hold information about the merging of gap filled
+        and tower data."""
+    # get the section of the control file containing the series
+    section = qcutils.get_cfsection(cf,series=series,mode="quiet")
+    # create the merge directory in the data structure
+    if "merge" not in dir(ds): ds.merge = {}
+    # create the dictionary keys for this series
+    ds.merge[series] = {}
+    # output series name
+    ds.merge[series]["output"] = series
+    # site name
+    ds.merge[series]["source"] = ast.literal_eval(cf[section][series]["MergeSeries"]["Source"])
+    # create an empty series in ds if the output series doesn't exist yet
+    if ds.merge[series]["output"] not in ds.series.keys():
+        data,flag,attr = qcutils.MakeEmptySeries(ds,ds.merge[series]["output"])
+        qcutils.CreateSeries(ds,ds.merge[series]["output"],data,Flag=flag,Attr=attr)
+    
+    #if "merge" not in dir(ds):
+        #ds.merge = {}
+        #ds.merge["series"] = []
+        #ds.merge["source"] = []
+    #ds.merge["series"].append(series)
+    #source = ast.literal_eval(cf[section][series]["MergeSeries"]["Source"])
+    #ds.merge["source"].append(source)
+
 def gfSOLO_createdict(cf,ds,series):
     """ Creates a dictionary in ds to hold information about the SOLO data used
         to gap fill the tower data."""
@@ -395,13 +421,8 @@ def GapFillParseControlFile(cf,ds,series=""):
             data,flag,attr = qcutils.MakeEmptySeries(ds,ds.climatology[series]["output"])
             qcutils.CreateSeries(ds,ds.climatology[series]["output"],data,Flag=flag,Attr=attr)
     if "MergeSeries" in cf[section][series].keys():
-        if "merge" not in dir(ds):
-            ds.merge = {}
-            ds.merge["series"] = []
-            ds.merge["source"] = []
-        ds.merge["series"].append(series)
-        source = ast.literal_eval(cf[section][series]["MergeSeries"]["Source"])
-        ds.merge["source"].append(source)
+        # create the merge serioes dictionary in the data structure
+        gfMergeSeries_createdict(cf,ds,series)
 
 def GapFillFromACCESS(ds4):
     '''

@@ -2109,12 +2109,15 @@ def MassmanStandard(cf,ds,Ta_in='Ta',Ah_in='Ah',ps_in='ps',ustar_in='ustar',usta
             index = numpy.where(mask.astype(int)==1)
             ds.series[ThisOne]['Flag'][index] = numpy.int32(12)
 
-def MergeSeries_L4(ds):
+def MergeSeriesUsingDict(ds):
+    """ Merge series as defined in the ds.merge dictionary."""
     # check that ds has a "merge" attribute
     if "merge" not in dir(ds): return
     # loop over the entries in ds.merge
-    for label,srclist in zip(ds.merge["series"],ds.merge["source"]):
-        log.info(' Merging '+str(srclist)+' ==> '+label)
+    #for label,srclist in zip(ds.merge["series"],ds.merge["source"]):
+    for target in ds.merge.keys():
+        srclist = ds.merge[target]["source"]
+        log.info(' Merging '+str(srclist)+' ==> '+target)
         if srclist[0] not in ds.series.keys():
             log.error('  MergeSeries: primary input series'+srclist[0]+'not found')
             continue
@@ -2123,19 +2126,21 @@ def MergeSeries_L4(ds):
         attr = ds.series[srclist[0]]['Attr'].copy()
         SeriesNameString = srclist[0]
         srclist.remove(srclist[0])
-        for ThisOne in srclist:
-            if ThisOne in ds.series.keys():
-                SeriesNameString = SeriesNameString+', '+ThisOne
+        for label in srclist:
+            if label in ds.series.keys():
+                SeriesNameString = SeriesNameString+', '+label
                 index = numpy.where(numpy.mod(flag,10)==0)            # find the elements with flag = 0, 10, 20 etc
                 flag[index] = 0                                       # set them all to 0
                 index = numpy.where(flag!=0)                          # index of flag values other than 0,10,20,30 ...
-                data[index] = ds.series[ThisOne]['Data'][index]       # replace bad primary with good secondary
-                flag[index] = ds.series[ThisOne]['Flag'][index]
+                data[index] = ds.series[label]['Data'][index]         # replace bad primary with good secondary
+                flag[index] = ds.series[label]['Flag'][index]
+                if target=="Fre_SOLO":
+                    pass
             else:
-                log.error('  MergeSeries: secondary input series'+ThisOne+'not found')
+                log.error('  MergeSeries: secondary input series'+label+'not found')
         attr["long_name"] = attr["long_name"]+", merged from " + SeriesNameString
-        qcutils.CreateSeries(ds,label,data,Flag=flag,Attr=attr)
-    # remove the "merge" attribute from ds
+        qcutils.CreateSeries(ds,target,data,Flag=flag,Attr=attr)
+    # remove the "merge" adictionary from ds
     del ds.merge
 
 def MergeSeries(cf,ds,series,okflags):
