@@ -744,7 +744,7 @@ def gfACCESS_getACCESSvaratmaxr(access_var_list,data_tower,ds_access,access_info
     si = access_info["access"]["exact"]["si"]
     ei = access_info["access"]["exact"]["ei"]
     # creat an array for the correlations
-    r = numpy.ones(len(access_var_list))*float(c.missing_value)
+    r = numpy.zeros(len(access_var_list))
     # check that the number of tower data points is greater than the minimum
     if numpy.ma.count(data_tower)>access_info["min_points"]:
         # loop over the variables in the ACCESS file
@@ -755,9 +755,10 @@ def gfACCESS_getACCESSvaratmaxr(access_var_list,data_tower,ds_access,access_info
             if len(data_access)!=len(data_tower):
                 raise ValueError('gfACCESS_getACCESSvaratmaxr: data_tower and data_access lengths differ')
             # put the correlation into the r array
-            r[idx] = numpy.ma.corrcoef(data_tower,data_access)[0,1]
+            rval = numpy.ma.corrcoef(data_tower,data_access)[0,1]
+            if rval!="nan": r[idx] = rval
     # get the index of the maximum r value
-    maxidx = numpy.ma.argmax(r)
+    maxidx = numpy.ma.argmax(numpy.abs(r))
     # save the correlation array for later plotting
     access_info["r"] = r
     # return the name of the ACCESS variable that has the highest correlation with the tower data
@@ -825,7 +826,10 @@ def gfACCESS_getolscorrecteddata(x_in,y_in,results=None,thru0=False):
         eqnstr = 'y = %.3fx'%(resols.params[0])
     else:
         resols = sm.OLS(y,sm.add_constant(x,prepend=False)).fit()
-        y_out = resols.params[0]*x_in+resols.params[1]
+        try:
+            y_out = resols.params[0]*x_in+resols.params[1]
+        except:
+            pass
         eqnstr = 'y = %.3fx + %.3f'%(resols.params[0],resols.params[1])
     if results!=None:
         results["ols"] = resols

@@ -1200,8 +1200,8 @@ def rpSOLO_run(ds,rpSOLO_gui,rpSOLO_info):
     rpSOLO_info["access"] = {}
     #log.info(" Estimating Reco using SOLO")
     if rpSOLO_gui.peropt.get()==1:
+        # manual run using start and end datetime entered via GUI
         rpSOLO_progress(rpSOLO_gui,"Starting manual run ...")
-        # get the start and end datetimes entered in the SOLO GUI
         rpSOLO_info["startdate"] = rpSOLO_gui.startEntry.get()
         if len(rpSOLO_info["startdate"])==0: rpSOLO_info["startdate"] = rpSOLO_info["file_startdate"]
         rpSOLO_info["enddate"] = rpSOLO_gui.endEntry.get()
@@ -1209,8 +1209,8 @@ def rpSOLO_run(ds,rpSOLO_gui,rpSOLO_info):
         rpSOLO_main(ds,rpSOLO_gui,rpSOLO_info)
         rpSOLO_progress(rpSOLO_gui,"Finished manual run ...")
     elif rpSOLO_gui.peropt.get()==2:
+        # automatic run with monthly datetime periods
         rpSOLO_progress(rpSOLO_gui,"Starting auto (monthly) run ...")
-        # get the start datetime entered in the SOLO GUI
         rpSOLO_info["startdate"] = rpSOLO_gui.startEntry.get()
         if len(rpSOLO_info["startdate"])==0: rpSOLO_info["startdate"] = rpSOLO_info["file_startdate"]
         startdate = dateutil.parser.parse(rpSOLO_info["startdate"])
@@ -1228,9 +1228,33 @@ def rpSOLO_run(ds,rpSOLO_gui,rpSOLO_info):
         ## plot the summary statistics
         #gfSOLO_plotsummary(ds)
         rpSOLO_progress(rpSOLO_gui,"Finished auto (monthly) run ...")
+    elif rpSOLO_gui.peropt.get()==3:
+        # automatic run with yearly datetime periods
+        rpSOLO_progress(rpSOLO_gui,"Starting auto (yearly) run ...")
+        # get the start date
+        rpSOLO_info["startdate"] = rpSOLO_gui.startEntry.get()
+        if len(rpSOLO_info["startdate"])==0: rpSOLO_info["startdate"] = rpSOLO_info["file_startdate"]
+        startdate = dateutil.parser.parse(rpSOLO_info["startdate"])
+        # get the start year
+        start_year = startdate.year
+        enddate = dateutil.parser.parse(str(start_year)+"-01-01 00:00")
+        #file_startdate = dateutil.parser.parse(rpSOLO_info["file_startdate"])
+        #file_enddate = dateutil.parser.parse(rpSOLO_info["file_enddate"])
+        #enddate = startdate+dateutil.relativedelta.relativedelta(months=1)
+        #enddate = min([file_enddate,enddate])
+        #rpSOLO_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d")
+        #while startdate<file_enddate:
+            #rpSOLO_main(ds,rpSOLO_gui,rpSOLO_info)
+            #startdate = enddate
+            #enddate = startdate+dateutil.relativedelta.relativedelta(months=1)
+            #rpSOLO_info["startdate"] = startdate.strftime("%Y-%m-%d")
+            #rpSOLO_info["enddate"] = enddate.strftime("%Y-%m-%d")
+        ### plot the summary statistics
+        ##gfSOLO_plotsummary(ds)
+        rpSOLO_progress(rpSOLO_gui,"Finished auto (yearly) run ...")
     elif rpSOLO_gui.peropt.get()==4:
+        # automatc run with number of days specified by user via the GUI
         rpSOLO_progress(rpSOLO_gui,"Starting auto (days) run ...")
-        # get the start datetime entered in the SOLO GUI
         rpSOLO_info["startdate"] = rpSOLO_gui.startEntry.get()
         if len(rpSOLO_info["startdate"])==0: rpSOLO_info["startdate"] = rpSOLO_info["file_startdate"]
         startdate = dateutil.parser.parse(rpSOLO_info["startdate"])
@@ -1249,7 +1273,7 @@ def rpSOLO_run(ds,rpSOLO_gui,rpSOLO_info):
         ## plot the summary statistics
         #gfSOLO_plotsummary(ds)
         rpSOLO_progress(rpSOLO_gui,"Finished auto (days) run ...")
-    elif rpSOLO_gui.peropt.get()==4:
+    elif rpSOLO_gui.peropt.get()==5:
         pass
 
 def rpSOLO_runseqsolo(ds,driverlist,targetlabel,outputlabel,nRecs,si=0,ei=-1):
