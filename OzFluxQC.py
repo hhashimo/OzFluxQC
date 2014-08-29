@@ -20,6 +20,7 @@ if not os.path.exists("./scripts/"):
 sys.path.append('scripts')
 import cfg
 import qcclim
+import qccpd
 import qcgf
 import qcio
 import qcls
@@ -179,7 +180,7 @@ class qcgui(tk.Tk):
         utilsmenu.add_command(label="Compare EP",command=self.do_compare_eddypro)
         ustarmenu = tk.Menu(menubar,tearoff=0)
         ustarmenu.add_command(label="Reichstein",command=self.option_not_implemented)
-        ustarmenu.add_command(label="Change Point Detection",command=self.option_not_implemented)
+        ustarmenu.add_command(label="Change Point Detection",command=self.do_cpd)
         utilsmenu.add_cascade(label="u* threshold",menu=ustarmenu)
         menubar.add_cascade(label="Utilities",menu=utilsmenu)
         # and the "Help" menu
@@ -244,6 +245,16 @@ class qcgui(tk.Tk):
         qcclim.compare_eddypro()
         self.do_progress(text='Finished comparing EddyPro and OzFlux')
         log.info(' Finished comparing EddyPro and OzFlux')
+
+    def do_cpd(self):
+        """
+        Calls qccpd.cpd_main
+        Compares the results OzFluxQC (L3) with those from EddyPro (full output).
+        """
+        self.do_progress(text='Estimating u* threshold using Barr et al ...')
+        qccpd.cpd_main()
+        self.do_progress(text='Finished estimating u* threshold')
+        log.info(' Finished estimating u* threshold')
 
     def do_helpcontents(self):
         tkMessageBox.showinfo("Obi Wan says ...","Read the source, Luke!")
