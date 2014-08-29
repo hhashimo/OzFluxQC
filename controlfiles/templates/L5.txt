@@ -1,7 +1,7 @@
 [Files]
-    file_path = ../Sites/Calperum/Data/Processed/2013/
-    in_filename = Calperum_2013_L4.nc
-    out_filename = Calperum_2013_L5.nc
+    file_path = ../Sites/<site_name>/Data/Processed/<year>/
+    in_filename = <site_name>_<year>_L4.nc
+    out_filename = <site_name>_<year>_L5.nc
 
 [Options]
     UseExistingOutFile    = No
@@ -12,21 +12,48 @@
     Fsd_threshold   = 10     # Fsd threshold for determining day or night time
     ustar_threshold = 0.3    # ustar threshold for filtering out low turbulence conditions
 
-[Variables]
-    [[Reco]]
-        [[[RecoUsingSOLO]]]
-            drivers = "['Ts','Ta']"
-            output = 'Reco_SOLO'
-#        [[[RecoUsingLloydTaylor]]]
-#            drivers = "['Ts']"
-#            output = 'Reco_LT'
+[Respiration]
+    [[Fre_SOLO]]
+        [[[FreUsingSOLO]]]
+            target ="Fre"
+            drivers = "['Ts','Sws']"
+            output = "Fre_SOLO_all"
         [[[MergeSeries]]]
-            Source     = "['Reco','Reco_SOLO']"
+            Source = "['Fre','Fre_SOLO_all']"
+    [[Fre_FFNET]]
+        [[[FreUsingFFNET]]]
+            target ="Fre"
+            drivers = "['Ts','Sws']"
+            output = "Fre_FFNET_all"
+        [[[MergeSeries]]]
+            Source = "['Fre','Fre_FFNET_all']"
+    [[Fre_LT]]
+        [[[FreUsingLloydTaylor]]]
+            target ="Fre"
+            drivers = "['Ts']"
+            output = "Fre_LT_all"
+        [[[MergeSeries]]]
+            Source = "['Fre','Fre_LT_all']"
+    [[Fre_LL]]
+        [[[FreUsingLasslop]]]
+            target = "Fre"
+            drivers = "['Ts']"
+            output = "Fre_LL_all"
+        [[[MergeSeries]]]
+            Source = "['Fre','Fre_LL_all']"
 
-[Derived]
-    [[NEE]]
-        Fc   = Fc
-        Reco = Reco_LT
-    [[GPP]]
-        NEE  = NEE
-        Reco = Reco_LT
+[NEE]
+    [[NEE_SOLO]]
+        Fc  = "Fc"
+        Fre = "Fre_SOLO"
+    [[NEE_FFNET]]
+        Fc  = "Fc"
+        Fre = "Fre_SOLO"
+
+[GPP]
+    [[GPP_SOLO]]
+        NEE = "NEE_SOLO"
+        Fre = "Fre_SOLO"
+    [[GPP_FFNET]]
+        NEE = "NEE_FFNET"
+        Fre = "Fre_FFNET"

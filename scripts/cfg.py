@@ -1,5 +1,9 @@
 version_name = "OzFluxQC"
-version_number = "V2.8.1"
+version_number = "V2.8.2"
+# V2.8.2   - implemented;
+#            - estimation of ecosystem respiration from nocturnal Fc
+#              using SOLO and FFNET.
+#            - several bug fixes
 # V2.8.1   - refactor of gfACCESS_plotdetailed and associated code
 # V2.8.0   - implemented;
 #            - gap filling using ACCESS data (works for any alternate site file)
