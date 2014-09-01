@@ -684,78 +684,6 @@ def nc_concatenate(cf):
     ncFile = nc_open_write(ncFileName)
     nc_write_series(ncFile,ds)
 
-#def nc_read_series(ncFullName):
-    #''' Read a netCDF file and put the data and meta-data into a DataStructure'''
-    #log.info(' Reading netCDF file '+ncFullName)
-    #netCDF4.default_encoding = 'latin-1'
-    #ds = DataStructure()
-    ## check to see if the requested file exists, return empty ds if it doesn't
-    #if not qcutils.file_exists(ncFullName,mode="quiet"):
-        #log.error(' netCDF file '+ncFullName+' not found')
-        #raise Exception("GapFillFromACCESS: ACCESS file not found")
-    ## file probably exists, so let's read it
-    #ncFile = netCDF4.Dataset(ncFullName,'r')
-    ## now deal with the global attributes
-    #gattrlist = ncFile.ncattrs()
-    #if len(gattrlist)!=0:
-        #for gattr in gattrlist:
-            #ds.globalattributes[gattr] = getattr(ncFile,gattr)
-            #if "time_step" in ds.globalattributes: c.ts = ds.globalattributes["time_step"]
-    ## get a list of the variables in the netCDF file (not their QC flags)
-    #varlist = [x for x in ncFile.variables.keys() if "_QCFlag" not in x]
-    #for ThisOne in varlist:
-        ## skip variables that do not have time as a dimension
-        #dimlist = [x.lower() for x in ncFile.variables[ThisOne].dimensions]
-        #if "time" not in dimlist: continue
-        ## create the series in the data structure
-        #ds.series[unicode(ThisOne)] = {}
-        ## get the data and the QC flag
-        #nDims = len(ncFile.variables[ThisOne].shape)
-        #if nDims==1:
-            ## single dimension
-            #ds.series[ThisOne]["Data"] = ncFile.variables[ThisOne][:]
-            ## netCDF4 returns a masked array if the "missing_variable" attribute has been set
-            ## for the variable, here we trap this and force the array in ds.series to be ndarray
-            #if numpy.ma.isMA(ds.series[ThisOne]["Data"]):
-                #ds.series[ThisOne]["Data"],dummy = qcutils.MAtoSeries(ds.series[ThisOne]["Data"])
-            ## check for a QC flag
-            #if ThisOne+'_QCFlag' in ncFile.variables.keys():
-                ## load it from the netCDF file
-                #ds.series[ThisOne]["Flag"] = ncFile.variables[ThisOne+'_QCFlag'][:]
-            #else:
-                ## create an empty flag series if it does not exist
-                #nRecs = numpy.size(ds.series[ThisOne]["Data"])
-                #ds.series[ThisOne]["Flag"] = numpy.zeros(nRecs,dtype=numpy.int32)
-        #elif nDims==3:
-            ## 3 dimensions
-            #ds.series[ThisOne]["Data"] = ncFile.variables[ThisOne][:,0,0]
-            ## netCDF4 returns a masked array if the "missing_variable" attribute has been set
-            ## for the variable, here we trap this and force the array in ds.series to be ndarray
-            #if numpy.ma.isMA(ds.series[ThisOne]["Data"]):
-                #ds.series[ThisOne]["Data"],dummy = qcutils.MAtoSeries(ds.series[ThisOne]["Data"])
-            ## check for a QC flag
-            #if ThisOne+'_QCFlag' in ncFile.variables.keys():
-                ## load it from the netCDF file
-                #ds.series[ThisOne]["Flag"] = ncFile.variables[ThisOne+'_QCFlag'][:,0,0]
-            #else:
-                ## create an empty flag series if it does not exist
-                #nRecs = numpy.size(ds.series[ThisOne]["Data"])
-                #ds.series[ThisOne]["Flag"] = numpy.zeros(nRecs,dtype=numpy.int32)
-        ## get the variable attributes
-        #vattrlist = ncFile.variables[ThisOne].ncattrs()
-        #ds.series[ThisOne]["Attr"] = {}
-        #if len(vattrlist)!=0:
-            #for vattr in vattrlist:
-                #ds.series[ThisOne]["Attr"][vattr] = getattr(ncFile.variables[ThisOne],vattr)
-    #ncFile.close()
-    ## make sure all values of -9999 have non-zero QC flag
-    #qcutils.CheckQCFlags(ds)
-    ## get a series of Python datetime objects
-    #qcutils.get_datetimefromymdhms(ds)
-    ## get series of UTC datetime
-    #qcutils.get_UTCfromlocaltime(ds)
-    #return ds
-
 def nc_read_series(ncFullName):
     ''' Read a netCDF file and put the data and meta-data into a DataStructure'''
     log.info(' Reading netCDF file '+ncFullName)
@@ -795,6 +723,77 @@ def nc_read_series(ncFullName):
     qcutils.get_UTCfromlocaltime(ds)
     return ds
 
+def nc_read_todf(ncFullName,var_data=[]):
+    """
+    Purpose:
+     Read an OzFlux netCDF file and return the data in an Pandas data frame.
+    Usage:
+     df = qcio.nc_read_todf(ncFullName)
+      where ncFullName is the full name of the netCDF file.
+    Side effects:
+     Returns a Pandas data frame
+    Author: PRI using code originally written by Ian McHugh
+    Date: August 2014
+    """
+    log.info(" Reading netCDF file "+ncFullName+" to Pandas data frame")
+    netCDF4.default_encoding = 'latin-1'
+    # check to see if the requested file exists, return empty ds if it doesn't
+    if not qcutils.file_exists(ncFullName,mode="quiet"):
+        log.error(' netCDF file '+ncFullName+' not found')
+        raise Exception("nc_read_todf: file not found")
+    # file probably exists, so let's read it
+    ncFile = netCDF4.Dataset(ncFullName,"r")
+    # now deal with the global attributes
+    gattrlist = ncFile.ncattrs()
+    if len(gattrlist)!=0:
+        gattr = {}
+        for attr in gattrlist:
+            gattr[attr] = getattr(ncFile,attr)
+            if "time_step" in gattr.keys(): c.ts = gattr["time_step"]
+    # get a list of Python datetimes from the xlDatetime
+    # this may be better replaced with one of the standard OzFluxQC routines
+    dates_list=[datetime.datetime(*xlrd.xldate_as_tuple(elem,0)) for elem in ncFile.variables['xlDateTime']]
+    # get a list of variables to read from the netCDF file
+    if len(var_data)==0:
+        # get the variable list from the netCDF file contents
+        var_data = ncFile.variables.keys()
+    else:
+        # add the QC flags to the list entered as an argument
+        var_flag = []
+        for var in var_data: var_flag.append(var+"_QCFlag")
+        var_list = var_data+var_flag
+    # read the variables and attributes from the netCDF file
+    # create dictionaries to hold the data and the variable attributes
+    d = {}
+    vattr = {}
+    for item in var_list:
+        d[item] = ncFile.variables[item][:]
+        vattrlist = ncFile.variables[item].ncattrs()
+        if len(vattrlist)!=0:
+            vattr[item] = {}
+            for attr in vattrlist:
+                vattr[item][attr] = getattr(ncFile.variables[item],attr)
+    ncFile.close()
+    # convert the dictionary to a Pandas data frame
+    df = pd.DataFrame(d,index=dates_list)
+    return df,gattr,vattr
+
+def df_droprecords(df,qc_list=[0,10]):
+    # replace configured error values with NaNs
+    df.replace(c.missing_value,np.nan)
+    # replace unacceptable QC flags with NaNs
+    var_list = df.columns.values.tolist()
+    data_list = [item for item in var_list if "QCFlag" not in item]
+    flag_list = [item for item in var_list if "QCFlag" in item]
+    if len(data_list)!=len(flag_list): raise Exception("df_droprecords: number of data and flag series differ")
+    eval_string='|'.join(['(df[flag_list[i]]=='+str(i)+')' for i in qc_list])
+    for i in xrange(len(data_list)):
+        df[data_list[i]]=np.where(eval(eval_string),df[data_list[i]],np.nan)
+    # drop the all records with NaNs
+    df=df[data_list]
+    # return the data frame
+    return df
+    
 def nc_read_var(ncFile,ThisOne):
     """ Reads a variable from a netCDF file and returns the data, the QC flag and the variable
         attribute dictionary.

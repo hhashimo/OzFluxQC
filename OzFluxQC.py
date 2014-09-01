@@ -252,7 +252,18 @@ class qcgui(tk.Tk):
         Compares the results OzFluxQC (L3) with those from EddyPro (full output).
         """
         self.do_progress(text='Estimating u* threshold using Barr et al ...')
-        qccpd.cpd_main()
+        stdname = "controlfiles/standard/cpd.txt"
+        if os.path.exists(stdname):
+            cf = qcio.get_controlfilecontents(stdname)
+            filename = qcio.get_filename_dialog(path='../Sites',title='Choose an input nc file')
+            if len(filename)==0: self.do_progress(text='Waiting for input ...'); return
+            if "Files" not in dir(cf): cf["Files"] = {}
+            cf["Files"]["file_path"] = ntpath.split(filename)[0]+"/"
+            cf["Files"]["in_filename"] = ntpath.split(filename)[1]
+        else:
+            cf = qcio.load_controlfile(path='controlfiles')
+        if len(cf)==0: self.do_progress(text='Waiting for input ...'); return
+        qccpd.cpd_main(cf)
         self.do_progress(text='Finished estimating u* threshold')
         log.info(' Finished estimating u* threshold')
 

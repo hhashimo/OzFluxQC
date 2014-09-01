@@ -39,7 +39,7 @@ def CalculateNEE(cf,ds):
     if "nee" not in dir(ds): return
     # get the Fsd and ustar thresholds
     Fsd_threshold = float(cf['Params']['Fsd_threshold'])
-    ustar_threshold = float(cf['Params']['ustar_threshold'])
+    #ustar_threshold = float(cf['Params']['ustar_threshold'])
     # get the incoming shortwave radiation and friction velocity
     Fsd,Fsd_flag,Fsd_attr = qcutils.GetSeriesasMA(ds,"Fsd")
     if "Fsd_syn" in ds.series.keys():
@@ -378,19 +378,30 @@ def GetFreFromFc(cf,ds):
     Author: PRI
     Date: August 2014
     """
+    ts = int(ds.globalattributes["time_step"])
+    ldt = ds.series['DateTime']['Data']
     if "Params" not in cf.keys():
         log.error("GetFreFromFc: no [Params] section in control file")
         raise Exception("GetFreFromFc: no [Params] section in control file")
     if "Fsd_threshold" not in cf["Params"]:
         log.error("GetFreFromFc: no Fsd threshold in control file")
-        raise "GetFreFromFc: no Fsd threshold in control file"
+        raise Exception("GetFreFromFc: no Fsd threshold in control file")
     else:
         Fsd_threshold = float(cf["Params"]["Fsd_threshold"])
-    if "ustar_threshold" not in cf["Params"]:
-        log.error("GetFreFromFc: no ustar threshold in control file")
-        raise "GetFreFromFc: no ustar threshold in control file"
-    else:
+    ustar_threshold_list = []
+    if "ustar_threshold" in cf["Params"]:
         ustar_threshold = float(cf["Params"]["ustar_threshold"])
+        ustar_threshold_list.append([ldt[0].strftime("%Y-%m-%d %H:%M"),
+                    ldt[-1].strftime("%Y-%m-%d %H:%M"),
+                    str(ustar_threshold)])
+    else:
+        if "ustar_threshold" in cf:
+            for n in cf["ustar_threshold"].keys():
+                ustar_threshold_list.append(ast.literal_eval(cf["ustar_threshold"][str(n)]))
+        else:
+            log.error("GetFreFromFc: no ustar threshold in control file")
+            raise Exception("GetFreFromFc: no ustar threshold in control file")
+    # get the data
     Fsd,flag,attr = qcutils.GetSeriesasMA(ds,"Fsd")
     if "Fsd_syn" in ds.series.keys():
         Fsd_syn,flag,attr = qcutils.GetSeriesasMA(ds,"Fsd_syn")
@@ -398,12 +409,25 @@ def GetFreFromFc(cf,ds):
         Fsd[index] = Fsd_syn[index]
     ustar,flag,attr = qcutils.GetSeriesasMA(ds,"ustar")
     Fc,Fc_flag,Fc_attr = qcutils.GetSeriesasMA(ds,"Fc")
+    # apply the day/night filter
     Fre1 = numpy.ma.masked_where(Fsd>Fsd_threshold,Fc,copy=True)
-    Fre2 = numpy.ma.masked_where(ustar<ustar_threshold,Fre1,copy=True)
-    #Fre3 = numpy.ma.masked_where(Fre2<0,Fre2,copy=True)
+    # get a copy of the day/night filtered data
+    Fre2 = numpy.ma.array(Fre1)
+    # get a copy of the Fc flag
     Fre_flag = numpy.array(Fc_flag)
-    index = numpy.ma.where(Fre2.mask==True)
-    Fre_flag[index] = numpy.int32(9)
+    # loop over the list of ustar thresholds
+    for list_item in ustar_threshold_list:
+        # get the start and end datetime indices
+        si = qcutils.GetDateIndex(ldt,list_item[0],ts=ts,default=0,match='exact')
+        ei = qcutils.GetDateIndex(ldt,list_item[1],ts=ts,default=len(ldt),match='exact')
+        # get the ustar thrhold
+        ustar_threshold = float(list_item[2])
+        # filter out the low ustar conditions
+        Fre2[si:ei] = numpy.ma.masked_where(ustar[si:ei]<ustar_threshold,Fre1[si:ei])
+        # set the QC flag
+        index = numpy.ma.where(Fre2[si:ei].mask==True)
+        Fre_flag[si:ei][index] = numpy.int32(9)
+    # put the nocturnal, filtered Fc data into the data structure
     attr = qcutils.MakeAttributeDictionary(long_name='Ecosystem respiration (observed)',units=Fc_attr["units"])
     qcutils.CreateSeries(ds,"Fre",Fre2,Flag=Fre_flag,Attr=attr)
     return True
@@ -1237,18 +1261,18 @@ def rpSOLO_run(ds,rpSOLO_gui,rpSOLO_info):
         startdate = dateutil.parser.parse(rpSOLO_info["startdate"])
         # get the start year
         start_year = startdate.year
-        enddate = dateutil.parser.parse(str(start_year)+"-01-01 00:00")
+        enddate = dateutil.parser.parse(str(start_year+1)+"-01-01 00:00")
         #file_startdate = dateutil.parser.parse(rpSOLO_info["file_startdate"])
-        #file_enddate = dateutil.parser.parse(rpSOLO_info["file_enddate"])
+        file_enddate = dateutil.parser.parse(rpSOLO_info["file_enddate"])
         #enddate = startdate+dateutil.relativedelta.relativedelta(months=1)
-        #enddate = min([file_enddate,enddate])
-        #rpSOLO_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d")
-        #while startdate<file_enddate:
-            #rpSOLO_main(ds,rpSOLO_gui,rpSOLO_info)
-            #startdate = enddate
-            #enddate = startdate+dateutil.relativedelta.relativedelta(months=1)
-            #rpSOLO_info["startdate"] = startdate.strftime("%Y-%m-%d")
-            #rpSOLO_info["enddate"] = enddate.strftime("%Y-%m-%d")
+        enddate = min([file_enddate,enddate])
+        rpSOLO_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d")
+        while startdate<file_enddate:
+            rpSOLO_main(ds,rpSOLO_gui,rpSOLO_info)
+            startdate = enddate
+            enddate = startdate+dateutil.relativedelta.relativedelta(years=1)
+            rpSOLO_info["startdate"] = startdate.strftime("%Y-%m-%d")
+            rpSOLO_info["enddate"] = enddate.strftime("%Y-%m-%d")
         ### plot the summary statistics
         ##gfSOLO_plotsummary(ds)
         rpSOLO_progress(rpSOLO_gui,"Finished auto (yearly) run ...")

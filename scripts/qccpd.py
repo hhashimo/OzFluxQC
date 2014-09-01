@@ -1,16 +1,21 @@
+# Python modules
+import ast
+import constants as c
+import datetime as dt
 import Tkinter, tkFileDialog
 from configobj import ConfigObj
+import logging
 import matplotlib.pyplot as plt
 import matplotlib.mlab as mlab
 import netCDF4
-import xlrd
-import datetime as dt
-import ast
 import numpy as np
-import pandas as pd
-from scipy import stats
 import os
+import pandas as pd
 import pdb
+from scipy import stats
+import xlrd
+
+log = logging.getLogger('qc.cpd')
 
 #------------------------------------------------------------------------------
 # Return a bootstrapped sample of the passed dataframe
@@ -100,9 +105,9 @@ def CPD_fit(temp_df):
 
 #------------------------------------------------------------------------------
 # Coordinate steps in CPD process
-def cpd_main():
+def cpd_main(cf):
 
-    df,d=CPD_run()
+    df,d=CPD_run(cf)
 
     # Find number of years in df    
     years_index=list(set(df.index.year))
@@ -111,7 +116,7 @@ def cpd_main():
     counts_df=pd.DataFrame(index=years_index,columns=['Total'])
     counts_df.fillna(0,inplace=True)
     
-    print 'Starting analysis...'    
+    #log.info('Starting CPD analysis')   
     
     # Bootstrap the data and run the CPD algorithm
     for i in xrange(d['num_bootstraps']):
@@ -119,10 +124,10 @@ def cpd_main():
         # Bootstrap the data for each year
         bootstrap_flag=(False if i==0 else True)
         if bootstrap_flag==False:
-            print 'Analysing observational data for first pass'
+            log.info('Analysing observational data for first pass')
         else:
             df=pd.concat([CPD_bootstrap(df.ix[str(j)]) for j in years_index])
-            print 'Analysing bootstrap '+str(i)
+            log.info('Analysing bootstrap '+str(i))
         
         # Create nocturnal dataframe (drop all records where any one of the variables is NaN)
         temp_df=df[['Fc','Ta','ustar']][df['Fsd']<d['radiation_threshold']].dropna(how='any',axis=0)        
@@ -133,31 +138,41 @@ def cpd_main():
         years_df,seasons_df,results_df=CPD_sort(temp_df,d['flux_frequency'],years_index)
         
         # Use the results df index as an iterator to run the CPD algorithm on the year/season/temperature strata
-        print 'Finding change points...'
+        log.info('Finding change points')
         cols=['bMod_threshold','bMod_f_max','b0','b1','bMod_CP',
               'aMod_threshold','aMod_f_max','a0','a1','a2','norm_a1','norm_a2','aMod_CP','a1p','a2p']
         stats_df=pd.DataFrame(np.vstack([CPD_fit(seasons_df.ix[j]) for j in results_df.index]),                      
                               columns=cols,index=results_df.index)
         results_df=results_df.join(stats_df)        
-        print 'Done!'
+        #print 'Done!'
         
         results_df['bMod_CP']=results_df['bMod_CP'].astype(int)
         results_df['aMod_CP']=results_df['aMod_CP'].astype(int)
-        
+
         # QC the results
-        print 'Doing within-sample QC...'
+        log.info('Doing within-sample QC')
         results_df=CPD_QC1(results_df)
-        print 'Done!' 
-        
+        #print 'Done!' 
+
         # Output results and plots (if user has set output flags in config file to true)
         if bootstrap_flag==False:
-            if 'results_output_path' in d.keys(): 
-                print 'Outputting results for all years / seasons / T classes in observational dataset'
-                results_df.to_csv(os.path.join(d['results_output_path'],'Observational_ustar_threshold_statistics.csv'))
-            if 'plot_output_path' in d.keys(): 
-                print 'Doing plotting for observational data'
-                for j in results_df.index:
-                    CPD_plot_fits(seasons_df.ix[j],results_df.ix[j],d['plot_output_path'])
+            # *** original code from IMcH
+            #if 'results_output_path' in d.keys(): 
+                #log.info('Outputting results for all years / seasons / T classes in observational dataset')
+                ##results_df.to_csv(os.path.join(d['results_output_path'],'Observational_ustar_threshold_statistics.csv'))
+                ##xlname = os.path.join(d['results_output_path'],"Observational_ustar_threshold_statistics.xls")
+                #xlname = os.path.join(d['results_output_path'],"CPD_output_statistics.xls")
+                #xlsheet = "T class"
+                #results_df.to_excel(xlname,sheet_name=xlsheet)
+            ##if 'plot_output_path' in d.keys(): 
+                ##print 'Doing plotting for observational data'
+                ##for j in results_df.index:
+                    ##CPD_plot_fits(seasons_df.ix[j],results_df.ix[j],d['plot_output_path'])
+            log.info('Outputting results for all years / seasons / T classes in observational dataset')
+            xlname = os.path.join(d['results_output_path'],"CPD_output_statistics.xls")
+            xlwriter = pd.ExcelWriter(xlname)
+            xlsheet = "T class"
+            results_df.to_excel(xlwriter,sheet_name=xlsheet)
         
         # Drop the season and temperature class levels from the hierarchical index, 
         # drop all cases that failed QC
@@ -175,8 +190,8 @@ def cpd_main():
         for i in years_df.index:
             counts_df['Total'].ix[i]=counts_df['Total'].ix[i]+years_df['seasons'].ix[i]*4
     
-    print 'Finished change point detection for all bootstraps'
-    print 'Starting QC'    
+    log.info('Finished change point detection for all bootstraps')
+    log.info('Starting QC')
     
     # Sort by index so all years are together
     all_results_df.sort_index(inplace=True)
@@ -184,41 +199,51 @@ def cpd_main():
     # Drop all years with no data remaining after QC, and return nothing if all years were dropped
     [counts_df.drop(i,inplace=True) for i in counts_df.index if counts_df['Total'].ix[i]==0]    
     if counts_df.empty:
-        print 'Insufficient data for analysis... exiting'
+        log.error('Insufficient data for analysis... exiting')
         return
     
     # QC the combined results
-    print 'Doing cross-sample QC...'
+    log.info('Doing cross-sample QC')
     output_stats_df=CPD_QC2(all_results_df,counts_df,d['num_bootstraps'])
-    print 'Done!' 
+    #print 'Done!' 
 
     # Calculate final values
-    print 'Calculating final results' 
+    log.info('Calculating final results')
     output_stats_df=CPD_stats(all_results_df,output_stats_df)    
     
     # If requested by user, plot: 1) histograms of u* thresholds for each year; 
     #                             2) normalised a1 and a2 values
     if 'plot_output_path' in d.keys():
-        print 'Plotting u* histograms for all valid b model thresholds for all valid years'
-        [CPD_plot_hist(all_results_df['bMod_threshold'].ix[j][all_results_df['b_valid'].ix[j]==True],
-                       output_stats_df['ustar_mean'].ix[j],
-                       output_stats_df['ustar_sig'].ix[j],
-                       output_stats_df['crit_t'].ix[j],
-                       j, d['plot_output_path'])
-         for j in output_stats_df.index]
-        
-        print 'Plotting normalised median slope parameters for all valid a model thresholds for all valid years'
+        log.info('Plotting u* histograms for all valid b model thresholds for all valid years')
+        for i,j in enumerate(output_stats_df.index):
+            CPD_plot_hist(all_results_df['bMod_threshold'].ix[j][all_results_df['b_valid'].ix[j]==True],
+                                   output_stats_df['ustar_mean'].ix[j],
+                                   output_stats_df['ustar_sig'].ix[j],
+                                   output_stats_df['crit_t'].ix[j],
+                                   j,i,d['plot_output_path'])
+        #[CPD_plot_hist(all_results_df['bMod_threshold'].ix[j][all_results_df['b_valid'].ix[j]==True],
+                       #output_stats_df['ustar_mean'].ix[j],
+                       #output_stats_df['ustar_sig'].ix[j],
+                       #output_stats_df['crit_t'].ix[j],
+                       #j, d['plot_output_path'])
+         #for j in output_stats_df.index]
+        log.info('Plotting normalised median slope parameters for all valid a model thresholds for all valid years')
         CPD_plot_slopes(output_stats_df[['norm_a1_median','norm_a2_median']],d['plot_output_path'])    
     
     # Output final stats if requested by user
-    if 'results_output_path' in d.keys():
-        'Outputting final results'
-        output_stats_df.to_csv(os.path.join(d['results_output_path'],'annual_statistics.csv'))    
+    # *** original code from IMcH
+    #if 'results_output_path' in d.keys():
+        #'Outputting final results'
+        #output_stats_df.to_csv(os.path.join(d['results_output_path'],'annual_statistics.csv'))    
+        #xlname = os.path.join(d['results_output_path'],'annual_statistics.xls')
+
+    xlsheet = "Annual"
+    output_stats_df.to_excel(xlwriter,sheet_name=xlsheet)    
+    xlwriter.save()
     
-    print 'Analysis complete!'
+    log.info('CPD analysis complete!')
     # Return final results
-    #return output_stats_df
-    return
+    return output_stats_df    
 #------------------------------------------------------------------------------
 
 #------------------------------------------------------------------------------
@@ -250,18 +275,19 @@ def CPD_plot_fits(temp_df,stats_df,plot_out):
     txt='Change point detected at u*='+str(round(stats_df['bMod_threshold'],3))+' (i='+str(stats_df['bMod_CP'])+')'
     ax=plt.gca()
     plt.text(0.57,0.1,txt,bbox=props,fontsize=12,verticalalignment='top',transform=ax.transAxes)
-    plot_out_name='Y'+str(stats_df.name[0])+'_S'+str(stats_df.name[1])+'_Tclass'+str(stats_df.name[2])+'.png'
+    plot_out_name='Y'+str(stats_df.name[0])+'_S'+str(stats_df.name[1])+'_Tclass'+str(stats_df.name[2])+'.jpg'
     fig.savefig(os.path.join(plot_out,plot_out_name))
-    #plt.close(fig)
+    plt.close(fig)
 
 # Plot PDF of u* values and write to specified folder           
-def CPD_plot_hist(S,mu,sig,crit_t,year,plot_out):
+def CPD_plot_hist(S,mu,sig,crit_t,year,i,plot_out):
     S=S.reset_index(drop=True)
     x_low=S.min()-0.1*S.min()
     x_high=S.max()+0.1*S.max()
     x=np.linspace(x_low,x_high,100)
-    fig=plt.figure(figsize=(12,8))
-    fig.patch.set_facecolor('white')
+    plt.ion()
+    fig=plt.figure(i,figsize=(12,8))
+    #fig.patch.set_facecolor('white')
     plt.hist(S,normed=True)
     plt.plot(x,mlab.normpdf(x,mu,sig),color='red',linewidth=2.5,label='Gaussian PDF')
     plt.xlim(x_low,x_high)
@@ -275,6 +301,7 @@ def CPD_plot_hist(S,mu,sig,crit_t,year,plot_out):
     plt.text(0.4,0.1,txt,bbox=props,fontsize=12,verticalalignment='top',transform=ax.transAxes)
     plt.legend(loc='upper left')
     plt.title(str(year)+'\n')
+    plt.draw()
     plot_out_name='ustar'+str(year)+'.png'
     fig.savefig(os.path.join(plot_out,plot_out_name))
     #plt.close(fig)
@@ -283,17 +310,19 @@ def CPD_plot_hist(S,mu,sig,crit_t,year,plot_out):
 # results folder - user can discard output for that year                       
 def CPD_plot_slopes(df,plot_out):
     df=df.reset_index(drop=True)
+    plt.ion()
     fig=plt.figure(figsize=(12,8))
-    fig.patch.set_facecolor('white')
+    #fig.patch.set_facecolor('white')
     plt.plot(df['norm_a1_median'],df['norm_a2_median'],'bo')
     plt.xlim(-4,4)
     plt.ylim(-4,4)
     plt.xlabel('$Median\/normalised\/ a^{1}$',fontsize=16)
     plt.ylabel('$Median\/normalised\/ a^{2}$',fontsize=16)
     plt.title('Normalised slope parameters')
+    plt.draw()
     plot_out_name='normalised_slope_parameters.png'
     fig.savefig(os.path.join(plot_out,plot_out_name))
-    #plt.close(fig)
+#    plt.close(fig)
 
 #------------------------------------------------------------------------------
 
@@ -353,8 +382,10 @@ def CPD_QC2(df,output_df,bootstrap_n):
     output_df['a_valid']=(~(np.isnan(output_df['norm_a1_median']))&(~np.isnan(output_df['norm_a2_median'])))
     output_df['b_valid']=(output_df['QCpass']>(4*bootstrap_n))&(output_df['QCpass_prop']>0.2)
     for i in output_df.index:
-        if output_df['a_valid'].ix[i]==False: print 'Insufficient valid cases for robust diagnostic (a model) u* determination in year '+str(i)
-        if output_df['b_valid'].ix[i]==False: print 'Insufficient valid cases for robust operational (b model) u* determination in year '+str(i)
+        if output_df['a_valid'].ix[i]==False:
+            log.error('Insufficient valid cases for robust diagnostic (a model) u* determination in year '+str(i))
+        if output_df['b_valid'].ix[i]==False:
+            log.error('Insufficient valid cases for robust operational (b model) u* determination in year '+str(i))
  
     return output_df    
     
@@ -362,54 +393,108 @@ def CPD_QC2(df,output_df,bootstrap_n):
 
 #------------------------------------------------------------------------------
 # Fetch the data and prepare it for analysis
-def CPD_run():
-        
-    # Prompt user for configuration file and get it
-    root = Tkinter.Tk(); root.withdraw()
-    cfName = tkFileDialog.askopenfilename(initialdir='')
-    root.destroy()
-    cf=ConfigObj(cfName)
+def CPD_run(cf):
+    # *** original code from IMcH
+    ## Prompt user for configuration file and get it
+    #root = Tkinter.Tk(); root.withdraw()
+    #cfName = tkFileDialog.askopenfilename(initialdir='')
+    #root.destroy()
+    #cf=ConfigObj(cfName)
     
     # Set input file and output path and create directories for plots and results
-    file_in=os.path.join(cf['files']['input_path'],cf['files']['input_file'])
-    path_out=cf['files']['output_path']
-    plot_path_out=os.path.join(path_out,'Plots')
-    if not os.path.isdir(plot_path_out): os.makedirs(os.path.join(path_out,'Plots'))
-    results_path_out=os.path.join(path_out,'Results')
-    if not os.path.isdir(results_path_out): os.makedirs(os.path.join(path_out,'Results'))    
-    
+    file_in = os.path.join(cf['Files']['file_path'],cf['Files']['in_filename'])
+    path_out = cf['Files']['file_path']
+    path_out = os.path.join(path_out,'CPD')
+    plot_path_out = os.path.join(path_out,'Plots')
+    if not os.path.isdir(plot_path_out): os.makedirs(plot_path_out)
+    results_path_out = os.path.join(path_out,'Results')
+    if not os.path.isdir(results_path_out): os.makedirs(results_path_out)    
+    # **** original code from IMcH
+    #file_in=os.path.join(cf['files']['input_path'],cf['files']['input_file'])
+    #path_out=cf['files']['output_path']
+    #plot_path_out=os.path.join(path_out,'Plots')
+    #if not os.path.isdir(plot_path_out): os.makedirs(os.path.join(path_out,'Plots'))
+    #results_path_out=os.path.join(path_out,'Results')
+    #if not os.path.isdir(results_path_out): os.makedirs(os.path.join(path_out,'Results'))    
+
     # Get user-set variable names from config file
-    vars_data=[cf['variables']['data'][i] for i in cf['variables']['data']]
-    vars_QC=[cf['variables']['QC'][i] for i in cf['variables']['QC']]
-    vars_all=vars_data+vars_QC
+    # *** original code from IMcH
+    #vars_data=[cf['variables']['data'][i] for i in cf['variables']['data']]
+    #vars_QC=[cf['variables']['QC'][i] for i in cf['variables']['QC']]
+    #vars_all=vars_data+vars_QC
        
+    vars_data = []
+    for item in cf["Variables"].keys():
+        if "AltVarName" in cf["Variables"][item].keys():
+            vars_data.append(str(cf["Variables"][item]["AltVarName"]))
+        else:
+            vars_data.append(str(item))
+    vars_QC = []
+    for item in vars_data:
+        vars_QC.append(item+"_QCFlag")
+    vars_all = vars_data+vars_QC
+
     # Read .nc file
-    nc_obj=netCDF4.Dataset(file_in)
-    flux_frequency=int(nc_obj.time_step)
-    dates_list=[dt.datetime(*xlrd.xldate_as_tuple(elem,0)) for elem in nc_obj.variables['xlDateTime']]
+    # *** original code from IMcH
+    #nc_obj=netCDF4.Dataset(file_in)
+    #flux_frequency=int(nc_obj.time_step)
+    #dates_list=[dt.datetime(*xlrd.xldate_as_tuple(elem,0)) for elem in nc_obj.variables['xlDateTime']]
+    #d={}
+    #for i in vars_all:
+        #d[i]=nc_obj.variables[i][:]
+    #nc_obj.close()
+    #df=pd.DataFrame(d,index=dates_list)
+    log.info(' Reading netCDF file '+file_in)   
+    ncFile = netCDF4.Dataset(file_in)
+    flux_frequency=int(ncFile.time_step)
+    dates_list=[dt.datetime(*xlrd.xldate_as_tuple(elem,0)) for elem in ncFile.variables['xlDateTime']]
     d={}
-    for i in vars_all:
-        d[i]=nc_obj.variables[i][:]
-    nc_obj.close()
-    df=pd.DataFrame(d,index=dates_list)    
-        
+    for item in vars_all:
+        nDims = len(ncFile.variables[item].shape)
+        if nDims not in [1,3]:
+            msg = "CPD_run: unrecognised number of dimensions ("+str(nDims)
+            msg = msg+") for netCDF variable "+item
+            raise Exception(msg)
+        if nDims==1:
+            # single dimension
+            d[item] = ncFile.variables[item][:]
+        elif nDims==3:
+            # 3 dimensions
+            d[item] = ncFile.variables[item][:,0,0]
+    ncFile.close()
+    df=pd.DataFrame(d,index=dates_list)
+
     # Build dictionary of additional configs
+    # *** original code from IMcH
+    #d={}
+    #d['radiation_threshold']=int(cf['options']['radiation_threshold'])
+    #d['num_bootstraps']=int(cf['options']['num_bootstraps'])
+    #d['flux_frequency']=flux_frequency
+    #if cf['options']['output_plots']=='True':
+        #d['plot_output_path']=plot_path_out
+    #if cf['options']['output_results']=='True':
+        #d['results_output_path']=results_path_out
     d={}
-    d['radiation_threshold']=int(cf['options']['radiation_threshold'])
-    d['num_bootstraps']=int(cf['options']['num_bootstraps'])
+    d['radiation_threshold']=int(cf['Options']['Fsd_threshold'])
+    d['num_bootstraps']=int(cf['Options']['Num_bootstraps'])
     d['flux_frequency']=flux_frequency
-    if cf['options']['output_plots']=='True':
+    if cf['Options']['Output_plots']=='True':
         d['plot_output_path']=plot_path_out
-    if cf['options']['output_results']=='True':
+    if cf['Options']['Output_results']=='True':
         d['results_output_path']=results_path_out
-        
+
     # Replace configured error values with NaNs and remove data with unacceptable QC codes, then drop flags
-    df.replace(int(cf['options']['nan_value']),np.nan)
-    if 'QC_accept_codes' in cf['options']:    
-        QC_accept_codes=ast.literal_eval(cf['options']['QC_accept_codes'])
-        eval_string='|'.join(['(df[vars_QC[i]]=='+str(i)+')' for i in QC_accept_codes])
-        for i in xrange(4):
-            df[vars_data[i]]=np.where(eval(eval_string),df[vars_data[i]],np.nan)
+    # *** original code from IMcH
+    #df.replace(int(cf['options']['nan_value']),np.nan)
+    #if 'QC_accept_codes' in cf['options']:
+        #QC_accept_codes=ast.literal_eval(cf['options']['QC_accept_codes'])
+        #eval_string='|'.join(['(df[vars_QC[i]]=='+str(i)+')' for i in QC_accept_codes])
+        #for i in xrange(4):
+            #df[vars_data[i]]=np.where(eval(eval_string),df[vars_data[i]],np.nan)
+    df.replace(c.missing_value,np.nan)
+    eval_string='|'.join(['(df[vars_QC[i]]=='+str(i)+')' for i in [0,10]])
+    for i in xrange(len(vars_data)):
+        df[vars_data[i]]=np.where(eval(eval_string),df[vars_data[i]],np.nan)
     df=df[vars_data]
     
     return df,d
@@ -431,12 +516,12 @@ def CPD_sort(df,fluxfreq,years_index):
     years_df['seasons'].fillna(0,inplace=True)
     years_df['seasons']=years_df['seasons'].astype(int)
     if np.all(years_df['seasons']==0):
-        print 'No years with sufficient data for evaluation. Exiting...'
+        log.error('No years with sufficient data for evaluation, exiting...')
         return
     elif np.any(years_df['seasons']==0):
         exclude_years_list=years_df[years_df['seasons']<=0].index.tolist()
         exclude_years_str= ','.join(map(str,exclude_years_list))
-        print 'Insufficient data for evaluation in the following years: '+exclude_years_str+' (excluded from analysis)'
+        log.error('Insufficient data for evaluation in the following years: '+exclude_years_str+' (excluded from analysis)')
         years_df=years_df[years_df['seasons']>0]
     
     # Extract overlapping series, sort by temperature and concatenate
@@ -502,4 +587,3 @@ def CPD_stats(df,stats_df):
             stats_df['ustar_mean'].ix[i]=df['bMod_threshold'].ix[i]
             
     return stats_df
-#------------------------------------------------------------------------------

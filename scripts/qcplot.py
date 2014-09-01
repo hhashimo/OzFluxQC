@@ -237,7 +237,7 @@ def plottimeseries(cf,nFig,dsa,dsb,si,ei):
     p['XAxMin'] = min(L2XArray)
     p['XAxMax'] = max(L2XArray)
     p['loc'],p['fmt'] = get_ticks(p['XAxMin'],p['XAxMax'])
-    plt.ioff()
+    plt.ion()
     fig = plt.figure(int(nFig),figsize=(p['PlotWidth'],p['PlotHeight']))
     fig.clf()
     plt.figtext(0.5,0.95,SiteName+': '+p['PlotDescription'],ha='center',size=16)
