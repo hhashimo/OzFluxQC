@@ -810,7 +810,7 @@ def gfACCESS_getolscorrecteddata(x_in,y_in,results=None,thru0=False):
         y = numpy.ma.array(y_in,mask=mask)
         if numpy.ma.count(x)==0:
             #log.error('qcts.getolscorrecteddata: x or y all masked')
-            return (y_in,"")
+            return (y_in,"X or Y all masked")
         x = numpy.ma.compressed(x)
         y = numpy.ma.compressed(y)
     else:
@@ -819,18 +819,19 @@ def gfACCESS_getolscorrecteddata(x_in,y_in,results=None,thru0=False):
     nx = len(x)
     if nx!=len(y):
         log.error('qcts.getolscorrecteddata: x and y must be equal length')
-        return (y_in,"")
+        return (y_in,"X & Y unequal lengths")
     if thru0:
         resols = sm.OLS(y,x).fit()
         y_out = resols.params[0]*x_in
         eqnstr = 'y = %.3fx'%(resols.params[0])
     else:
         resols = sm.OLS(y,sm.add_constant(x,prepend=False)).fit()
-        try:
+        if resols.params.shape[0]==2:
             y_out = resols.params[0]*x_in+resols.params[1]
-        except:
-            pass
-        eqnstr = 'y = %.3fx + %.3f'%(resols.params[0],resols.params[1])
+            eqnstr = 'y = %.3fx + %.3f'%(resols.params[0],resols.params[1])
+        else:
+            log.error("qcts.getolscorrecteddata: OLS did not give a solution")
+            return (y_in,"OLS error")
     if results!=None:
         results["ols"] = resols
     return (y_out,eqnstr)

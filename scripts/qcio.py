@@ -183,7 +183,7 @@ def read_eddypro_full(csvname):
             Fc_flag_list.append(float(row[Fc_flag_col]))
         n = n + 1
     nRecs = len(adatetime)
-    adatetime = qcutils.RoundDateTime(adatetime,dt=30)
+    adatetime = qcutils.RoundDateTime(adatetime,ts=30)
     ds.series['DateTime'] = {}
     ds.series['DateTime']['Data'] = adatetime
     ds.series['ustar'] = {}
@@ -947,7 +947,8 @@ def nc_write_var(ncFile,ds,ThisOne,dim):
     if len(dim)==3: ncVar[:,0,0] = ds.series[ThisOne]['Data'].tolist()
     # write the attributes
     for attr in ds.series[ThisOne]['Attr']:
-        setattr(ncVar,attr,ds.series[ThisOne]['Attr'][attr])
+        if attr!="_FillValue":
+            setattr(ncVar,attr,ds.series[ThisOne]['Attr'][attr])
     # get the data type of the QC flag
     dt = get_ncdtype(ds.series[ThisOne]['Flag'])
     # create the variable

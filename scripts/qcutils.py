@@ -7,6 +7,7 @@ import dateutil
 import logging
 import math
 import meteorologicalfunctions as mf
+import netCDF4
 import numpy
 import os
 import pytz
@@ -308,7 +309,7 @@ def FixTimeGaps(ds):
     ts_seconds = int(60*ts_minutes+0.5)
     xldt = ds.series['xlDateTime']['Data']
     #pydt = ds.series['DateTime']['Data']
-    pydt = RoundDateTime(ds.series['DateTime']['Data'],dt=ts_minutes)
+    pydt = RoundDateTime(ds.series['DateTime']['Data'],ts=ts_minutes)
     # generate a series of datetime values with no gaps
     start = pydt[0]
     end = pydt[-1]
@@ -737,6 +738,28 @@ def get_coverage_individual(ds):
         coverage = 100*float(num_good)/float(ds.globalattributes['nc_nrecs'])
         ds.series[ThisOne]['Attr']['coverage_'+level] = str('%d'%coverage)
 
+def get_datetimefromnctime(ds,time,time_units):
+    """
+    Purpose:
+     Create a series of datetime objects from the time read from a netCDF file.
+    Usage:
+     qcutils.get_datetimefromnctime(ds,time,time_units)
+    Side effects:
+     Creates a Python datetime series in the data structure
+    Author: PRI
+    Date: September 2014
+    """
+    nRecs = ds.globalattributes["nc_nrecs"]
+    ts = ds.globalattributes["time_step"]
+    dt = netCDF4.num2date(time,time_units)
+    dt = RoundDateTime(dt,ts=ts)
+    ds.series[unicode("DateTime")] = {}
+    ds.series["DateTime"]["Data"] = list(dt)
+    ds.series["DateTime"]["Flag"] = numpy.zeros(nRecs)
+    ds.series["DateTime"]["Attr"] = {}
+    ds.series["DateTime"]["Attr"]["long_name"] = "Datetime in local timezone"
+    ds.series["DateTime"]["Attr"]["units"] = "None"
+
 def get_datetimefromxldate(ds):
     ''' Creates a series of Python datetime objects from the Excel date read from the Excel file.
         Thanks to John Machin for the quick and dirty code
@@ -1086,11 +1109,11 @@ def polyval(p,x):
         y = x*y + p[i]
     return y
 
-def RoundDateTime(datetimeseries,dt=30):
+def RoundDateTime(datetimeseries,ts=30):
     RoundedDateTime = []
     for tm in datetimeseries:
-        tm += datetime.timedelta(minutes=int(dt/2))
-        tm -= datetime.timedelta(minutes=tm.minute % int(dt),
+        tm += datetime.timedelta(minutes=int(ts/2))
+        tm -= datetime.timedelta(minutes=tm.minute % int(ts),
                                  seconds=tm.second,
                                  microseconds=tm.microsecond)
         RoundedDateTime.append(tm)

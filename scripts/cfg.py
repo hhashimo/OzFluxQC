@@ -1,5 +1,6 @@
 version_name = "OzFluxQC"
-version_number = "V2.8.2"
+version_number = "V2.8.3"
+# V2.8.3   - implemented estimation of u* threshold by CPD (Barr et al)
 # V2.8.2   - implemented;
 #            - estimation of ecosystem respiration from nocturnal Fc
 #              using SOLO and FFNET.

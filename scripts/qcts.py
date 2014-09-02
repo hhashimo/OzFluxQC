@@ -2119,7 +2119,7 @@ def MergeSeriesUsingDict(ds):
         srclist = ds.merge[target]["source"]
         log.info(' Merging '+str(srclist)+' ==> '+target)
         if srclist[0] not in ds.series.keys():
-            log.error('  MergeSeries: primary input series'+srclist[0]+'not found')
+            log.error('  MergeSeries: primary input series '+srclist[0]+' not found')
             continue
         data = ds.series[srclist[0]]['Data'].copy()
         flag = ds.series[srclist[0]]['Flag'].copy()
