@@ -1,0 +1,231 @@
+[Sites]
+    [[AliceSpringsMulga]]
+        in_filepath = ../../BIOS2/2000_2012/
+        in_filename = Alice_Springs.nc
+        out_filepath = ../../Sites/AliceSpringsMulga/Data/BIOS2/
+        out_filename = AliceSpringsMulga_BIOS2.nc
+        interpolate = No
+        site_timezone = Australia/Darwin
+    [[Arcturus]]
+        in_filepath = ../../BIOS2/2000_2012/
+        in_filename = Arcturus.nc
+        out_filepath = ../../Sites/Arcturus/Data/BIOS2/
+        out_filename = Arcturus_BIOS2.nc
+        interpolate = No
+        site_timezone = Australia/Brisbane
+    [[Calperum]]
+        in_filepath = ../../BIOS2/2000_2012/
+        in_filename = Calperum.nc
+        out_filepath = ../../Sites/Calperum/Data/BIOS2/
+        out_filename = Calperum_BIOS2.nc
+        interpolate = No
+        site_timezone = Australia/Adelaide
+    [[CapeTribulation]]
+        in_filepath = ../../BIOS2/2000_2012/
+        in_filename = Cape_Tribulation.nc
+        out_filepath = ../../Sites/CapeTribulation/Data/BIOS2/
+        out_filename = CapeTribulation_BIOS2.nc
+        interpolate = No
+        site_timezone = Australia/Brisbane
+#    [[CumberlandPlains]]
+#        in_filepath = ../../ACCESS/CumberlandPlains/2011/
+#        in_filename = access_Cumberland_Plains_2011*.nc
+#        out_filepath = ../../Sites/CumberlandPlains/Data/ACCESS/
+#        out_filename = CumberlandPlains_2011_ACCESS.nc
+#        interpolate = Yes
+#        site_timezone = Australia/Sydney
+    [[Daintree]]
+        in_filepath = ../../BIOS2/2000_2012/
+        in_filename = Daintree.nc
+        out_filepath = ../../Sites/Daintree/Data/BIOS2/
+        out_filename = Daintree_BIOS2.nc
+        interpolate = No
+        site_timezone = Australia/Brisbane
+    [[DalyPasture]]
+        in_filepath = ../../BIOS2/2000_2012/
+        in_filename = Daly_River_Pasture.nc
+        out_filepath = ../../Sites/DalyPasture/Data/BIOS2/
+        out_filename = DalyPasture_BIOS2.nc
+        interpolate = No
+        site_timezone = Australia/Darwin
+    [[DalyUncleared]]
+        in_filepath = ../../BIOS2/2000_2012/
+        in_filename = Daly_River_Uncleared.nc
+        out_filepath = ../../Sites/DalyUncleared/Data/BIOS2/
+        out_filename = DalyUncleared_BIOS2.nc
+        interpolate = No
+        site_timezone = Australia/Darwin
+#    [[Darbalara]]
+#        in_filepath = ../../ACCESS/Darbalara/2011/
+#        in_filename = access_Darbalara_2011*.nc
+#        out_filepath = ../../Sites/Darbalara/Data/ACCESS/
+#        out_filename = Darbalara_2011_ACCESS.nc
+#        interpolate = Yes
+#        site_timezone = Australia/Brisbane
+    [[Dargo]]
+        in_filepath = ../../BIOS2/2000_2012/
+        in_filename = Dargo.nc
+        out_filepath = ../../Sites/Dargo/Data/BIOS2/
+        out_filename = Dargo_BIOS2.nc
+        interpolate = No
+        site_timezone = Australia/Melbourne
+    [[DryRiver]]
+        in_filepath = ../../BIOS2/2000_2012/
+        in_filename = Dry_Creek.nc
+        out_filepath = ../../Sites/DryRiver/Data/BIOS2/
+        out_filename = DryRiver_BIOS2.nc
+        interpolate = No
+        site_timezone = Australia/Darwin
+    [[Gingin]]
+        in_filepath = ../../BIOS2/2000_2012/
+        in_filename = Gnangara.nc
+        out_filepath = ../../Sites/Gingin/Data/BIOS2/
+        out_filename = Gingin_BIOS2.nc
+        interpolate = No
+        site_timezone = Australia/Perth
+    [[GreatWesternWoodlands]]
+        in_filepath = ../../BIOS2/2000_2012/
+        in_filename = Great_Western_Woodland.nc
+        out_filepath = ../../Sites/GreatWesternWoodlands/Data/BIOS2/
+        out_filename = GreatWesternWoodlands_BIOS2.nc
+        interpolate = No
+        site_timezone = Australia/Perth
+    [[HowardSprings]]
+        in_filepath = ../../BIOS2/2000_2012/
+        in_filename = Howard_Springs.nc
+        out_filepath = ../../Sites/HowardSprings/Data/BIOS2/
+        out_filename = HowardSprings_BIOS2.nc
+        interpolate = No
+        site_timezone = Australia/Darwin
+    [[Jaxa]]
+        in_filepath = ../../BIOS2/2000_2012/
+        in_filename = JAXA_Yanco.nc
+        out_filepath = ../../Sites/Jaxa/Data/BIOS2/
+        out_filename = Jaxa_BIOS2.nc
+        interpolate = No
+        site_timezone = Australia/Sydney
+#    [[Litchfield]]
+#        in_filepath = ../../ACCESS/Litchfield/2011/
+#        in_filename = access_Litchfield_2011*.nc
+#        out_filepath = ../../Sites/Litchfield/Data/ACCESS/
+#        out_filename = Litchfield_2011_ACCESS.nc
+#        interpolate = Yes
+#        site_timezone = Australia/Darwin
+    [[Nimmo]]
+        in_filepath = ../../BIOS2/2000_2012/
+        in_filename = Nimmo.nc
+        out_filepath = ../../Sites/Nimmo/Data/BIOS2/
+        out_filename = Nimmo_BIOS2.nc
+        interpolate = No
+        site_timezone = Australia/Sydney
+    [[RedDirtMelonFarm]]
+        in_filepath = ../../BIOS2/2000_2012/
+        in_filename = RDMF.nc
+        out_filepath = ../../Sites/RedDirtMelonFarm/Data/BIOS2/
+        out_filename = RedDirtMelonFarm_BIOS2.nc
+        interpolate = No
+        site_timezone = Australia/Darwin
+    [[RiggsCreek]]
+        in_filepath = ../../BIOS2/2000_2012/
+        in_filename = Riggs_Creek.nc
+        out_filepath = ../../Sites/RiggsCreek/Data/BIOS2/
+        out_filename = RiggsCreek_BIOS2.nc
+        interpolate = No
+        site_timezone = Australia/Melbourne
+    [[RobsonCreek]]
+        in_filepath = ../../BIOS2/2000_2012/
+        in_filename = Robson_Creek.nc
+        out_filepath = ../../Sites/RobsonCreek/Data/BIOS2/
+        out_filename = RobsonCreek_BIOS2.nc
+        interpolate = No
+        site_timezone = Australia/Brisbane
+    [[Samford]]
+        in_filepath = ../../BIOS2/2000_2012/
+        in_filename = Samford.nc
+        out_filepath = ../../Sites/Samford/Data/BIOS2/
+        out_filename = Samford_BIOS2.nc
+        interpolate = No
+        site_timezone = Australia/Brisbane
+    [[SturtPlains]]
+        in_filepath = ../../BIOS2/2000_2012/
+        in_filename = Sturt_Plains.nc
+        out_filepath = ../../Sites/SturtPlains/Data/BIOS2/
+        out_filename = SturtPlains_BIOS2.nc
+        interpolate = No
+        site_timezone = Australia/Darwin
+    [[TiTreeEast]]
+        in_filepath = ../../BIOS2/2000_2012/
+        in_filename = Ti_Tree_East.nc
+        out_filepath = ../../Sites/TiTreeEast/Data/BIOS2/
+        out_filename = TiTreeEast_BIOS2.nc
+        interpolate = No
+        site_timezone = Australia/Darwin
+    [[Tumbarumba]]
+        in_filepath = ../../BIOS2/2000_2012/
+        in_filename = Tumbarumba.nc
+        out_filepath = ../../Sites/Tumbarumba/Data/BIOS2/
+        out_filename = Tumbarumba_BIOS2.nc
+        interpolate = Yes
+        site_timezone = Australia/Sydney
+    [[WallabyCreek]]
+        in_filepath = ../../BIOS2/2000_2012/
+        in_filename = Wallaby_Creek.nc
+        out_filepath = ../../Sites/WallabyCreek/Data/BIOS2/
+        out_filename = WallabyCreek_BIOS2.nc
+        interpolate = No
+        site_timezone = Australia/Melbourne
+    [[Warra]]
+        in_filepath = ../../BIOS2/2000_2012/
+        in_filename = Warra.nc
+        out_filepath = ../../Sites/Warra/Data/BIOS2/
+        out_filename = Warra_BIOS2.nc
+        interpolate = No
+        site_timezone = Australia/Hobart
+    [[Whroo]]
+        in_filepath = ../../BIOS2/2000_2012/
+        in_filename = Whroo.nc
+        out_filepath = ../../Sites/Whroo/Data/BIOS2/
+        out_filename = Whroo_BIOS2.nc
+        interpolate = No
+        site_timezone = Australia/Melbourne
+    [[WombatStateForest]]
+        in_filepath = ../../BIOS2/2000_2012/
+        in_filename = Wombat.nc
+        out_filepath = ../../Sites/WombatStateForest/Data/BIOS2/
+        out_filename = WombatStateForest_BIOS2.nc
+        interpolate = No
+        site_timezone = Australia/Melbourne
+
+[Variables]
+    [[time]]
+        bios_name = time
+    [[Fsd]]
+        bios_name = SWdown
+    [[Fn_sw]]
+        bios_name = SWnet
+    [[Fld]]
+        bios_name = LWdown
+    [[Fn_lw]]
+        bios_name = LWnet
+    [[Ta]]
+        bios_name = Tair
+    [[q]]
+        bios_name = Qair
+    [[Sws]]
+        bios_name = SoilMoist
+    [[Ts]]
+        bios_name = SoilTemp
+    [[Ws]]
+        bios_name = Wind
+    [[ps]]
+        bios_name = PSurf
+    [[Precip]]
+        bios_name = Rainf
+    [[Fh]]
+        bios_name = Qh
+    [[Fe]]
+        bios_name = Qle
+    [[Fg]]
+        bios_name = Qg
+    [[GPP_BIOS]]
+        bios_name = GPP

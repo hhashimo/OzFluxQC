@@ -40,19 +40,17 @@
 #    the data from the site being gap filled.
 #    Examples of alternate sites are:
 #    a) a near-by flux tower.
-#    b) a psuedo-tower data set derived from gridded meteorological fields:
+#    b) output from the ACCESS NWP model
+#    c) output from the BIOS2 model
+#    d) a psuedo-tower data set derived from gridded meteorological fields:
 #       - these are usually available at daily time steps and must be interpolated
 #         down to the time step of the data set being gap filled.
-#    c) a compsite of pseudo-tower data and data from a Bureau of Meteorology Automatic
+#    e) a compsite of pseudo-tower data and data from a Bureau of Meteorology Automatic
 #       Weather Station:
 #       - as an example, temperature, humidity, wind speed, wind direction and rainfall data
 #         may come from a nearby AWS with down-welling shortwave (Fsd) being derived from a daily
 #         time step, gridded product (eg AWAP, SILO) by interpolation, up-welling shortwave
 #         from Fsd and albedo, and longwave from temperature etc.
-#    d) an AWS plus radiation data from an alternate site.
-#    WARNING - at present, this method assumes the alternate site is a flux tower and that all
-#              required data (meteorological, radiation, soil) is present in the alternate site
-#              data set.  This method is still under development.
 # 2) GapFillFromClimatology
 #    This method uses the information in the Climatology_YYYY.xls Excel spreadsheet to fill gaps
 #    in the data set.  The climatology spreadsheet is produced by running the "climatology.py" script
@@ -92,8 +90,7 @@
 #    climatological flux averages.  The monthly climatological averages (at each time step during the
 #    day) are interpolated onto a daily time step before being used to gap fill the missing night time
 #    fluxes.
-# 4) GapFillFluxFromACCESS
-# 5) GapFillFluxUsingSOLO
+# 4) GapFillUsingSOLO
 [Files]
     file_path = ../Sites/<site_name>/Data/Processed/<year>/
     in_filename = <site_name>_<year>_L3.nc
@@ -114,8 +111,9 @@
 
 [Drivers]
     [[Ah]]
-        [[[GapFillFromACCESS]]]
-            file_name = ../Sites/<site_name>/Data/ACCESS/<year>/<site_name>_<year>_ACCESS.nc
+        [[[GapFillFromAlternate]]]
+            source = "ACCESS"
+            file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_<year>_ACCESS.nc
             output = "Ah_acc"
         [[[GapFillFromClimatology]]]
             file_name = ../Sites/<site_name>/Data/Processed/<year>/<site_name>_<year>_L3_Climatology.xls
@@ -138,7 +136,8 @@
             Lower      = "[300]*12"
             Upper      = "[900]*12"
     [[Fa]]
-        [[[GapFillFromACCESS]]]
+        [[[GapFillFromAlternate]]]
+            source = "ACCESS"
             file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_<year>_ACCESS.nc
             output = "Fa_acc"
         [[[GapFillFromClimatology]]]
@@ -151,7 +150,8 @@
             Lower      = "[-300]*12"
             Upper      = "[1000]*12"
     [[Fg]]
-        [[[GapFillFromACCESS]]]
+        [[[GapFillFromAlternate]]]
+            source = "ACCESS"
             file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_<year>_ACCESS.nc
             output = "Fg_acc"
         [[[GapFillFromClimatology]]]
@@ -164,7 +164,8 @@
             Lower      = "[-300]*12"
             Upper      = "[300]*12"
     [[Fld]]
-        [[[GapFillFromACCESS]]]
+        [[[GapFillFromAlternate]]]
+            source = "ACCESS"
             file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_<year>_ACCESS.nc
             output = "Fld_acc"
         [[[GapFillFromClimatology]]]
@@ -177,7 +178,8 @@
             Lower      = "[250]*12"
             Upper      = "[700]*12"
     [[Flu]]
-        [[[GapFillFromACCESS]]]
+        [[[GapFillFromAlternate]]]
+            source = "ACCESS"
             file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_<year>_ACCESS.nc
             output = "Flu_acc"
         [[[GapFillFromClimatology]]]
@@ -190,7 +192,8 @@
             Lower      = "[300]*12"
             Upper      = "[700]*12"
     [[Fn]]
-        [[[GapFillFromACCESS]]]
+        [[[GapFillFromAlternate]]]
+            source = "ACCESS"
             file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_<year>_ACCESS.nc
             output = "Fn_acc"
         [[[GapFillFromClimatology]]]
@@ -203,7 +206,8 @@
             Lower      = [-150]*12
             Upper      = [1100]*12
     [[Fsd]]
-        [[[GapFillFromACCESS]]]
+        [[[GapFillFromAlternate]]]
+            source = "ACCESS"
             file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_<year>_ACCESS.nc
             output = "Fsd_acc"
         [[[GapFillFromClimatology]]]
@@ -216,7 +220,8 @@
             Lower      = "[-10]*12"
             Upper      = "[1500]*12"
     [[Fsu]]
-        [[[GapFillFromACCESS]]]
+        [[[GapFillFromAlternate]]]
+            source = "ACCESS"
             file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_<year>_ACCESS.nc
             output = "Fsu_acc"
         [[[GapFillFromClimatology]]]
@@ -229,7 +234,8 @@
             Lower      = "[-10]*12"
             Upper      = "[500]*12"
     [[ps]]
-        [[[GapFillFromACCESS]]]
+        [[[GapFillFromAlternate]]]
+            source = "ACCESS"
             file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_<year>_ACCESS.nc
             output = "ps_acc"
         [[[GapFillFromClimatology]]]
@@ -242,17 +248,19 @@
             Lower      = "[95]*12"
             Upper      = "[105]*12"
     [[Sws]]
-        [[[GapFillFromACCESS]]]
-            file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_<year>_ACCESS.nc
-            output = "Sws_acc"
+        [[[GapFillFromAlternate]]]
+            source = "BIOS2"
+            file_name = ../Sites/<site_name>/Data/BIOS2/<site_name>_BIOS2.nc
+            output = "Sws_bios"
         [[[GapFillFromClimatology]]]
             file_name = ../Sites/<site_name>/Data/Processed/<year>/<site_name>_<year>_L3_Climatology.xls
             method = "interpolated daily"
             output = "Sws_cli"
         [[[MergeSeries]]]
-            Source     = "['Sws','Sws_acc','Sws_cli']"
+            Source     = "['Sws','Sws_bios','Sws_cli']"
     [[Ta]]
-        [[[GapFillFromACCESS]]]
+        [[[GapFillFromAlternate]]]
+            source = "ACCESS"
             file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_<year>_ACCESS.nc
             output = "Ta_acc"
         [[[GapFillFromClimatology]]]
@@ -265,7 +273,8 @@
             Lower      = [0]*12
             Upper      = [50]*12
     [[Ts]]
-        [[[GapFillFromACCESS]]]
+        [[[GapFillFromAlternate]]]
+            source = "ACCESS"
             file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_<year>_ACCESS.nc
             output = "Ts_acc"
         [[[GapFillFromClimatology]]]
@@ -277,16 +286,18 @@
         [[[RangeCheck]]]
             Lower      = "[0]*12"
             Upper      = "[60]*12"
-    [[Ws]]
-        [[[GapFillFromACCESS]]]
+    [[Ws_WS]]
+        [[[GapFillFromAlternate]]]
+            source = "ACCESS"
             file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_<year>_ACCESS.nc
+            alternate_name = "Ws"
             output = "Ws_acc"
         [[[GapFillFromClimatology]]]
             file_name = ../Sites/<site_name>/Data/Processed/<year>/<site_name>_<year>_L3_Climatology.xls
             method = "interpolated daily"
             output = "Ws_cli"
         [[[MergeSeries]]]
-            Source     = "['Ws','Ws_acc','Ws_cli']"
+            Source     = "['Ws_WS','Ws_acc','Ws_cli']"
         [[[RangeCheck]]]
             Lower      = "[0]*12"
             Upper      = "[20]*12"
@@ -294,7 +305,7 @@
 [Fluxes]
     [[ustar]]
         [[[GapFillUsingSOLO]]]
-            drivers = "['Ws','Fn','Ta','q']"
+            drivers = "['Ws_WS','Fn','Ta','q']"
             output = 'ustar_SOLO'
         [[[MergeSeries]]]
             Source     = "['ustar','ustar_SOLO']"
@@ -303,9 +314,9 @@
             Upper      = "[2]*12"
     [[Fe]]
         [[[GapFillUsingSOLO]]]
-           #drivers = "['Fa','SHD','Ta','Ws']" - minimalist
+           #drivers = "['Fa','SHD','Ta','Ws_WS']" - minimalist
            #drivers = "['Fn','Fg','q','SHD','Ta','Ts']" - James'
-            drivers = "['Fa','SHD','Ta','Ws']"
+            drivers = "['Fa','SHD','Ta','Ws_WS']"
             output = 'Fe_SOLO'
         [[[MergeSeries]]]
             Source     = "['Fe','Fe_SOLO']"
@@ -314,9 +325,9 @@
             Upper      = "[600]*12"
     [[Fh]]
         [[[GapFillUsingSOLO]]]
-           #drivers = "['Fa','Ta','Ws']" - minimalist
+           #drivers = "['Fa','Ta','Ws_WS']" - minimalist
            #drivers = "['Fn','Fg','q','SHD','Ta','Ts']" - James'
-            drivers = "['Fa','Ta','Ws']"
+            drivers = "['Fa','Ta','Ws_WS']"
             output = 'Fh_SOLO'
         [[[MergeSeries]]]
             Source     = "['Fh','Fh_SOLO']"
@@ -345,7 +356,7 @@
         Variables = "['Fh','Fe','Fc','ustar','Fm']"
     [[3]]
         Title = "Meteorology"
-        Variables = "['Ta','Ah','Cc','Ws','Wd']"
+        Variables = "['Ta','Ah','Cc','Ws_WS','Wd_WS']"
     [[4]]
         Title = "Soil temperature, water content and heat flux"
         Variables = "['ps','Ts','Sws','Fg']"
@@ -359,13 +370,16 @@
         Title = "Fc gap filling"
         Variables = "['Fc','Fc_SOLO']"
 
-[ACCESS_Summary]
+[Alternate_Summary]
     [[1]]
         Title = "Radiation"
         Variables = "['Fsd','Fld','Fn','Fa']"
     [[2]]
         Title = "Meteorology"
-        Variables = "['Ta','Ah','Ws','ps','Ts']"
+        Variables = "['Ta','Ah','Ws_WS','ps']"
+    [[3]]
+        Title = "Soil"
+        Variables = "['Ts','Sws','Fg']"
 
 [SOLO_Summary]
     [[1]]

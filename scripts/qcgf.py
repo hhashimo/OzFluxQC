@@ -25,51 +25,51 @@ import xlrd
 
 log = logging.getLogger('qc.gf')
 
-def GapFillFromAlternate(cf,ds,series=''):
-    """
-        Gap fill using data from alternate sites specified in the control file
-        """
-    section = qcutils.get_cfsection(cf,series=series,mode='quiet')
-    if len(section)==0: return
-    if 'GapFillFromAlternate' not in cf[section][series].keys(): return
-    log.info(' Gap filling '+series+' using data from alternate sites')
-    ts = ds.globalattributes['time_step']
-    # Gap fill using data from alternate sites specified in the control file
-    ds_alt = {}               # create a dictionary for the data from alternate sites
-    open_ncfiles = []         # create an empty list of open netCDF files
-    # loop over the entries in the GapFillFromAlternate section
-    for Alt in cf[section][series]['GapFillFromAlternate'].keys():
-        log.info(' Gap filling '+ThisOne+' by replacing with alternate site data')
-        # get the file name for the alternate site
-        alt_filename = cf[section][series]['GapFillFromAlternate'][Alt]['FileName']
-        # get the variable name for the alternate site data if specified, otherwise use the same name
-        if 'AltVarName' in cf[section][series]['GapFillFromAlternate'][Alt].keys():
-            alt_varname = cf[section][series]['GapFillFromAlternate'][Alt]['AltVarName']
-        else:
-            alt_varname = series
-        # check to see if the alternate site file is already open
-        if alt_filename not in open_ncfiles:
-            # open and read the file if it is not already open
-            n = len(open_ncfiles)
-            open_ncfiles.append(alt_filename)
-            ds_alt[n] = qcio.nc_read_series_file(alt_filename)
-        else:
-            # get the file index number if it is already open
-            n = open_ncfiles.index(alt_filename)
-        # check to see if alternate site data needs transform
-        if 'Transform' in cf[section][series]['GapFillFromAlternate'][Alt].keys():
-            # get the datetime series for the alternate site
-            AltDateTime = ds_alt[n].series['DateTime']['Data']
-            # get the data for the alternate site
-            AltSeriesData = ds_alt[n].series[alt_varname]['Data']
-            # evaluate the list of start dates, end dates and transform coefficients
-            TList = ast.literal_eval(cf[section][section]['GapFillFromAlternate'][Alt]['Transform'])
-            # loop over the datetime ranges for the transform
-            for TListEntry in TList:
-                qcts.TransformAlternate(TListEntry,AltDateTime,AltSeriesData,ts=ts)
-        qcts.ReplaceWhereMissing(ds.series[series],ds.series[series],ds_alt[n].series[alt_varname],FlagOffset=100)
-    if 'GapFillFromAlternate' not in ds.globalattributes['Functions']:
-        ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', GapFillFromAlternate'
+#def GapFillFromAlternate(cf,ds,series=''):
+    #"""
+        #Gap fill using data from alternate sites specified in the control file
+        #"""
+    #section = qcutils.get_cfsection(cf,series=series,mode='quiet')
+    #if len(section)==0: return
+    #if 'GapFillFromAlternate' not in cf[section][series].keys(): return
+    #log.info(' Gap filling '+series+' using data from alternate sites')
+    #ts = ds.globalattributes['time_step']
+    ## Gap fill using data from alternate sites specified in the control file
+    #ds_alt = {}               # create a dictionary for the data from alternate sites
+    #open_ncfiles = []         # create an empty list of open netCDF files
+    ## loop over the entries in the GapFillFromAlternate section
+    #for Alt in cf[section][series]['GapFillFromAlternate'].keys():
+        #log.info(' Gap filling '+ThisOne+' by replacing with alternate site data')
+        ## get the file name for the alternate site
+        #alt_filename = cf[section][series]['GapFillFromAlternate'][Alt]['FileName']
+        ## get the variable name for the alternate site data if specified, otherwise use the same name
+        #if 'AltVarName' in cf[section][series]['GapFillFromAlternate'][Alt].keys():
+            #alt_varname = cf[section][series]['GapFillFromAlternate'][Alt]['AltVarName']
+        #else:
+            #alt_varname = series
+        ## check to see if the alternate site file is already open
+        #if alt_filename not in open_ncfiles:
+            ## open and read the file if it is not already open
+            #n = len(open_ncfiles)
+            #open_ncfiles.append(alt_filename)
+            #ds_alt[n] = qcio.nc_read_series_file(alt_filename)
+        #else:
+            ## get the file index number if it is already open
+            #n = open_ncfiles.index(alt_filename)
+        ## check to see if alternate site data needs transform
+        #if 'Transform' in cf[section][series]['GapFillFromAlternate'][Alt].keys():
+            ## get the datetime series for the alternate site
+            #AltDateTime = ds_alt[n].series['DateTime']['Data']
+            ## get the data for the alternate site
+            #AltSeriesData = ds_alt[n].series[alt_varname]['Data']
+            ## evaluate the list of start dates, end dates and transform coefficients
+            #TList = ast.literal_eval(cf[section][section]['GapFillFromAlternate'][Alt]['Transform'])
+            ## loop over the datetime ranges for the transform
+            #for TListEntry in TList:
+                #qcts.TransformAlternate(TListEntry,AltDateTime,AltSeriesData,ts=ts)
+        #qcts.ReplaceWhereMissing(ds.series[series],ds.series[series],ds_alt[n].series[alt_varname],FlagOffset=100)
+    #if 'GapFillFromAlternate' not in ds.globalattributes['Functions']:
+        #ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', GapFillFromAlternate'
 
 def GapFill_L2(cf,ds2,ds3):
     for series in ds3.series.keys():
@@ -279,37 +279,52 @@ def GapFillFluxUsingMDS(cf,ds,series=""):
         log.info(" GapFillFluxUsingMDS: not implemented yet")
         return
 
-def gfACCESS_createdict(cf,ds,series):
-    """ Creates a dictionary in ds to hold information about the ACCESS data used
-        to gap fill the tower data."""
+def gfAlternate_createdict(cf,ds,series,ds_alt):
+    """
+    Purpose:
+     Creates a dictionary in ds to hold information about the alternate data used to gap fill the tower data.
+    Usage:
+    Side effects:
+    Author: PRI
+    Date: August 2014
+    """
     # get the section of the control file containing the series
     section = qcutils.get_cfsection(cf,series=series,mode="quiet")
     # return without doing anything if the series isn't in a control file section
     if len(section)==0:
-        log.error("gfACCESS_createACCESSdict: Series "+series+" not found in control file, skipping ...")
+        log.error("gfAlternate_createdict: Series "+series+" not found in control file, skipping ...")
         return
-    # create the ACCESS directory in the data structure
-    if "access" not in dir(ds): ds.access = {}
+    # create the alternate directory in the data structure
+    if "alternate" not in dir(ds): ds.alternate = {}
     # create the dictionary keys for this series
-    ds.access[series] = {}
+    ds.alternate[series] = {}
     # site name
-    ds.access[series]["site_name"] = ds.globalattributes["site_name"]
-    # ACCESS file name
-    ds.access[series]["file_name"] = cf[section][series]["GapFillFromACCESS"]["file_name"]
-    # ACCESS variable name if different from name used in control file
-    if "access_name" in cf[section][series]["GapFillFromACCESS"]:
-        ds.access[series]["access_name"] = cf[section][series]["GapFillFromACCESS"]["access_name"]
+    ds.alternate[series]["site_name"] = ds.globalattributes["site_name"]
+    # source of the alternate data
+    ds.alternate[series]["source"] = cf[section][series]["GapFillFromAlternate"]["source"]
+    # alternate data file name
+    ds.alternate[series]["file_name"] = cf[section][series]["GapFillFromAlternate"]["file_name"]
+    # if the file has not already been read, do it now
+    if ds.alternate[series]["file_name"] not in ds_alt:
+        ds_alt[ds.alternate[series]["file_name"]] = qcio.nc_read_series(ds.alternate[series]["file_name"])
+    # alternate data variable name if different from name used in control file
+    if "alternate_name" in cf[section][series]["GapFillFromAlternate"]:
+        ds.alternate[series]["alternate_name"] = cf[section][series]["GapFillFromAlternate"]["alternate_name"]
     else:
-        ds.access[series]["access_name"] = series
-    # name of ACCESS output series in ds
-    ds.access[series]["output"] = cf[section][series]["GapFillFromACCESS"]["output"]
-    # results of best fity for plotting later on
-    ds.access[series]["results"] = {"startdate":[],"enddate":[],"No. points":[],"r":[],
+        ds.alternate[series]["alternate_name"] = series
+    # name of alternate output series in ds
+    ds.alternate[series]["output"] = cf[section][series]["GapFillFromAlternate"]["output"]
+    # results of best fit for plotting later on
+    ds.alternate[series]["results"] = {"startdate":[],"enddate":[],"No. points":[],"r":[],
                                     "Bias":[],"RMSE":[],"Frac Bias":[],"NMSE":[],
-                                    "Avg (tower)":[],"Avg (ACCESS)":[],
-                                    "Var (tower)":[],"Var (ACCESS)":[],"Var ratio":[],
+                                    "Avg (tower)":[],"Avg (alternate)":[],
+                                    "Var (tower)":[],"Var (alternate)":[],"Var ratio":[],
                                     "Lag (uncorrected)":[],"Lag (corrected)":[],
                                     "m_ols":[],"b_ols":[]}
+    # create an empty series in ds if the alternate output series doesn't exist yet
+    if ds.alternate[series]["output"] not in ds.series.keys():
+        data,flag,attr = qcutils.MakeEmptySeries(ds,ds.alternate[series]["output"])
+        qcutils.CreateSeries(ds,ds.alternate[series]["output"],data,Flag=flag,Attr=attr)
 
 def gfClimatology_createdict(cf,ds,series):
     """ Creates a dictionary in ds to hold information about the climatological data used
@@ -394,18 +409,14 @@ def gfSOLO_createdict(cf,ds,series):
                                   "Var (obs)":[],"Var (SOLO)":[],"Var ratio":[],
                                   "m_ols":[],"b_ols":[]}
 
-def GapFillParseControlFile(cf,ds,series=""):
+def GapFillParseControlFile(cf,ds,series,ds_alt):
     # find the section containing the series
     section = qcutils.get_cfsection(cf,series=series,mode="quiet")
     # return empty handed if the series is not in a section
     if len(section)==0: return
-    if "GapFillFromACCESS" in cf[section][series].keys():
-        # create the ACCESS dictionary in ds
-        gfACCESS_createdict(cf,ds,series)
-        # create an empty series in ds if the ACCESS output series doesn't exist yet
-        if ds.access[series]["output"] not in ds.series.keys():
-            data,flag,attr = qcutils.MakeEmptySeries(ds,ds.access[series]["output"])
-            qcutils.CreateSeries(ds,ds.access[series]["output"],data,Flag=flag,Attr=attr)
+    if "GapFillFromAlternate" in cf[section][series].keys():
+        # create the alternate dictionary in ds
+        gfAlternate_createdict(cf,ds,series,ds_alt)
     if "GapFillUsingSOLO" in cf[section][series].keys():
         # create the SOLO dictionary in ds
         gfSOLO_createdict(cf,ds,series)
@@ -416,7 +427,7 @@ def GapFillParseControlFile(cf,ds,series=""):
     if "GapFillFromClimatology" in cf[section][series].keys():
         # create the climatology dictionary in the data structure
         gfClimatology_createdict(cf,ds,series)
-        # create an empty series in ds if the ACCESS output series doesn't exist yet
+        # create an empty series in ds if the climatology output series doesn't exist yet
         if ds.climatology[series]["output"] not in ds.series.keys():
             data,flag,attr = qcutils.MakeEmptySeries(ds,ds.climatology[series]["output"])
             qcutils.CreateSeries(ds,ds.climatology[series]["output"],data,Flag=flag,Attr=attr)
@@ -424,162 +435,134 @@ def GapFillParseControlFile(cf,ds,series=""):
         # create the merge serioes dictionary in the data structure
         gfMergeSeries_createdict(cf,ds,series)
 
-def GapFillFromACCESS(ds4):
+def GapFillFromAlternate(ds4,ds_alt):
     '''
-    This is the gap fill from ACCESS GUI.
-    The ACCESS GUI is displayed separately from the main OzFluxQC GUI.
+    This is the gap fill from alternate data GUI.
+    The alternate data gap fill GUI is displayed separately from the main OzFluxQC GUI.
     It consists of text to display the start and end datetime of the file,
-    two entry boxes for the start and end datetimes of the ACCESS gap fill and
-    a button to insert the gap fill data ("Use ACCESS") and a button to exit
-    the ACCESS GUI when we are done.  On exit, the OzFluxQC main GUI continues
+    two entry boxes for the start and end datetimes of the alternate data gap fill and
+    a button to insert the gap fill data ("Run") and a button to exit ("Done")
+    the GUI when we are done.  On exit, the OzFluxQC main GUI continues
     and eventually writes the gap filled data to file.
     '''
-    if "access" not in dir(ds4): return
-    # get the list of ACCESS data files and take out the duplicates
-    access_file_list = list(set([ds4.access[x]["file_name"] for x in ds4.access.keys()]))
-    #access_file_list = list(set(ds4.access["file_name"]))
-    # more than 1 ACCESS data file not supported at present
-    if len(access_file_list)>1: raise NotImplementedError
+    if "alternate" not in dir(ds4): return
+    # get a local pointer to the tower datetime series
     ldt_tower = ds4.series["DateTime"]["Data"]
-    # we need the start and end time of the period of overlap between the ACCESS and tower data
-    # read the ACCESS data file
-    if not os.path.exists(access_file_list[0]):
-        log.error(" GapFillFromACCESS: ACCESS file "+access_file_list[0]+" not found")
-        return
-    ds_access = qcio.nc_read_series(access_file_list[0])
-    # check the time step of the tower and ACCESS data are the same
-    if int(ds4.globalattributes["time_step"])!=int(ds_access.globalattributes["time_step"]):
-        log.error(" GapFillFromACCESS: ACCESS and tower time steps are different")
-        return
-    ldt_access = ds_access.series["DateTime"]["Data"]
-    # check that the ACCESS and tower data overlap
-    if ldt_access[0]>ldt_tower[-1]:
-        log.error(" GapFillFromACCESS: ACCESS data starts after tower data finishes")
-        return
-    if ldt_access[-1]<ldt_tower[0]:
-        log.error(" GapFillFromACCESS: ACCESS data end before tower data starts")
-        return
-    # store the start and end date of the overlap period
-    startdate = max([ldt_tower[0],ldt_access[0]])
-    enddate = min([ldt_tower[-1],ldt_access[-1]])
-    access_info = {"overlap_startdate":startdate.strftime("%Y-%m-%d %H:%M"),
+    # get the start and end datetime of the tower data
+    startdate = ldt_tower[0]
+    enddate = ldt_tower[-1]
+    alternate_info = {"overlap_startdate":startdate.strftime("%Y-%m-%d %H:%M"),
                     "overlap_enddate":enddate.strftime("%Y-%m-%d %H:%M")}
     # make the GUI
-    access_gui = Tkinter.Toplevel()
-    access_gui.wm_title("ACCESS GUI")
-    access_gui.grid()
+    alt_gui = Tkinter.Toplevel()
+    alt_gui.wm_title("Gap fill using alternate data")
+    alt_gui.grid()
     # top row
     nrow = 0
-    access_gui.filestartLabel = Tkinter.Label(access_gui,text="Overlap start date")
-    access_gui.filestartLabel.grid(row=nrow,column=0,columnspan=3)
-    access_gui.fileendLabel = Tkinter.Label(access_gui,text="Overlap end date")
-    access_gui.fileendLabel.grid(row=nrow,column=3,columnspan=3)
+    alt_gui.filestartLabel = Tkinter.Label(alt_gui,text="Overlap start date")
+    alt_gui.filestartLabel.grid(row=nrow,column=0,columnspan=3)
+    alt_gui.fileendLabel = Tkinter.Label(alt_gui,text="Overlap end date")
+    alt_gui.fileendLabel.grid(row=nrow,column=3,columnspan=3)
     # second row
     nrow = nrow + 1
-    access_gui.filestartValue = Tkinter.Label(access_gui,text=access_info["overlap_startdate"])
-    access_gui.filestartValue.grid(row=nrow,column=0,columnspan=3)
-    access_gui.fileendValue = Tkinter.Label(access_gui,text=access_info["overlap_enddate"])
-    access_gui.fileendValue.grid(row=nrow,column=3,columnspan=3)
+    alt_gui.filestartValue = Tkinter.Label(alt_gui,text=alternate_info["overlap_startdate"])
+    alt_gui.filestartValue.grid(row=nrow,column=0,columnspan=3)
+    alt_gui.fileendValue = Tkinter.Label(alt_gui,text=alternate_info["overlap_enddate"])
+    alt_gui.fileendValue.grid(row=nrow,column=3,columnspan=3)
     # third row
     nrow = nrow + 1
-    access_gui.startLabel = Tkinter.Label(access_gui, text="Start date (YYYY-MM-DD)")
-    access_gui.startLabel.grid(row=nrow,column=0,columnspan=3)
-    access_gui.startEntry = Tkinter.Entry(access_gui,width=15)
-    access_gui.startEntry.grid(row=nrow,column=3,columnspan=3)
+    alt_gui.startLabel = Tkinter.Label(alt_gui, text="Start date (YYYY-MM-DD)")
+    alt_gui.startLabel.grid(row=nrow,column=0,columnspan=3)
+    alt_gui.startEntry = Tkinter.Entry(alt_gui,width=15)
+    alt_gui.startEntry.grid(row=nrow,column=3,columnspan=3)
     # fourth row
     nrow = nrow + 1
-    access_gui.endLabel = Tkinter.Label(access_gui, text="End date   (YYYY-MM-DD)")
-    access_gui.endLabel.grid(row=nrow,column=0,columnspan=3)
-    access_gui.endEntry = Tkinter.Entry(access_gui,width=15)
-    access_gui.endEntry.grid(row=nrow,column=3,columnspan=3)
+    alt_gui.endLabel = Tkinter.Label(alt_gui, text="End date   (YYYY-MM-DD)")
+    alt_gui.endLabel.grid(row=nrow,column=0,columnspan=3)
+    alt_gui.endEntry = Tkinter.Entry(alt_gui,width=15)
+    alt_gui.endEntry.grid(row=nrow,column=3,columnspan=3)
     # fifth row
     nrow = nrow + 1
-    access_gui.peropt = Tkinter.IntVar()
-    access_gui.peropt.set(1)
-    access_gui.manualperiod = Tkinter.Radiobutton(access_gui,text="Manual",variable=access_gui.peropt,value=1)
-    access_gui.manualperiod.grid(row=nrow,column=0,columnspan=3,sticky="W")
-    access_gui.doallplots = Tkinter.Radiobutton(access_gui,text="Monthly",variable=access_gui.peropt,value=2)
-    access_gui.doallplots.grid(row=nrow,column=3,columnspan=3,sticky="W")
+    alt_gui.peropt = Tkinter.IntVar()
+    alt_gui.peropt.set(1)
+    alt_gui.manualperiod = Tkinter.Radiobutton(alt_gui,text="Manual",variable=alt_gui.peropt,value=1)
+    alt_gui.manualperiod.grid(row=nrow,column=0,columnspan=3,sticky="W")
+    alt_gui.doallplots = Tkinter.Radiobutton(alt_gui,text="Monthly",variable=alt_gui.peropt,value=2)
+    alt_gui.doallplots.grid(row=nrow,column=3,columnspan=3,sticky="W")
     # sixth row
     nrow = nrow + 1
-    access_gui.daysperiod = Tkinter.Radiobutton(access_gui,text="No. days",variable=access_gui.peropt,value=3)
-    access_gui.daysperiod.grid(row=nrow,column=0,sticky="W")
-    access_gui.daysentry = Tkinter.Entry(access_gui,width=5)
-    access_gui.daysentry.grid(row=nrow,column=1,columnspan=1,sticky="W")
-    access_gui.pointsperiod = Tkinter.Radiobutton(access_gui,text="No. pts",variable=access_gui.peropt,value=4)
-    access_gui.pointsperiod.grid(row=nrow,column=3,sticky="W")
-    access_gui.pointsentry = Tkinter.Entry(access_gui,width=5)
-    access_gui.pointsentry.grid(row=nrow,column=4,columnspan=1,sticky="W")
+    alt_gui.daysperiod = Tkinter.Radiobutton(alt_gui,text="No. days",variable=alt_gui.peropt,value=3)
+    alt_gui.daysperiod.grid(row=nrow,column=0,sticky="W")
+    alt_gui.daysentry = Tkinter.Entry(alt_gui,width=5)
+    alt_gui.daysentry.grid(row=nrow,column=1,columnspan=1,sticky="W")
+    alt_gui.pointsperiod = Tkinter.Radiobutton(alt_gui,text="No. pts",variable=alt_gui.peropt,value=4)
+    alt_gui.pointsperiod.grid(row=nrow,column=3,sticky="W")
+    alt_gui.pointsentry = Tkinter.Entry(alt_gui,width=5)
+    alt_gui.pointsentry.grid(row=nrow,column=4,columnspan=1,sticky="W")
     # seventh row
     nrow = nrow + 1
-    access_gui.minptsLabel = Tkinter.Label(access_gui,text="Min points")
-    access_gui.minptsLabel.grid(row=nrow,column=0,columnspan=1,sticky="E")
-    access_gui.minpts = Tkinter.Entry(access_gui,width=5)
-    access_gui.minpts.grid(row=nrow,column=1,columnspan=1,sticky="W")
-    access_gui.minpts.insert(0,"100")
-    access_gui.owopt = Tkinter.IntVar()
-    access_gui.owopt.set(1)
-    access_gui.overwrite = Tkinter.Checkbutton(access_gui, text="Overwrite", variable=access_gui.owopt)
-    access_gui.overwrite.grid(row=nrow,column=3,columnspan=2,sticky="w")
+    alt_gui.minptsLabel = Tkinter.Label(alt_gui,text="Min points")
+    alt_gui.minptsLabel.grid(row=nrow,column=0,columnspan=1,sticky="E")
+    alt_gui.minpts = Tkinter.Entry(alt_gui,width=5)
+    alt_gui.minpts.grid(row=nrow,column=1,columnspan=1,sticky="W")
+    alt_gui.minpts.insert(0,"100")
+    alt_gui.owopt = Tkinter.IntVar()
+    alt_gui.owopt.set(1)
+    alt_gui.overwrite = Tkinter.Checkbutton(alt_gui, text="Overwrite", variable=alt_gui.owopt)
+    alt_gui.overwrite.grid(row=nrow,column=3,columnspan=2,sticky="w")
     # eighth row
     nrow = nrow + 1
-    access_gui.acceptButton = Tkinter.Button(access_gui,text="Done",command=lambda:gfACCESS_done(ds4,access_gui))
-    access_gui.acceptButton.grid(row=nrow,column=0,columnspan=3)
-    access_gui.runButton = Tkinter.Button(access_gui,text="Run",command=lambda:gfACCESS_run(ds4,ds_access,access_gui,access_info))
-    access_gui.runButton.grid(row=nrow,column=3,columnspan=3)
+    alt_gui.acceptButton = Tkinter.Button(alt_gui,text="Done",command=lambda:gfalternate_done(ds4,alt_gui))
+    alt_gui.acceptButton.grid(row=nrow,column=0,columnspan=3)
+    alt_gui.runButton = Tkinter.Button(alt_gui,text="Run",command=lambda:gfalternate_run(ds4,ds_alt,alt_gui,alternate_info))
+    alt_gui.runButton.grid(row=nrow,column=3,columnspan=3)
     # ninth row
     nrow = nrow + 1
-    access_gui.progress_row = nrow
-    access_gui.progress = Tkinter.Label(access_gui, text='Waiting for input ...')
-    access_gui.progress.grid(row=nrow,column=0,columnspan=6,sticky="W")
+    alt_gui.progress_row = nrow
+    alt_gui.progress = Tkinter.Label(alt_gui, text='Waiting for input ...')
+    alt_gui.progress.grid(row=nrow,column=0,columnspan=6,sticky="W")
 
-    access_gui.wait_window(access_gui)
+    alt_gui.wait_window(alt_gui)
 
-def gfACCESS_progress(access_gui,text):
+def gfalternate_progress(alt_gui,text):
     """
-        Update progress message in ACCESS GUI
+        Update progress message in alternate GUI
         """
-    access_gui.progress.destroy()
-    access_gui.progress = Tkinter.Label(access_gui, text=text)
-    access_gui.progress.grid(row=9,column=0,columnspan=6,sticky="W")
-    access_gui.update()
+    alt_gui.progress.destroy()
+    alt_gui.progress = Tkinter.Label(alt_gui, text=text)
+    alt_gui.progress.grid(row=9,column=0,columnspan=6,sticky="W")
+    alt_gui.update()
 
-def gfACCESS_done(ds,access_gui):
+def gfalternate_done(ds,alt_gui):
     # plot the summary statistics if required
-    if access_gui.peropt.get()==1: gfACCESS_plotsummary(ds)
-    # destroy the ACCESS GUI
-    access_gui.destroy()
+    if alt_gui.peropt.get()==1: gfalternate_plotsummary(ds)
+    # destroy the alternate GUI
+    alt_gui.destroy()
     # write Excel spreadsheet with fit statistics
-    qcio.xl_write_ACCESSStats(ds)
-    ## refresh the Ah, q and RH data depending on which was just gap filled
-    #if "Ah" not in ds.access.keys(): qcts.RefreshAh(ds)
-    #if "q" not in ds.access.keys(): qcts.Refreshq(ds)
-    #if "RH" not in ds.access.keys(): qcts.RefreshRH(ds)
-    ## remove the ACCESS dictionary from the data structure
-    #del ds.access
+    qcio.xl_write_AlternateStats(ds)
 
-def gfACCESS_plotsummary(ds):
+def gfalternate_plotsummary(ds):
     """ Plot single pages of summary results for groups of variables. """
-    # get a list of variables for which ACCESS data was available
-    label_list = ds.access.keys()
-    if len(ds.access[label_list[0]]["results"]["startdate"])==0:
-        log.info("gfACCESS: no summary data to plot")
+    # get a list of variables for which alternate data was available
+    label_list = ds.alternate.keys()
+    if len(ds.alternate[label_list[0]]["results"]["startdate"])==0:
+        log.info("gfalternate: no summary data to plot")
         return
     # get the Excel datemode, needed to convert the Excel datetime to Python datetimes
     datemode = int(ds.globalattributes['xl_datemode'])
     # site name for titles
     site_name = ds.globalattributes["site_name"]
-    # datetimes are stored in ds.access as Excel datetimes, here we convert to Python datetimes
+    # datetimes are stored in ds.alternate as Excel datetimes, here we convert to Python datetimes
     # for ease of handling and plotting.
     # start datetimes of the periods compared first
     basedate = datetime.datetime(1899, 12, 30)
     dt_start = []
-    for xldt in ds.access[label_list[0]]["results"]["startdate"]:
+    for xldt in ds.alternate[label_list[0]]["results"]["startdate"]:
         dt_start.append(basedate+datetime.timedelta(days=xldt+1462*datemode))
     startdate = min(dt_start)
     # and then the end datetimes
     dt_end = []
-    for xldt in ds.access[label_list[0]]["results"]["enddate"]:
+    for xldt in ds.alternate[label_list[0]]["results"]["enddate"]:
         dt_end.append(basedate+datetime.timedelta(days=xldt+1462*datemode))
     enddate = max(dt_end)
     # get the major tick locator and label format
@@ -591,31 +574,32 @@ def gfACCESS_plotsummary(ds):
     # turn on interactive plotting
     plt.ion()
     # now loop over the group lists
-    for nFig in ds.cf["ACCESS_Summary"].keys():
-        plot_title = ds.cf["ACCESS_Summary"][str(nFig)]["Title"]
-        var_list = ast.literal_eval(ds.cf["ACCESS_Summary"][str(nFig)]["Variables"])
+    for nFig in ds.cf["Alternate_Summary"].keys():
+        plot_title = ds.cf["Alternate_Summary"][str(nFig)]["Title"]
+        var_list = ast.literal_eval(ds.cf["Alternate_Summary"][str(nFig)]["Variables"])
         # set up the subplots on the page
         fig,axs = plt.subplots(len(result_list),len(var_list),figsize=(13,9))
-        fig.canvas.set_window_title("ACCESS summary: "+plot_title)
+        fig.canvas.set_window_title("Alternate summary: "+plot_title)
         # make a title string for the plot and render it
-        title_str = "ACCESS: "+plot_title+"; "+site_name+" "+datetime.datetime.strftime(startdate,"%Y-%m-%d")
+        title_str = "Alternate: "+plot_title+"; "+site_name+" "+datetime.datetime.strftime(startdate,"%Y-%m-%d")
         title_str = title_str+" to "+datetime.datetime.strftime(enddate,"%Y-%m-%d")
         fig.suptitle(title_str, fontsize=14, fontweight='bold')
         # initialise a string to take the concatenated variable names, used in the name of the hard-copy of the plot
         figlab = ""
         # now loop over the variables in the group list
         for col,label in enumerate(var_list):
-            if label not in ds.access.keys():
+            if label not in ds.alternate.keys():
                 log.error("Series "+label+" requested for summary plot is not available")
                 continue
+            source = ds.alternate[label]["source"]
             # append the variable name to the variable name string
             figlab = figlab+label
             # and loop over rows in plot
             for row,rlabel,ylabel in zip(range(len(result_list)),result_list,ylabel_list):
                 # get the results to be plotted
-                result = numpy.ma.masked_equal(ds.access[label]["results"][rlabel],float(c.missing_value))
+                result = numpy.ma.masked_equal(ds.alternate[label]["results"][rlabel],float(c.missing_value))
                 # put the data into the right order to be plotted
-                dt,data = gfACCESS_plotsummary_getdata(dt_start,dt_end,result)
+                dt,data = gfalternate_plotsummary_getdata(dt_start,dt_end,result)
                 # plot the results
                 axs[row,col].plot(dt,data)
                 # put in the major ticks
@@ -625,7 +609,7 @@ def gfACCESS_plotsummary(ds):
                 # if this is not the last row, hide the tick mark labels
                 if row<len(result_list)-1: plt.setp(axs[row,col].get_xticklabels(),visible=False)
                 # if this is the first row, add the column title
-                if row==0: axs[row,col].set_title(label)
+                if row==0: axs[row,col].set_title(label+" ("+source+")")
                 # if this is the last row, add the major tick mark and axis labels
                 if row==len(result_list)-1:
                     axs[row,col].xaxis.set_major_formatter(MTFmt)
@@ -635,11 +619,11 @@ def gfACCESS_plotsummary(ds):
         # make the hard-copy file name and save the plot as a PNG file
         sdt = startdate.strftime("%Y%m%d")
         edt = enddate.strftime("%Y%m%d")
-        figname = "plots/"+site_name.replace(" ","")+"_ACCESS_FitStatistics_"+figlab
+        figname = "plots/"+site_name.replace(" ","")+"_Alternate_FitStatistics_"+figlab
         figname = figname+"_"+sdt+"_"+edt+".png"
         fig.savefig(figname,format="png")
 
-def gfACCESS_plotsummary_getdata(dt_start,dt_end,result):
+def gfalternate_plotsummary_getdata(dt_start,dt_end,result):
     dt = []
     data = []
     for s,e,r in zip(dt_start,dt_end,result):
@@ -649,155 +633,155 @@ def gfACCESS_plotsummary_getdata(dt_start,dt_end,result):
         data.append(r)
     return dt,data
 
-def gfACCESS_run(ds_tower,ds_access,access_gui,access_info):
-    # populate the access_info dictionary with things that will be useful
-    access_info["peropt"] = access_gui.peropt.get()
-    access_info["overwrite"] = True
-    if access_gui.owopt.get()==1: access_info["overwrite"] = True
-    access_info["min_points"] = int(access_gui.minpts.get())
-    access_info["site_name"] = ds_tower.globalattributes["site_name"]
-    access_info["time_step"] = int(ds_tower.globalattributes["time_step"])
-    access_info["nperhr"] = int(float(60)/access_info["time_step"]+0.5)
-    access_info["nperday"] = int(float(24)*access_info["nperhr"]+0.5)
-    access_info["maxlags"] = int(float(12)*access_info["nperhr"]+0.5)
-    access_info["tower"] = {}
-    access_info["access"] = {}    
-    log.info(" Gap filling "+str(ds_tower.access.keys())+" using ACCESS data")
-    if access_gui.peropt.get()==1:
-        gfACCESS_progress(access_gui,"Starting manual run ...")
-        # get the start and end datetimes entered in the ACCESS GUI
-        access_info["startdate"] = access_gui.startEntry.get()
-        if len(access_info["startdate"])==0: access_info["startdate"] = access_info["overlap_startdate"]
-        access_info["enddate"] = access_gui.endEntry.get()
-        if len(access_info["enddate"])==0: access_info["enddate"] = access_info["overlap_enddate"]
-        gfACCESS_main(ds_tower,ds_access,access_info)
-        gfACCESS_progress(access_gui,"Finished manual run ...")
-    elif access_gui.peropt.get()==2:
-        gfACCESS_progress(access_gui,"Starting auto (monthly) run ...")
-        # get the start datetime entered in the ACCESS GUI
-        access_info["startdate"] = access_gui.startEntry.get()
-        if len(access_info["startdate"])==0: access_info["startdate"] = access_info["overlap_startdate"]
-        startdate = dateutil.parser.parse(access_info["startdate"])
-        overlap_startdate = dateutil.parser.parse(access_info["overlap_startdate"])
-        overlap_enddate = dateutil.parser.parse(access_info["overlap_enddate"])
+def gfalternate_run(ds_tower,ds_alt,alt_gui,alternate_info):
+    # populate the alternate_info dictionary with things that will be useful
+    alternate_info["peropt"] = alt_gui.peropt.get()
+    alternate_info["overwrite"] = True
+    if alt_gui.owopt.get()==1: alternate_info["overwrite"] = True
+    alternate_info["min_points"] = int(alt_gui.minpts.get())
+    alternate_info["site_name"] = ds_tower.globalattributes["site_name"]
+    alternate_info["time_step"] = int(ds_tower.globalattributes["time_step"])
+    alternate_info["nperhr"] = int(float(60)/alternate_info["time_step"]+0.5)
+    alternate_info["nperday"] = int(float(24)*alternate_info["nperhr"]+0.5)
+    alternate_info["maxlags"] = int(float(12)*alternate_info["nperhr"]+0.5)
+    alternate_info["tower"] = {}
+    alternate_info["alternate"] = {}    
+    log.info(" Gap filling "+str(ds_tower.alternate.keys())+" using alternate data")
+    if alt_gui.peropt.get()==1:
+        gfalternate_progress(alt_gui,"Starting manual run ...")
+        # get the start and end datetimes entered in the alternate GUI
+        alternate_info["startdate"] = alt_gui.startEntry.get()
+        if len(alternate_info["startdate"])==0: alternate_info["startdate"] = alternate_info["overlap_startdate"]
+        alternate_info["enddate"] = alt_gui.endEntry.get()
+        if len(alternate_info["enddate"])==0: alternate_info["enddate"] = alternate_info["overlap_enddate"]
+        gfalternate_main(ds_tower,ds_alt,alternate_info)
+        gfalternate_progress(alt_gui,"Finished manual run ...")
+    elif alt_gui.peropt.get()==2:
+        gfalternate_progress(alt_gui,"Starting auto (monthly) run ...")
+        # get the start datetime entered in the alternate GUI
+        alternate_info["startdate"] = alt_gui.startEntry.get()
+        if len(alternate_info["startdate"])==0: alternate_info["startdate"] = alternate_info["overlap_startdate"]
+        startdate = dateutil.parser.parse(alternate_info["startdate"])
+        overlap_startdate = dateutil.parser.parse(alternate_info["overlap_startdate"])
+        overlap_enddate = dateutil.parser.parse(alternate_info["overlap_enddate"])
         enddate = startdate+dateutil.relativedelta.relativedelta(months=1)
         enddate = min([overlap_enddate,enddate])
-        access_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d")
+        alternate_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d")
         while startdate<overlap_enddate:
-            gfACCESS_main(ds_tower,ds_access,access_info)
+            gfalternate_main(ds_tower,ds_alt,alternate_info)
             startdate = enddate
             enddate = startdate+dateutil.relativedelta.relativedelta(months=1)
-            access_info["startdate"] = startdate.strftime("%Y-%m-%d")
-            access_info["enddate"] = enddate.strftime("%Y-%m-%d")
+            alternate_info["startdate"] = startdate.strftime("%Y-%m-%d")
+            alternate_info["enddate"] = enddate.strftime("%Y-%m-%d")
         # plot the summary statistics
-        gfACCESS_plotsummary(ds_tower)
-        gfACCESS_progress(access_gui,"Finished auto (monthly) run ...")
-    elif access_gui.peropt.get()==3:
-        gfACCESS_progress(access_gui,"Starting auto (days) run ...")
-        # get the start datetime entered in the ACCESS GUI
-        access_info["startdate"] = access_gui.startEntry.get()
-        if len(access_info["startdate"])==0: access_info["startdate"] = access_info["overlap_startdate"]
-        startdate = dateutil.parser.parse(access_info["startdate"])
-        overlap_startdate = dateutil.parser.parse(access_info["overlap_startdate"])
-        overlap_enddate = dateutil.parser.parse(access_info["overlap_enddate"])
-        nDays = int(access_gui.daysentry.get())
+        gfalternate_plotsummary(ds_tower)
+        gfalternate_progress(alt_gui,"Finished auto (monthly) run ...")
+    elif alt_gui.peropt.get()==3:
+        gfalternate_progress(alt_gui,"Starting auto (days) run ...")
+        # get the start datetime entered in the alternate GUI
+        alternate_info["startdate"] = alt_gui.startEntry.get()
+        if len(alternate_info["startdate"])==0: alternate_info["startdate"] = alternate_info["overlap_startdate"]
+        startdate = dateutil.parser.parse(alternate_info["startdate"])
+        overlap_startdate = dateutil.parser.parse(alternate_info["overlap_startdate"])
+        overlap_enddate = dateutil.parser.parse(alternate_info["overlap_enddate"])
+        nDays = int(alt_gui.daysentry.get())
         enddate = startdate+dateutil.relativedelta.relativedelta(days=nDays)
         enddate = min([overlap_enddate,enddate])
-        access_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d")
+        alternate_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d")
         while startdate<overlap_enddate:
-            gfACCESS_main(ds_tower,ds_access,access_info)
+            gfalternate_main(ds_tower,ds_alt,alternate_info)
             startdate = enddate
             enddate = startdate+dateutil.relativedelta.relativedelta(days=nDays)
-            access_info["startdate"] = startdate.strftime("%Y-%m-%d")
-            access_info["enddate"] = enddate.strftime("%Y-%m-%d")
+            alternate_info["startdate"] = startdate.strftime("%Y-%m-%d")
+            alternate_info["enddate"] = enddate.strftime("%Y-%m-%d")
         # plot the summary statistics
-        gfACCESS_plotsummary(ds_tower)
-        gfACCESS_progress(access_gui,"Finished auto (days) run ...")
-    elif access_gui.peropt.get()==4:
+        gfalternate_plotsummary(ds_tower)
+        gfalternate_progress(alt_gui,"Finished auto (days) run ...")
+    elif alt_gui.peropt.get()==4:
         pass
 
-def gfACCESS_getdateindices(ldt_tower,ldt_access,access_info,si_match,ei_match):
-   #gfACCESS_getdateindices(ldt_tower,ldt_access,access_info,"exact","exact")
-    startdate = access_info["startdate"]
-    enddate = access_info["enddate"]
-    ts = access_info["time_step"]
-    # get the indices of the start and end datetimes in the tower and the ACCESS data.
+def gfalternate_getdateindices(ldt_tower,ldt_alternate,alternate_info,si_match,ei_match):
+   #gfalternate_getdateindices(ldt_tower,ldt_alternate,alternate_info,"exact","exact")
+    startdate = alternate_info["startdate"]
+    enddate = alternate_info["enddate"]
+    ts = alternate_info["time_step"]
+    # get the indices of the start and end datetimes in the tower and the alternate data.
     si_tower = qcutils.GetDateIndex(ldt_tower,startdate,ts=ts,match=si_match,default=0)
     ei_tower = qcutils.GetDateIndex(ldt_tower,enddate,ts=ts,match=ei_match,default=-1)
-    si_access = qcutils.GetDateIndex(ldt_access,startdate,ts=ts,match=si_match,default=0)
-    ei_access = qcutils.GetDateIndex(ldt_access,enddate,ts=ts,match=ei_match,default=-1)
+    si_alternate = qcutils.GetDateIndex(ldt_alternate,startdate,ts=ts,match=si_match,default=0)
+    ei_alternate = qcutils.GetDateIndex(ldt_alternate,enddate,ts=ts,match=ei_match,default=-1)
     # now make sure the start and end datetime match
-    sdt = max([ldt_tower[si_tower],ldt_access[si_access]])
-    edt = min([ldt_tower[ei_tower],ldt_access[ei_access]])
+    sdt = max([ldt_tower[si_tower],ldt_alternate[si_alternate]])
+    edt = min([ldt_tower[ei_tower],ldt_alternate[ei_alternate]])
     # and get the start and end indices again in case they didn't
     si_tower = qcutils.GetDateIndex(ldt_tower,str(sdt),ts=ts,match=si_match,default=0)
     ei_tower = qcutils.GetDateIndex(ldt_tower,str(edt),ts=ts,match=ei_match,default=-1)
-    si_access = qcutils.GetDateIndex(ldt_access,str(sdt),ts=ts,match=si_match,default=0)
-    ei_access = qcutils.GetDateIndex(ldt_access,str(edt),ts=ts,match=ei_match,default=-1)
+    si_alternate = qcutils.GetDateIndex(ldt_alternate,str(sdt),ts=ts,match=si_match,default=0)
+    ei_alternate = qcutils.GetDateIndex(ldt_alternate,str(edt),ts=ts,match=ei_match,default=-1)
     if ei_tower==-1: ei_tower = len(ldt_tower)-1
-    if ei_access==-1: ei_access = len(ldt_access)-1
-    return {"si":si_tower,"ei":ei_tower},{"si":si_access,"ei":ei_access}
+    if ei_alternate==-1: ei_alternate = len(ldt_alternate)-1
+    return {"si":si_tower,"ei":ei_tower},{"si":si_alternate,"ei":ei_alternate}
 
-def gfACCESS_getACCESSvaratmaxr(access_var_list,data_tower,ds_access,access_info):
-    """ Get the name of the ACCESS variable that has the highest correlation with the tower data."""
+def gfalternate_getalternatevaratmaxr(alternate_var_list,data_tower,ds_alternate,alternate_info):
+    """ Get the name of the alternate variable that has the highest correlation with the tower data."""
     # local pointers to the start and end indices
-    si = access_info["access"]["exact"]["si"]
-    ei = access_info["access"]["exact"]["ei"]
+    si = alternate_info["alternate"]["exact"]["si"]
+    ei = alternate_info["alternate"]["exact"]["ei"]
     # creat an array for the correlations
-    r = numpy.zeros(len(access_var_list))
+    r = numpy.zeros(len(alternate_var_list))
     # check that the number of tower data points is greater than the minimum
-    if numpy.ma.count(data_tower)>access_info["min_points"]:
-        # loop over the variables in the ACCESS file
-        for idx,var in enumerate(access_var_list):
-            # get the ACCESS data
-            data_access,flag,attr = qcutils.GetSeriesasMA(ds_access,var,si=si,ei=ei)
-            # check the lengths of the tower and ACCESS data are the same
-            if len(data_access)!=len(data_tower):
-                raise ValueError('gfACCESS_getACCESSvaratmaxr: data_tower and data_access lengths differ')
+    if numpy.ma.count(data_tower)>alternate_info["min_points"]:
+        # loop over the variables in the alternate file
+        for idx,var in enumerate(alternate_var_list):
+            # get the alternate data
+            data_alternate,flag,attr = qcutils.GetSeriesasMA(ds_alternate,var,si=si,ei=ei)
+            # check the lengths of the tower and alternate data are the same
+            if len(data_alternate)!=len(data_tower):
+                raise ValueError('gfalternate_getalternatevaratmaxr: data_tower and data_alternate lengths differ')
             # put the correlation into the r array
-            rval = numpy.ma.corrcoef(data_tower,data_access)[0,1]
+            rval = numpy.ma.corrcoef(data_tower,data_alternate)[0,1]
             if rval!="nan": r[idx] = rval
     # get the index of the maximum r value
     maxidx = numpy.ma.argmax(numpy.abs(r))
     # save the correlation array for later plotting
-    access_info["r"] = r
-    # return the name of the ACCESS variable that has the highest correlation with the tower data
-    return access_var_list[maxidx]
+    alternate_info["r"] = r
+    # return the name of the alternate variable that has the highest correlation with the tower data
+    return alternate_var_list[maxidx]
 
-def gfACCESS_getACCESSvarlist(ds_access,label):
-    access_var_list = [item for item in ds_access.series.keys() if label in item]
-    # remove any extraneous Fn labels (ACCESS has Fn_lw and Fn_sw)
+def gfalternate_getalternatevarlist(ds_alternate,label):
+    alternate_var_list = [item for item in ds_alternate.series.keys() if label in item]
+    # remove any extraneous Fn labels (alternate has Fn_lw and Fn_sw)
     if label=="Fn":
-        access_var_list = [item for item in access_var_list if "lw" not in item]
-        access_var_list = [item for item in access_var_list if "sw" not in item]
-    # check the series in the ACCESS data
-    if len(access_var_list)==0:
-        print "gfACCESS_getACCESSvarlist: series "+label+" not in ACCESS data file"
-    return access_var_list
+        alternate_var_list = [item for item in alternate_var_list if "lw" not in item]
+        alternate_var_list = [item for item in alternate_var_list if "sw" not in item]
+    # check the series in the alternate data
+    if len(alternate_var_list)==0:
+        print "gfalternate_getalternatevarlist: series "+label+" not in alternate data file"
+    return alternate_var_list
 
-def gfACCESS_getlagcorrecteddata(ds_tower,ds_access,label_tower,label_access,ai):
-    results = ds_tower.access[label_tower]["results"]
+def gfalternate_getlagcorrecteddata(ds_tower,ds_alternate,label_tower,label_alternate,ai):
+    results = ds_tower.alternate[label_tower]["results"]
     # local pointers to the start and end indices
     si_tower = ai["tower"]["exact"]["si"]
     ei_tower = ai["tower"]["exact"]["ei"]
-    si_access = ai["access"]["exact"]["si"]
-    ei_access = ai["access"]["exact"]["ei"]
+    si_alternate = ai["alternate"]["exact"]["si"]
+    ei_alternate = ai["alternate"]["exact"]["ei"]
     # get the data
     data_tower,f,a = qcutils.GetSeriesasMA(ds_tower,label_tower,si=si_tower,ei=ei_tower)
-    data_access,f,a = qcutils.GetSeriesasMA(ds_access,label_access,si=si_access,ei=ei_access)
-    lags,corr = qcts.get_laggedcorrelation(data_tower,data_access,maxlags=ai["maxlags"],minpoints=ai["min_points"])
+    data_alternate,f,a = qcutils.GetSeriesasMA(ds_alternate,label_alternate,si=si_alternate,ei=ei_alternate)
+    lags,corr = qcts.get_laggedcorrelation(data_tower,data_alternate,maxlags=ai["maxlags"],minpoints=ai["min_points"])
     nLags = numpy.argmax(corr)-ai["maxlags"]
-    si_access_lagcorr = si_access - nLags
-    ei_access_lagcorr = ei_access - nLags
+    si_alternate_lagcorr = si_alternate - nLags
+    ei_alternate_lagcorr = ei_alternate - nLags
     results["Lag (uncorrected)"].append(numpy.float64(nLags*ai["time_step"]))
-    data_access_lagcorr,f,a = qcutils.GetSeriesasMA(ds_access,label_access,si=si_access_lagcorr,ei=ei_access_lagcorr,mode="pad")
+    data_alternate_lagcorr,f,a = qcutils.GetSeriesasMA(ds_alternate,label_alternate,si=si_alternate_lagcorr,ei=ei_alternate_lagcorr,mode="pad")
     # save the 
-    lags,corr = qcts.get_laggedcorrelation(data_tower,data_access_lagcorr,maxlags=ai["maxlags"])
+    lags,corr = qcts.get_laggedcorrelation(data_tower,data_alternate_lagcorr,maxlags=ai["maxlags"])
     nLags = numpy.argmax(corr)-ai["maxlags"]
     results["Lag (corrected)"].append(numpy.float64(nLags*ai["time_step"]))
-    return data_access_lagcorr,f,a
+    return data_alternate_lagcorr,f,a
 
-def gfACCESS_getolscorrecteddata(x_in,y_in,results=None,thru0=False):
+def gfalternate_getolscorrecteddata(x_in,y_in,results=None,thru0=False):
     """
     Calculate the ordinary least squares fit between 2 1D arrays.
     """
@@ -836,105 +820,109 @@ def gfACCESS_getolscorrecteddata(x_in,y_in,results=None,thru0=False):
         results["ols"] = resols
     return (y_out,eqnstr)
 
-def gfACCESS_getdataas2d(ldt,odt,data,inds,access_info):
+def gfalternate_getdataas2d(ldt,odt,data,inds,alternate_info):
     si_wholedays = odt.index(ldt[inds["si"]])
     ei_wholedays = odt.index(ldt[inds["ei"]])
-    nperday = access_info["nperday"]
+    nperday = alternate_info["nperday"]
     data_wholedays = data[si_wholedays:ei_wholedays+1]
     ndays = len(data_wholedays)/nperday
     return numpy.ma.reshape(data_wholedays,[ndays,nperday])
 
-def gfACCESS_main(ds_tower,ds_access,access_info):
+def gfalternate_main(ds_tower,ds_alt,alternate_info):
     '''
-    This is the main routine for using ACCESS data to gap fill drivers.
+    This is the main routine for using alternate data to gap fill drivers.
     '''
-    # read the control file again, this allows the contents of the control file to
-    # be changed with the ACCESS GUI still displayed
-    cfname = ds_tower.globalattributes["controlfile_name"]
-    cf = qcio.get_controlfilecontents(cfname,mode="quiet")
-    # !!! need code here to update the ds.access dictionary !!!
-    # get local pointer to the datetime series
-    ldt_tower = ds_tower.series["DateTime"]["Data"]
-    ldt_access = ds_access.series["DateTime"]["Data"]
-    xldt_tower = ds_tower.series["xlDateTime"]["Data"]
-    # get the indices of the start and end datetimes
-    tower_exact,access_exact = gfACCESS_getdateindices(ldt_tower,ldt_access,access_info,"exact","exact")
-    access_info["tower"]["exact"] = tower_exact
-    access_info["access"]["exact"] = access_exact
-    # get local pointers for the datetime series for the overlap period
-    odt_tower = ldt_tower[tower_exact["si"]:tower_exact["ei"]+1]
-    odt_access = ldt_access[access_exact["si"]:access_exact["ei"]+1]
-    msg = " Gap filling with ACCESS: "+odt_tower[0].strftime("%Y-%m-%d")+" to "+odt_tower[-1].strftime("%Y-%m-%d")
-    log.info(msg)
     # close any open plot windows
     if len(plt.get_fignums())!=0:
         for i in plt.get_fignums(): plt.close(i)
-    # now loop over the variables to be gap filled using the ACCESS data
-    for fig_num,label_tower in enumerate(ds_tower.access.keys()):
+    # read the control file again, this allows the contents of the control file to
+    # be changed with the alternate GUI still displayed
+    cfname = ds_tower.globalattributes["controlfile_name"]
+    cf = qcio.get_controlfilecontents(cfname,mode="quiet")
+    # !!! need code here to update the ds.alternate dictionary !!!
+    # get local pointer to the datetime series
+    ldt_tower = ds_tower.series["DateTime"]["Data"]
+    xldt_tower = ds_tower.series["xlDateTime"]["Data"]
+    # now loop over the variables to be gap filled using the alternate data
+    for fig_num,label_tower in enumerate(ds_tower.alternate.keys()):
+        # get a local pointer to the alternate data structure
+        ds_alternate = ds_alt[ds_tower.alternate[label_tower]["file_name"]]
+        ldt_alternate = ds_alternate.series["DateTime"]["Data"]
+        # get the indices of the start and end datetimes
+        tower_exact,alternate_exact = gfalternate_getdateindices(ldt_tower,ldt_alternate,alternate_info,"exact","exact")
+        alternate_info["tower"]["exact"] = tower_exact
+        alternate_info["alternate"]["exact"] = alternate_exact
+        # get local pointers for the datetime series for the overlap period
+        odt_tower = ldt_tower[tower_exact["si"]:tower_exact["ei"]+1]
+        odt_alternate = ldt_alternate[alternate_exact["si"]:alternate_exact["ei"]+1]
+        #msg = " Gap filling with alternate: "+odt_tower[0].strftime("%Y-%m-%d")+" to "+odt_tower[-1].strftime("%Y-%m-%d")
+        #log.info(msg)
         # get the tower data
         data_tower,flag,attr = qcutils.GetSeriesasMA(ds_tower,label_tower,si=tower_exact["si"],ei=tower_exact["ei"])
         units_tower = attr["units"]
         # save the start and end datetimes for later output
-        ds_tower.access[label_tower]["results"]["startdate"].append(xldt_tower[tower_exact["si"]])
-        ds_tower.access[label_tower]["results"]["enddate"].append(xldt_tower[tower_exact["ei"]])
-        # get a list of ACCESS variables for this tower variable
-        acc_name = ds_tower.access[label_tower]["access_name"]
-        access_var_list = gfACCESS_getACCESSvarlist(ds_access,acc_name)
-        # get the ACCESS series that has the highest correlation with the tower data
-        label_access = gfACCESS_getACCESSvaratmaxr(access_var_list,data_tower,ds_access,access_info)
-        # get the raw ACCESS data
-        data_access,flag,attr = qcutils.GetSeriesasMA(ds_access,label_access,si=access_exact["si"],ei=access_exact["ei"])
-        units_access = attr["units"]
-        # correct for lag in the ACCESS data if required
-        data_access_lagcorr,flag,attr = gfACCESS_getlagcorrecteddata(ds_tower,ds_access,label_tower,label_access,access_info)
+        ds_tower.alternate[label_tower]["results"]["startdate"].append(xldt_tower[tower_exact["si"]])
+        ds_tower.alternate[label_tower]["results"]["enddate"].append(xldt_tower[tower_exact["ei"]])
+        # put the source for this series in alternate_info for use in plotting
+        alternate_info["source"] = ds_tower.alternate[label_tower]["source"]
+        # get a list of alternate variables for this tower variable
+        alternate_name = ds_tower.alternate[label_tower]["alternate_name"]
+        alternate_var_list = gfalternate_getalternatevarlist(ds_alternate,alternate_name)
+        # get the alternate series that has the highest correlation with the tower data
+        label_alternate = gfalternate_getalternatevaratmaxr(alternate_var_list,data_tower,ds_alternate,alternate_info)
+        # get the raw alternate data
+        data_alternate,flag,attr = qcutils.GetSeriesasMA(ds_alternate,label_alternate,si=alternate_exact["si"],ei=alternate_exact["ei"])
+        units_alternate = attr["units"]
+        # correct for lag in the alternate data if required
+        data_alternate_lagcorr,flag,attr = gfalternate_getlagcorrecteddata(ds_tower,ds_alternate,label_tower,label_alternate,alternate_info)
         # best fit to tower using Ordinary Least Squares
-        data_access_lagolscorr,s = gfACCESS_getolscorrecteddata(data_access_lagcorr,data_tower,results=access_info,thru0=False)
+        data_alternate_lagolscorr,s = gfalternate_getolscorrecteddata(data_alternate_lagcorr,data_tower,results=alternate_info,thru0=False)
         # get the daily averages
         data_plot = {"odt_tower":odt_tower,"data_tower":data_tower,"units_tower":units_tower,
-                     "odt_access":odt_access,"data_access":data_access,"units_access":units_access,
-                     "data_access_lagcorr":data_access_lagcorr,"data_access_lagolscorr":data_access_lagolscorr}
-        tower_wholedays,access_wholedays = gfACCESS_getdateindices(ldt_tower,ldt_access,access_info,"startnextday","endpreviousday")
-        data_tower_2d = gfACCESS_getdataas2d(ldt_tower,odt_tower,data_tower,tower_wholedays,access_info)
-        data_access_2d = gfACCESS_getdataas2d(ldt_access,odt_access,data_access,access_wholedays,access_info)
+                     "odt_alternate":odt_alternate,"data_alternate":data_alternate,"units_alternate":units_alternate,
+                     "data_alternate_lagcorr":data_alternate_lagcorr,"data_alternate_lagolscorr":data_alternate_lagolscorr}
+        tower_wholedays,alternate_wholedays = gfalternate_getdateindices(ldt_tower,ldt_alternate,alternate_info,"startnextday","endpreviousday")
+        data_tower_2d = gfalternate_getdataas2d(ldt_tower,odt_tower,data_tower,tower_wholedays,alternate_info)
+        data_alternate_2d = gfalternate_getdataas2d(ldt_alternate,odt_alternate,data_alternate,alternate_wholedays,alternate_info)
         data_plot["data_tower_dailyavg"] = numpy.ma.average(data_tower_2d,axis=1)
         data_plot["data_tower_hourlyavg"] = numpy.ma.average(data_tower_2d,axis=0)
-        data_plot["data_access_dailyavg"] = numpy.ma.average(data_access_2d,axis=1)
-        data_plot["data_access_hourlyavg"] = numpy.ma.average(data_access_2d,axis=0)
-        data_access_lagcorr_2d = gfACCESS_getdataas2d(ldt_access,odt_access,data_access_lagcorr,access_wholedays,access_info)
-        data_plot["data_access_lagcorr_dailyavg"] = numpy.ma.average(data_access_lagcorr_2d,axis=1)
-        data_plot["data_access_lagcorr_hourlyavg"] = numpy.ma.average(data_access_lagcorr_2d,axis=0)
-        data_access_lagolscorr_2d = gfACCESS_getdataas2d(ldt_access,odt_access,data_access_lagolscorr,access_wholedays,access_info)
-        data_plot["data_access_lagolscorr_dailyavg"] = numpy.ma.average(data_access_lagolscorr_2d,axis=1)
-        data_plot["data_access_lagolscorr_hourlyavg"] = numpy.ma.average(data_access_lagolscorr_2d,axis=0)
+        data_plot["data_alternate_dailyavg"] = numpy.ma.average(data_alternate_2d,axis=1)
+        data_plot["data_alternate_hourlyavg"] = numpy.ma.average(data_alternate_2d,axis=0)
+        data_alternate_lagcorr_2d = gfalternate_getdataas2d(ldt_alternate,odt_alternate,data_alternate_lagcorr,alternate_wholedays,alternate_info)
+        data_plot["data_alternate_lagcorr_dailyavg"] = numpy.ma.average(data_alternate_lagcorr_2d,axis=1)
+        data_plot["data_alternate_lagcorr_hourlyavg"] = numpy.ma.average(data_alternate_lagcorr_2d,axis=0)
+        data_alternate_lagolscorr_2d = gfalternate_getdataas2d(ldt_alternate,odt_alternate,data_alternate_lagolscorr,alternate_wholedays,alternate_info)
+        data_plot["data_alternate_lagolscorr_dailyavg"] = numpy.ma.average(data_alternate_lagolscorr_2d,axis=1)
+        data_plot["data_alternate_lagolscorr_hourlyavg"] = numpy.ma.average(data_alternate_lagolscorr_2d,axis=0)
         # get the comparison statistics
-        gfACCESS_getstatistics(ds_tower.access[label_tower]["results"],data_tower,data_access,access_info)
-        data_plot["results"] = ds_tower.access[label_tower]["results"]
+        gfalternate_getstatistics(ds_tower.alternate[label_tower]["results"],data_tower,data_alternate,alternate_info)
+        data_plot["results"] = ds_tower.alternate[label_tower]["results"]
         # plot the data for this period
-        pd = gfACCESS_initplot()
-        gfACCESS_plotdetailed(fig_num,label_tower,data_plot,access_info,pd)
-        # put the ordinary least-squares adjusted ACCESS data into the output series
-        output = ds_tower.access[label_tower]["output"]
-        si = access_info["tower"]["exact"]["si"]
-        ei = access_info["tower"]["exact"]["ei"]
-        if access_info["overwrite"]==False:
+        pd = gfalternate_initplot()
+        gfalternate_plotdetailed(fig_num,label_tower,data_plot,alternate_info,pd)
+        # put the ordinary least-squares adjusted alternate data into the output series
+        output = ds_tower.alternate[label_tower]["output"]
+        si = alternate_info["tower"]["exact"]["si"]
+        ei = alternate_info["tower"]["exact"]["ei"]
+        if alternate_info["overwrite"]==False:
             ind = numpy.where(abs(ds_tower.series[output]["Data"][si:ei+1]-float(c.missing_value))<c.eps)[0]
-            ds_tower.series[output]["Data"][si:ei+1][ind] = data_access_lagolscorr[ind]
+            ds_tower.series[output]["Data"][si:ei+1][ind] = data_alternate_lagolscorr[ind]
         else:
-            ds_tower.series[output]["Data"][si:ei+1] = data_access_lagolscorr
+            ds_tower.series[output]["Data"][si:ei+1] = data_alternate_lagolscorr
         # make a QC flag for the gap filled data
-        # default value is 20 for tower data replaced by ACCESS data
-        flag = numpy.ones(len(data_access_lagolscorr))*numpy.int32(20)
-        ## check for missing ACCESS data (eg no tower data for this period so no OLS statistics)
-        #ind = numpy.where(data_access_lagolscorr==numpy.float64(c.missing_value))[0]
+        # default value is 20 for tower data replaced by alternate data
+        flag = numpy.ones(len(data_alternate_lagolscorr))*numpy.int32(20)
+        ## check for missing alternate data (eg no tower data for this period so no OLS statistics)
+        #ind = numpy.where(data_alternate_lagolscorr==numpy.float64(c.missing_value))[0]
         ## set the QC flag for these times to 21
         #flag[ind] = numpy.int32(21)
         # set the flag
         ds_tower.series[output]["Flag"][si:ei+1] = flag
     # make sure this processing step gets written to the global attribute "Functions"
-    if "GapFillFromACCESS" not in ds_tower.globalattributes["Functions"]:
-        ds_tower.globalattributes["Functions"] = ds_tower.globalattributes["Functions"]+", GapFillFromACCESS"
+    if "GapFillFromalternate" not in ds_tower.globalattributes["Functions"]:
+        ds_tower.globalattributes["Functions"] = ds_tower.globalattributes["Functions"]+", GapFillFromalternate"
 
-def gfACCESS_initplot(**kwargs):
+def gfalternate_initplot(**kwargs):
     pd = {"margin_bottom":0.05,"margin_top":0.05,"margin_left":0.075,"margin_right":0.05,
           "xy_height":0.25,"xy_width":0.20,"xyts_space":0.05,"xyxy_space":0.05,"ts_width":0.9,
           "text_left":0.675,"num_left":0.825,"row_bottom":0.35,"row_space":0.030}
@@ -945,41 +933,41 @@ def gfACCESS_initplot(**kwargs):
         pd[key] = value
     return pd
 
-def gfACCESS_getdatapairasnonmasked(data_tower,data_access):
+def gfalternate_getdatapairasnonmasked(data_tower,data_alternate):
     # get local copies of the data so we do not modify the originals
     tower = numpy.ma.array(data_tower)
-    access = numpy.ma.array(data_access)
+    alternate = numpy.ma.array(data_alternate)
     # mask both series when either one is missing
-    access.mask = numpy.ma.mask_or(access.mask,tower.mask)
-    tower.mask = numpy.ma.mask_or(access.mask,tower.mask)
+    alternate.mask = numpy.ma.mask_or(alternate.mask,tower.mask)
+    tower.mask = numpy.ma.mask_or(alternate.mask,tower.mask)
     # get non-masked versions of the data, these are used with the robust statistics module
-    access_nm = numpy.ma.compressed(access)
+    alternate_nm = numpy.ma.compressed(alternate)
     tower_nm = numpy.ma.compressed(tower)
-    return tower_nm,access_nm
+    return tower_nm,alternate_nm
 
-def gfACCESS_getstatistics(results,tower,access,access_info):
+def gfalternate_getstatistics(results,tower,alternate,alternate_info):
     npts = numpy.ma.count(tower)
     results["No. points"].append(numpy.float64(npts))
-    if npts>=access_info["min_points"]:
-        results["r"].append(numpy.ma.maximum(access_info["r"]))
-        diff = tower-access
+    if npts>=alternate_info["min_points"]:
+        results["r"].append(numpy.ma.maximum(alternate_info["r"]))
+        diff = tower-alternate
         results["Bias"].append(numpy.ma.average(diff))
-        results["Frac Bias"].append(numpy.ma.average((diff)/(0.5*(tower+access))))
+        results["Frac Bias"].append(numpy.ma.average((diff)/(0.5*(tower+alternate))))
         rmse = numpy.ma.sqrt(numpy.ma.average(diff*diff))
         results["RMSE"].append(rmse)
         results["NMSE"].append(rmse/(numpy.ma.maximum(tower)-numpy.ma.minimum(tower)))
         var_tow = numpy.ma.var(tower)
         results["Var (tower)"].append(var_tow)
-        var_acc = numpy.ma.var(access)
-        results["Var (ACCESS)"].append(var_acc)
+        var_acc = numpy.ma.var(alternate)
+        results["Var (alternate)"].append(var_acc)
         results["Var ratio"].append(var_tow/var_acc)
         results["Avg (tower)"].append(numpy.ma.average(tower))
-        results["Avg (ACCESS)"].append(numpy.ma.average(access))
-        #results["Lag (uncorrected)"].append(access_info["Lag (uncorrected)"])
-        #results["Lag (corrected)"].append(access_info["Lag (corrected)"])
-        results["m_ols"].append(access_info["ols"].params[0])
-        if len(access_info["ols"].params)>1:
-            results["b_ols"].append(access_info["ols"].params[1])
+        results["Avg (alternate)"].append(numpy.ma.average(alternate))
+        #results["Lag (uncorrected)"].append(alternate_info["Lag (uncorrected)"])
+        #results["Lag (corrected)"].append(alternate_info["Lag (corrected)"])
+        results["m_ols"].append(alternate_info["ols"].params[0])
+        if len(alternate_info["ols"].params)>1:
+            results["b_ols"].append(alternate_info["ols"].params[1])
         else:
             results["b_ols"].append(0)
     else:
@@ -989,22 +977,23 @@ def gfACCESS_getstatistics(results,tower,access,access_info):
         for item in results_list:
             results[item].append(float(c.missing_value))
 
-def gfACCESS_plotdetailed(nfig,label,data_plot,access_info,pd):
+def gfalternate_plotdetailed(nfig,label,data_plot,alternate_info,pd):
     # set up some local pointers
-    ols = access_info["ols"]
+    ols = alternate_info["ols"]
+    source = alternate_info["source"]
     # turn on interactive plotting
     plt.ion()
     # create the figure canvas
     fig = plt.figure(nfig,figsize=(13,9))
     fig.canvas.set_window_title(label)
     # get the plot title string
-    title = access_info["site_name"]+' : Comparison of tower and ACCESS data for '+label
+    title = alternate_info["site_name"]+" : Comparison of tower and "+source+" data for "+label
     plt.figtext(0.5,0.96,title,ha='center',size=16)
     # top row of XY plots: correlation coefficients
     rect1 = [0.10,pd["margin_bottom"]+pd["margin_bottom"]+pd["xy_height"],pd["xy_width"],pd["xy_height"]]
     ax1 = plt.axes(rect1)
-    ind=numpy.arange(len(access_info["r"]))
-    ax1.bar(ind,access_info["r"],0.35)
+    ind=numpy.arange(len(alternate_info["r"]))
+    ax1.bar(ind,alternate_info["r"],0.35)
     ax1.set_ylabel("r")
     ax1.set_xlabel('Grid')
     # top row of XY plots: lagged correlation
@@ -1016,20 +1005,20 @@ def gfACCESS_plotdetailed(nfig,label,data_plot,access_info,pd):
     rect3 = [0.10,pd["margin_bottom"],pd["xy_width"],pd["xy_height"]]
     ax3 = plt.axes(rect3)
     ax3.set_ylabel('Tower ('+data_plot["units_tower"]+')')
-    ax3.set_xlabel('ACCESS ('+data_plot["units_access"]+')')
+    ax3.set_xlabel(source+' ('+data_plot["units_alternate"]+')')
     ax3.text(0.6,0.075,'30 minutes',fontsize=10,horizontalalignment='left',transform=ax3.transAxes)
     # bottom row of XY plots: scatter plot of daily averages
     rect4 = [0.40,pd["margin_bottom"],pd["xy_width"],pd["xy_height"]]
     ax4 = plt.axes(rect4)
     ax4.set_ylabel('Tower ('+data_plot["units_tower"]+')')
-    ax4.set_xlabel('ACCESS ('+data_plot["units_access"]+')')
+    ax4.set_xlabel(source+' ('+data_plot["units_alternate"]+')')
     ax4.text(0.6,0.075,'Daily average',fontsize=10,horizontalalignment='left',transform=ax4.transAxes)
     # bottom row of XY plots: diurnal average plot
     rect5 = [0.70,pd["margin_bottom"],pd["xy_width"],pd["xy_height"]]
     ax5 = plt.axes(rect5)
-    #ind = numpy.arange(len(access_hourly_avg))*float(pd["ts"])/float(60)
-    ind = numpy.arange(access_info["nperday"])/float(access_info["nperhr"])
-    ax5.plot(ind,data_plot["data_access_hourlyavg"],'b-',label='ACCESS')
+    #ind = numpy.arange(len(alternate_hourly_avg))*float(pd["ts"])/float(60)
+    ind = numpy.arange(alternate_info["nperday"])/float(alternate_info["nperhr"])
+    ax5.plot(ind,data_plot["data_alternate_hourlyavg"],'b-',label=source)
     ax5.set_ylabel(label+' ('+data_plot["units_tower"]+')')
     ax5.set_xlim(0,24)
     ax5.xaxis.set_ticks([0,6,12,18,24])
@@ -1037,39 +1026,39 @@ def gfACCESS_plotdetailed(nfig,label,data_plot,access_info,pd):
     # top row: time series
     rect6 = [pd["margin_left"],pd["ts_bottom"],pd["ts_width"],pd["ts_height"]]
     ax6 = plt.axes(rect6)
-    ax6.plot(data_plot["odt_access"],data_plot["data_access"],'b-',label="ACCESS")
+    ax6.plot(data_plot["odt_alternate"],data_plot["data_alternate"],'b-',label=source)
     ax6.set_ylabel(label+' ('+data_plot["units_tower"]+')')
     # now plot the data if there are more than the minimum number of points
-    if numpy.ma.count(data_plot["data_tower"])>=access_info["min_points"]:
+    if numpy.ma.count(data_plot["data_tower"])>=alternate_info["min_points"]:
         # lagged correlations
-        tower_nm,access_nm = gfACCESS_getdatapairasnonmasked(data_plot["data_tower"],data_plot["data_access"])
-        lag_uncorr = ax2.xcorr(tower_nm,access_nm,maxlags=access_info["maxlags"],color="b")
-        tower_nm,access_lagcorr_nm = gfACCESS_getdatapairasnonmasked(data_plot["data_tower"],data_plot["data_access_lagcorr"])
-        lag_corr = ax2.xcorr(tower_nm,access_lagcorr_nm,maxlags=access_info["maxlags"]/4,color="r")
+        tower_nm,alternate_nm = gfalternate_getdatapairasnonmasked(data_plot["data_tower"],data_plot["data_alternate"])
+        lag_uncorr = ax2.xcorr(tower_nm,alternate_nm,maxlags=alternate_info["maxlags"],color="b")
+        tower_nm,alternate_lagcorr_nm = gfalternate_getdatapairasnonmasked(data_plot["data_tower"],data_plot["data_alternate_lagcorr"])
+        lag_corr = ax2.xcorr(tower_nm,alternate_lagcorr_nm,maxlags=alternate_info["maxlags"]/4,color="r")
         # scatter plot of 30 minte data
-        ax3.plot(data_plot["data_access_lagcorr"],data_plot["data_tower"],'b.')
-        fit,eqn = gfACCESS_getolscorrecteddata(data_plot["data_access_lagcorr"],data_plot["data_tower"])
-        ax3.plot(data_plot["data_access_lagcorr"],fit,'g--',linewidth=3)
-        #ax3.plot(data_plot["data_access_lagcorr"],data_plot["data_access_lagolscorr"],'g--',linewidth=3)
+        ax3.plot(data_plot["data_alternate_lagcorr"],data_plot["data_tower"],'b.')
+        fit,eqn = gfalternate_getolscorrecteddata(data_plot["data_alternate_lagcorr"],data_plot["data_tower"])
+        ax3.plot(data_plot["data_alternate_lagcorr"],fit,'g--',linewidth=3)
+        #ax3.plot(data_plot["data_alternate_lagcorr"],data_plot["data_alternate_lagolscorr"],'g--',linewidth=3)
         ax3.text(0.5,0.9,eqn,fontsize=8,horizontalalignment='center',transform=ax3.transAxes,color='green')
         # daily average plot
-        ax4.plot(data_plot["data_access_lagcorr_dailyavg"],data_plot["data_tower_dailyavg"],'b.')
-        fit,eqn = gfACCESS_getolscorrecteddata(data_plot["data_access_lagcorr_dailyavg"],data_plot["data_tower_dailyavg"])
-        ax4.plot(data_plot["data_access_lagcorr_dailyavg"],fit,'g-')
+        ax4.plot(data_plot["data_alternate_lagcorr_dailyavg"],data_plot["data_tower_dailyavg"],'b.')
+        fit,eqn = gfalternate_getolscorrecteddata(data_plot["data_alternate_lagcorr_dailyavg"],data_plot["data_tower_dailyavg"])
+        ax4.plot(data_plot["data_alternate_lagcorr_dailyavg"],fit,'g-')
         ax4.text(0.5,0.9,eqn,fontsize=8,horizontalalignment='center',transform=ax4.transAxes,color='green')
         # hourly plot
         ax5.plot(ind,data_plot["data_tower_hourlyavg"],'ro',label="Tower")
-        ax5.plot(ind,data_plot["data_access_lagolscorr_hourlyavg"],'g-',label="ACCESS (OLS)")
+        ax5.plot(ind,data_plot["data_alternate_lagolscorr_hourlyavg"],'g-',label=source+" (OLS)")
         # time series plot
         ax6.plot(data_plot["odt_tower"],data_plot["data_tower"],'ro',label="Tower")
-        ax6.plot(data_plot["odt_access"],data_plot["data_access_lagolscorr"],'g-',label="ACCESS (OLS)")
+        ax6.plot(data_plot["odt_alternate"],data_plot["data_alternate_lagolscorr"],'g-',label=source+" (OLS)")
     else:
-        log.error("gfACCESS: Less than 100 points available for series "+label+" ...")
+        log.error("gfalternate: Less than 100 points available for series "+label+" ...")
     # put up the legends
     ax5.legend(loc='upper right',frameon=False,prop={'size':8})
     ax6.legend(loc='upper right',frameon=False,prop={'size':8})
     # write the comparison statistics
-    output_list = ["Lag (corrected)","Lag (uncorrected)","Var (ACCESS)","Var (tower)","RMSE","Bias","r","No. points"]
+    output_list = ["Lag (corrected)","Lag (uncorrected)","Var (alternate)","Var (tower)","RMSE","Bias","r","No. points"]
     for n,item in enumerate(output_list):
         row_posn = pd["row_bottom"] + n*pd["row_space"]
         plt.figtext(pd["text_left"],row_posn,item)
@@ -1077,7 +1066,7 @@ def gfACCESS_plotdetailed(nfig,label,data_plot,access_info,pd):
     # save a hard copy of the plot
     sdt = data_plot["odt_tower"][0].strftime("%Y%m%d")
     edt = data_plot["odt_tower"][-1].strftime("%Y%m%d")
-    figname = "plots/"+access_info["site_name"].replace(" ","")+"_ACCESS_"+label
+    figname = "plots/"+alternate_info["site_name"].replace(" ","")+"_"+source+"_"+label
     figname = figname+"_"+sdt+"_"+edt+'.png'
     fig.savefig(figname,format='png')
     # draw the plot on the screen
@@ -1209,7 +1198,7 @@ def gfSOLO_done(ds,solo_gui):
     solo_gui.destroy()
     # write Excel spreadsheet with fit statistics
     qcio.xl_write_SOLOStats(ds)
-    # remove the ACCESS dictionary from the data structure
+    # remove the solo dictionary from the data structure
     del ds.solo
 
 def gfSOLO_getserieslist(cf):
@@ -1559,7 +1548,7 @@ def gfSOLO_run(dsa,dsb,solo_gui,solo_info):
     solo_info["nperday"] = int(float(24)*solo_info["nperhr"]+0.5)
     solo_info["maxlags"] = int(float(12)*solo_info["nperhr"]+0.5)
     solo_info["tower"] = {}
-    solo_info["access"] = {}
+    solo_info["alternate"] = {}
     log.info(" Gap filling "+str(dsb.solo.keys())+" using SOLO")
     if solo_gui.peropt.get()==1:
         gfSOLO_progress(solo_gui,"Starting manual run ...")
@@ -1831,7 +1820,7 @@ def gfSOLO_plotsummary(ds):
     datemode = int(ds.globalattributes['xl_datemode'])
     # site name for titles
     site_name = ds.globalattributes["site_name"]
-    # datetimes are stored in ds.access as Excel datetimes, here we convert to Python datetimes
+    # datetimes are stored in ds.alternate as Excel datetimes, here we convert to Python datetimes
     # for ease of handling and plotting.
     # start datetimes of the periods compared first
     basedate = datetime.datetime(1899, 12, 30)

@@ -1,0 +1,8 @@
+../../Sites/AliceSpringsMulga/Data/Processed/2010/ASM_EC_2010_L3_Corrected.nc
+../../Sites/AliceSpringsMulga/Data/Processed/2011/ASM_EC_2011_L3_Corrected.nc
+../../Sites/AliceSpringsMulga/Data/Processed/2012/ASM_EC_2012_L3_Corrected.nc
+../../Sites/AliceSpringsMulga/Data/Processed/2013/ASM_EC_2013_L3_Corrected.nc
+../../Sites/Calperum/Data/Processed/2010/Calperum_2010_L3.nc
+../../Sites/Calperum/Data/Processed/2011/Calperum_2011_L3.nc
+../../Sites/Calperum/Data/Processed/2012/Calperum_2012_L3.nc
+../../Sites/Calperum/Data/Processed/2013/Calperum_2013_L3.nc

@@ -222,16 +222,18 @@ def l4qc(cf,ds3):
     # calculate the available energy
     if "Fa" not in ds4.series.keys():
         qcts.CalculateAvailableEnergy(ds4,Fa_out='Fa',Fn_in='Fn',Fg_in='Fg')
+    # create a dictionary to hold the gap filling data
+    ds_alt = {}
     # now do the meteorological driver gap filling
     for ThisOne in cf["Drivers"].keys():
         if ThisOne not in ds4.series.keys(): log.error("Series "+ThisOne+" not in data structure"); continue
         # interpolate over short gaps
         qcts.InterpolateOverMissing(ds4,series=ThisOne,maxlen=6)
         # parse the control file for information on how the user wants to do the gap filling
-        qcgf.GapFillParseControlFile(cf,ds4,series=ThisOne)
+        qcgf.GapFillParseControlFile(cf,ds4,ThisOne,ds_alt)
     # *** start of the section that does the gap filling of the drivers ***
     # do the gap filling using the ACCESS output
-    qcgf.GapFillFromACCESS(ds4)
+    qcgf.GapFillFromAlternate(ds4,ds_alt)
     # gap fill using SOLO
     qcgf.GapFillUsingSOLO(ds3,ds4)
     # gap fill using climatology
@@ -247,7 +249,7 @@ def l4qc(cf,ds3):
         # interpolate over any gaps up to 1 hour in length
         qcts.InterpolateOverMissing(ds4,series=ThisOne,maxlen=6)
         # parse the control file for information on how the user wants to do the gap filling
-        qcgf.GapFillParseControlFile(cf,ds4,series=ThisOne)
+        qcgf.GapFillParseControlFile(cf,ds4,ThisOne,ds_alt)
     # *** start of the section that does the gap filling of the fluxes ***
     # do the gap filling using SOLO on all series identified by _namecollector
     qcgf.GapFillUsingSOLO(ds3,ds4)

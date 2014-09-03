@@ -1058,24 +1058,24 @@ def xl_read_series(cf):
     ds.globalattributes['nc_nrecs'] = str(len(ds.series['xlDateTime']['Data']))
     return ds
 
-def xl_write_ACCESSStats(ds):
-    if "access" not in dir(ds): return
+def xl_write_AlternateStats(ds):
+    if "alternate" not in dir(ds): return
     # open an Excel file for the fit statistics
     cfname = ds.globalattributes["controlfile_name"]
     cf = get_controlfilecontents(cfname,mode="quiet")
     out_filename = get_outfilename_from_cf(cf)
     # get the Excel file name
-    xl_filename = out_filename.replace('.nc','_ACCESSStats.xls')
-    log.info(' Writing ACCESS fit statistics to Excel file '+xl_filename)
+    xl_filename = out_filename.replace('.nc','_AlternateStats.xls')
+    log.info(' Writing alternate fit statistics to Excel file '+xl_filename)
     # open the Excel file
     xlfile = xlwt.Workbook()
     # list of outputs to write to the Excel file
     date_list = ["startdate","enddate"]
-    # loop over the series that have been gap filled using ACCESS data
+    # loop over the series that have been gap filled using alternate data
     d_xf = xlwt.easyxf(num_format_str='dd/mm/yyyy hh:mm')
-    for label in ds.access.keys():
+    for label in ds.alternate.keys():
         # get the list of values to output with the start and end dates removed
-        output_list = ds.access[label]["results"].keys()
+        output_list = ds.alternate[label]["results"].keys()
         for item in date_list:
             if item in output_list: output_list.remove(item)
         # add a sheet with the series label
@@ -1084,14 +1084,14 @@ def xl_write_ACCESSStats(ds):
         xlCol = 0
         for dt in date_list:
             xlResultsSheet.write(xlRow,xlCol,dt)
-            for item in ds.access[label]["results"][dt]:
+            for item in ds.alternate[label]["results"][dt]:
                 xlRow = xlRow + 1
                 xlResultsSheet.write(xlRow,xlCol,item,d_xf)
             xlRow = 9
             xlCol = xlCol + 1
         for output in output_list:
             xlResultsSheet.write(xlRow,xlCol,output)
-            for item in ds.access[label]["results"][output]:
+            for item in ds.alternate[label]["results"][output]:
                 xlRow = xlRow + 1
                 # xlwt under Anaconda seems to only allow float64!
                 xlResultsSheet.write(xlRow,xlCol,numpy.float64(item))

@@ -1,0 +1,15 @@
+[Options]
+    Fsd_threshold  = 10
+    Num_bootstraps = 1
+    Output_results = True
+    Output_plots   = True
+
+[Variables]
+    [[Fc]]
+        AltVarName = "Fc"
+    [[Ta]]
+        AltVarName = "Ta"
+    [[ustar]]
+        AltVarName = "ustar"
+    [[Fsd]]
+        AltVarName = "Fsd"
