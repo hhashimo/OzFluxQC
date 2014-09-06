@@ -5,6 +5,7 @@ import glob
 import meteorologicalfunctions as mf
 import netCDF4
 import numpy
+import os.path
 import qcio
 import qcutils
 
@@ -14,14 +15,20 @@ log = qcutils.startlog('bios2nc','../logfiles/bios2nc.log')
 # get the control file
 cf = qcio.load_controlfile(path='../controlfiles')
 if len(cf)==0: sys.exit()
+start_date = cf["General"]["start_date"]
+end_date = cf["General"]["end_date"]
 var_list = cf["Variables"].keys()
 site_list = cf["Sites"].keys()
 for site in site_list:
+    # get the input file mask
+    infilename = cf["Sites"][site]["in_filepath"]+cf["Sites"][site]["in_filename"]
+    if not os.path.isfile(infilename):
+        log.error("netCDF file "+infilename+" not found, skipping ...")
+        continue
     log.info("Starting site: "+site)
     # get a data structure
     ds = qcio.DataStructure()
-    # get the input file mask
-    infilename = cf["Sites"][site]["in_filepath"]+cf["Sites"][site]["in_filename"]
+    # get the output file name
     outfilename = cf["Sites"][site]["out_filepath"]+cf["Sites"][site]["out_filename"]
     # interpolate to 30 minutes or not
     interpolate = True
@@ -32,13 +39,20 @@ for site in site_list:
     bios_ncfile = netCDF4.Dataset(infilename)
     time = bios_ncfile.variables["time"][:]
     nRecs = len(time)
-    flag = numpy.zeros(nRecs)
     # set some global attributes
-    ds.globalattributes["time_step"] = 30
+    ts = ds.globalattributes["time_step"] = 30
     ds.globalattributes["time_zone"] = site_timezone
     ds.globalattributes["nc_nrecs"] = nRecs
+    ds.globalattributes["site_name"] = cf["Sites"][site]["site_name"]
     time_units = getattr(bios_ncfile.variables["time"],"units")
     qcutils.get_datetimefromnctime(ds,time,time_units)
+    ldt = ds.series["DateTime"]["Data"]
+    si = qcutils.GetDateIndex(ldt,start_date,default=0,ts=ts,match="exact")
+    ei = qcutils.GetDateIndex(ldt,end_date,default=len(ldt),ts=ts,match="exact")
+    ds.series["DateTime"]["Data"] = ds.series["DateTime"]["Data"][si:ei+1]
+    ds.series["DateTime"]["Flag"] = ds.series["DateTime"]["Flag"][si:ei+1]
+    nRecs = ds.globalattributes["nc_nrecs"] = len(ds.series["DateTime"]["Data"])
+    flag = numpy.zeros(nRecs)
     qcutils.get_ymdhms_from_datetime(ds)
     xl_date_loc = qcutils.get_xldate_from_datetime(ds.series["DateTime"]["Data"])
     attr = qcutils.MakeAttributeDictionary(long_name="Date/time (local) in Excel format",units="days since 1899-12-31 00:00:00")
@@ -48,13 +62,13 @@ for site in site_list:
         bios_name = cf["Variables"][label]["bios_name"]
         if len(bios_ncfile.variables[bios_name].shape)==1:
             #print label+" has 1 dimension"
-            data = bios_ncfile.variables[bios_name][:]
+            data = bios_ncfile.variables[bios_name][:][si:ei+1]
         elif len(bios_ncfile.variables[bios_name].shape)==2:
             #print label+" has 2 dimensions"
-            data = bios_ncfile.variables[bios_name][:,0]
+            data = bios_ncfile.variables[bios_name][:,0][si:ei+1]
         elif len(bios_ncfile.variables[bios_name].shape)==3:
             #print label+" has 3 dimensions"
-            data = bios_ncfile.variables[bios_name][:,0,0]
+            data = bios_ncfile.variables[bios_name][:,0,0][si:ei+1]
         attr = {}
         for this_attr in bios_ncfile.variables[bios_name].ncattrs():
             attr[this_attr] = getattr(bios_ncfile.variables[bios_name],this_attr)

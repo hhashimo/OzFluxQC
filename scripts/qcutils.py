@@ -771,8 +771,8 @@ def get_datetimefromnctime(ds,time,time_units):
     Author: PRI
     Date: September 2014
     """
-    nRecs = ds.globalattributes["nc_nrecs"]
     ts = ds.globalattributes["time_step"]
+    nRecs = ds.globalattributes["nc_nrecs"]
     dt = netCDF4.num2date(time,time_units)
     dt = RoundDateTime(dt,ts=ts)
     ds.series[unicode("DateTime")] = {}
@@ -864,9 +864,13 @@ def get_UTCfromlocaltime(ds):
     AUTHOR: PRI
     '''
     # check the time_zone global attribute is set, we cant continue without it
-    site_name = ds.globalattributes["site_name"]
     if "time_zone" not in ds.globalattributes.keys():
         log.error("get_UTCfromlocaltime: time_zone not in global attributes, checking elsewhere ...")
+        if "site_name" in ds.globalattributes.keys():
+            site_name = ds.globalattributes["site_name"]
+        else:
+            log.error("get_UTCfromlocaltime: site_name not in global attributes, skipping UTC calculation ...")
+            return
         time_zone,found = get_timezone(site_name,prompt="no")
         if not found:
             log.error("get_UTCfromlocaltime: site_name not in time zone dictionary")

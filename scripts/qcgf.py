@@ -782,7 +782,10 @@ def gfalternate_getlagcorrecteddata(ds_tower,ds_alternate,label_tower,label_alte
     ei_alternate_lagcorr = ei_alternate - nLags
     results["Lag (uncorrected)"].append(numpy.float64(nLags*ai["time_step"]))
     data_alternate_lagcorr,f,a = qcutils.GetSeriesasMA(ds_alternate,label_alternate,si=si_alternate_lagcorr,ei=ei_alternate_lagcorr,mode="pad")
-    # save the 
+    # get the lagged correlations
+    if label_tower=="Sws":
+        print label_tower
+        pass
     lags,corr = qcts.get_laggedcorrelation(data_tower,data_alternate_lagcorr,maxlags=ai["maxlags"])
     nLags = numpy.argmax(corr)-ai["maxlags"]
     results["Lag (corrected)"].append(numpy.float64(nLags*ai["time_step"]))

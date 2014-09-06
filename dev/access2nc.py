@@ -228,6 +228,7 @@ for site in site_list:
     ds_60minutes.globalattributes["nc_nrecs"] = nRecs
     ds_60minutes.globalattributes["time_step"] = 60
     ds_60minutes.globalattributes["time_zone"] = site_timezone
+    ds_60minutes.globalattributes["site_name"] = cf["Sites"][site]["site_name"]
     # now getthe UTC and local datetimes from the ACCESS valid_date and valid_time fields
     #dt=[datetime.datetime.strptime(str(valid_date[i]*10000+valid_time[i]),"%Y%m%d%H%M") for i in range(0,nRecs)]
     dt_utc_60minutes=[datetime.datetime.strptime(str(int(valid_date[i])*10000+int(valid_time[i])),"%Y%m%d%H%M") for i in range(0,len(valid_date))]
