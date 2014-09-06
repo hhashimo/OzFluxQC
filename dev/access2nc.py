@@ -242,6 +242,8 @@ for site in site_list:
     dt_loc_60minutes=[x.replace(tzinfo=None) for x in dt_loc_60minutes]
     ds_60minutes.series["DateTime"] = {}
     ds_60minutes.series["DateTime"]["Data"] = dt_loc_60minutes
+    ds_60minutes.series["DateTime_UTC"] = {}
+    ds_60minutes.series["DateTime_UTC"]["Data"] = dt_utc_60minutes
     # get the year, month etc from the datetime
     flag_60minutes = numpy.zeros(nRecs,dtype=numpy.int32)
     ds_60minutes.series["DateTime"]["Flag"] = flag_60minutes
@@ -392,10 +394,17 @@ for site in site_list:
 
     # dump to an Excel file so we can see what is going on
     #xlfullname= outfilename.replace('.nc','.xls')
+    #log.info("Writing to file: "+xlfullname)
     #qcio.xl_write_series(ds_60minutes, xlfullname, outputlist=None)
 
     # check for time gaps in the file
-    if qcutils.CheckTimeStep(ds_60minutes): qcutils.FixTimeGaps(ds_60minutes)
+    log.info("Checking for time gaps")
+    has_gaps = qcutils.CheckTimeStep(ds_60minutes,mode="fix")
+    
+    # dump corrected data to an Excel file
+    #xlfullname= xlfullname.replace('.xls','_nogaps.xls')
+    #log.info("Writing to file: "+xlfullname)
+    #qcio.xl_write_series(ds_60minutes, xlfullname, outputlist=None)
 
     # interpolate from 60 to 30 minutes if requested
     if interpolate:
@@ -425,12 +434,13 @@ for site in site_list:
         attr = qcutils.MakeAttributeDictionary(long_name="Date/time (UTC) in Excel format",units="days since 1899-12-31 00:00:00")
         qcutils.CreateSeries(ds_30minutes,"xlDateTime_UTC",xl_date_utc,Flag=flag_30minutes,Attr=attr)
         # interpolate to 30 minutes
-        nRecs = len(ds_60minutes.series["DateTime"]["Data"])
-        x_60minutes = numpy.arange(0,nRecs,1)
-        x_30minutes = numpy.arange(0,nRecs-0.5,0.5)
+        nRecs_60 = len(ds_60minutes.series["DateTime"]["Data"])
+        nRecs_30 = len(ds_30minutes.series["DateTime"]["Data"])
+        x_60minutes = numpy.arange(0,nRecs_60,1)
+        x_30minutes = numpy.arange(0,nRecs_60-0.5,0.5)
         varlist_60 = ds_60minutes.series.keys()
         # strip out the date and time variables already done
-        for item in ["DateTime","DateTime_UTC","xlDateTime","xlDateTime_UTC","Year","Month","Day","Hour","Minute","Second"]:
+        for item in ["DateTime","DateTime_UTC","xlDateTime","xlDateTime_UTC","Year","Month","Day","Hour","Minute","Second","Hdh"]:
             if item in varlist_60: varlist_60.remove(item)
         # now do the interpolation (its OK to interpolate accumulated precipitation)
         for label in varlist_60:
@@ -466,10 +476,12 @@ for site in site_list:
         log.info("Finished site : "+site)
     else:
         # get the xlDateTime as UTC
-        xl_date_utc = qcutils.get_xldate_from_datetime(ds_60minutes.series["DateTime"]["Data"])
+        xl_date_utc = qcutils.get_xldate_from_datetime(ds_60minutes.series["DateTime_UTC"]["Data"])
         attr = qcutils.MakeAttributeDictionary(long_name="Date/time (UTC) in Excel format",units="days since 1899-12-31 00:00:00")
         qcutils.CreateSeries(ds_60minutes,"xlDateTime_UTC",xl_date_utc,Flag=ds_60minutes.series["DateTime"]["Flag"],Attr=attr)
         # now get precipitation per time step from the precipitation accumulated over the day
+        dt_utc_60minutes=ds_60minutes.series["DateTime_UTC"]["Data"]
+        idx_0100 = [x for x in range(len(dt_utc_60minutes)) if (dt_utc_60minutes[x].hour==1) and (dt_utc_60minutes[x].minute==0)]
         for i in range(0,3):
             for j in range(0,3):
                 label = "Precip_"+str(i)+str(j)
@@ -477,8 +489,7 @@ for site in site_list:
                 index = numpy.ma.where(accum_24hr<0.001)[0]
                 accum_24hr[index] = float(0)
                 precip = numpy.ma.ediff1d(accum_24hr,to_begin=0)
-                index = [x for x in range(len(dt_utc_60minutes)) if (dt_utc_60minutes[x].hour==1) and (dt_utc_60minutes[x].minute==0)]
-                precip[index] = accum_24hr[index]
+                precip[idx_0100] = accum_24hr[idx_0100]
                 attr["long_name"] = "Precipitation total over time step"
                 attr["units"] = "mm/hr"
                 qcutils.CreateSeries(ds_60minutes,label,precip,Flag=flag,Attr=attr)

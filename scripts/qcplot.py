@@ -129,7 +129,7 @@ def plot_fingerprint(cf):
     level = str(ds.globalattributes['nc_level'])
     nRecs = int(ds.globalattributes['nc_nrecs'])
     # check for time gaps in the file
-    if qcutils.CheckTimeStep(ds): qcutils.FixTimeGaps(ds)
+    has_gaps = qcutils.CheckTimeStep(ds,mode="fix")
     # title string for plots
     TitleStr = site_name+' '+level
     # number of records per hour and number per day
@@ -240,6 +240,7 @@ def plottimeseries(cf,nFig,dsa,dsb,si,ei):
     plt.ion()
     fig = plt.figure(int(nFig),figsize=(p['PlotWidth'],p['PlotHeight']))
     fig.clf()
+    fig.canvas.set_window_title(p['PlotDescription'])
     plt.figtext(0.5,0.95,SiteName+': '+p['PlotDescription'],ha='center',size=16)
     for ThisOne, n in zip(p['SeriesList'],range(p['nGraphs'])):
         if ThisOne in dsa.series.keys():
@@ -962,61 +963,101 @@ def plot_setup(cf,nFig):
     p['hr2_XAxLen'] = p['hr_XAxLen']
     p['bar_XAxOrg'] = p['hr1_XAxOrg']+p['hr1_XAxLen']+0.05+p['hr1_XAxLen']+0.05
     p['bar_XAxLen'] = p['hr_XAxLen']
-    p['ts_ax'] = []
+    p['ts_ax_left'] = [None]*p["nGraphs"]
+    p['ts_ax_right'] = [None]*p["nGraphs"]
     return p
 
 def plot_onetimeseries_left(fig,n,ThisOne,xarray,yarray,p):
+    """
+    Purpose:
+     Plots a single time series graph with labelling on the left y axis.
+    Usage:
+     qcplot.plot_onetimeseries_left(fig,n,ThisOne,XArray,YArray,p)
+      where fig     is a matplotlib figure instance
+            n       is the number of this graph
+            ThisOne is the series label
+            XArray  is a numpy ndarray or masked array of X data (usually datetime)
+            YArray  is a numpy ndarray or masked array of Y data
+            p       is a dictionary of plot data (created using qcplot.plot_setup)
+    Side effects:
+     Creates a matplotlib plot of time series, diurnal variation and flag statistics.
+    Author: PRI
+    Date: Sometime
+    """
+    # check to see if this is the first graph
     if n==0:
+        # if so, define the X axis
         rect = [p['ts_XAxOrg'],p['YAxOrg'],p['ts_XAxLen'],p['ts_YAxLen']]
-        ts_ax = fig.add_axes(rect)
+        ts_ax_left = fig.add_axes(rect)
     else:
+        # if not, then use an existing axis
         rect = [p['ts_XAxOrg'],p['YAxOrg'],p['ts_XAxLen'],p['ts_YAxLen']]
-        ts_ax = fig.add_axes(rect,sharex=p['ts_ax'][0])
-    ts_ax.hold(False)
-    p['ts_ax'].append(ts_ax)
-    ts_ax.plot(xarray,yarray,'b-')
-    ts_ax.xaxis.set_major_locator(p['loc'])
-    ts_ax.xaxis.set_major_formatter(p['fmt'])
-    ts_ax.set_xlim(p['XAxMin'],p['XAxMax'])
-    ts_ax.set_ylim(p['LYAxMin'],p['LYAxMax'])
+        if p["ts_ax_left"][0]!=None:
+            # a left axis was defined for the first graph, use it
+            ts_ax_left = fig.add_axes(rect,sharex=p["ts_ax_left"][0])
+        else:
+            # a right axis was defined for the first graph, use it
+            ts_ax_left = fig.add_axes(rect,sharex=p["ts_ax_right"][0])
+    # let the axes change
+    ts_ax_left.hold(False)
+    # put this axis in the plot setup dictionary
+    p["ts_ax_left"][n] = ts_ax_left
+    # plot the data on this axis
+    ts_ax_left.plot(xarray,yarray,'b-')
+    # set the major tick marks on the X (datetime) axis
+    ts_ax_left.xaxis.set_major_locator(p['loc'])
+    ts_ax_left.xaxis.set_major_formatter(p['fmt'])
+    # set the axes limits
+    ts_ax_left.set_xlim(p['XAxMin'],p['XAxMax'])
+    ts_ax_left.set_ylim(p['LYAxMin'],p['LYAxMax'])
+    # check to see if this is the first graph
     if n==0:
-        ts_ax.set_xlabel('Date',visible=True)
+        # if it is, label the X axis
+        ts_ax_left.set_xlabel('Date',visible=True)
     else:
-        ts_ax.set_xlabel('',visible=False)
+        # if it isnt, hide the X axis labels
+        ts_ax_left.set_xlabel('',visible=False)
+    # now put a text string on the graph with the series plotted, units, number in series,
+    # number not masked (data OK) and number masked (data not OK)
     TextStr = ThisOne+'('+p['Units']+')'+str(p['nRecs'])+' '+str(p['nNotM'])+' '+str(p['nMskd'])
     txtXLoc = p['ts_XAxOrg']+0.01
     txtYLoc = p['YAxOrg']+p['ts_YAxLen']-0.025
     plt.figtext(txtXLoc,txtYLoc,TextStr,color='b',horizontalalignment='left')
-    if n > 0: plt.setp(ts_ax.get_xticklabels(),visible=False)
+    if n > 0: plt.setp(ts_ax_left.get_xticklabels(),visible=False)
 
 def plot_onetimeseries_right(fig,n,ThisOne,xarray,yarray,p):
-    #if not p['ts_ax'].has_key(n):
-        #ts_ax = fig.add_axes([p['ts_XAxOrg'],p['YAxOrg'],p['ts_XAxLen'],p['ts_YAxLen']])
-        #ts_ax.hold(False)
-        #ts_ax.yaxis.tick_right()
-        #TextStr = ThisOne+'('+p['Units']+')'
-        #txtXLoc = p['ts_XAxOrg']+0.01
-        #txtYLoc = p['YAxOrg']+p['ts_YAxLen']-0.025
-        #plt.figtext(txtXLoc,txtYLoc,TextStr,color='b',horizontalalignment='left')
-    #else:
-        #ts_ax = p['ts_ax'][n].twinx()
-    #colour = 'r'
-    #if p.has_key('ts_ax'): del p['ts_ax']
-    ts_ax = p['ts_ax'][n].twinx()
-    ts_ax.plot(xarray,yarray,'r-')
-    ts_ax.xaxis.set_major_locator(p['loc'])
-    ts_ax.xaxis.set_major_formatter(p['fmt'])
-    ts_ax.set_xlim(p['XAxMin'],p['XAxMax'])
-    ts_ax.set_ylim(p['RYAxMin'],p['RYAxMax'])
-    if n==0:
-        ts_ax.set_xlabel('Date',visible=True)
+    if p["ts_ax_left"][n]!=None:
+        ts_ax_right = p["ts_ax_left"][n].twinx()
     else:
-        ts_ax.set_xlabel('',visible=False)
+        rect = [p['ts_XAxOrg'],p['YAxOrg'],p['ts_XAxLen'],p['ts_YAxLen']]
+        if p["ts_ax_left"][0]!=None:
+            # a left axis was defined for the first graph, use it
+            ts_ax_right = fig.add_axes(rect,sharex=p["ts_ax_left"][0])
+        else:
+            # a right axis was defined for the first graph, use it
+            ts_ax_right = fig.add_axes(rect,sharex=p["ts_ax_right"][0])
+        ts_ax_right.hold(False)
+        ts_ax_right.yaxis.tick_right()
+        TextStr = ThisOne+'('+p['Units']+')'
+        txtXLoc = p['ts_XAxOrg']+0.01
+        txtYLoc = p['YAxOrg']+p['ts_YAxLen']-0.025
+        plt.figtext(txtXLoc,txtYLoc,TextStr,color='b',horizontalalignment='left')
+    colour = 'r'
+    p["ts_ax_right"][n] = ts_ax_right
+    ts_ax_right.plot(xarray,yarray,'r-')
+    ts_ax_right.xaxis.set_major_locator(p['loc'])
+    ts_ax_right.xaxis.set_major_formatter(p['fmt'])
+    ts_ax_right.set_xlim(p['XAxMin'],p['XAxMax'])
+    ts_ax_right.set_ylim(p['RYAxMin'],p['RYAxMax'])
+    if n==0:
+        ts_ax_right.set_xlabel('Date',visible=True)
+    else:
+        ts_ax_right.set_xlabel('',visible=False)
     TextStr = str(p['nNotM'])+' '+str(p['nMskd'])
     txtXLoc = p['ts_XAxOrg']+p['ts_XAxLen']-0.01
     txtYLoc = p['YAxOrg']+p['ts_YAxLen']-0.025
     plt.figtext(txtXLoc,txtYLoc,TextStr,color='r',horizontalalignment='right')
-    if n > 0: plt.setp(ts_ax.get_xticklabels(),visible=False)
+    if n > 0: plt.setp(ts_ax_right.get_xticklabels(),visible=False)
 
 def plotxy(cf,nFig,plt_cf,dsa,dsb,si,ei):
     SiteName = dsa.globalattributes['site_name']

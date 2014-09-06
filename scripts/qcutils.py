@@ -10,6 +10,7 @@ import meteorologicalfunctions as mf
 import netCDF4
 import numpy
 import os
+import platform
 import pytz
 import sys
 import time
@@ -69,7 +70,7 @@ def CheckQCFlags(ds):
         index = numpy.ma.where(mask==True)[0]
         ds.series[ThisOne]["Flag"][index] = numpy.int32(8)
 
-def CheckTimeStep(ds,fix='gaps'):
+def CheckTimeStep(ds,mode="fix"):
     """
     Purpose:
      Checks the datetime series in the data structure ds to see if there are
@@ -80,7 +81,7 @@ def CheckTimeStep(ds,fix='gaps'):
      This function returns a logical variable that is true if any gaps exist
      in the time stamp.
     Useage:
-     has_gaps = CheckTimeSTep(ds)
+     has_gaps = CheckTimeSTep(ds,mode=mode)
      if has_gaps:
          <do something about missing time stamps>
     Author: PRI
@@ -100,21 +101,18 @@ def CheckTimeStep(ds,fix='gaps'):
         dtmin = numpy.min(dt)
         dtmax = numpy.max(dt)
         if dtmin < ts:
-            print dtmin,ds.series['DateTime']['Data'][numpy.where(dt==dtmin)[0]-3],numpy.where(dt==dtmin)[0]-3
-            print dtmin,ds.series['DateTime']['Data'][numpy.where(dt==dtmin)[0]-2],numpy.where(dt==dtmin)[0]-2
-            print dtmin,ds.series['DateTime']['Data'][numpy.where(dt==dtmin)[0]-1],numpy.where(dt==dtmin)[0]-1
-            print dtmin,ds.series['DateTime']['Data'][numpy.where(dt==dtmin)[0]],numpy.where(dt==dtmin)[0]
-            print dtmin,ds.series['DateTime']['Data'][numpy.where(dt==dtmin)[0]+1],numpy.where(dt==dtmin)[0]+1
-            log.critical(' CheckTimeStep: duplicate or overlapping times found, fix the L1 spreadsheet')
-            sys.exit()
+            log.info(' CheckTimeStep: duplicate or overlapping times found, removing ...')
+            if mode=="fix":
+                RemoveDuplicateRecords(ds)
+                has_gaps = False
         if numpy.min(numpy.mod(dt,ts))!=0 or numpy.max(numpy.mod(dt,ts))!=0:
-            log.critical(' CheckTimeStep: time gaps are not multiples of the time step ('+str(ts)+'), fix the L1 spreadsheet')
-            sys.exit()
+            log.critical(' CheckTimeStep: time gaps are not multiples of the time step ('+str(ts)+')')
+            #raise Exception(' CheckTimeStep: time gaps are not multiples of the time step ('+str(ts)+')')
         if dtmax > ts:
             log.info(' CheckTimeStep: one or more time gaps found')
-            if fix.lower()=='gaps':
-                log.info(' CheckTimeStep: calling FixTimeGaps to fix time gaps')
+            if mode=="fix":
                 FixTimeGaps(ds)
+                has_gaps = False
     else:
         log.info(' CheckTimeStep: no time gaps found')
     return has_gaps
@@ -293,6 +291,47 @@ def file_exists(filename,mode="verbose"):
     else:
         return True
 
+def find_indices(a,b):
+    len_a = len(a)
+    len_b = len(b)
+    indices = []
+    idx = -1
+    if len_a>=len_b:
+        for item in b:
+            idx = a.index(item,idx+1)
+            indices.append(idx)
+    else:
+        for item in a:
+            idx = b.index(item,idx+1)
+            indices.append(idx)
+    return indices
+
+def RemoveDuplicateRecords(ds):
+    """ Remove duplicate records."""
+    # the ds.series["DateTime"]["Data"] series is actually a list
+    for item in ["DateTime","DateTime_UTC"]:
+        if item in ds.series.keys():
+            ldt,ldt_flag,ldt_attr = GetSeries(ds,item)
+            # ldt_nodups is returned as an ndarray
+            ldt_nodups,idx_nodups = numpy.unique(numpy.array(ldt),return_index=True)
+            # now get ldt_nodups as a list
+            ldt_nodups = ldt_nodups.tolist()
+            # and put it back into the data structure
+            ds.series[item]["Data"] = ldt_nodups
+            ds.series[item]["Flag"] = ldt_flag[idx_nodups]
+    # get a list of the series in the data structure
+    series_list = [item for item in ds.series.keys() if '_QCFlag' not in item]
+    # remove the DateTime
+    for item in ["DateTime","DateTime_UTC"]:
+        if item in series_list: series_list.remove(item)
+    # loop over the series in the data structure
+    for ThisOne in series_list:
+        data_dups,flag_dups,attr = GetSeriesasMA(ds,ThisOne)
+        data_nodups = data_dups[idx_nodups]
+        flag_nodups = flag_dups[idx_nodups]
+        CreateSeries(ds,ThisOne,data_nodups,Flag=flag_nodups,Attr=attr)
+    ds.globalattributes['nc_nrecs'] = len(ds.series["DateTime"]["Data"])
+
 def FixTimeGaps(ds):
     """
     Purpose:
@@ -303,67 +342,50 @@ def FixTimeGaps(ds):
          FixTimeGaps(ds)
     Author: PRI
     Date: April 2013
+    Modified:
+     September 2014 - rewrite for clarity and efficiency
     """
-    log.info(' FixTimeGaps: fixing time gaps')
-    ts_minutes = int(ds.globalattributes['time_step'])
-    ts_seconds = int(60*ts_minutes+0.5)
-    xldt = ds.series['xlDateTime']['Data']
-    #pydt = ds.series['DateTime']['Data']
-    pydt = RoundDateTime(ds.series['DateTime']['Data'],ts=ts_minutes)
-    # generate a series of datetime values with no gaps
-    start = pydt[0]
-    end = pydt[-1]
-    delta = pydt[-1] - pydt[0]
-    nts = ((86400*delta.days+delta.seconds)/ts_seconds)+1
-    pydt_nogaps = [start+datetime.timedelta(minutes=i*ts_minutes) for i in range(0,nts)]
-    nRecs = len(pydt_nogaps)
-    # get the indices in the "no gaps" datetime series corresponding to datetime values in the
-    # "gappy" datetime series
-    dt_ind = []
-    idx = -1
-    for item in pydt:
-        idx = pydt_nogaps.index(item,idx+1)
-        dt_ind.append(idx)
-    # get a series of Excel datetime values from the "no gaps" Python datetime values
-    xldtlist = []
+    ts = int(ds.globalattributes["time_step"])
+    ldt_gaps,ldt_flag,ldt_attr = GetSeries(ds,"DateTime")
+    # generate a datetime list from the start datetime to the end datetime
+    ldt_start = ldt_gaps[0]
+    ldt_end = ldt_gaps[-1]
+    ldt_nogaps = [result for result in perdelta(ldt_start,ldt_end,datetime.timedelta(minutes=ts))]
+    # update the global attribute containing the number of records
+    nRecs = len(ldt_nogaps)
+    ds.globalattributes['nc_nrecs'] = nRecs
+    idx_gaps = find_indices(ldt_nogaps,ldt_gaps)
     datemode = 0
-    if 'xl_datemode' in ds.globalattributes.keys():
-        datemode = int(ds.globalattributes['xl_datemode'])
-    for i in range(0,nts):
-        xldt = xlrd.xldate.xldate_from_datetime_tuple((pydt_nogaps[i].year,pydt_nogaps[i].month,pydt_nogaps[i].day,
-                                                       pydt_nogaps[i].hour,pydt_nogaps[i].minute,pydt_nogaps[i].second),datemode)
-        xldtlist.append(xldt)
+    if platform.system()=="Darwin": datemode = 1
+    xlDateTime = get_xldate_from_datetime(ldt_nogaps,datemode=datemode)
     # replace the "gappy" Excel and Python datetime values in the data structure
-    ds.series['xlDateTime']['Data'] = numpy.array(xldtlist,dtype=numpy.float64)
+    ds.series['xlDateTime']['Data'] = numpy.array(xlDateTime,dtype=numpy.float64)
     org_flag = ds.series['xlDateTime']['Flag'].astype(numpy.int32)
     ds.series['xlDateTime']['Flag'] = numpy.ones(nRecs,dtype=numpy.int32)
-    ds.series['xlDateTime']['Flag'][dt_ind] = org_flag
-    ds.series['DateTime']['Data'] = pydt_nogaps
+    ds.series['xlDateTime']['Flag'][idx_gaps] = org_flag
+    ds.series['DateTime']['Data'] = ldt_nogaps
     org_flag = ds.series['DateTime']['Flag'].astype(numpy.int32)
     ds.series['DateTime']['Flag'] = numpy.ones(nRecs,dtype=numpy.int32)
-    ds.series['DateTime']['Flag'][dt_ind] = org_flag
+    ds.series['DateTime']['Flag'][idx_gaps] = org_flag
     # replace the "gappy" year, month, day, hour, minute and second series in the data structure
     get_ymdhmsfromxldate(ds)
     # replace the "gappy" UTC datetime
     get_UTCfromlocaltime(ds)
-    # update the global attribute containing the number of records
-    ds.globalattributes['nc_nrecs'] = str(len(ds.series['xlDateTime']['Data']))
     # remove the datetime-related series from data structure
-    DateTimeList = ["xlDateTime","xlDateTime_UTC","DateTime","DateTime_UTC",
+    datetime_list = ["xlDateTime","xlDateTime_UTC","DateTime","DateTime_UTC",
                     "Year","Month","Day","Hour","Minute","Second","Hdh","Ddd"]
-    SeriesList = ds.series.keys()
-    for item in DateTimeList:
-        if item in SeriesList: SeriesList.remove(item)
-    # replace the "gappy" data with the "no gap" data
-    for ThisOne in SeriesList:
-        attr = GetAttributeDictionary(ds,ThisOne)
-        org_data,org_flag,org_attr = GetSeriesasMA(ds,ThisOne)
-        new_data = numpy.zeros(nRecs,dtype=numpy.float64) - float(9999)
-        new_flag = numpy.ones(nRecs,dtype=numpy.int32)
-        new_data[dt_ind] = org_data
-        new_flag[dt_ind] = org_flag
-        CreateSeries(ds,ThisOne,new_data,Flag=new_flag,Attr=attr)
-
+    series_list = [item for item in ds.series.keys() if '_QCFlag' not in item]
+    for item in datetime_list:
+        if item in series_list: series_list.remove(item)
+    # now loop over the rest of the series in the data structure
+    for ThisOne in series_list:
+        data_nogaps = numpy.ones(nRecs,dtype=numpy.float64)*float(-9999)
+        flag_nogaps = numpy.ones(nRecs,dtype=numpy.int32)
+        data_gaps,flag_gaps,attr = GetSeriesasMA(ds,ThisOne)
+        data_nogaps[idx_gaps] = data_gaps
+        flag_nogaps[idx_gaps] = flag_gaps
+        CreateSeries(ds,ThisOne,data_nogaps,Flag=flag_nogaps,Attr=attr)
+    
 def Fm(z, z0, L):
     ''' Integral form of the adiabatic correction to the wind speed profile.'''
     Fm = math.log(z/z0)                 # Neutral case
@@ -619,7 +641,7 @@ def GetSeries(ds,ThisOne,si=0,ei=-1,mode="truncate"):
         Series = Series[si:ei+1]        # truncate the data
         Flag = Flag[si:ei+1]            # truncate the QC flag
     elif mode=="pad":
-        # pad with maiising data at the start and/or the end of the series
+        # pad with missing data at the start and/or the end of the series
         if si<0 and ei>nRecs-1:
             # pad at the start
             Series = numpy.append(float(c.missing_value)*numpy.ones(abs(si),dtype=numpy.float64),Series)
@@ -678,7 +700,7 @@ def GetSeriesasMA(ds,ThisOne,si=0,ei=-1,mode="truncate"):
       Fsd,f,a = qcutils.GetSeriesasMA(ds,"Fsd")
     AUTHOR: PRI
     '''
-    Series,Flag,Attr = GetSeries(ds,ThisOne,si,ei,mode)
+    Series,Flag,Attr = GetSeries(ds,ThisOne,si=si,ei=ei,mode=mode)
     Series,WasND = SeriestoMA(Series)
     return Series,Flag,Attr
 
@@ -811,50 +833,24 @@ def get_nrecs(ds):
         nRecs = len(ds.series[SeriesList[0]]['Data'])
     return nRecs
 
-def get_timezone(site_name):
+def get_timezone(site_name,prompt="no"):
     """ Return the time zone based on the site name."""
-    tz_dict = {"adelaideriver":"Australia/Darwin",
-               "alicespringsmulga":"Australia/Darwin",
-               "arcturus":"Australia/Brisbane",
-               "calperum":"Australia/Adelaide",
-               "capetribulation":"Australia/Brisbane",
-               "cumberlandplains":"Australia/Sydney",
-               "cup_ec":"Australia/Sydney",
-               "daintree":"Australia/Brisbane",
-               "dalypasture":"Australia/Darwin",
-               "dalyregrowth":"Australia/Darwin",
-               "dalyuncleared":"Australia/Darwin",
-               "dargo":"Australia/Melbourne",
-               "dryriver":"Australia/Darwin",
-               "foggdam":"Australia/Darwin",
-               "gingin":"Australia/Perth",
-               "greatwestern":"Australia/Perth",
-               "howardsprings":"Australia/Darwin",
-               "litchfield":"Australia/Darwin",
-               "nimmo":"Australia/Sydney",
-               "reddirt":"Australia/Darwin",
-               "riggs":"Australia/Melbourne",
-               "robson":"Australia/Brisbane",
-               "samford":"Australia/Brisbane",
-               "sturtplains":"Australia/Darwin",
-               "titreeeast":"Australia/Darwin",
-               "tumbarumba":"Australia/Canberra",
-               "wallaby":"Australia/Melbourne",
-               "warra":"Australia/Hobart",
-               "whroo":"Australia/Melbourne",
-               "wombat":"Australia/Melbourne",
-               "yanco_jaxa":"Australia/Sydney"}
+    time_zone = ""
+    found = False
     # strip out spaces and commas from the site name
     site_name = site_name.replace(" ","").replace(",","")
-    for item in tz_dict.keys():
+    for item in c.tz_dict.keys():
         if item in site_name.lower():
-            time_zone = tz_dict[item]
+            time_zone = c.tz_dict[item]
+            found = True
         else:
             # cant find the site in the dictionary so ask the user
-            root = Tkinter.Tk(); root.withdraw()
-            time_zone = tkSimpleDialog.askstring("Time zone","Enter time zone eg Australia/Melbourne")
-            root.destroy()
-    return time_zone
+            if prompt.lower()=="yes":
+                root = Tkinter.Tk(); root.withdraw()
+                time_zone = tkSimpleDialog.askstring("Time zone","Enter time zone eg Australia/Melbourne")
+                root.destroy()
+                found = True
+    return time_zone,found
 
 def get_UTCfromlocaltime(ds):
     '''
@@ -868,9 +864,16 @@ def get_UTCfromlocaltime(ds):
     AUTHOR: PRI
     '''
     # check the time_zone global attribute is set, we cant continue without it
+    site_name = ds.globalattributes["site_name"]
     if "time_zone" not in ds.globalattributes.keys():
-        log.error("get_UTCfromlocaltime: time_zone not in global attributes")
-        return
+        log.error("get_UTCfromlocaltime: time_zone not in global attributes, checking elsewhere ...")
+        time_zone,found = get_timezone(site_name,prompt="no")
+        if not found:
+            log.error("get_UTCfromlocaltime: site_name not in time zone dictionary")
+            return
+        else:
+            log.error("get_UTCfromlocaltime: time_zone found in time zone dictionary")
+            ds.globalattributes["time_zone"] = time_zone
     log.info(' Getting the UTC datetime from the local datetime')
     # get the number of records
     nRecs = len(ds.series['xlDateTime']['Data'])
@@ -1077,7 +1080,7 @@ def perdelta(start, end, delta):
     Yields an iterator of datetime objects from start to end with time step delta.
     """
     curr = start
-    while curr < end:
+    while curr <= end:
         yield curr
         curr += delta
 

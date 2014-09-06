@@ -156,7 +156,7 @@ def l3qc(cf,ds2):
     # merge the incoming shortwave radiation
     qcts.MergeSeries(cf,ds3,'Fsd',[0,10])
     # calculate the net radiation from the Kipp and Zonen CNR1
-    qcts.CalculateNetRadiation(cf,ds3,'Fn_KZ','Fsd','Fsu','Fld','Flu')
+    qcts.CalculateNetRadiation(cf,ds3,Fn_out='Fn_KZ',Fsd_in='Fsd',Fsu_in='Fsu',Fld_in='Fld',Flu_in='Flu')
     qcts.MergeSeries(cf,ds3,'Fn',[0,10])
     # combine wind speed from the Wind Sentry and  the CSAT
     qcts.MergeSeries(cf,ds3,'Ws',[0,10])
@@ -238,8 +238,16 @@ def l4qc(cf,ds3):
     qcgf.GapFillUsingSOLO(ds3,ds4)
     # gap fill using climatology
     qcgf.GapFillFromClimatology(ds4)
-    # merge the gap filled drivers into a single series
-    qcts.MergeSeriesUsingDict(ds4)
+    # merge the first group of gap filled drivers into a single series
+    qcts.MergeSeriesUsingDict(ds4,merge_order="prerequisite")
+    # re-calculate the ground heat flux
+    qcts.CorrectFgForStorage(cf,ds4,Fg_out='Fg',Fg_in='Fg_Av',Ts_in='Ts',Sws_in='Sws')
+    # re-calculate the net radiation
+    qcts.CalculateNetRadiation(cf,ds4,Fn_out='Fn',Fsd_in='Fsd',Fsu_in='Fsu',Fld_in='Fld',Flu_in='Flu')
+    # re-calculate the available energy
+    qcts.CalculateAvailableEnergy(ds4,Fa_out='Fa',Fn_in='Fn',Fg_in='Fg')
+    # merge the second group of gap filled drivers into a single series
+    qcts.MergeSeriesUsingDict(ds4,merge_order="standard")
     # re-calculate the water vapour concentrations
     qcts.CalculateHumidities(ds4)
     # re-calculate the meteorological variables
@@ -260,7 +268,7 @@ def l4qc(cf,ds3):
     # gap fill using climatology
     qcgf.GapFillFromClimatology(ds4)
     # merge the gap filled drivers into a single series
-    qcts.MergeSeriesUsingDict(ds4)
+    qcts.MergeSeriesUsingDict(ds4,merge_order="standard")
     # write the percentage of good data as a variable attribute
     qcutils.get_coverage_individual(ds4)
     # write the percentage of good data for groups

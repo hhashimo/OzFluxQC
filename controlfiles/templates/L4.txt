@@ -105,8 +105,8 @@
     UseExistingOutFile    = No
 
 [Params]
-    zmd             = 5      # instrument height above displacement plane, m
-    z0              = 1      # roughness length, m
+    zmd             = <zmd>  # instrument height above displacement plane, m
+    z0              = <z0>   # roughness length, m
     Fsd_threshold   = 10     # Fsd threshold for determining day or night time, W/m2
 
 [Drivers]
@@ -251,6 +251,7 @@
         [[[GapFillFromAlternate]]]
             source = "BIOS2"
             file_name = ../Sites/<site_name>/Data/BIOS2/<site_name>_BIOS2.nc
+            fit = "replace"
             output = "Sws_bios"
         [[[GapFillFromClimatology]]]
             file_name = ../Sites/<site_name>/Data/Processed/<year>/<site_name>_<year>_L3_Climatology.xls
@@ -286,18 +287,17 @@
         [[[RangeCheck]]]
             Lower      = "[0]*12"
             Upper      = "[60]*12"
-    [[Ws_WS]]
+    [[Ws]]
         [[[GapFillFromAlternate]]]
             source = "ACCESS"
             file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_<year>_ACCESS.nc
-            alternate_name = "Ws"
             output = "Ws_acc"
         [[[GapFillFromClimatology]]]
             file_name = ../Sites/<site_name>/Data/Processed/<year>/<site_name>_<year>_L3_Climatology.xls
             method = "interpolated daily"
             output = "Ws_cli"
         [[[MergeSeries]]]
-            Source     = "['Ws_WS','Ws_acc','Ws_cli']"
+            Source     = "['Ws','Ws_acc','Ws_cli']"
         [[[RangeCheck]]]
             Lower      = "[0]*12"
             Upper      = "[20]*12"
@@ -305,7 +305,7 @@
 [Fluxes]
     [[ustar]]
         [[[GapFillUsingSOLO]]]
-            drivers = "['Ws_WS','Fn','Ta','q']"
+            drivers = "['Ws','Fn','Ta','q']"
             output = 'ustar_SOLO'
         [[[MergeSeries]]]
             Source     = "['ustar','ustar_SOLO']"
@@ -314,9 +314,9 @@
             Upper      = "[2]*12"
     [[Fe]]
         [[[GapFillUsingSOLO]]]
-           #drivers = "['Fa','SHD','Ta','Ws_WS']" - minimalist
+           #drivers = "['Fa','SHD','Ta','Ws']" - minimalist
            #drivers = "['Fn','Fg','q','SHD','Ta','Ts']" - James'
-            drivers = "['Fa','SHD','Ta','Ws_WS']"
+            drivers = "['Fa','SHD','Ta','Ws']"
             output = 'Fe_SOLO'
         [[[MergeSeries]]]
             Source     = "['Fe','Fe_SOLO']"
@@ -325,9 +325,9 @@
             Upper      = "[600]*12"
     [[Fh]]
         [[[GapFillUsingSOLO]]]
-           #drivers = "['Fa','Ta','Ws_WS']" - minimalist
+           #drivers = "['Fa','Ta','Ws']" - minimalist
            #drivers = "['Fn','Fg','q','SHD','Ta','Ts']" - James'
-            drivers = "['Fa','Ta','Ws_WS']"
+            drivers = "['Fa','Ta','Ws']"
             output = 'Fh_SOLO'
         [[[MergeSeries]]]
             Source     = "['Fh','Fh_SOLO']"
@@ -356,7 +356,7 @@
         Variables = "['Fh','Fe','Fc','ustar','Fm']"
     [[3]]
         Title = "Meteorology"
-        Variables = "['Ta','Ah','Cc','Ws_WS','Wd_WS']"
+        Variables = "['Ta','Ah','Cc','Ws','Wd']"
     [[4]]
         Title = "Soil temperature, water content and heat flux"
         Variables = "['ps','Ts','Sws','Fg']"
@@ -376,7 +376,7 @@
         Variables = "['Fsd','Fld','Fn','Fa']"
     [[2]]
         Title = "Meteorology"
-        Variables = "['Ta','Ah','Ws_WS','ps']"
+        Variables = "['Ta','Ah','Ws','ps']"
     [[3]]
         Title = "Soil"
         Variables = "['Ts','Sws','Fg']"

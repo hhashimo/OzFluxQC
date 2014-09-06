@@ -607,12 +607,13 @@ def CalculateMeteorologicalVariables(ds,Ta_name='Ta',Tv_name='Tv_CSAT',ps_name='
     if 'CalculateMetVars' not in ds.globalattributes['Functions']:
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', CalculateMetVars'
 
-def CalculateNetRadiation(cf,ds,Fn_out,Fsd_in,Fsu_in,Fld_in,Flu_in):
+def CalculateNetRadiation(cf,ds,Fn_out='Fn',Fsd_in='Fsd',Fsu_in='Fsu',Fld_in='Fld',Flu_in='Flu'):
     """
-        Calculate the net radiation from the 4 components of the surface
-        radiation budget.
-        
-        Usage qcts.CalculateNetRadiation(cf,ds,Fn_out,Fsd_in,Fsu_in,Fld_in,Flu_in)
+    Purpose:
+     Calculate the net radiation from the 4 components of the surface
+     radiation budget.
+    Usage:
+     qcts.CalculateNetRadiation(cf,ds,Fn_out,Fsd_in,Fsu_in,Fld_in,Flu_in)
         cf: control file
         ds: data structure
         Fn_out: output net radiation variable to ds.  Example: 'Fn_KZ'
@@ -620,7 +621,11 @@ def CalculateNetRadiation(cf,ds,Fn_out,Fsd_in,Fsu_in,Fld_in,Flu_in):
         Fsu_in: input upwelling solar radiation in ds.  Example: 'Fsu'
         Fld_in: input downwelling longwave radiation in ds.  Example: 'Fld'
         Flu_in: input upwelling longwave radiation in ds.  Example: 'Flu'
-        """
+    Side effects:
+     Creates a new series in the data structure containing the net radiation.
+    Author: PRI
+    Date: Sometime early on
+    """
     log.info(' Calculating net radiation from 4 components')
     if Fsd_in in ds.series.keys() and Fsu_in in ds.series.keys() and Fld_in in ds.series.keys() and Flu_in in ds.series.keys():
         Fsd,f,a = qcutils.GetSeriesasMA(ds,Fsd_in)
@@ -1128,59 +1133,71 @@ def CorrectFgForStorage(cf,ds,Fg_out='Fg',Fg_in='Fg',Ts_in='Ts',Sws_in='Sws'):
             OrganicContent: soil organic content, fraction
             SwsDefault: default value of soil moisture content used when no sensors present
         """
+    # check to see if there is a [Soil] section in the control file
     if 'Soil' not in cf.keys():
-        log.error(' CorrectFgForStorage: [Soil] section not found in control file, Fg not corrected')
-        return
+        # if there isn't, check to see if the soil information is in the netCDF global attributes
+        if "FgDepth" in ds.globalattributes.keys():
+            # if it is, read it into the control file object so we can use it later
+            cf["Soil"] = {}
+            cf["Soil"]["FgDepth"] = ds.globalattributes["FgDepth"]
+            cf["Soil"]["BulkDensity"] = ds.globalattributes["BulkDensity"]
+            cf["Soil"]["OrganicContent"] = ds.globalattributes["OrganicContent"]
+            cf["Soil"]["SwsDefault"] = ds.globalattributes["SwsDefault"]
+        else:
+            # tell the user if we can't find the information needed
+            log.error(' CorrectFgForStorage: [Soil] section not found in control file or global attributes, Fg not corrected')
+            return
     if Fg_in not in ds.series.keys() or Ts_in not in ds.series.keys():
         log.error(' CorrectFgForStorage: '+Fg_in+' or '+Ts_in+' not found in data structure, Fg not corrected')
         return
     log.info(' Correcting soil heat flux for storage')
+    # put the contents of the soil section into the global attributes
+    for item in cf["Soil"].keys(): ds.globalattributes[item] = cf["Soil"][item]
     d = max(0.0,min(0.5,float(cf['Soil']['FgDepth'])))
     bd = max(1200.0,min(2500.0,float(cf['Soil']['BulkDensity'])))
     oc = max(0.0,min(1.0,float(cf['Soil']['OrganicContent'])))
     mc = 1.0 - oc
-    Fg,Fg_flag,Fg_attr = qcutils.GetSeriesasMA(ds,Fg_in)  # raw soil heat flux
-    nRecs = len(Fg)                               # number of records in series
-    Ts,f,a = qcutils.GetSeriesasMA(ds,Ts_in)        # soil temperature
     Sws_default = min(1.0,max(0.0,float(cf['Soil']['SwsDefault'])))
-    if len(Sws_in) == 0:
-        slist = []
-        if qcutils.cfkeycheck(cf,Base='Soil',ThisOne='SwsSeries'):
-            slist = ast.literal_eval(cf['Soil']['SwsSeries'])
-        if len(slist)==0:
-            log.info('  CorrectFgForStorage: Sws_default used for whole series')
-            Sws = numpy.ones(nRecs)*Sws_default
-            Sws_flag = numpy.zeros(nRecs,dtype=numpy.int32)
-        elif len(slist)==1:
-            Sws,Sws_flag,a = qcutils.GetSeriesasMA(ds,slist[0])
-        else:
-            MergeSeries(ds,'Sws',slist,[0,10])
-            Sws,Sws_flag,a = qcutils.GetSeriesasMA(ds,'Sws')
-    else:
-        slist = Sws_in
-        Sws,Sws_flag,Sws_attr = qcutils.GetSeriesasMA(ds,Sws_in)
+    # get the data
+    nRecs = int(ds.globalattributes["nc_nrecs"])
+    Fg,Fg_flag,Fg_attr = qcutils.GetSeriesasMA(ds,Fg_in)
+    Ts,Ts_flag,Ts_attr = qcutils.GetSeriesasMA(ds,Ts_in)
+    Sws,Sws_flag,Sws_attr = qcutils.GetSeriesasMA(ds,Sws_in)
     iom = numpy.where(numpy.mod(Sws_flag,10)!=0)[0]
     if len(iom)!=0:
-        log.info('  CorrectFgForStorage: Sws_default used for '+str(len(iom))+' values')
+        log.error('  CorrectFgForStorage: Sws_default used for '+str(len(iom))+' values')
         Sws[iom] = Sws_default
-        Sws_flag[iom] = numpy.int32(0)
+        Sws_flag[iom] = numpy.int32(22)
+    # get the soil temperature difference from time step to time step
     dTs = numpy.ma.zeros(nRecs)
     dTs[1:] = numpy.ma.diff(Ts)
     # write the temperature difference into the data structure so we can use its flag later
-    flag = numpy.zeros(nRecs,dtype=numpy.int32)
+    dTs_flag = numpy.zeros(nRecs,dtype=numpy.int32)
     index = numpy.ma.where(dTs.mask==True)[0]
-    flag[index] = numpy.int32(1)
+    dTs_flag[index] = numpy.int32(1)
     attr = qcutils.MakeAttributeDictionary(long_name='Change in soil temperature',units='C')
-    qcutils.CreateSeries(ds,"dTs",dTs,Flag=flag,Attr=attr)
+    qcutils.CreateSeries(ds,"dTs",dTs,Flag=dTs_flag,Attr=attr)
     # get the time difference
     dt = numpy.ma.zeros(nRecs)
     dt[1:] = numpy.diff(date2num(ds.series['DateTime']['Data']))*float(86400)
     dt[0] = dt[1]
+    # calculate the specific heat capacity of the soil
     Cs = mc*bd*c.Cd + oc*bd*c.Co + Sws*c.rho_water*c.Cw
+    # calculate the soil heat storage
     S = Cs*(dTs/dt)*d
-    Fg_o = Fg + S
+    # apply the storage term
+    Fg_out_data = Fg + S
+    # work out the QC flag
+    Fg_out_flag = numpy.zeros(nRecs,dtype=numpy.int32)
+    for item in [Fg_flag,Ts_flag,Sws_flag]:
+        Fg_out_flag = numpy.maximum(Fg_out_flag,item)
+    # trap and re-instate flag values of 1 (data missing at L1)
+    for item in [Fg_flag,Ts_flag,Sws_flag]:
+        index = numpy.where(item==numpy.int32(1))[0]
+        Fg_out_flag[index] = numpy.int32(1)
+    # put the corrected soil heat flux into the data structure
     attr= qcutils.MakeAttributeDictionary(long_name='Soil heat flux corrected for storage',units='W/m2',standard_name='downward_heat_flux_in_soil')
-    qcutils.CreateSeries(ds,Fg_out,Fg_o,FList=[Fg_in,Ts_in,Sws_in,"dTs"],Attr=attr)
+    qcutils.CreateSeries(ds,Fg_out,Fg_out_data,Flag=Fg_out_flag,Attr=attr)
     # save the input (uncorrected) soil heat flux series, this will be used if the correction is relaxed
     attr = qcutils.MakeAttributeDictionary(long_name='Soil heat flux uncorrected for storage',units='W/m2')
     qcutils.CreateSeries(ds,'Fg_Av',Fg,Flag=Fg_flag,Attr=attr)
@@ -2109,14 +2126,14 @@ def MassmanStandard(cf,ds,Ta_in='Ta',Ah_in='Ah',ps_in='ps',ustar_in='ustar',usta
             index = numpy.where(mask.astype(int)==1)
             ds.series[ThisOne]['Flag'][index] = numpy.int32(12)
 
-def MergeSeriesUsingDict(ds):
+def MergeSeriesUsingDict(ds,merge_order=""):
     """ Merge series as defined in the ds.merge dictionary."""
     # check that ds has a "merge" attribute
-    if "merge" not in dir(ds): return
+    if "merge" not in dir(ds): raise Exception("MergeSeriesUsingDict: No merge dictionary in ds")
+    if merge_order not in ds.merge.keys(): raise Exception("MergeSeriesUsingDict: merge_order not found in merge dictionary")
     # loop over the entries in ds.merge
-    #for label,srclist in zip(ds.merge["series"],ds.merge["source"]):
-    for target in ds.merge.keys():
-        srclist = ds.merge[target]["source"]
+    for target in ds.merge[merge_order].keys():
+        srclist = ds.merge[merge_order][target]["source"]
         log.info(' Merging '+str(srclist)+' ==> '+target)
         if srclist[0] not in ds.series.keys():
             log.error('  MergeSeries: primary input series '+srclist[0]+' not found')
@@ -2125,23 +2142,21 @@ def MergeSeriesUsingDict(ds):
         flag = ds.series[srclist[0]]['Flag'].copy()
         attr = ds.series[srclist[0]]['Attr'].copy()
         SeriesNameString = srclist[0]
-        srclist.remove(srclist[0])
-        for label in srclist:
+        tmplist = list(srclist)
+        tmplist.remove(tmplist[0])
+        for label in tmplist:
             if label in ds.series.keys():
                 SeriesNameString = SeriesNameString+', '+label
                 index = numpy.where(numpy.mod(flag,10)==0)            # find the elements with flag = 0, 10, 20 etc
                 flag[index] = 0                                       # set them all to 0
                 index = numpy.where(flag!=0)                          # index of flag values other than 0,10,20,30 ...
-                data[index] = ds.series[label]['Data'][index]         # replace bad primary with good secondary
-                flag[index] = ds.series[label]['Flag'][index]
-                if target=="Fre_SOLO":
-                    pass
+                data[index] = ds.series[label]['Data'][index].copy()  # replace bad primary with good secondary
+                flag[index] = ds.series[label]['Flag'][index].copy()
             else:
-                log.error('  MergeSeries: secondary input series'+label+'not found')
+                log.error(" MergeSeries: secondary input series "+label+" not found")
         attr["long_name"] = attr["long_name"]+", merged from " + SeriesNameString
         qcutils.CreateSeries(ds,target,data,Flag=flag,Attr=attr)
-    # remove the "merge" adictionary from ds
-    del ds.merge
+    del ds.merge[merge_order]
 
 def MergeSeries(cf,ds,series,okflags):
     """

@@ -43,7 +43,7 @@ def convert_v27tov28():
     if "time_zone" not in ds.globalattributes.keys():
         for gattr in ["site_name","SiteName"]:
             if gattr in ds.globalattributes.keys():
-                time_zone = qcutils.get_timezone(ds.globalattributes[gattr])
+                time_zone,found = qcutils.get_timezone(ds.globalattributes[gattr],prompt="yes")
         ds.globalattributes["time_zone"] = time_zone
     # add the "missing_value" attribute if it is not present
     for ThisOne in ds.series.keys():
@@ -212,7 +212,7 @@ def xl2nc(cf,InLevel):
     # get series of UTC datetime
     qcutils.get_UTCfromlocaltime(ds)
     #check for gaps in the Excel datetime series
-    has_gaps = qcutils.CheckTimeStep(ds,fix='gaps')
+    has_gaps = qcutils.CheckTimeStep(ds,mode="fix")
     # write the processing level to a global attribute
     ds.globalattributes['nc_level'] = str(InLevel)
     # get the start and end date from the datetime series unless they were
@@ -943,6 +943,7 @@ def nc_write_var(ncFile,ds,ThisOne,dim):
         print ThisOne
         raise Exception("Error writing variable to netCDF file")
     # different writes to the variable depending on whether it is 1D or 3D
+    #print ds.globalattributes["nc_nrecs"],ThisOne,len(ds.series[ThisOne]["Data"])
     if len(dim)==1: ncVar[:] = ds.series[ThisOne]['Data'].tolist()
     if len(dim)==3: ncVar[:,0,0] = ds.series[ThisOne]['Data'].tolist()
     # write the attributes
