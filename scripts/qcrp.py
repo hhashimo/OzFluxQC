@@ -123,45 +123,51 @@ def FreUsingFFNET(cf,ds):
     # third row
     nrow = nrow + 1
     rpFFNET_gui.filestartLabel = Tkinter.Label(rpFFNET_gui,text="File start date")
-    rpFFNET_gui.filestartLabel.grid(row=nrow,column=0,columnspan=2)
+    rpFFNET_gui.filestartLabel.grid(row=nrow,column=0,columnspan=3)
     rpFFNET_gui.fileendLabel = Tkinter.Label(rpFFNET_gui,text="File end date")
-    rpFFNET_gui.fileendLabel.grid(row=nrow,column=2,columnspan=2)
+    rpFFNET_gui.fileendLabel.grid(row=nrow,column=3,columnspan=3)
     # fourth row
     nrow = nrow + 1
     rpFFNET_gui.filestartValue = Tkinter.Label(rpFFNET_gui,text=str(ldt[0]))
-    rpFFNET_gui.filestartValue.grid(row=nrow,column=0,columnspan=2)
+    rpFFNET_gui.filestartValue.grid(row=nrow,column=0,columnspan=3)
     rpFFNET_gui.fileendValue = Tkinter.Label(rpFFNET_gui,text=str(ldt[-1]))
-    rpFFNET_gui.fileendValue.grid(row=nrow,column=2,columnspan=2)
+    rpFFNET_gui.fileendValue.grid(row=nrow,column=3,columnspan=3)
     # fifth row
     nrow = nrow + 1
     rpFFNET_gui.startLabel = Tkinter.Label(rpFFNET_gui, text="Start date (YYYY-MM-DD)")
-    rpFFNET_gui.startLabel.grid(row=nrow,column=0,columnspan=2)
+    rpFFNET_gui.startLabel.grid(row=nrow,column=0,columnspan=3)
     rpFFNET_gui.startEntry = Tkinter.Entry(rpFFNET_gui)
-    rpFFNET_gui.startEntry.grid(row=nrow,column=2,columnspan=2)
+    rpFFNET_gui.startEntry.grid(row=nrow,column=3,columnspan=3)
     # sixth row
     nrow = nrow + 1
     rpFFNET_gui.endLabel = Tkinter.Label(rpFFNET_gui, text="End date   (YYYY-MM-DD)")
-    rpFFNET_gui.endLabel.grid(row=nrow,column=0,columnspan=2)
+    rpFFNET_gui.endLabel.grid(row=nrow,column=0,columnspan=3)
     rpFFNET_gui.endEntry = Tkinter.Entry(rpFFNET_gui)
-    rpFFNET_gui.endEntry.grid(row=nrow,column=2,columnspan=2)
+    rpFFNET_gui.endEntry.grid(row=nrow,column=3,columnspan=3)
     # seventh row
     nrow = nrow + 1
     rpFFNET_gui.peropt = Tkinter.IntVar()
     rpFFNET_gui.peropt.set(1)
     rpFFNET_gui.manualperiod = Tkinter.Radiobutton(rpFFNET_gui,text="Manual",variable=rpFFNET_gui.peropt,value=1)
-    rpFFNET_gui.manualperiod.grid(row=nrow,column=0,columnspan=2,sticky="W")
-    rpFFNET_gui.automonthly = Tkinter.Radiobutton(rpFFNET_gui,text="Monthly",variable=rpFFNET_gui.peropt,value=2)
-    rpFFNET_gui.automonthly.grid(row=nrow,column=2,columnspan=2,sticky="W")
+    rpFFNET_gui.manualperiod.grid(row=nrow,column=0,columnspan=1,sticky="W")
+    rpFFNET_gui.daysperiod = Tkinter.Radiobutton(rpFFNET_gui,text="No. days",variable=rpFFNET_gui.peropt,value=2)
+    rpFFNET_gui.daysperiod.grid(row=nrow,column=1,sticky="W")
+    rpFFNET_gui.daysentry = Tkinter.Entry(rpFFNET_gui,width=5)
+    rpFFNET_gui.daysentry.grid(row=nrow,column=2,sticky="W")
+    rpFFNET_gui.daysentry.insert(0,"30")
+    rpFFNET_gui.monthsperiod = Tkinter.Radiobutton(rpFFNET_gui,text="No. Months",variable=rpFFNET_gui.peropt,value=3)
+    rpFFNET_gui.monthsperiod.grid(row=nrow,column=3,sticky="W")
+    rpFFNET_gui.monthsentry = Tkinter.Entry(rpFFNET_gui,width=5)
+    rpFFNET_gui.monthsentry.grid(row=nrow,column=4,sticky="W")
+    rpFFNET_gui.monthsentry.insert(0,"1")
     # eigth row
     nrow = nrow + 1
-    rpFFNET_gui.daysperiod = Tkinter.Radiobutton(rpFFNET_gui,text="No. days",variable=rpFFNET_gui.peropt,value=3)
-    rpFFNET_gui.daysperiod.grid(row=nrow,column=0,sticky="W")
-    rpFFNET_gui.daysentry = Tkinter.Entry(rpFFNET_gui,width=5)
-    rpFFNET_gui.daysentry.grid(row=nrow,column=1,columnspan=1,sticky="W")
-    rpFFNET_gui.pointsperiod = Tkinter.Radiobutton(rpFFNET_gui,text="No. pts",variable=rpFFNET_gui.peropt,value=4)
-    rpFFNET_gui.pointsperiod.grid(row=nrow,column=2,sticky="W")
+    rpFFNET_gui.autoyearly = Tkinter.Radiobutton(rpFFNET_gui,text="Yearly",variable=rpFFNET_gui.peropt,value=4)
+    rpFFNET_gui.autoyearly.grid(row=nrow,column=0,columnspan=1,sticky="W")
+    rpFFNET_gui.pointsperiod = Tkinter.Radiobutton(rpFFNET_gui,text="No. pts",variable=rpFFNET_gui.peropt,value=5)
+    rpFFNET_gui.pointsperiod.grid(row=nrow,column=1,sticky="W")
     rpFFNET_gui.pointsentry = Tkinter.Entry(rpFFNET_gui,width=5)
-    rpFFNET_gui.pointsentry.grid(row=nrow,column=3,columnspan=1,sticky="W")
+    rpFFNET_gui.pointsentry.grid(row=nrow,column=2,columnspan=1,sticky="W")
     # ninth row
     nrow = nrow + 1
     rpFFNET_gui.minptsLabel = Tkinter.Label(rpFFNET_gui,text="Min points")
@@ -176,14 +182,14 @@ def FreUsingFFNET(cf,ds):
     # tenth row
     nrow = nrow + 1
     rpFFNET_gui.doneButton = Tkinter.Button (rpFFNET_gui, text="Done",command=lambda:rpFFNET_done(ds,rpFFNET_gui))
-    rpFFNET_gui.doneButton.grid(row=nrow,column=0,columnspan=2)
+    rpFFNET_gui.doneButton.grid(row=nrow,column=0,columnspan=3)
     rpFFNET_gui.runButton = Tkinter.Button (rpFFNET_gui, text="Run",command=lambda:rpFFNET_run(ds,rpFFNET_gui,rpFFNET_info))
-    rpFFNET_gui.runButton.grid(row=nrow,column=2,columnspan=2)
+    rpFFNET_gui.runButton.grid(row=nrow,column=3,columnspan=3)
     # eleventh row
     nrow = nrow + 1
     rpFFNET_gui.progress_row = nrow
     rpFFNET_gui.progress = Tkinter.Label(rpFFNET_gui, text='Waiting for input ...')
-    rpFFNET_gui.progress.grid(row=nrow,column=0,columnspan=4,sticky="W")
+    rpFFNET_gui.progress.grid(row=nrow,column=0,columnspan=6,sticky="W")
 
     rpFFNET_gui.wait_window(rpFFNET_gui)
 
@@ -321,20 +327,24 @@ def FreUsingSOLO(cf,ds):
     rpSOLO_gui.peropt.set(1)
     rpSOLO_gui.manualperiod = Tkinter.Radiobutton(rpSOLO_gui,text="Manual",variable=rpSOLO_gui.peropt,value=1)
     rpSOLO_gui.manualperiod.grid(row=nrow,column=0,columnspan=2,sticky="W")
-    rpSOLO_gui.automonthly = Tkinter.Radiobutton(rpSOLO_gui,text="Monthly",variable=rpSOLO_gui.peropt,value=2)
-    rpSOLO_gui.automonthly.grid(row=nrow,column=2,columnspan=2,sticky="W")
-    rpSOLO_gui.autoyearly = Tkinter.Radiobutton(rpSOLO_gui,text="Yearly",variable=rpSOLO_gui.peropt,value=3)
-    rpSOLO_gui.autoyearly.grid(row=nrow,column=4,columnspan=2,sticky="W")
+    rpSOLO_gui.daysperiod = Tkinter.Radiobutton(rpSOLO_gui,text="No. days",variable=rpSOLO_gui.peropt,value=2)
+    rpSOLO_gui.daysperiod.grid(row=nrow,column=2,sticky="W")
+    rpSOLO_gui.daysentry = Tkinter.Entry(rpSOLO_gui,width=5)
+    rpSOLO_gui.daysentry.grid(row=nrow,column=3,sticky="W")
+    rpSOLO_gui.daysentry.insert(0,"30")
+    rpSOLO_gui.monthsperiod = Tkinter.Radiobutton(rpSOLO_gui,text="No. months",variable=rpSOLO_gui.peropt,value=3)
+    rpSOLO_gui.monthsperiod.grid(row=nrow,column=4,sticky="W")
+    rpSOLO_gui.monthsentry = Tkinter.Entry(rpSOLO_gui,width=5)
+    rpSOLO_gui.monthsentry.grid(row=nrow,column=5,sticky="W")
+    rpSOLO_gui.monthsentry.insert(0,"1")
     # eigth row
     nrow = nrow + 1
-    rpSOLO_gui.daysperiod = Tkinter.Radiobutton(rpSOLO_gui,text="No. days",variable=rpSOLO_gui.peropt,value=4)
-    rpSOLO_gui.daysperiod.grid(row=nrow,column=0,sticky="W")
-    rpSOLO_gui.daysentry = Tkinter.Entry(rpSOLO_gui,width=5)
-    rpSOLO_gui.daysentry.grid(row=nrow,column=1,columnspan=1,sticky="W")
+    rpSOLO_gui.autoyearly = Tkinter.Radiobutton(rpSOLO_gui,text="Yearly",variable=rpSOLO_gui.peropt,value=4)
+    rpSOLO_gui.autoyearly.grid(row=nrow,column=0,columnspan=1,sticky="W")
     rpSOLO_gui.pointsperiod = Tkinter.Radiobutton(rpSOLO_gui,text="No. pts",variable=rpSOLO_gui.peropt,value=5)
-    rpSOLO_gui.pointsperiod.grid(row=nrow,column=3,sticky="W")
+    rpSOLO_gui.pointsperiod.grid(row=nrow,column=2,sticky="W")
     rpSOLO_gui.pointsentry = Tkinter.Entry(rpSOLO_gui,width=5)
-    rpSOLO_gui.pointsentry.grid(row=nrow,column=4,columnspan=1,sticky="W")
+    rpSOLO_gui.pointsentry.grid(row=nrow,column=3,columnspan=1,sticky="W")
     # ninth row
     nrow = nrow + 1
     rpSOLO_gui.minptsLabel = Tkinter.Label(rpSOLO_gui,text="Min points")
@@ -604,13 +614,14 @@ def rpFFNET_main(ds,rpFFNET_gui,rpFFNET_info):
         nRecs = int(ds.globalattributes["nc_nrecs"])
     else:
         nRecs = ei - si + 1
+    # get the figure number
+    if len(plt.get_fignums())==0:
+        fig_num = 0
+    else:
+        #fig_nums = plt.get_fignums()
+        #fig_num = fig_nums[-1]
+        fig_num = plt.get_fignums()[-1]
     # loop over the series to be gap filled using ffnet
-    # close any open plot windows
-    if len(plt.get_fignums())!=0:
-        for i in plt.get_fignums(): plt.close(i)
-    fig_num = 0
-    #fignum_list = plt.get_fignums()
-    #fig_num = fignum_list[-1]
     for series in ffnet_series:
         ds.ffnet[series]["results"]["startdate"].append(xldt[si])
         ds.ffnet[series]["results"]["enddate"].append(xldt[ei])
@@ -629,16 +640,16 @@ def rpFFNET_main(ds,rpFFNET_gui,rpFFNET_info):
         ndrivers = len(drivers)
         output = ds.ffnet[series]["output"]
         # prepare the input and target data for training
-        Reco,f,a = qcutils.GetSeriesasMA(ds,target)
+        Reco,f,a = qcutils.GetSeriesasMA(ds,target,si=si,ei=ei)
         mask = numpy.ma.getmask(Reco)
         for val in drivers:
-            d,f,a = qcutils.GetSeriesasMA(ds,val)
+            d,f,a = qcutils.GetSeriesasMA(ds,val,si=si,ei=ei)
             mask = numpy.ma.mask_or(mask,d.mask)
         Reco.mask = mask
         nRecs = numpy.ma.count(Reco)
         data_nm = numpy.empty((nRecs,len(drivers)+1))
         for idx,val in enumerate(drivers):
-            d,f,a = qcutils.GetSeriesasMA(ds,val)
+            d,f,a = qcutils.GetSeriesasMA(ds,val,si=si,ei=ei)
             d.mask = mask
             data_nm[:,idx] = numpy.ma.compressed(d)
         data_nm[:,idx+1] = numpy.ma.compressed(Reco)
@@ -667,7 +678,7 @@ def rpFFNET_main(ds,rpFFNET_gui,rpFFNET_info):
         # get the predictions
         input_predict = numpy.empty((len(Reco),len(drivers)))
         for idx,val in enumerate(drivers):
-            d,f,a = qcutils.GetSeries(ds,val)
+            d,f,a = qcutils.GetSeries(ds,val,si=si,ei=ei)
             input_predict[:,idx] = d[:]
         output_predict = net.call(input_predict)
         if ei==-1:
@@ -684,7 +695,7 @@ def rpFFNET_main(ds,rpFFNET_gui,rpFFNET_info):
         fig_num = fig_num + 1
         title = site_name+" : "+series+" estimated using FFNET"
         pd = rpFFNET_initplot(site_name=site_name,label=target,fig_num=fig_num,title=title,
-                             nDrivers=len(drivers))
+                             nDrivers=len(drivers),startdate=startdate,enddate=enddate)
         rpFFNET_plot(pd,ds,series,drivers,target,output,rpFFNET_info,si=si,ei=ei)
     if 'FreUsingFFNET' not in ds.globalattributes['Functions']:
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', FreUsingFFNET'
@@ -703,7 +714,7 @@ def rpFFNET_plot(pd,ds,series,driverlist,targetlabel,outputlabel,rpFFNET_info,si
     plt.ion()
     fig = plt.figure(pd["fig_num"],figsize=(13,9))
     fig.clf()
-    fig.canvas.set_window_title(targetlabel)
+    fig.canvas.set_window_title(targetlabel+" (FFNET): "+pd["startdate"]+" to "+pd["enddate"])
     plt.figtext(0.5,0.95,pd["title"],ha='center',size=16)
     # XY plot of the diurnal variation
     rect1 = [0.10,pd["margin_bottom"],pd["xy_width"],pd["xy_height"]]
@@ -847,26 +858,6 @@ def rpFFNET_run(ds,rpFFNET_gui,rpFFNET_info):
         rpFFNET_main(ds,rpFFNET_gui,rpFFNET_info)
         rpFFNET_progress(rpFFNET_gui,"Finished manual run ...")
     elif rpFFNET_gui.peropt.get()==2:
-        rpFFNET_progress(rpFFNET_gui,"Starting auto (monthly) run ...")
-        # get the start datetime entered in the SOLO GUI
-        rpFFNET_info["startdate"] = rpFFNET_gui.startEntry.get()
-        if len(rpFFNET_info["startdate"])==0: rpFFNET_info["startdate"] = rpFFNET_info["file_startdate"]
-        startdate = dateutil.parser.parse(rpFFNET_info["startdate"])
-        file_startdate = dateutil.parser.parse(rpFFNET_info["file_startdate"])
-        file_enddate = dateutil.parser.parse(rpFFNET_info["file_enddate"])
-        enddate = startdate+dateutil.relativedelta.relativedelta(months=1)
-        enddate = min([file_enddate,enddate])
-        rpFFNET_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d")
-        while startdate<file_enddate:
-            rpFFNET_main(ds,rpFFNET_gui,rpFFNET_info)
-            startdate = enddate
-            enddate = startdate+dateutil.relativedelta.relativedelta(months=1)
-            rpFFNET_info["startdate"] = startdate.strftime("%Y-%m-%d")
-            rpFFNET_info["enddate"] = enddate.strftime("%Y-%m-%d")
-        ## plot the summary statistics
-        #gfSOLO_plotsummary(ds)
-        rpFFNET_progress(rpFFNET_gui,"Finished auto (monthly) run ...")
-    elif rpFFNET_gui.peropt.get()==3:
         rpFFNET_progress(rpFFNET_gui,"Starting auto (days) run ...")
         # get the start datetime entered in the SOLO GUI
         rpFFNET_info["startdate"] = rpFFNET_gui.startEntry.get()
@@ -887,7 +878,50 @@ def rpFFNET_run(ds,rpFFNET_gui,rpFFNET_info):
         ## plot the summary statistics
         #gfSOLO_plotsummary(ds)
         rpFFNET_progress(rpFFNET_gui,"Finished auto (days) run ...")
+    elif rpFFNET_gui.peropt.get()==3:
+        rpFFNET_progress(rpFFNET_gui,"Starting auto (monthly) run ...")
+        # get the start datetime entered in the SOLO GUI
+        rpFFNET_info["startdate"] = rpFFNET_gui.startEntry.get()
+        if len(rpFFNET_info["startdate"])==0: rpFFNET_info["startdate"] = rpFFNET_info["file_startdate"]
+        startdate = dateutil.parser.parse(rpFFNET_info["startdate"])
+        file_startdate = dateutil.parser.parse(rpFFNET_info["file_startdate"])
+        file_enddate = dateutil.parser.parse(rpFFNET_info["file_enddate"])
+        nMonths = int(rpFFNET_gui.monthsentry.get())
+        enddate = startdate+dateutil.relativedelta.relativedelta(months=nMonths)
+        enddate = min([file_enddate,enddate])
+        rpFFNET_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d")
+        while startdate<file_enddate:
+            rpFFNET_main(ds,rpFFNET_gui,rpFFNET_info)
+            startdate = enddate
+            enddate = startdate+dateutil.relativedelta.relativedelta(months=nMonths)
+            rpFFNET_info["startdate"] = startdate.strftime("%Y-%m-%d")
+            rpFFNET_info["enddate"] = enddate.strftime("%Y-%m-%d")
+        ## plot the summary statistics
+        #gfSOLO_plotsummary(ds)
+        rpFFNET_progress(rpFFNET_gui,"Finished auto (monthly) run ...")
     elif rpFFNET_gui.peropt.get()==4:
+        # automatic run with yearly datetime periods
+        rpFFNET_progress(rpFFNET_gui,"Starting auto (yearly) run ...")
+        # get the start date
+        rpFFNET_info["startdate"] = rpFFNET_gui.startEntry.get()
+        if len(rpFFNET_info["startdate"])==0: rpFFNET_info["startdate"] = rpFFNET_info["file_startdate"]
+        startdate = dateutil.parser.parse(rpFFNET_info["startdate"])
+        # get the start year
+        start_year = startdate.year
+        enddate = dateutil.parser.parse(str(start_year+1)+"-01-01 00:00")
+        file_enddate = dateutil.parser.parse(rpFFNET_info["file_enddate"])
+        enddate = min([file_enddate,enddate])
+        rpFFNET_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d")
+        while startdate<file_enddate:
+            rpFFNET_main(ds,rpFFNET_gui,rpFFNET_info)
+            startdate = enddate
+            enddate = startdate+dateutil.relativedelta.relativedelta(years=1)
+            rpFFNET_info["startdate"] = startdate.strftime("%Y-%m-%d")
+            rpFFNET_info["enddate"] = enddate.strftime("%Y-%m-%d")
+        ### plot the summary statistics
+        ##gfSOLO_plotsummary(ds)
+        rpFFNET_progress(rpFFNET_gui,"Finished auto (yearly) run ...")
+    elif rpFFNET_gui.peropt.get()==5:
         pass
 
 def rpGPP_createdict(cf,ds,series):
@@ -910,20 +944,27 @@ def rpGPP_createdict(cf,ds,series):
 def rpMerge_createdict(cf,ds,series):
     """ Creates a dictionary in ds to hold information about the merging of gap filled
         and tower data."""
+    merge_prereq_list = []
     # get the section of the control file containing the series
     section = qcutils.get_cfsection(cf,series=series,mode="quiet")
     # create the ffnet directory in the data structure
     if "merge" not in dir(ds): ds.merge = {}
+    # check to see if this series is in the "merge first" list
+    # series in the "merge first" list get merged first so they can be used with existing tower
+    # data to re-calculate Fg, Fn and Fa
+    merge_order = "standard"
+    if series in merge_prereq_list: merge_order = "prerequisite"
+    if merge_order not in ds.merge.keys(): ds.merge[merge_order] = {}
     # create the dictionary keys for this series
-    ds.merge[series] = {}
+    ds.merge[merge_order][series] = {}
     # output series name
-    ds.merge[series]["output"] = series
+    ds.merge[merge_order][series]["output"] = series
     # source
-    ds.merge[series]["source"] = ast.literal_eval(cf[section][series]["MergeSeries"]["Source"])
+    ds.merge[merge_order][series]["source"] = ast.literal_eval(cf[section][series]["MergeSeries"]["Source"])
     # create an empty series in ds if the output series doesn't exist yet
-    if ds.merge[series]["output"] not in ds.series.keys():
-        data,flag,attr = qcutils.MakeEmptySeries(ds,ds.merge[series]["output"])
-        qcutils.CreateSeries(ds,ds.merge[series]["output"],data,Flag=flag,Attr=attr)
+    if ds.merge[merge_order][series]["output"] not in ds.series.keys():
+        data,flag,attr = qcutils.MakeEmptySeries(ds,ds.merge[merge_order][series]["output"])
+        qcutils.CreateSeries(ds,ds.merge[merge_order][series]["output"],data,Flag=flag,Attr=attr)
 
 def rpNEE_createdict(cf,ds,series):
     """ Creates a dictionary in ds to hold information about calculating NEE."""
@@ -1029,11 +1070,14 @@ def rpSOLO_main(ds,rpSOLO_gui,rpSOLO_info):
         nRecs = int(ds.globalattributes["nc_nrecs"])
     else:
         nRecs = ei - si + 1
+    # get the figure number
+    if len(plt.get_fignums())==0:
+        fig_num = 0
+    else:
+        #fig_nums = plt.get_fignums()
+        #fig_num = fig_nums[-1]
+        fig_num = plt.get_fignums()[-1]
     # loop over the series to be gap filled using solo
-    # close any open plot windows
-    if len(plt.get_fignums())!=0:
-        for i in plt.get_fignums(): plt.close(i)
-    fig_num = 0
     for series in solo_series:
         ds.solo[series]["results"]["startdate"].append(xldt[si])
         ds.solo[series]["results"]["enddate"].append(xldt[ei])
@@ -1067,7 +1111,7 @@ def rpSOLO_main(ds,rpSOLO_gui,rpSOLO_info):
         fig_num = fig_num + 1
         title = site_name+" : "+series+" estimated using SOLO"
         pd = rpSOLO_initplot(site_name=site_name,label=target,fig_num=fig_num,title=title,
-                             nDrivers=len(drivers))
+                             nDrivers=len(drivers),startdate=startdate,enddate=enddate)
         rpSOLO_plot(pd,ds,series,drivers,target,output,rpSOLO_gui,si=si,ei=ei)
         # reset the nodesEntry in the rpSOLO_gui
         if nodesAuto: rpSOLO_resetnodesEntry(rpSOLO_gui)
@@ -1088,7 +1132,7 @@ def rpSOLO_plot(pd,ds,series,driverlist,targetlabel,outputlabel,rpSOLO_gui,si=0,
     plt.ion()
     fig = plt.figure(pd["fig_num"],figsize=(13,9))
     fig.clf()
-    fig.canvas.set_window_title(targetlabel)
+    fig.canvas.set_window_title(targetlabel+" (SOLO): "+pd["startdate"]+" to "+pd["enddate"])
     plt.figtext(0.5,0.95,pd["title"],ha='center',size=16)
     # XY plot of the diurnal variation
     rect1 = [0.10,pd["margin_bottom"],pd["xy_width"],pd["xy_height"]]
@@ -1233,6 +1277,27 @@ def rpSOLO_run(ds,rpSOLO_gui,rpSOLO_info):
         rpSOLO_main(ds,rpSOLO_gui,rpSOLO_info)
         rpSOLO_progress(rpSOLO_gui,"Finished manual run ...")
     elif rpSOLO_gui.peropt.get()==2:
+        # automatc run with number of days specified by user via the GUI
+        rpSOLO_progress(rpSOLO_gui,"Starting auto (days) run ...")
+        rpSOLO_info["startdate"] = rpSOLO_gui.startEntry.get()
+        if len(rpSOLO_info["startdate"])==0: rpSOLO_info["startdate"] = rpSOLO_info["file_startdate"]
+        startdate = dateutil.parser.parse(rpSOLO_info["startdate"])
+        file_startdate = dateutil.parser.parse(rpSOLO_info["file_startdate"])
+        file_enddate = dateutil.parser.parse(rpSOLO_info["file_enddate"])
+        nDays = int(rpSOLO_gui.daysentry.get())
+        enddate = startdate+dateutil.relativedelta.relativedelta(days=nDays)
+        enddate = min([file_enddate,enddate])
+        rpSOLO_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d")
+        while startdate<file_enddate:
+            rpSOLO_main(ds,rpSOLO_gui,rpSOLO_info)
+            startdate = enddate
+            enddate = startdate+dateutil.relativedelta.relativedelta(days=nDays)
+            rpSOLO_info["startdate"] = startdate.strftime("%Y-%m-%d")
+            rpSOLO_info["enddate"] = enddate.strftime("%Y-%m-%d")
+        ## plot the summary statistics
+        #gfSOLO_plotsummary(ds)
+        rpSOLO_progress(rpSOLO_gui,"Finished auto (days) run ...")
+    elif rpSOLO_gui.peropt.get()==3:
         # automatic run with monthly datetime periods
         rpSOLO_progress(rpSOLO_gui,"Starting auto (monthly) run ...")
         rpSOLO_info["startdate"] = rpSOLO_gui.startEntry.get()
@@ -1240,19 +1305,20 @@ def rpSOLO_run(ds,rpSOLO_gui,rpSOLO_info):
         startdate = dateutil.parser.parse(rpSOLO_info["startdate"])
         file_startdate = dateutil.parser.parse(rpSOLO_info["file_startdate"])
         file_enddate = dateutil.parser.parse(rpSOLO_info["file_enddate"])
-        enddate = startdate+dateutil.relativedelta.relativedelta(months=1)
+        nMonths = int(rpSOLO_gui.monthsentry.get())
+        enddate = startdate+dateutil.relativedelta.relativedelta(months=nMonths)
         enddate = min([file_enddate,enddate])
         rpSOLO_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d")
         while startdate<file_enddate:
             rpSOLO_main(ds,rpSOLO_gui,rpSOLO_info)
             startdate = enddate
-            enddate = startdate+dateutil.relativedelta.relativedelta(months=1)
+            enddate = startdate+dateutil.relativedelta.relativedelta(months=nMonths)
             rpSOLO_info["startdate"] = startdate.strftime("%Y-%m-%d")
             rpSOLO_info["enddate"] = enddate.strftime("%Y-%m-%d")
         ## plot the summary statistics
         #gfSOLO_plotsummary(ds)
         rpSOLO_progress(rpSOLO_gui,"Finished auto (monthly) run ...")
-    elif rpSOLO_gui.peropt.get()==3:
+    elif rpSOLO_gui.peropt.get()==4:
         # automatic run with yearly datetime periods
         rpSOLO_progress(rpSOLO_gui,"Starting auto (yearly) run ...")
         # get the start date
@@ -1276,27 +1342,6 @@ def rpSOLO_run(ds,rpSOLO_gui,rpSOLO_info):
         ### plot the summary statistics
         ##gfSOLO_plotsummary(ds)
         rpSOLO_progress(rpSOLO_gui,"Finished auto (yearly) run ...")
-    elif rpSOLO_gui.peropt.get()==4:
-        # automatc run with number of days specified by user via the GUI
-        rpSOLO_progress(rpSOLO_gui,"Starting auto (days) run ...")
-        rpSOLO_info["startdate"] = rpSOLO_gui.startEntry.get()
-        if len(rpSOLO_info["startdate"])==0: rpSOLO_info["startdate"] = rpSOLO_info["file_startdate"]
-        startdate = dateutil.parser.parse(rpSOLO_info["startdate"])
-        file_startdate = dateutil.parser.parse(rpSOLO_info["file_startdate"])
-        file_enddate = dateutil.parser.parse(rpSOLO_info["file_enddate"])
-        nDays = int(rpSOLO_gui.daysentry.get())
-        enddate = startdate+dateutil.relativedelta.relativedelta(days=nDays)
-        enddate = min([file_enddate,enddate])
-        rpSOLO_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d")
-        while startdate<file_enddate:
-            rpSOLO_main(ds,rpSOLO_gui,rpSOLO_info)
-            startdate = enddate
-            enddate = startdate+dateutil.relativedelta.relativedelta(days=nDays)
-            rpSOLO_info["startdate"] = startdate.strftime("%Y-%m-%d")
-            rpSOLO_info["enddate"] = enddate.strftime("%Y-%m-%d")
-        ## plot the summary statistics
-        #gfSOLO_plotsummary(ds)
-        rpSOLO_progress(rpSOLO_gui,"Finished auto (days) run ...")
     elif rpSOLO_gui.peropt.get()==5:
         pass
 

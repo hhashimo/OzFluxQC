@@ -438,7 +438,7 @@ def GapFillParseControlFile(cf,ds,series,ds_alt):
             data,flag,attr = qcutils.MakeEmptySeries(ds,ds.climatology[series]["output"])
             qcutils.CreateSeries(ds,ds.climatology[series]["output"],data,Flag=flag,Attr=attr)
     if "MergeSeries" in cf[section][series].keys():
-        # create the merge serioes dictionary in the data structure
+        # create the merge series dictionary in the data structure
         gfMergeSeries_createdict(cf,ds,series)
 
 def GapFillFromAlternate(ds4,ds_alt):
@@ -783,9 +783,6 @@ def gfalternate_getlagcorrecteddata(ds_tower,ds_alternate,label_tower,label_alte
     results["Lag (uncorrected)"].append(numpy.float64(nLags*ai["time_step"]))
     data_alternate_lagcorr,f,a = qcutils.GetSeriesasMA(ds_alternate,label_alternate,si=si_alternate_lagcorr,ei=ei_alternate_lagcorr,mode="pad")
     # get the lagged correlations
-    if label_tower=="Sws":
-        print label_tower
-        pass
     lags,corr = qcts.get_laggedcorrelation(data_tower,data_alternate_lagcorr,maxlags=ai["maxlags"])
     nLags = numpy.argmax(corr)-ai["maxlags"]
     results["Lag (corrected)"].append(numpy.float64(nLags*ai["time_step"]))

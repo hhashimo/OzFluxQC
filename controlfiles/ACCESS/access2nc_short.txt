@@ -1,0 +1,51 @@
+[Sites]
+    [[AliceSpringsMulga]]
+        in_filepath = ../../ACCESS/AliceSpringsMulga/2011/
+        in_filename = access_Alice_Springs_Mulga_2011*.nc
+        out_filepath = ../../Sites/AliceSpringsMulga/Data/ACCESS/
+        out_filename = AliceSpringsMulga_2011_ACCESS.nc
+        interpolate = Yes
+        site_timezone = Australia/Darwin
+    [[Tumbarumba]]
+        in_filepath = ../../ACCESS/Tumbarumba/2011/
+        in_filename = access_Tumbarumba_2011*.nc
+        out_filepath = ../../Sites/Tumbarumba/Data/ACCESS/
+        out_filename = Tumbarumba_2011_ACCESS.nc
+        interpolate = No
+        site_timezone = Australia/Sydney
+
+[Variables]
+    [[valid_date]]
+        access_name = valid_date
+    [[valid_time]]
+        access_name = valid_time
+    [[Fsd]]
+        access_name = av_swsfcdown
+    [[Fn_sw]]
+        access_name = av_netswsfc
+    [[Fld]]
+        access_name = av_lwsfcdown
+    [[Fn_lw]]
+        access_name = av_netlwsfc
+    [[Ta]]
+        access_name = temp_scrn
+    [[q]]
+        access_name = qsair_scrn
+    [[Sws]]
+        access_name = soil_mois
+    [[Ts]]
+        access_name = soil_temp
+    [[u]]
+        access_name = uwnd10m
+    [[v]]
+        access_name = vwnd10m
+    [[ps]]
+        access_name = sfc_pres
+    [[Precip]]
+        access_name = accum_prcp
+    [[ustar]]
+        access_name = fric_vel
+    [[Fh]]
+        access_name = sens_hflx
+    [[Fe]]
+        access_name = lat_hflx

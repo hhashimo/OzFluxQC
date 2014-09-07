@@ -299,7 +299,7 @@ def l5qc(cf,ds4):
     # estimate Reco using Lasslop et al
     qcrp.FreUsingLasslop(cf,ds5)
     # merge the estimates of Reco with the observations
-    qcts.MergeSeriesUsingDict(ds5)
+    qcts.MergeSeriesUsingDict(ds5,merge_order="standard")
     # calculate NEE from Fc and Fre
     qcrp.CalculateNEE(cf,ds5)
     # partition NEE into GPP and Reco
