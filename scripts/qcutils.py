@@ -530,6 +530,10 @@ def GetDateIndex(datetimeseries,date,ts=30,default=0,match='exact'):
                                          in the next day
                       "endpreviousday" - returns the index of the last time period
                                          in the previous day
+                      "startnexthour"  - returns the index of the first time period
+                                         in the next hour
+                      "endnexthour"    - returns the index of the last time period
+                                         in the next hour
                 NOTE: "startnextday" and "endpreviousday" can be used to pick
                     out time periods with an integer number of days
     AUTHOR: PRI
@@ -547,12 +551,33 @@ def GetDateIndex(datetimeseries,date,ts=30,default=0,match='exact'):
             i = len(datetimeseries)-1
         else:
             i = default
-    if match=='startnextday':
+    if match=="exact":
+        # if an exact match is required, do nothing
+        pass
+    elif match=='startnextday':
         while abs(datetimeseries[i].hour+float(datetimeseries[i].minute)/60-float(ts)/60)>c.eps:
             i = i + 1
-    if match=='endpreviousday':
+    elif match=="startnexthour":
+        # check the time step value
+        if int(ts)!=60:
+            # if the time step is 60 then it is always the start of the next hour
+            # we assume here that the time period ends on the datetime stamp
+            while numpy.mod(datetimeseries[i].minute,ts)!=ts:
+                # iterate until the minutes equal the time step
+                i = i + 1
+    elif match=='endpreviousday':
         while abs(datetimeseries[i].hour+float(datetimeseries[i].minute)/60)>c.eps:
             i = i - 1
+    elif match=="endprevioushour":
+        # check the time step value
+        if int(ts)!=60:
+            # if the time step is 60 then it is always the end of the previous hour
+            # we assume here that the time period ends on the datetime stamp
+            while numpy.mod(datetimeseries[i].minute,ts)!=0:
+                # iterate until the minutes equal 0
+                i = i - 1
+    else:
+        log.error("GetDateIndex: Unrecognised match option")
     return i
 
 def GetGlobalAttributeValue(cf,ds,ThisOne):

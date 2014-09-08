@@ -30,9 +30,9 @@ for site in site_list:
     ds = qcio.DataStructure()
     # get the output file name
     outfilename = cf["Sites"][site]["out_filepath"]+cf["Sites"][site]["out_filename"]
-    # interpolate to 30 minutes or not
-    interpolate = True
-    if not cf["Sites"][site].as_bool("interpolate"): interpolate = False
+    # average to 30 minutes or not
+    average = True
+    if not cf["Sites"][site].as_bool("average"): average = False
     # get the site time zone
     site_timezone = cf["Sites"][site]["site_timezone"]
     # read the BIOS file
@@ -133,6 +133,22 @@ for site in site_list:
     attr = qcutils.MakeAttributeDictionary(long_name='Calculated available energy',
                          standard_name='not defined',units='W/m2')
     qcutils.CreateSeries(ds,"Fa",Fa,Flag=flag,Attr=attr)
+    # if requested, average from 30 minute time step to 60 minute time step
+    if average:
+        ldt_30,f,a = qcutils.GetSeries(ds,"DateTime")
+        minutes=[ldt_30[i].minute for i in range(len(ldt_30))]
+        if minutes[0]==0:
+            print "Trimming element 0"
+            ldt_30=ldt_30[1:]
+            minutes=minutes[1:]
+            #Fsd_30=Fsd_30[1:]
+        if minutes[-1]!=0:
+            print "Trimming element -1"
+            ldt_30=ldt_30[:-2]
+            minutes=minutes[:-2]
+            #Fsd_30=Fsd_30[:-2]
+        ldt_60=[ldt_30[i] for i in range(len(minutes)) if minutes[i]==0]
+        
     # write the output file
     ncfile = qcio.nc_open_write(outfilename)
     qcio.nc_write_series(ncfile,ds,ndims=1)
