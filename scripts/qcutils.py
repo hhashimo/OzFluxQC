@@ -524,16 +524,16 @@ def GetDateIndex(datetimeseries,date,ts=30,default=0,match='exact'):
      ts             - time step for the data, optional (integer)
      default        - default value, optional (integer)
      match          - type of match (string) options are:
-                      "exact"          - finds the specified datetime and returns
-                                         the index
-                      "startnextday"   - returns the index of the first time period
-                                         in the next day
-                      "endpreviousday" - returns the index of the last time period
-                                         in the previous day
-                      "startnexthour"  - returns the index of the first time period
-                                         in the next hour
-                      "endnexthour"    - returns the index of the last time period
-                                         in the next hour
+                      "exact"           - finds the specified datetime and returns
+                                          the index
+                      "startnextday"    - returns the index of the first time period
+                                          in the next day
+                      "endpreviousday"  - returns the index of the last time period
+                                          in the previous day
+                      "startnexthour"   - returns the index of the first time period
+                                          in the next hour
+                      "endprevioushour" - returns the index of the last time period
+                                          in the next hour
                 NOTE: "startnextday" and "endpreviousday" can be used to pick
                     out time periods with an integer number of days
     AUTHOR: PRI
@@ -562,7 +562,7 @@ def GetDateIndex(datetimeseries,date,ts=30,default=0,match='exact'):
         if int(ts)!=60:
             # if the time step is 60 then it is always the start of the next hour
             # we assume here that the time period ends on the datetime stamp
-            while numpy.mod(datetimeseries[i].minute,ts)!=ts:
+            while datetimeseries[i].minute!=ts:
                 # iterate until the minutes equal the time step
                 i = i + 1
     elif match=='endpreviousday':
@@ -573,7 +573,7 @@ def GetDateIndex(datetimeseries,date,ts=30,default=0,match='exact'):
         if int(ts)!=60:
             # if the time step is 60 then it is always the end of the previous hour
             # we assume here that the time period ends on the datetime stamp
-            while numpy.mod(datetimeseries[i].minute,ts)!=0:
+            while datetimeseries[i].minute!=0:
                 # iterate until the minutes equal 0
                 i = i - 1
     else:

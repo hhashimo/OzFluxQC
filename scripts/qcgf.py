@@ -843,7 +843,7 @@ def gfalternate_getolscorrecteddata(x_in,y_in,fit,min_points,thru0=False):
                 results = [resols.params[0],resols.params[1]]
             else:
                 log.error("qcts.getolscorrecteddata: OLS did not give a solution")
-                if ai["fit"].lower()=="replace":
+                if fit.lower()=="replace":
                     results = [1,0]
                     eqnstr = "OLS error, data replaced"
                     y_out = numpy.empty_like(x_in); y_out[:] = x_in
@@ -852,7 +852,7 @@ def gfalternate_getolscorrecteddata(x_in,y_in,fit,min_points,thru0=False):
                     eqnstr = "OLS error, did nothing"
                     y_out = numpy.empty_like(y_in); y_out[:] = y_in
     else:
-        if ai["fit"].lower()=="replace":
+        if fit.lower()=="replace":
             results = [1,0]
             eqnstr = "Too few points, data replaced"
             y_out = numpy.empty_like(x_in); y_out[:] = x_in

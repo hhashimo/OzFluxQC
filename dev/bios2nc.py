@@ -27,7 +27,7 @@ for site in site_list:
         continue
     log.info("Starting site: "+site)
     # get a data structure
-    ds = qcio.DataStructure()
+    ds_30 = qcio.DataStructure()
     # get the output file name
     outfilename = cf["Sites"][site]["out_filepath"]+cf["Sites"][site]["out_filename"]
     # average to 30 minutes or not
@@ -40,23 +40,24 @@ for site in site_list:
     time = bios_ncfile.variables["time"][:]
     nRecs = len(time)
     # set some global attributes
-    ts = ds.globalattributes["time_step"] = 30
-    ds.globalattributes["time_zone"] = site_timezone
-    ds.globalattributes["nc_nrecs"] = nRecs
-    ds.globalattributes["site_name"] = cf["Sites"][site]["site_name"]
+    ts = ds_30.globalattributes["time_step"] = 30
+    ds_30.globalattributes["time_zone"] = site_timezone
+    ds_30.globalattributes["nc_nrecs"] = nRecs
+    ds_30.globalattributes["site_name"] = cf["Sites"][site]["site_name"]
     time_units = getattr(bios_ncfile.variables["time"],"units")
-    qcutils.get_datetimefromnctime(ds,time,time_units)
-    ldt = ds.series["DateTime"]["Data"]
-    si = qcutils.GetDateIndex(ldt,start_date,default=0,ts=ts,match="exact")
-    ei = qcutils.GetDateIndex(ldt,end_date,default=len(ldt),ts=ts,match="exact")
-    ds.series["DateTime"]["Data"] = ds.series["DateTime"]["Data"][si:ei+1]
-    ds.series["DateTime"]["Flag"] = ds.series["DateTime"]["Flag"][si:ei+1]
-    nRecs = ds.globalattributes["nc_nrecs"] = len(ds.series["DateTime"]["Data"])
+    qcutils.get_datetimefromnctime(ds_30,time,time_units)
+    ldt_30 = ds_30.series["DateTime"]["Data"]
+    si = qcutils.GetDateIndex(ldt_30,start_date,default=0,ts=ts,match="startnexthour")
+    ei = qcutils.GetDateIndex(ldt_30,end_date,default=len(ldt_30),ts=ts,match="endprevioushour")
+    ds_30.series["DateTime"]["Data"] = ds_30.series["DateTime"]["Data"][si:ei+1]
+    ds_30.series["DateTime"]["Flag"] = ds_30.series["DateTime"]["Flag"][si:ei+1]
+    ldt_30 = ds_30.series["DateTime"]["Data"]
+    nRecs = ds_30.globalattributes["nc_nrecs"] = len(ldt_30)
     flag = numpy.zeros(nRecs)
-    qcutils.get_ymdhms_from_datetime(ds)
-    xl_date_loc = qcutils.get_xldate_from_datetime(ds.series["DateTime"]["Data"])
+    qcutils.get_ymdhms_from_datetime(ds_30)
+    xl_date_loc = qcutils.get_xldate_from_datetime(ldt_30)
     attr = qcutils.MakeAttributeDictionary(long_name="Date/time (local) in Excel format",units="days since 1899-12-31 00:00:00")
-    qcutils.CreateSeries(ds,"xlDateTime",xl_date_loc,Flag=flag,Attr=attr)
+    qcutils.CreateSeries(ds_30,"xlDateTime",xl_date_loc,Flag=flag,Attr=attr)
     # get the data
     for label in var_list:
         bios_name = cf["Variables"][label]["bios_name"]
@@ -73,85 +74,121 @@ for site in site_list:
         for this_attr in bios_ncfile.variables[bios_name].ncattrs():
             attr[this_attr] = getattr(bios_ncfile.variables[bios_name],this_attr)
         attr["missing_value"] = c.missing_value
-        qcutils.CreateSeries(ds,label,data,Flag=flag,Attr=attr)
+        qcutils.CreateSeries(ds_30,label,data,Flag=flag,Attr=attr)
     # close the netCDF file
     bios_ncfile.close()
     # convert precipitation from kg/m2/s to mm/30 minutes
-    precip,flag,attr = qcutils.GetSeriesasMA(ds,"Precip")
+    precip,flag,attr = qcutils.GetSeriesasMA(ds_30,"Precip")
     precip = float(1800)*precip
     attr["units"] = "mm"
-    qcutils.CreateSeries(ds,"Precip",precip,Flag=flag,Attr=attr)
+    qcutils.CreateSeries(ds_30,"Precip",precip,Flag=flag,Attr=attr)
     # convert Ta from K to C
-    Ta,flag,attr = qcutils.GetSeriesasMA(ds,"Ta")
+    Ta,flag,attr = qcutils.GetSeriesasMA(ds_30,"Ta")
     Ta = Ta - c.C2K
     attr["units"] = "C"
-    qcutils.CreateSeries(ds,"Ta",Ta,Flag=flag,Attr=attr)
+    qcutils.CreateSeries(ds_30,"Ta",Ta,Flag=flag,Attr=attr)
     # convert Ts from K to C
-    Ts,flag,attr = qcutils.GetSeriesasMA(ds,"Ts")
+    Ts,flag,attr = qcutils.GetSeriesasMA(ds_30,"Ts")
     Ts = Ts - c.C2K
     attr["units"] = "C"
-    qcutils.CreateSeries(ds,"Ts",Ts,Flag=flag,Attr=attr)
+    qcutils.CreateSeries(ds_30,"Ts",Ts,Flag=flag,Attr=attr)
     # convert ps from hPa to kPa
-    ps,flag,attr = qcutils.GetSeriesasMA(ds,"ps")
+    ps,flag,attr = qcutils.GetSeriesasMA(ds_30,"ps")
     ps = ps/float(10)
     attr["units"] = "kPa"
-    qcutils.CreateSeries(ds,"ps",ps,Flag=flag,Attr=attr)
+    qcutils.CreateSeries(ds_30,"ps",ps,Flag=flag,Attr=attr)
     # calculate relative humidity
-    q,f,a = qcutils.GetSeriesasMA(ds,"q")
-    Ta,f,a = qcutils.GetSeriesasMA(ds,"Ta")
-    ps,f,a = qcutils.GetSeriesasMA(ds,"ps")
+    q,f,a = qcutils.GetSeriesasMA(ds_30,"q")
+    Ta,f,a = qcutils.GetSeriesasMA(ds_30,"Ta")
+    ps,f,a = qcutils.GetSeriesasMA(ds_30,"ps")
     RH = mf.RHfromspecifichumidity(q, Ta, ps)
     attr = qcutils.MakeAttributeDictionary(long_name='Relative humidity',units='%',standard_name='not defined')
-    qcutils.CreateSeries(ds,"RH",RH,Flag=flag,Attr=attr)
+    qcutils.CreateSeries(ds_30,"RH",RH,Flag=flag,Attr=attr)
     # calculate absolute humidity
-    Ta,f,a = qcutils.GetSeriesasMA(ds,"Ta")
-    RH,f,a = qcutils.GetSeriesasMA(ds,"RH")
+    Ta,f,a = qcutils.GetSeriesasMA(ds_30,"Ta")
+    RH,f,a = qcutils.GetSeriesasMA(ds_30,"RH")
     Ah = mf.absolutehumidityfromRH(Ta, RH)
     attr = qcutils.MakeAttributeDictionary(long_name='Absolute humidity',units='g/m3',standard_name='not defined')
-    qcutils.CreateSeries(ds,"Ah",Ah,Flag=flag,Attr=attr)
+    qcutils.CreateSeries(ds_30,"Ah",Ah,Flag=flag,Attr=attr)
     # calculate net radiation
-    Fsd,f,a = qcutils.GetSeriesasMA(ds,"Fsd")
-    Fld,f,a = qcutils.GetSeriesasMA(ds,"Fld")
-    Fn_sw,f,a = qcutils.GetSeriesasMA(ds,"Fn_sw")
-    Fn_lw,f,a = qcutils.GetSeriesasMA(ds,"Fn_lw")
+    Fsd,f,a = qcutils.GetSeriesasMA(ds_30,"Fsd")
+    Fld,f,a = qcutils.GetSeriesasMA(ds_30,"Fld")
+    Fn_sw,f,a = qcutils.GetSeriesasMA(ds_30,"Fn_sw")
+    Fn_lw,f,a = qcutils.GetSeriesasMA(ds_30,"Fn_lw")
     Fsu = Fsd - Fn_sw
     Flu = Fld - Fn_lw
     Fn = (Fsd-Fsu)+(Fld-Flu)
     attr = qcutils.MakeAttributeDictionary(long_name='Up-welling long wave',
                          standard_name='surface_upwelling_longwave_flux_in_air',units='W/m2')
-    qcutils.CreateSeries(ds,"Flu",Flu,Flag=flag,Attr=attr)
+    qcutils.CreateSeries(ds_30,"Flu",Flu,Flag=flag,Attr=attr)
     attr = qcutils.MakeAttributeDictionary(long_name='Up-welling short wave',
                          standard_name='surface_upwelling_shortwave_flux_in_air',units='W/m2')
-    qcutils.CreateSeries(ds,"Fsu",Fsu,Flag=flag,Attr=attr)
+    qcutils.CreateSeries(ds_30,"Fsu",Fsu,Flag=flag,Attr=attr)
     attr = qcutils.MakeAttributeDictionary(long_name='Calculated net radiation',
                          standard_name='surface_net_allwave_radiation',units='W/m2')
-    qcutils.CreateSeries(ds,"Fn",Fn,Flag=flag,Attr=attr)
+    qcutils.CreateSeries(ds_30,"Fn",Fn,Flag=flag,Attr=attr)
     # calculate available energy
-    Fn,f,a = qcutils.GetSeriesasMA(ds,"Fn")
-    Fg,f,a = qcutils.GetSeriesasMA(ds,"Fg")
+    Fn,f,a = qcutils.GetSeriesasMA(ds_30,"Fn")
+    Fg,f,a = qcutils.GetSeriesasMA(ds_30,"Fg")
     Fa = Fn - Fg
     attr = qcutils.MakeAttributeDictionary(long_name='Calculated available energy',
                          standard_name='not defined',units='W/m2')
-    qcutils.CreateSeries(ds,"Fa",Fa,Flag=flag,Attr=attr)
+    qcutils.CreateSeries(ds_30,"Fa",Fa,Flag=flag,Attr=attr)
     # if requested, average from 30 minute time step to 60 minute time step
     if average:
-        ldt_30,f,a = qcutils.GetSeries(ds,"DateTime")
-        minutes=[ldt_30[i].minute for i in range(len(ldt_30))]
-        if minutes[0]==0:
-            print "Trimming element 0"
-            ldt_30=ldt_30[1:]
-            minutes=minutes[1:]
-            #Fsd_30=Fsd_30[1:]
-        if minutes[-1]!=0:
-            print "Trimming element -1"
-            ldt_30=ldt_30[:-2]
-            minutes=minutes[:-2]
-            #Fsd_30=Fsd_30[:-2]
-        ldt_60=[ldt_30[i] for i in range(len(minutes)) if minutes[i]==0]
-        
-    # write the output file
-    ncfile = qcio.nc_open_write(outfilename)
-    qcio.nc_write_series(ncfile,ds,ndims=1)
+        nRecs_30 = ds_30.globalattributes["nc_nrecs"]
+        # get the datetime at hourly intervals
+        ldt_60=[ldt_30[i] for i in range(len(ldt_30)) if ldt_30[i].minute==0]
+        nRecs_60 = len(ldt_60)
+        flag_60 = numpy.zeros(nRecs_60)
+        # get a fresh data structure for the 60 minute data
+        ds_60 = qcio.DataStructure()
+        # put the hourly datetime in the data structure
+        ds_60.series["DateTime"] = {}
+        ds_60.series["DateTime"]["Data"] = ldt_60
+        ds_60.series["DateTime"]["Flag"] = flag_60
+        ds_60.series["DateTime"]["Attr"] = ds_30.series["DateTime"]["Attr"]
+        # copy across the global attributes
+        for gattr in ds_30.globalattributes.keys():
+            ds_60.globalattributes[gattr] = ds_30.globalattributes[gattr]
+        # set some hourly specific global attributes
+        ds_60.globalattributes["nc_nrecs"] = nRecs_60
+        ds_60.globalattributes["time_step"] = 60
+        # now we do variables that are not averaged
+        # first, the time variable
+        idx = [i for i in range(len(ldt_30)) if ldt_30[i].minute==0]
+        time_30,flag_30,attr = qcutils.GetSeriesasMA(ds_30,"time")
+        time_60 = time_30[idx]
+        qcutils.CreateSeries(ds_60,"time",time_60,Flag=flag_60,Attr=attr)
+        # and then precipitation
+        precip_30,flag_30,attr = qcutils.GetSeriesasMA(ds_30,"Precip")
+        precip_30_2d = numpy.reshape(precip_30,(nRecs_60,2))
+        precip_60 = numpy.sum(precip_30_2d,axis=1)
+        qcutils.CreateSeries(ds_60,"Precip",precip_60,Flag=flag_60,Attr=attr)
+        # get a list of the variables, exclude the QC flags
+        series_list = [item for item in ds_30.series.keys() if "_QCFlag" not in item]
+        # remove the datetime variables
+        for item in ["DateTime","DateTime_UTC","time","Precip"]:
+            if item in series_list: series_list.remove(item)
+        # loop over variables
+        for series in series_list:
+            data_30,flag_30,attr = qcutils.GetSeriesasMA(ds_30,series)
+            data_30_2d=numpy.reshape(data_30,(nRecs_60,2))
+            data_60=numpy.average(data_30_2d,axis=1)
+            qcutils.CreateSeries(ds_60,series,data_60,Flag=flag_60,Attr=attr)
+        # get the year, month etc
+        qcutils.get_ymdhms_from_datetime(ds_60)
+        # get the Excel datetime values
+        xl_date_loc = qcutils.get_xldate_from_datetime(ds_60.series["DateTime"]["Data"])
+        attr = qcutils.MakeAttributeDictionary(long_name="Date/time (local) in Excel format",units="days since 1899-12-31 00:00:00")
+        qcutils.CreateSeries(ds_60,"xlDateTime",xl_date_loc,Flag=flag_60,Attr=attr)
+        # write the output file
+        ncfile = qcio.nc_open_write(outfilename)
+        qcio.nc_write_series(ncfile,ds_60,ndims=1)
+    else:
+        # write the output file
+        ncfile = qcio.nc_open_write(outfilename)
+        qcio.nc_write_series(ncfile,ds_30,ndims=1)
     log.info("Finished site: "+site)
 
 print "All done"
