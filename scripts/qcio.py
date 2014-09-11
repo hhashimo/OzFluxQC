@@ -636,7 +636,7 @@ def nc_concatenate(cf):
         if dt_n[0]>dt[-1]+datetime.timedelta(minutes=ts):
             log.info('nc_concatenate: Gap between start and end times in consecutive files')
             si = 0; ei = -1
-            TimeGap = True
+            #TimeGap = True
         # loop over the data series in the concatenated file
         for ThisOne in ds.series.keys():
             if ThisOne=="Fc":
@@ -672,12 +672,21 @@ def nc_concatenate(cf):
                 for attr in ds_n.series[ThisOne]['Attr'].keys():
                     ds.series[ThisOne]['Attr'][attr] = ds_n.series[ThisOne]['Attr'][attr]
         # now sort out any time gaps
-        if TimeGap:
-            qcutils.FixTimeGaps(ds)
-            TimeGap = False
-    
+        #if TimeGap:
+            #qcutils.FixTimeGaps(ds)
+            #TimeGap = False
     ds.globalattributes['nc_nrecs'] = str(len(ds.series['xlDateTime']['Data']))
-    
+    has_gaps = qcutils.CheckTimeStep(ds,mode="fix")
+    ds.globalattributes['nc_nrecs'] = str(len(ds.series['xlDateTime']['Data']))
+    # if requested, fill any small gaps by interpolation
+    # get a list of series in ds excluding the QC flags
+    series_list = [item for item in ds.series.keys() if "_QCFlag" not in item]
+    # remove the datetime variables, these will have no gaps
+    for item in ["DateTime","DateTime_UTC","xlDateTime","xlDateTime_UTC","Year","Month","Day","Hour","Minute","Second","Hdh"]:
+        if item in series_list: series_list.remove(item)
+    # loop over the non-datetime data series in ds and interpolate
+    for item in series_list:
+        qcts.InterpolateOverMissing(ds,series=item,maxlen=6)
     # write the netCDF file
     ncFileName = get_keyvalue_from_cf(cf['Files']['Out'],'ncFileName')
     log.info('nc_concatenate: Writing data to '+ncFileName)

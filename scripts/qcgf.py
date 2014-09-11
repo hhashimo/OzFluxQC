@@ -926,8 +926,6 @@ def gfalternate_main(ds_tower,ds_alt,alternate_info):
                                                                             alternate_info["fit"],alternate_info["min_points"],
                                                                             thru0=False)
         alternate_info["ols"] = res
-        if label_tower=="Ah":
-            pass
         # get the daily averages
         data_plot = {"odt_tower":odt_tower,"data_tower":data_tower,"units_tower":units_tower,
                      "odt_alternate":odt_alternate,"data_alternate":data_alternate,"units_alternate":units_alternate,
@@ -963,10 +961,10 @@ def gfalternate_main(ds_tower,ds_alt,alternate_info):
         # make a QC flag for the gap filled data
         # default value is 20 for tower data replaced by alternate data
         flag = numpy.ones(len(data_alternate_lagolscorr))*numpy.int32(20)
-        ## check for missing alternate data (eg no tower data for this period so no OLS statistics)
-        #ind = numpy.where(data_alternate_lagolscorr==numpy.float64(c.missing_value))[0]
-        ## set the QC flag for these times to 21
-        #flag[ind] = numpy.int32(21)
+        # check for missing alternate data (eg no tower data for this period so no OLS statistics)
+        ind = numpy.ma.where(data_alternate_lagolscorr.mask==True)[0]
+        # set the QC flag for these times to 21
+        flag[ind] = numpy.int32(21)
         # set the flag
         ds_tower.series[output]["Flag"][si:ei+1] = flag
     # make sure this processing step gets written to the global attribute "Functions"

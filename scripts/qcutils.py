@@ -111,11 +111,38 @@ def CheckTimeStep(ds,mode="fix"):
         if dtmax > ts:
             log.info(' CheckTimeStep: one or more time gaps found')
             if mode=="fix":
+                print "before FixTimeGaps: ",len(ds.series["DateTime"]["Data"]),ds.globalattributes["nc_nrecs"]
                 FixTimeGaps(ds)
+                print "after FixTimeGaps: ",len(ds.series["DateTime"]["Data"]),ds.globalattributes["nc_nrecs"]
                 has_gaps = False
     else:
         log.info(' CheckTimeStep: no time gaps found')
     return has_gaps
+
+def contiguous_regions(condition):
+    """Finds contiguous True regions of the boolean array "condition". Returns
+    a 2D array where the first column is the start index of the region and the
+    second column is the end index."""
+
+    # Find the indicies of changes in "condition"
+    d = np.diff(condition)
+    idx, = d.nonzero() 
+
+    # We need to start things after the change in "condition". Therefore, 
+    # we'll shift the index by 1 to the right.
+    idx += 1
+
+    if condition[0]:
+        # If the start of condition is True prepend a 0
+        idx = np.r_[0, idx]
+
+    if condition[-1]:
+        # If the end of condition is True, append the length of the array
+        idx = np.r_[idx, condition.size] # Edit
+
+    # Reshape the result into two columns
+    idx.shape = (-1,2)
+    return idx
 
 def ConvertCO2Units(cf,ds,Cc='Cc'):
     Cc_units_out = "mg/m3"            # default value
@@ -350,6 +377,7 @@ def FixTimeGaps(ds):
     # generate a datetime list from the start datetime to the end datetime
     ldt_start = ldt_gaps[0]
     ldt_end = ldt_gaps[-1]
+    print "in FixTimeGaps 1:",str(ldt_start),str(ldt_end),len(ldt_gaps),len(ds.series["DateTime"]["Data"])
     ldt_nogaps = [result for result in perdelta(ldt_start,ldt_end,datetime.timedelta(minutes=ts))]
     # update the global attribute containing the number of records
     nRecs = len(ldt_nogaps)

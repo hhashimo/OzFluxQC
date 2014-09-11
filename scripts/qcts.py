@@ -1950,7 +1950,9 @@ def InvertSign(ds,ThisOne):
 
 #def InterpolateOverMissing(cf,ds,series='',maxlen=1000):
 def InterpolateOverMissing(ds,series='',maxlen=1000):
-    if series not in ds.series.keys(): return
+    if series not in ds.series.keys():
+        log.error("InterpolateOverMissing: series "+series+" not found in data structure")
+        return
     #section = qcutils.get_cfsection(cf,series=series,mode='quiet')
     #if len(section)==0: return
     DateNum = date2num(ds.series['DateTime']['Data'])
@@ -1972,6 +1974,7 @@ def InterpolateOverMissing(ds,series='',maxlen=1000):
     k=0
     n=0
     # step through the array of idices for missing values
+    print series,len(iog),len(iom)
     for i in range(len(iom)-1):
         dn = iom[i+1]-iom[i]        # change in index number from one element of iom to the next
         if dn==1:                   # if the change is 1 then we are still in a contiguous block
