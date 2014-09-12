@@ -111,9 +111,9 @@ def CheckTimeStep(ds,mode="fix"):
         if dtmax > ts:
             log.info(' CheckTimeStep: one or more time gaps found')
             if mode=="fix":
-                print "before FixTimeGaps: ",len(ds.series["DateTime"]["Data"]),ds.globalattributes["nc_nrecs"]
+                #print "before FixTimeGaps: ",len(ds.series["DateTime"]["Data"]),ds.globalattributes["nc_nrecs"]
                 FixTimeGaps(ds)
-                print "after FixTimeGaps: ",len(ds.series["DateTime"]["Data"]),ds.globalattributes["nc_nrecs"]
+                #print "after FixTimeGaps: ",len(ds.series["DateTime"]["Data"]),ds.globalattributes["nc_nrecs"]
                 has_gaps = False
     else:
         log.info(' CheckTimeStep: no time gaps found')
@@ -377,14 +377,13 @@ def FixTimeGaps(ds):
     # generate a datetime list from the start datetime to the end datetime
     ldt_start = ldt_gaps[0]
     ldt_end = ldt_gaps[-1]
-    print "in FixTimeGaps 1:",str(ldt_start),str(ldt_end),len(ldt_gaps),len(ds.series["DateTime"]["Data"])
     ldt_nogaps = [result for result in perdelta(ldt_start,ldt_end,datetime.timedelta(minutes=ts))]
     # update the global attribute containing the number of records
     nRecs = len(ldt_nogaps)
     ds.globalattributes['nc_nrecs'] = nRecs
     idx_gaps = find_indices(ldt_nogaps,ldt_gaps)
     datemode = 0
-    if platform.system()=="Darwin": datemode = 1
+    if platform.system()=="darwin": datemode = 1
     xlDateTime = get_xldate_from_datetime(ldt_nogaps,datemode=datemode)
     # replace the "gappy" Excel and Python datetime values in the data structure
     ds.series['xlDateTime']['Data'] = numpy.array(xlDateTime,dtype=numpy.float64)

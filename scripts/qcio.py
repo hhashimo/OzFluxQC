@@ -461,12 +461,12 @@ def get_outfilename_from_cf(cf):
         filename = ''
     return str(filename)
 
-def get_keyvalue_from_cf(section,key):
+def get_keyvalue_from_cf(section,key,default=''):
     try:
         value = section[key]
     except:
         log.error('get_keyvalue_from_cf: '+str(key)+' not found in '+str(section.name)+' section of control file')
-        value = ''
+        value = default
     return value
 
 def get_outputlist_from_cf(cf,filetype):
@@ -671,10 +671,7 @@ def nc_concatenate(cf):
                 ds.series[ThisOne]['Attr'] = {}
                 for attr in ds_n.series[ThisOne]['Attr'].keys():
                     ds.series[ThisOne]['Attr'][attr] = ds_n.series[ThisOne]['Attr'][attr]
-        # now sort out any time gaps
-        #if TimeGap:
-            #qcutils.FixTimeGaps(ds)
-            #TimeGap = False
+    # now sort out any time gaps
     ds.globalattributes['nc_nrecs'] = str(len(ds.series['xlDateTime']['Data']))
     has_gaps = qcutils.CheckTimeStep(ds,mode="fix")
     ds.globalattributes['nc_nrecs'] = str(len(ds.series['xlDateTime']['Data']))
@@ -685,13 +682,19 @@ def nc_concatenate(cf):
     for item in ["DateTime","DateTime_UTC","xlDateTime","xlDateTime_UTC","Year","Month","Day","Hour","Minute","Second","Hdh"]:
         if item in series_list: series_list.remove(item)
     # loop over the non-datetime data series in ds and interpolate
+    # get the maximum gap length (in hours) from the control file
+    maxlen = int(get_keyvalue_from_cf(cf['Options'],'MaxGapInterpolate',default=3))
+    # convert from maximum length in hours to maximum length in time steps
+    maxlen = int(maxlen*60/ts)
+    # now loop over the series and do the interpolation
     for item in series_list:
-        qcts.InterpolateOverMissing(ds,series=item,maxlen=6)
+        qcts.InterpolateOverMissing(ds,series=item,maxlen=maxlen)
     # write the netCDF file
     ncFileName = get_keyvalue_from_cf(cf['Files']['Out'],'ncFileName')
     log.info('nc_concatenate: Writing data to '+ncFileName)
     ncFile = nc_open_write(ncFileName)
-    nc_write_series(ncFile,ds)
+    ndims = int(get_keyvalue_from_cf(cf['Options'],'NumberOfDimensions',default=3))
+    nc_write_series(ncFile,ds,ndims=ndims)
 
 def nc_read_series(ncFullName):
     ''' Read a netCDF file and put the data and meta-data into a DataStructure'''

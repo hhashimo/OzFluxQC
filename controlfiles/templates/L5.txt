@@ -1,16 +1,16 @@
 [Files]
     file_path = ../Sites/<site_name>/Data/Processed/<year>/
-    in_filename = <site_name>_<year>_L4.nc
-    out_filename = <site_name>_<year>_L5.nc
+    in_filename = <site_name>_<start_year>_to_<end_year>_L4.nc
+    out_filename = <site_name>_<start_year>_to_<end_year>_L5.nc
 
 [Options]
     UseExistingOutFile    = No
 
 [Params]
-    zmd             = 15     # instrument height above displacement plane, m
-    z0              = 0.3    # roughness length, m
     Fsd_threshold   = 10     # Fsd threshold for determining day or night time
-    ustar_threshold = 0.3    # ustar threshold for filtering out low turbulence conditions
+
+[ustar_threshold]
+    0 = "['<start_date>','<end_date>',<ustar_threshold>]"
 
 [Respiration]
     [[Fre_SOLO]]
@@ -48,7 +48,7 @@
         Fre = "Fre_SOLO"
     [[NEE_FFNET]]
         Fc  = "Fc"
-        Fre = "Fre_SOLO"
+        Fre = "Fre_FFNET"
 
 [GPP]
     [[GPP_SOLO]]
