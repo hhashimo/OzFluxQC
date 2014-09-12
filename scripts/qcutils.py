@@ -129,17 +129,17 @@ def contiguous_regions(condition):
     Date: September 2014
     """
     # Find the indicies of changes in "condition"
-    d = np.diff(condition)
+    d = numpy.diff(condition)
     idx, = d.nonzero() 
     # We need to start things after the change in "condition". Therefore, 
     # we'll shift the index by 1 to the right.
     idx += 1
     if condition[0]:
         # If the start of condition is True prepend a 0
-        idx = np.r_[0, idx]
+        idx = numpy.r_[0, idx]
     if condition[-1]:
         # If the end of condition is True, append the length of the array
-        idx = np.r_[idx, condition.size] # Edit
+        idx = numpy.r_[idx, condition.size] # Edit
     # Reshape the result into two columns
     idx.shape = (-1,2)
     return idx
@@ -235,7 +235,7 @@ def convert_anglestring(anglestring):
         return float(anglestring)
     except ValueError:
         # replace the degrees, minutes and seconds symbols with spaces
-        new = anglestring.replace(u'°',' ').replace('\'',' ').replace('"',' ')
+        new = anglestring.replace(u'\B0',' ').replace('\'',' ').replace('"',' ')
         # check there is a space between the quadrant letter (assumed to be one of N, E, W or S)
         # and the next character to the left
         # find out which of N, E, S, or W is in the string
