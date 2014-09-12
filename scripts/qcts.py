@@ -2002,70 +2002,47 @@ def InterpolateOverMissing(ds,series='',maxlen=1000):
     if 'InterpolateOverMissing' not in ds.globalattributes['Functions']:
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', InterpolateOverMissing'
 
-#def InterpolateOverMissing(ds,series='',maxlen=1000):
-#    if series not in ds.series.keys():
-#        log.error("InterpolateOverMissing: series "+series+" not found in data structure")
-#        return
-#    #section = qcutils.get_cfsection(cf,series=series,mode='quiet')
-#    #if len(section)==0: return
-#    DateNum = date2num(ds.series['DateTime']['Data'])
-#    data_org = ds.series[series]['Data']
-#    nRecs = len(data_org)
-#    iog = numpy.where(abs(data_org-float(c.missing_value))>c.eps)[0]            # index of good values
-#    iom = numpy.where(abs(data_org-float(c.missing_value))<=c.eps)[0]           # index of missing values
-#    if len(iog)<2:
-#        log.info(' InterpolateOverMissing: Less than 2 good points available for series '+str(series))
-#        return
-#    f = interpolate.interp1d(DateNum[iog],data_org[iog])    # linear interpolation function
-#    # interpolate over the whole time series
-#    data_int = f(DateNum).astype(numpy.float32)
-#    # restore the original good data
-#    data_int[iog] = data_org[iog]
-#    # now replace data in contiguous blocks of length > min with missing data
-#    # first, a conditional index, 0 where data is good, 1 where it is missing
-#    cond_ind = numpy.zeros(nRecs,dtype=numpy.int32)
-#    cond_ind[iom] = 1
-#    cond_bool = (cond_ind==1)
-#    # start and stop indices of contiguous blocks
-#    for start, stop in qcutils.contiguous_regions(cond_bool):
-#        # code to handle minimum segment length goes here
-#        segment = cond_bool[start:stop]
-#        print start, stop
-#        print segment.min(), segment.max()
+def InterpolateOverMissing2(ds,series='',maxlen=1000):
+    if series not in ds.series.keys():
+        log.error("InterpolateOverMissing: series "+series+" not found in data structure")
+        return
+    #section = qcutils.get_cfsection(cf,series=series,mode='quiet')
+    #if len(section)==0: return
+    DateNum = date2num(ds.series['DateTime']['Data'])
+    data_org,flag_org,attr_org = qcutils.GetSeries(ds,series)
+    nRecs = len(data_org)
+    iog = numpy.where(abs(data_org-float(c.missing_value))>c.eps)[0]            # index of good values
+    iom = numpy.where(abs(data_org-float(c.missing_value))<=c.eps)[0]           # index of missing values
+    if len(iog)<2:
+        log.info(' InterpolateOverMissing: Less than 2 good points available for series '+str(series))
+        return
+    f = interpolate.interp1d(DateNum[iog],data_org[iog])    # linear interpolation function
+    # interpolate over the whole time series
+    data_int = f(DateNum).astype(numpy.float32)
+    flag_int = numpy.ones(nRecs,dtype=numpy.int32)*float(50)
+    # restore the original good data
+    data_int[iog] = data_org[iog]
+    flag_int[iog] = flag_org[iog]
+    # now replace data in contiguous blocks of length > min with missing data
+    # first, a conditional index, 0 where data is good, 1 where it is missing
+    cond_ind = numpy.zeros(nRecs,dtype=numpy.int32)
+    cond_ind[iom] = 1
+    cond_bool = (cond_ind==1)
+    # start and stop indices of contiguous blocks
+    for start, stop in qcutils.contiguous_regions(cond_bool):
+        # code to handle minimum segment length goes here
+        duration = stop - start
+        if duration>maxlen:
+            data_int[start:stop+1] = numpy.float(c.missing_value)
+            flag_int[start:stop+1] = flag_org[start:stop+1]
+        #segment = cond_bool[start:stop]
+        #print start, stop
+        #print segment.min(), segment.max()
     # code to put data_int back into ds goes here
-    
-    #iom = numpy.where((ds.series[series]['Data']==float(c.missing_value))&             # index of missing values
-                      #(DateNum>=DateNum[iog[0]])&                          # that occur between the first
-                      #(DateNum<=DateNum[iog[-1]]))[0]                      # and last dates used to define f
-    ## Now we step through the indices of the missing values and discard
-    ## contiguous blocks longer than maxlen.
-    ## !!! The following code is klunky and could be re-written to be
-    ## !!! neater and faster.
-    ## First, define 2 temporary arrays used and initialise 2 counters.
-    #tmp1 = numpy.zeros(len(iom),int)
-    #tmp2 = numpy.zeros(len(iom),int)
-    #k=0
-    #n=0
-    ## step through the array of idices for missing values
-    #print series,len(iog),len(iom)
-    #for i in range(len(iom)-1):
-        #dn = iom[i+1]-iom[i]        # change in index number from one element of iom to the next
-        #if dn==1:                   # if the change is 1 then we are still in a contiguous block
-            #tmp1[n] = iom[i]        # save the index into a temporary array
-            #n = n + 1               # increment the contiguous block length counter
-        #elif dn>1:                  # if the change is greater than 1 then we have come to the end of a contiguous block
-            #if n<maxlen:            # if the contiguous block length is less then maxlen
-                #tmp1[n]=iom[i]      # save the last index of the contiguous block
-                #tmp2[k:k+n+1] = tmp1[0:n+1]   # concatenate the indices for this block to any previous block with length less than maxlen
-                #k=k+n+1             # update the pointer to the concatenating array
-            #n=0                     # reset the contiguous block length counter
-    #if k>0:                         # do the interpolation only if 1 gap is less than maxlen
-        #tmp2[k] = iom[-1]               # just accept the last missing value index regardless
-        #iom_new = tmp2[:k+1]            # the array of missing data indices with contiguous block lengths less than maxlen
-        #ds.series[series]['Data'][iom_new] = f(DateNum[iom_new]).astype(numpy.float32)        # fill missing values with linear interpolations
-        #ds.series[series]['Flag'][iom_new] = numpy.int32(50)
-    if 'InterpolateOverMissing' not in ds.globalattributes['Functions']:
-        ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', InterpolateOverMissing'
+    attr_int = dict(attr_org)
+    qcutil.CreateSeries(ds,series,data_int,Flag=flag_int,Attr=attr)
+    if 'InterpolateOverMissing2' not in ds.globalattributes['Functions']:
+        ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', InterpolateOverMissing2'
 
 def MassmanStandard(cf,ds,Ta_in='Ta',Ah_in='Ah',ps_in='ps',ustar_in='ustar',ustar_out='ustar',L_in='L',L_out ='L',uw_out='uw',vw_out='vw',wT_out='wT',wA_out='wA',wC_out='wC'):
     """
