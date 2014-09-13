@@ -928,7 +928,7 @@ def get_UTCfromlocaltime(ds):
             log.error("get_UTCfromlocaltime: site_name not in time zone dictionary")
             return
         else:
-            log.error("get_UTCfromlocaltime: time_zone found in time zone dictionary")
+            log.info("get_UTCfromlocaltime: time_zone found in time zone dictionary")
             ds.globalattributes["time_zone"] = time_zone
     log.info(' Getting the UTC datetime from the local datetime')
     # get the number of records

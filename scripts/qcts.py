@@ -2051,8 +2051,10 @@ def InterpolateOverMissing(ds,series='',maxlen=1000):
         # code to handle minimum segment length goes here
         duration = stop - start
         if duration>maxlen:
-            data_int[start:stop+1] = numpy.float(c.missing_value)
-            flag_int[start:stop+1] = flag_org[start:stop+1]
+            #data_int[start:stop+1] = numpy.float(c.missing_value)
+            #flag_int[start:stop+1] = flag_org[start:stop+1]
+            data_int[start:stop] = numpy.float(c.missing_value)
+            flag_int[start:stop] = flag_org[start:stop]
     # put data_int back into the data structure
     attr_int = dict(attr_org)
     qcutils.CreateSeries(ds,series,data_int,Flag=flag_int,Attr=attr_int)

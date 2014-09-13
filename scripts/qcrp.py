@@ -38,8 +38,7 @@ def CalculateNEE(cf,ds):
     """
     if "nee" not in dir(ds): return
     # get the Fsd and ustar thresholds
-    Fsd_threshold = float(cf['Params']['Fsd_threshold'])
-    #ustar_threshold = float(cf['Params']['ustar_threshold'])
+    Fsd_threshold = qcio.get_keyvalue_from_cf(cf['Params'],'Fsd_threshold',default=10)
     # get the incoming shortwave radiation and friction velocity
     Fsd,Fsd_flag,Fsd_attr = qcutils.GetSeriesasMA(ds,"Fsd")
     if "Fsd_syn" in ds.series.keys():
@@ -66,6 +65,7 @@ def CalculateNEE(cf,ds):
         attr["units"] = Fc_attr["units"]
         attr["long_name"] = "Net Ecosystem Exchange calculated from "+Fc_label+" (Fc) "
         attr["long_name"] = attr["long_name"]+" and "+Fre_label+" (Fre)"
+        attr["comment1"] = "Fsd threshold used was "+str(Fsd_threshold)
     del ds.nee
 
 def FreUsingFFNET(cf,ds):
@@ -419,6 +419,12 @@ def GetFreFromFc(cf,ds):
         Fsd[index] = Fsd_syn[index]
     ustar,flag,attr = qcutils.GetSeriesasMA(ds,"ustar")
     Fc,Fc_flag,Fc_attr = qcutils.GetSeriesasMA(ds,"Fc")
+    # check for any missing data
+    for item,label in zip([Fsd,ustar,Fc],["Fsd","ustar","Fc"]):
+        index = numpy.ma.where(Fsd.mask==True)[0]
+        if len(index)!=0:
+            log.error(" GetFreFromFc: missing data in series "+label)
+            raise Exception("GetFreFromFc: missing data in series "+label)
     # apply the day/night filter
     Fre1 = numpy.ma.masked_where(Fsd>Fsd_threshold,Fc,copy=True)
     # get a copy of the day/night filtered data
@@ -426,7 +432,11 @@ def GetFreFromFc(cf,ds):
     # get a copy of the Fc flag
     Fre_flag = numpy.array(Fc_flag)
     # loop over the list of ustar thresholds
-    for list_item in ustar_threshold_list:
+    # make the attribute dictionary first so we can add the ustar thresholds to it
+    attr = qcutils.MakeAttributeDictionary(long_name='Ecosystem respiration (observed)',units=Fc_attr["units"],
+                                           Fsd_threshold=str(Fsd_threshold))
+    for i,list_item in enumerate(ustar_threshold_list):
+        attr["ustar_threshold_"+str(i)] = str(list_item)
         # get the start and end datetime indices
         si = qcutils.GetDateIndex(ldt,list_item[0],ts=ts,default=0,match='exact')
         ei = qcutils.GetDateIndex(ldt,list_item[1],ts=ts,default=len(ldt),match='exact')
@@ -438,7 +448,6 @@ def GetFreFromFc(cf,ds):
         index = numpy.ma.where(Fre2[si:ei].mask==True)
         Fre_flag[si:ei][index] = numpy.int32(9)
     # put the nocturnal, filtered Fc data into the data structure
-    attr = qcutils.MakeAttributeDictionary(long_name='Ecosystem respiration (observed)',units=Fc_attr["units"])
     qcutils.CreateSeries(ds,"Fre",Fre2,Flag=Fre_flag,Attr=attr)
     return True
 
@@ -534,8 +543,16 @@ def rpFFNET_createdict(cf,ds,series):
     section = qcutils.get_cfsection(cf,series=series,mode="quiet")
     # return without doing anything if the series isn't in a control file section
     if len(section)==0:
-        log.error("rpFFNET_createdict: Series "+series+" not found in control file, skipping ...")
+        log.error("FreUsingFFNET: Series "+series+" not found in control file, skipping ...")
         return
+    # check that none of the drivers have missing data
+    driver_list = ast.literal_eval(cf[section][series]["FreUsingFFNET"]["drivers"])
+    target = f[section][series]["FreUsingFFNET"]["target"]
+    for label in driver_list:
+        data,flag,attr = qcutils.GetSeriesasMA(ds,label)
+        if numpy.ma.count(data)!=0:
+            log.error("FreUsingFFNET: driver "+label+" contains missing data, skipping target "+target)
+            return
     # create the ffnet directory in the data structure
     if "ffnet" not in dir(ds): ds.ffnet = {}
     # create the dictionary keys for this series
@@ -689,8 +706,10 @@ def rpFFNET_main(ds,rpFFNET_gui,rpFFNET_info):
             ds.series[output]['Flag'][si:ei+1] = numpy.int32(30)
         # set the attributes
         ds.series[output]["Attr"]["units"] = ds.series[target]["Attr"]["units"]
-        if "modeled by FFNET" not in ds.series[output]["Attr"]["long_name"]:
-            ds.series[output]["Attr"]["long_name"] = "Ecosystem respiration modelled by FFNET"
+        if "modelled by FFNET" not in ds.series[output]["Attr"]["long_name"]:
+            ds.series[output]["Attr"]["long_name"] = "Ecosystem respiration modelled by FFNET (ANN)"
+            ds.series[output]["Attr"]["comment1"] = "Target was "+str(target)
+            ds.series[output]["Attr"]["comment2"] = "Drivers were "+str(drivers)
         # plot the results
         fig_num = fig_num + 1
         title = site_name+" : "+series+" estimated using FFNET"
@@ -990,8 +1009,16 @@ def rpSOLO_createdict(cf,ds,series):
     section = qcutils.get_cfsection(cf,series=series,mode="quiet")
     # return without doing anything if the series isn't in a control file section
     if len(section)==0:
-        log.error("rpSOLO_createdict: Series "+series+" not found in control file, skipping ...")
+        log.error("FreUsingSOLO: Series "+series+" not found in control file, skipping ...")
         return
+    # check that none of the drivers have missing data
+    driver_list = ast.literal_eval(cf[section][series]["FreUsingSOLO"]["drivers"])
+    target = f[section][series]["FreUsingSOLO"]["target"]
+    for label in driver_list:
+        data,flag,attr = qcutils.GetSeriesasMA(ds,label)
+        if numpy.ma.count(data)!=0:
+            log.error("FreUsingSOLO: driver "+label+" contains missing data, skipping target "+target)
+            return
     # create the solo directory in the data structure
     if "solo" not in dir(ds): ds.solo = {}
     # create the dictionary keys for this series
@@ -1408,8 +1435,10 @@ def rpSOLO_runseqsolo(ds,driverlist,targetlabel,outputlabel,nRecs,si=0,ei=-1):
             ds.series[outputlabel]['Flag'][si:ei+1][goodindex] = numpy.int32(30)
         # set the attributes
         ds.series[outputlabel]["Attr"]["units"] = ds.series[targetlabel]["Attr"]["units"]
-        if "modeled by SOLO" not in ds.series[outputlabel]["Attr"]["long_name"]:
-            ds.series[outputlabel]["Attr"]["long_name"] = "Ecosystem respiration modelled by SOLO"
+        if "modelled by SOLO" not in ds.series[outputlabel]["Attr"]["long_name"]:
+            ds.series[outputlabel]["Attr"]["long_name"] = "Ecosystem respiration modelled by SOLO (ANN)"
+            ds.series[output]["Attr"]["comment1"] = "Target was "+str(targetlabel)
+            ds.series[output]["Attr"]["comment2"] = "Drivers were "+str(driverlist)
         return 1
     else:
         log.error(' SOLO_runseqsolo: SEQSOLO did not run correctly, check the SOLO GUI and the log files')
