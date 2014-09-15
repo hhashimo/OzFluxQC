@@ -161,7 +161,7 @@ def plot_fingerprint(cf):
         for ThisOne in SeriesList:
             n += 1
             VarName = qcutils.GetAltNameFromCF(cf,ThisOne)
-            ticks = qcutils.GetcbTicksFromCF(cf,ThisOne)
+            #ticks = qcutils.GetcbTicksFromCF(cf,ThisOne)
             data,flag,attr = qcutils.GetSeriesasMA(ds,VarName,si=si,ei=ei)
             lower, upper = qcutils.GetRangesFromCF(cf,ThisOne)
             data = qcck.cliptorange(data, lower, upper)
@@ -173,7 +173,9 @@ def plot_fingerprint(cf):
             plt.imshow(data_daily,extent=[0,24,sd,ed],aspect='auto',origin='lower')
             ax.yaxis.set_major_locator(loc)
             ax.yaxis.set_major_formatter(fmt)
-            plt.colorbar(orientation='horizontal',fraction=0.02,pad=0.075,ticks=ticks)
+            #plt.colorbar(orientation='horizontal',fraction=0.02,pad=0.075,ticks=ticks)
+            cb = plt.colorbar(orientation='horizontal',fraction=0.02,pad=0.075)
+            cb.set_ticks(numpy.linspace(numpy.min(data),numpy.max(data),4))
             plt.xticks([0,6,12,18,24])
             plt.xlabel(label)
             if n!= 1: plt.setp(ax.get_yticklabels(), visible=False)

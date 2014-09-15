@@ -68,71 +68,71 @@ class qcgui(tk.Tk):
         self.org_frame.grid()
         # things in the first row of the GUI
         L1Label = tk.Label(self.org_frame,text='L1: Raw data')
-        L1Label.grid(row=0,column=0,columnspan=1)
+        L1Label.grid(row=0,column=0,columnspan=2)
         L2Label = tk.Label(self.org_frame,text='L2: QA/QC')
-        L2Label.grid(row=0,column=1,columnspan=1)
+        L2Label.grid(row=0,column=2,columnspan=2)
         L3Label = tk.Label(self.org_frame,text='L3: Process')
-        L3Label.grid(row=0,column=2,columnspan=1)
-        L4Label = tk.Label(self.org_frame,text='L4: Gap fill')
-        L4Label.grid(row=0,column=3,columnspan=1)
+        L3Label.grid(row=0,column=4,columnspan=2)
+        #L4Label = tk.Label(self.org_frame,text='L4: Gap fill')
+        #L4Label.grid(row=0,column=3,columnspan=1)
         #L5Label = tk.Label(self.org_frame,text='L5: Partitioning')
         #L5Label.grid(row=0,column=4,columnspan=1)
         # things in the second row of the GUI
         doL1Button = tk.Button (self.org_frame, text="Read L1 file", command=self.do_xl2ncL1 )
-        doL1Button.grid(row=1,column=0,columnspan=1)
+        doL1Button.grid(row=1,column=0,columnspan=2)
         doL2Button = tk.Button (self.org_frame, text="Do L2 QA/QC", command=self.do_l2qc )
-        doL2Button.grid(row=1,column=1,columnspan=1)
+        doL2Button.grid(row=1,column=2,columnspan=2)
         doL3Button = tk.Button (self.org_frame, text="Do L3 processing", command=self.do_l3qc )
-        doL3Button.grid(row=1,column=2,columnspan=1)
-        doL4Button = tk.Button (self.org_frame, text="Do L4 gap filling", command=self.do_l4qc )
-        doL4Button.grid(row=1,column=3,columnspan=1)
+        doL3Button.grid(row=1,column=4,columnspan=2)
+        #doL4Button = tk.Button (self.org_frame, text="Do L4 gap filling", command=self.do_l4qc )
+        #doL4Button.grid(row=1,column=3,columnspan=1)
         #doL5Button = tk.Button (self.org_frame, text="Do L5 partitioning", command=self.do_l5qc )
         #doL5Button.grid(row=1,column=4,columnspan=1)
         # things in the third row of the GUI
         filestartLabel = tk.Label(self.org_frame,text='File start date')
-        filestartLabel.grid(row=2,column=1,columnspan=1)
+        filestartLabel.grid(row=2,column=0,columnspan=3)
         fileendLabel = tk.Label(self.org_frame,text='File end date')
-        fileendLabel.grid(row=2,column=2,columnspan=1)
+        fileendLabel.grid(row=2,column=3,columnspan=3)
         # things in the fourth row of the GUI
         self.filestartValue = tk.Label(self.org_frame,text='No file loaded ...')
-        self.filestartValue.grid(row=3,column=1,columnspan=1)
+        self.filestartValue.grid(row=3,column=0,columnspan=3)
         self.fileendValue = tk.Label(self.org_frame,text='No file loaded ...')
-        self.fileendValue.grid(row=3,column=2,columnspan=1)
+        self.fileendValue.grid(row=3,column=3,columnspan=3)
         # things in the fifth row of the GUI
         plotstartLabel = tk.Label(self.org_frame, text='Start date (YYYY-MM-DD)')
-        plotstartLabel.grid(row=4,column=1,columnspan=1)
+        plotstartLabel.grid(row=4,column=0,columnspan=3)
         self.plotstartEntry = tk.Entry(self.org_frame)
-        self.plotstartEntry.grid(row=4,column=2,columnspan=1)
+        self.plotstartEntry.grid(row=4,column=3,columnspan=3)
         # things in row sixth of the GUI
         plotendLabel = tk.Label(self.org_frame, text='End date   (YYYY-MM-DD)')
-        plotendLabel.grid(row=5,column=1,columnspan=1)
+        plotendLabel.grid(row=5,column=0,columnspan=3)
         self.plotendEntry = tk.Entry(self.org_frame)
-        self.plotendEntry.grid(row=5,column=2,columnspan=1)
+        self.plotendEntry.grid(row=5,column=3,columnspan=3)
         # things in the seventh row of the GUI
         closeplotwindowsButton = tk.Button (self.org_frame, text="Close plot windows", command=self.do_closeplotwindows )
-        closeplotwindowsButton.grid(row=6,column=0,columnspan=1)
+        closeplotwindowsButton.grid(row=6,column=0,columnspan=2)
         plotL1L2Button = tk.Button (self.org_frame, text="Plot L1 & L2 Data", command=self.do_plotL1L2 )
-        plotL1L2Button.grid(row=6,column=1,columnspan=1)
+        plotL1L2Button.grid(row=6,column=2,columnspan=2)
         plotL3L3Button = tk.Button (self.org_frame, text="Plot L3 Data", command=self.do_plotL3L3 )
-        plotL3L3Button.grid(row=6,column=2,columnspan=1)
-        plotL3L4Button = tk.Button (self.org_frame, text="Plot L3 & L4 Data", command=self.do_plotL3L4 )
-        plotL3L4Button.grid(row=6,column=3,columnspan=1)
+        plotL3L3Button.grid(row=6,column=4,columnspan=2)
+        #plotL3L4Button = tk.Button (self.org_frame, text="Plot L3 & L4 Data", command=self.do_plotL3L4 )
+        #plotL3L4Button.grid(row=6,column=3,columnspan=1)
         #plotL4L5Button = tk.Button (self.org_frame, text="Plot L4 & L5 Data", command=self.do_plotL4L5 )
         #plotL4L5Button.grid(row=6,column=4,columnspan=1)
         # things in the eigth row of the GUI
         quitButton = tk.Button (self.org_frame, text='Quit', command=self.do_quit )
-        quitButton.grid(row=7,column=0,columnspan=1)
+        quitButton.grid(row=7,column=0,columnspan=2)
         savexL2Button = tk.Button (self.org_frame, text='Write L2 Excel file', command=self.do_savexL2 )
-        savexL2Button.grid(row=7,column=1,columnspan=1)
+        savexL2Button.grid(row=7,column=2,columnspan=2)
         savexL3Button = tk.Button (self.org_frame, text='Write L3 Excel file', command=self.do_savexL3 )
-        savexL3Button.grid(row=7,column=2,columnspan=1)
-        savexL4Button = tk.Button (self.org_frame, text='Write L4 Excel file', command=self.do_savexL4 )
-        savexL4Button.grid(row=7,column=3,columnspan=1)
+        savexL3Button.grid(row=7,column=4,columnspan=2)
+        #savexL4Button = tk.Button (self.org_frame, text='Write L4 Excel file', command=self.do_savexL4 )
+        #savexL4Button.grid(row=7,column=3,columnspan=1)
         #savexL5Button = tk.Button (self.org_frame, text='Write L5 Excel file', command=self.do_savexL5 )
         #savexL5Button.grid(row=7,column=4,columnspan=1)
         # other things in the GUI
         self.progress = tk.Label(self.org_frame, text='Waiting for input ...')
-        self.progress.grid(row=8,column=0,columnspan=2,sticky="W")
+        self.progress.grid(row=8,column=0,columnspan=6,sticky="W")
         # now we put together the menu, "File" first
         menubar = tk.Menu(self)
         filemenu = tk.Menu(menubar,tearoff=0)
@@ -152,15 +152,17 @@ class qcgui(tk.Tk):
         runmenu.add_command(label="Read L1 Excel file",command=self.do_xl2ncL1)
         runmenu.add_command(label="Do L2 QA/QC",command=self.do_l2qc)
         runmenu.add_command(label="Do L3 processing",command=self.do_l3qc)
-        runmenu.add_command(label="Do L4 gap filling",command=self.do_l4qc)
-        runmenu.add_command(label="Do L5 partitioning",command=self.do_l5qc)
+        runmenu.add_command(label="Do L4 gap fill (drivers)",command=self.do_l4qc)
+        runmenu.add_command(label="Do L5 gap fill (fluxes)",command=self.do_l5qc)
+        runmenu.add_command(label="Do L6 partitioning",command=self.do_l6qc)
         menubar.add_cascade(label="Run",menu=runmenu)
         # then the "Plot" menu
         plotmenu = tk.Menu(menubar,tearoff=0)
         plotmenu.add_command(label="Plot L1 & L2",command=self.do_plotL1L2)
         plotmenu.add_command(label="Plot L3",command=self.do_plotL3L3)
-        plotmenu.add_command(label="Plot L3 & L4",command=self.do_plotL3L4)
+        plotmenu.add_command(label="Plot L4",command=self.do_plotL3L4)
         plotmenu.add_command(label="Plot L5",command=self.option_not_implemented)
+        plotmenu.add_command(label="Plot L6",command=self.option_not_implemented)
         pltsummenu = tk.Menu(menubar,tearoff=0)
         pltsummenu.add_command(label="Fingerprint",command=self.do_plotfingerprint)
         pltsummenu.add_command(label="FluxNet",command=self.do_plotfluxnet)
@@ -182,6 +184,10 @@ class qcgui(tk.Tk):
         ustarmenu.add_command(label="Reichstein",command=self.option_not_implemented)
         ustarmenu.add_command(label="Change Point Detection",command=self.do_cpd)
         utilsmenu.add_cascade(label="u* threshold",menu=ustarmenu)
+        respirationmenu = tk.Menu(menubar,tearoff=0)
+        respirationmenu.add_command(label="Lloyd-Taylor",command=self.option_not_implemented)
+        respirationmenu.add_command(label="Lasslop et al",command=self.option_not_implemented)
+        utilsmenu.add_cascade(label="Respiration",menu=respirationmenu)
         menubar.add_cascade(label="Utilities",menu=utilsmenu)
         # and the "Help" menu
         helpmenu = tk.Menu(menubar,tearoff=0)
@@ -451,22 +457,22 @@ class qcgui(tk.Tk):
         self.update_startenddate(str(self.ds3.series['DateTime']['Data'][0]),
                                  str(self.ds3.series['DateTime']['Data'][-1]))
         sitename = self.ds3.globalattributes['site_name']
-        self.do_progress(text='Doing L4 QC: '+sitename+' ...')
+        self.do_progress(text='Doing L4 gap filling drivers: '+sitename+' ...')
         self.ds4 = qcls.l4qc(self.cf,self.ds3)
         self.do_progress(text='Finished L4: '+sitename)
         log.info(' Finished L4: '+sitename)
-        self.do_progress(text='Saving L4 Gap Filled NetCDF data ...')           # put up the progress message
+        self.do_progress(text='Saving L4 gap filled data ...')           # put up the progress message
         outfilename = qcio.get_outfilename_from_cf(self.cf)
         if len(outfilename)==0: self.do_progress(text='An error occurred, check the console ...'); return
         ncFile = qcio.nc_open_write(outfilename)
         outputlist = qcio.get_outputlist_from_cf(self.cf,'nc')
         qcio.nc_write_series(ncFile,self.ds4,outputlist=outputlist)             # save the L4 data
-        self.do_progress(text='Finished saving L4 gap filled NetCDF data')      # tell the user we are done
-        log.info(' Finished saving L4 gap filled NetCDF data')
+        self.do_progress(text='Finished saving L4 gap filled data')      # tell the user we are done
+        log.info(' Finished saving L4 gap filled data')
 
     def do_l5qc(self):
         """
-            Call qcls.l5 function
+            Call qcls.l5qc function to gap fill the fluxes.
         """
         self.cf = qcio.load_controlfile(path='controlfiles')
         if len(self.cf)==0: self.do_progress(text='Waiting for input ...'); return
@@ -479,18 +485,46 @@ class qcgui(tk.Tk):
         self.update_startenddate(str(self.ds4.series['DateTime']['Data'][0]),
                                  str(self.ds4.series['DateTime']['Data'][-1]))
         sitename = self.ds4.globalattributes['site_name']
-        self.do_progress(text='Doing L5 partitioning: '+sitename+' ...')
+        self.do_progress(text='Doing L5 gap filling fluxes: '+sitename+' ...')
         self.ds5 = qcls.l5qc(self.cf,self.ds4)
         self.do_progress(text='Finished L5: '+sitename)
         log.info(' Finished L5: '+sitename)
-        self.do_progress(text='Saving L5 partitioned data ...')           # put up the progress message
+        self.do_progress(text='Saving L5 gap filled data ...')           # put up the progress message
         outfilename = qcio.get_outfilename_from_cf(self.cf)
         if len(outfilename)==0: self.do_progress(text='An error occurred, check the console ...'); return
         ncFile = qcio.nc_open_write(outfilename)
         outputlist = qcio.get_outputlist_from_cf(self.cf,'nc')
         qcio.nc_write_series(ncFile,self.ds5,outputlist=outputlist)             # save the L5 data
-        self.do_progress(text='Finished saving L5 partitioned data')      # tell the user we are done
-        log.info(' Finished saving L5 partitioned data')
+        self.do_progress(text='Finished saving L5 gap filled data')      # tell the user we are done
+        log.info(' Finished saving L5 gap filled data')
+
+    def do_l6qc(self):
+        """
+            Call qcls.l6qc function to partition NEE into GPP and Fre.
+        """
+        self.cf = qcio.load_controlfile(path='controlfiles')
+        if len(self.cf)==0: self.do_progress(text='Waiting for input ...'); return
+        infilename = qcio.get_infilename_from_cf(self.cf)
+        if len(infilename)==0: self.do_progress(text='An error occurred, check the console ...'); return
+        if not qcutils.file_exists(infilename): self.do_progress(text='An error occurred, check the console ...'); return
+        self.ds5 = qcio.nc_read_series(infilename)
+        if len(self.ds5.series.keys())==0: self.do_progress(text='An error occurred, check the console ...'); del self.ds5; return
+        self.ds5.globalattributes['controlfile_name'] = self.cf['controlfile_name']
+        self.update_startenddate(str(self.ds5.series['DateTime']['Data'][0]),
+                                 str(self.ds5.series['DateTime']['Data'][-1]))
+        sitename = self.ds5.globalattributes['site_name']
+        self.do_progress(text='Doing L6 partitioning: '+sitename+' ...')
+        self.ds6 = qcls.l6qc(self.cf,self.ds5)
+        self.do_progress(text='Finished L6: '+sitename)
+        log.info(' Finished L6: '+sitename)
+        self.do_progress(text='Saving L6 partitioned data ...')           # put up the progress message
+        outfilename = qcio.get_outfilename_from_cf(self.cf)
+        if len(outfilename)==0: self.do_progress(text='An error occurred, check the console ...'); return
+        ncFile = qcio.nc_open_write(outfilename)
+        outputlist = qcio.get_outputlist_from_cf(self.cf,'nc')
+        qcio.nc_write_series(ncFile,self.ds6,outputlist=outputlist)             # save the L6 data
+        self.do_progress(text='Finished saving L6 partitioned data')      # tell the user we are done
+        log.info(' Finished saving L6 partitioned data')
 
     def do_nc2fn(self):
         """ Calls qcio.fn_write_csv. """
@@ -731,7 +765,7 @@ class qcgui(tk.Tk):
             """
         self.progress.destroy()
         self.progress = tk.Label(self.org_frame, text=text)
-        self.progress.grid(row=8,column=0,columnspan=2,sticky="W")
+        self.progress.grid(row=8,column=0,columnspan=6,sticky="W")
         self.update()
 
     def do_quit(self):

@@ -823,8 +823,8 @@ def get_datetimefromnctime(ds,time,time_units):
     Author: PRI
     Date: September 2014
     """
-    ts = ds.globalattributes["time_step"]
-    nRecs = ds.globalattributes["nc_nrecs"]
+    ts = int(ds.globalattributes["time_step"])
+    nRecs = int(ds.globalattributes["nc_nrecs"])
     dt = netCDF4.num2date(time,time_units)
     dt = RoundDateTime(dt,ts=ts)
     ds.series[unicode("DateTime")] = {}
@@ -978,7 +978,7 @@ def get_ymdhms_from_datetime(ds):
     PURPOSE:
      Gets the year, month, day, hour, minute and second from a list of
      Python datetimes.  The Python datetime series is read from
-     the input data structure abd the results arw written back to the
+     the input data structure and the results are written back to the
      data structure.
     USAGE:
      qcutils.get_ymdhms_from_datetime(ds)

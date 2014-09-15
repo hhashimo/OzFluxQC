@@ -874,6 +874,9 @@ def gfalternate_main(ds_tower,ds_alt,alternate_info):
     '''
     This is the main routine for using alternate data to gap fill drivers.
     '''
+    startdate = alternate_info["startdate"]
+    enddate = alternate_info["enddate"]
+    log.info(" Gap filling using alternate data: "+startdate+" to "+enddate)
     # close any open plot windows
     if len(plt.get_fignums())!=0:
         for i in plt.get_fignums(): plt.close(i)
@@ -1255,10 +1258,12 @@ def gfSOLO_done(ds,solo_gui):
 
 def gfSOLO_getserieslist(cf):
     series_list = []
-    for series in cf["Drivers"].keys():
-        if "GapFillUsingSOLO" in cf["Drivers"][series]: series_list.append(series)
-    for series in cf["Fluxes"].keys():
-        if "GapFillUsingSOLO" in cf["Fluxes"][series]: series_list.append(series)
+    if "Drivers" in cf.keys():
+        for series in cf["Drivers"].keys():
+            if "GapFillUsingSOLO" in cf["Drivers"][series]: series_list.append(series)
+    if "Fluxes" in cf.keys():
+        for series in cf["Fluxes"].keys():
+            if "GapFillUsingSOLO" in cf["Fluxes"][series]: series_list.append(series)
     return series_list
 
 def gfSOLO_main(dsa,dsb,solo_gui,solo_info):
@@ -2003,3 +2008,30 @@ def gf_getdateticks(start, end):
         loc = mdt.MonthLocator(interval=6)
         fmt = mdt.DateFormatter('%d/%m/%y')
     return loc,fmt
+
+def ImportSeries(cf,ds):
+    # check to see if there is an Imports section
+    if "Imports" not in cf.keys(): return
+    # number of records
+    nRecs = int(ds.globalattributes["nc_nrecs"])
+    # get the start and end datetime
+    ldt = ds.series["DateTime"]["Data"]
+    start_date = ldt[0]
+    end_date = ldt[-1]
+    # loop over the series in the Imports section
+    for label in cf["Imports"].keys():
+        import_filename = cf["Imports"][label]["file_name"]
+        var_name = cf["Imports"][label]["var_name"]
+        ds_import = qcio.nc_read_series(import_filename)
+        ts_import = ds_import.globalattributes["time_step"]
+        ldt_import = ds_import.series["DateTime"]["Data"]
+        si = qcutils.GetDateIndex(ldt_import,str(start_date),ts=ts_import,default=0,match="exact")
+        ei = qcutils.GetDateIndex(ldt_import,str(end_date),ts=ts_import,default=-1,match="exact")
+        data = numpy.ma.ones(nRecs)*float(c.missing_value)
+        flag = numpy.ma.ones(nRecs)
+        data_import,flag_import,attr_import = qcutils.GetSeriesasMA(ds_import,var_name,si=si,ei=ei)
+        ldt_import = ldt_import[si:ei+1]
+        index = qcutils.find_indices(ldt,ldt_import)
+        data[index] = data_import
+        flag[index] = flag_import
+        qcutils.CreateSeries(ds,label,data,Flag=flag,Attr=attr_import)

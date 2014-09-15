@@ -99,7 +99,7 @@ def FreUsingFFNET(cf,ds):
     rpFFNET_gui.nodesLabel.grid(row=nrow,column=0,columnspan=1,sticky="E")
     rpFFNET_gui.nodesEntry = Tkinter.Entry(rpFFNET_gui,width=6)
     rpFFNET_gui.nodesEntry.grid(row=nrow,column=1,columnspan=1,sticky="W")
-    rpFFNET_gui.nodesEntry.insert(0,"2")
+    rpFFNET_gui.nodesEntry.insert(0,"6,4")
     rpFFNET_gui.trainingLabel = Tkinter.Label(rpFFNET_gui,text="Training")
     rpFFNET_gui.trainingLabel.grid(row=nrow,column=2,columnspan=1,sticky="E")
     rpFFNET_gui.trainingEntry = Tkinter.Entry(rpFFNET_gui,width=6)
@@ -451,8 +451,8 @@ def GetFreFromFc(cf,ds):
     qcutils.CreateSeries(ds,"Fre",Fre2,Flag=Fre_flag,Attr=attr)
     return True
 
-def ParseL5ControlFile(cf,ds):
-    """ Parse the L5 conbtrol file. """
+def ParseL6ControlFile(cf,ds):
+    """ Parse the L6 control file. """
     # start with the repiration section
     if "Respiration" in cf.keys():
         for ThisOne in cf["Respiration"].keys():
@@ -547,10 +547,10 @@ def rpFFNET_createdict(cf,ds,series):
         return
     # check that none of the drivers have missing data
     driver_list = ast.literal_eval(cf[section][series]["FreUsingFFNET"]["drivers"])
-    target = f[section][series]["FreUsingFFNET"]["target"]
+    target = cf[section][series]["FreUsingFFNET"]["target"]
     for label in driver_list:
         data,flag,attr = qcutils.GetSeriesasMA(ds,label)
-        if numpy.ma.count(data)!=0:
+        if numpy.ma.count_masked(data)!=0:
             log.error("FreUsingFFNET: driver "+label+" contains missing data, skipping target "+target)
             return
     # create the ffnet directory in the data structure
@@ -673,7 +673,14 @@ def rpFFNET_main(ds,rpFFNET_gui,rpFFNET_info):
         input_train = data_nm[:,0:idx+1]
         target_train = data_nm[:,idx+1]
         # design the network
-        arch = (ndrivers,int(rpFFNET_info["hidden"]),1)
+        hidden_layers = rpFFNET_info["hidden"].split(",")
+        if len(hidden_layers)==1:
+            arch = (ndrivers,int(hidden_layers),1)
+        elif len(hidden_layers)==2:
+            arch = (ndrivers,int(hidden_layers[0]),int(hidden_layers[1]),1)
+        else:
+            log.error("FreUsingFFNET: more than 2 hidden layers specified, using 1 ("+str(ndrivers)+")")
+            arch = (ndrivers,ndrivers,1)
         conec = ffnet.mlgraph(arch,biases=True)
         net = ffnet.ffnet(conec)
         # train the network
@@ -1013,10 +1020,10 @@ def rpSOLO_createdict(cf,ds,series):
         return
     # check that none of the drivers have missing data
     driver_list = ast.literal_eval(cf[section][series]["FreUsingSOLO"]["drivers"])
-    target = f[section][series]["FreUsingSOLO"]["target"]
+    target = cf[section][series]["FreUsingSOLO"]["target"]
     for label in driver_list:
         data,flag,attr = qcutils.GetSeriesasMA(ds,label)
-        if numpy.ma.count(data)!=0:
+        if numpy.ma.count_masked(data)!=0:
             log.error("FreUsingSOLO: driver "+label+" contains missing data, skipping target "+target)
             return
     # create the solo directory in the data structure
@@ -1437,8 +1444,8 @@ def rpSOLO_runseqsolo(ds,driverlist,targetlabel,outputlabel,nRecs,si=0,ei=-1):
         ds.series[outputlabel]["Attr"]["units"] = ds.series[targetlabel]["Attr"]["units"]
         if "modelled by SOLO" not in ds.series[outputlabel]["Attr"]["long_name"]:
             ds.series[outputlabel]["Attr"]["long_name"] = "Ecosystem respiration modelled by SOLO (ANN)"
-            ds.series[output]["Attr"]["comment1"] = "Target was "+str(targetlabel)
-            ds.series[output]["Attr"]["comment2"] = "Drivers were "+str(driverlist)
+            ds.series[outputlabel]["Attr"]["comment1"] = "Target was "+str(targetlabel)
+            ds.series[outputlabel]["Attr"]["comment2"] = "Drivers were "+str(driverlist)
         return 1
     else:
         log.error(' SOLO_runseqsolo: SEQSOLO did not run correctly, check the SOLO GUI and the log files')

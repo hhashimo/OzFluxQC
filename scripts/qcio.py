@@ -683,7 +683,10 @@ def nc_concatenate(cf):
         if item in series_list: series_list.remove(item)
     # loop over the non-datetime data series in ds and interpolate
     # get the maximum gap length (in hours) from the control file
-    maxlen = int(get_keyvalue_from_cf(cf['Options'],'MaxGapInterpolate',default=3))
+    if "Options" in cf.keys():
+        maxlen = int(get_keyvalue_from_cf(cf['Options'],'MaxGapInterpolate',default=3))
+    else:
+        maxlen = 3
     # convert from maximum length in hours to maximum length in time steps
     maxlen = int(maxlen*60/ts)
     # now loop over the series and do the interpolation
@@ -693,7 +696,10 @@ def nc_concatenate(cf):
     ncFileName = get_keyvalue_from_cf(cf['Files']['Out'],'ncFileName')
     log.info('nc_concatenate: Writing data to '+ncFileName)
     ncFile = nc_open_write(ncFileName)
-    ndims = int(get_keyvalue_from_cf(cf['Options'],'NumberOfDimensions',default=3))
+    if "Options" in cf.keys():
+        ndims = int(get_keyvalue_from_cf(cf['Options'],'NumberOfDimensions',default=3))
+    else:
+        ndims = 3
     nc_write_series(ncFile,ds,ndims=ndims)
 
 def nc_read_series(ncFullName):
@@ -730,7 +736,11 @@ def nc_read_series(ncFullName):
     # make sure all values of -9999 have non-zero QC flag
     qcutils.CheckQCFlags(ds)
     # get a series of Python datetime objects
-    qcutils.get_datetimefromymdhms(ds)
+    if "time" in ds.series.keys():
+        time,f,a = qcutils.GetSeries(ds,"time")
+        qcutils.get_datetimefromnctime(ds,time,a["units"])
+    else:
+        qcutils.get_datetimefromymdhms(ds)
     # get series of UTC datetime
     qcutils.get_UTCfromlocaltime(ds)
     return ds

@@ -224,6 +224,8 @@ def l4qc(cf,ds3):
         qcts.CalculateAvailableEnergy(ds4,Fa_out='Fa',Fn_in='Fn',Fg_in='Fg')
     # create a dictionary to hold the gap filling data
     ds_alt = {}
+    # check to see if we have any imports
+    qcgf.ImportSeries(cf,ds4)
     # now do the meteorological driver gap filling
     for ThisOne in cf["Drivers"].keys():
         if ThisOne not in ds4.series.keys(): log.error("Series "+ThisOne+" not in data structure"); continue
@@ -253,22 +255,22 @@ def l4qc(cf,ds3):
     # re-calculate the meteorological variables
     qcts.CalculateMeteorologicalVariables(ds4)
     # now do the flux gap filling methods
-    for ThisOne in cf["Fluxes"].keys():
-        # interpolate over any gaps up to 1 hour in length
-        qcts.InterpolateOverMissing(ds4,series=ThisOne,maxlen=6)
-        # parse the control file for information on how the user wants to do the gap filling
-        qcgf.GapFillParseControlFile(cf,ds4,ThisOne,ds_alt)
-    # *** start of the section that does the gap filling of the fluxes ***
-    # do the gap filling using SOLO on all series identified by _namecollector
-    qcgf.GapFillUsingSOLO(ds3,ds4)
-    ## gap fill using marginal distribution sampling
-    #qcgf.GapFillFluxUsingMDS(cf,ds4)
-    ## gap fill using ratios
-    #qcgf.GapFillFluxFromDayRatio(cf,ds4)
-    # gap fill using climatology
-    qcgf.GapFillFromClimatology(ds4)
-    # merge the gap filled drivers into a single series
-    qcts.MergeSeriesUsingDict(ds4,merge_order="standard")
+    #for ThisOne in cf["Fluxes"].keys():
+        ## interpolate over any gaps up to 1 hour in length
+        #qcts.InterpolateOverMissing(ds4,series=ThisOne,maxlen=6)
+        ## parse the control file for information on how the user wants to do the gap filling
+        #qcgf.GapFillParseControlFile(cf,ds4,ThisOne,ds_alt)
+    ## *** start of the section that does the gap filling of the fluxes ***
+    ## do the gap filling using SOLO on all series identified by _namecollector
+    #qcgf.GapFillUsingSOLO(ds3,ds4)
+    ### gap fill using marginal distribution sampling
+    ##qcgf.GapFillFluxUsingMDS(cf,ds4)
+    ### gap fill using ratios
+    ##qcgf.GapFillFluxFromDayRatio(cf,ds4)
+    ## gap fill using climatology
+    #qcgf.GapFillFromClimatology(ds4)
+    ## merge the gap filled drivers into a single series
+    #qcts.MergeSeriesUsingDict(ds4,merge_order="standard")
     # write the percentage of good data as a variable attribute
     qcutils.get_coverage_individual(ds4)
     # write the percentage of good data for groups
@@ -286,27 +288,64 @@ def l5qc(cf,ds4):
     ds5.globalattributes["EPDversion"] = sys.version
     # put the control file name into the global attributes
     ds5.globalattributes["controlfile_name"] = cf["controlfile_name"]
-    # parse the control file
-    qcrp.ParseL5ControlFile(cf,ds5)
-    # filter Fc for night time and ustar threshold, write to ds as "Fre"
-    qcrp.GetFreFromFc(cf,ds5)
-    # estimate Reco using SOLO
-    qcrp.FreUsingSOLO(cf,ds5)
-    # estimate Reco using FFNET
-    qcrp.FreUsingFFNET(cf,ds5)
-    # estimate Reco using Lloyd-Taylor
-    qcrp.FreUsingLloydTaylor(cf,ds5)
-    # estimate Reco using Lasslop et al
-    qcrp.FreUsingLasslop(cf,ds5)
-    # merge the estimates of Reco with the observations
+    ds5.cf = cf
+    # create a dictionary to hold the gap filling data
+    ds_alt = {}
+    # now do the flux gap filling methods
+    for ThisOne in cf["Fluxes"].keys():
+        # interpolate over any gaps up to 1 hour in length
+        qcts.InterpolateOverMissing(ds5,series=ThisOne,maxlen=6)
+        # parse the control file for information on how the user wants to do the gap filling
+        qcgf.GapFillParseControlFile(cf,ds5,ThisOne,ds_alt)
+    # *** start of the section that does the gap filling of the fluxes ***
+    # do the gap filling using SOLO on all series identified by _namecollector
+    qcgf.GapFillUsingSOLO(ds4,ds5)
+    ## gap fill using marginal distribution sampling
+    #qcgf.GapFillFluxUsingMDS(cf,ds5)
+    ## gap fill using ratios
+    #qcgf.GapFillFluxFromDayRatio(cf,ds5)
+    # gap fill using climatology
+    qcgf.GapFillFromClimatology(ds5)
+    # merge the gap filled drivers into a single series
     qcts.MergeSeriesUsingDict(ds5,merge_order="standard")
-    # calculate NEE from Fc and Fre
-    qcrp.CalculateNEE(cf,ds5)
-    # partition NEE into GPP and Reco
-    qcrp.PartitionNEE(cf,ds5)
     # write the percentage of good data as a variable attribute
     qcutils.get_coverage_individual(ds5)
     # write the percentage of good data for groups
     qcutils.get_coverage_groups(ds5)
 
     return ds5
+
+def l6qc(cf,ds5):
+    ds6 = qcio.copy_datastructure(cf,ds5)
+    # ds6 will be empty (logical false) if an error occurs in copy_datastructure
+    # return from this routine if this is the case
+    if not ds6: return ds6
+    # set some attributes for this level    
+    ds6.globalattributes["nc_level"] = "L6"
+    ds6.globalattributes["EPDversion"] = sys.version
+    # put the control file name into the global attributes
+    ds6.globalattributes["controlfile_name"] = cf["controlfile_name"]
+    # parse the control file
+    qcrp.ParseL6ControlFile(cf,ds6)
+    # filter Fc for night time and ustar threshold, write to ds as "Fre"
+    qcrp.GetFreFromFc(cf,ds6)
+    # estimate Reco using SOLO
+    qcrp.FreUsingSOLO(cf,ds6)
+    # estimate Reco using FFNET
+    qcrp.FreUsingFFNET(cf,ds6)
+    # estimate Reco using Lloyd-Taylor
+    qcrp.FreUsingLloydTaylor(cf,ds6)
+    # estimate Reco using Lasslop et al
+    qcrp.FreUsingLasslop(cf,ds6)
+    # merge the estimates of Reco with the observations
+    qcts.MergeSeriesUsingDict(ds6,merge_order="standard")
+    # calculate NEE from Fc and Fre
+    qcrp.CalculateNEE(cf,ds6)
+    # partition NEE into GPP and Reco
+    qcrp.PartitionNEE(cf,ds6)
+    # write the percentage of good data as a variable attribute
+    qcutils.get_coverage_individual(ds6)
+    # write the percentage of good data for groups
+    qcutils.get_coverage_groups(ds6)
+
+    return ds6
