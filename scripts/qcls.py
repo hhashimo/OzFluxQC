@@ -234,6 +234,9 @@ def l4qc(cf,ds3):
         # parse the control file for information on how the user wants to do the gap filling
         qcgf.GapFillParseControlFile(cf,ds4,ThisOne,ds_alt)
     # *** start of the section that does the gap filling of the drivers ***
+    # do the QC checks at the start of L4
+    # this allows us to remove data identified as bad during the gap filling process
+    qcck.do_qcchecks(cf, ds4)
     # do the gap filling using the ACCESS output
     qcgf.GapFillFromAlternate(ds4,ds_alt)
     # gap fill using SOLO

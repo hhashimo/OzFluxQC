@@ -1,59 +1,69 @@
 [Files]
     file_path = ../Sites/<site_name>/Data/Processed/<year>/
-    in_filename = <site_name>_<start_year>_to_<end_year>_L4.nc
-    out_filename = <site_name>_<start_year>_to_<end_year>_L5.nc
+    in_filename = <site_name>_<year>_L4.nc
+    out_filename = <site_name>_<year>_L5.nc
+
+[Output]
+    # uncomment the xl and nc lists to output specific variables
+    #xl = "['Ah','Cc','Fa','Fc','Fe','Fg','Fh','Fld','Flu','Fm','Fn','Fsd','Fsu','ps','RH','Sws','Ta','Ts','ustar','Ws','Wd']"
+    nc = "['Ah','Cc','eta','EVI','Fa','Fc','Fc_storage','Fe','Fg','Fh','Fld','Flu','Fm','Fn','Fsd','Fsu','Precip','ps','q','RH','Sws','SHD','Ta','theta','Ts','ustar','Ws','Wd']"
 
 [Options]
-    UseExistingOutFile    = No
+    UseExistingOutFile = No
 
 [Params]
-    Fsd_threshold   = 10     # Fsd threshold for determining day or night time
+    Fsd_threshold   = 10     # Fsd threshold for determining day or night time, W/m2
 
-[ustar_threshold]
-    0 = "['<start_date>','<end_date>',<ustar_threshold>]"
+[Fluxes]
+    [[ustar]]
+        [[[GapFillUsingSOLO]]]
+            drivers = "['Ws','Fn','Ta','q']"
+            output = 'ustar_SOLO'
+        [[[MergeSeries]]]
+            Source     = "['ustar','ustar_SOLO']"
+    [[Fe]]
+        [[[GapFillUsingSOLO]]]
+            drivers = "['Fa','SHD','Ta','Ws']"                  #minimalist
+           #drivers = "['Fn','Fg','q','SHD','Ta','Ts']"         #James'
+           #drivers = "['Fsd','SHD','Ts','Sws','Ws','EVI']"     #Jason
+            output = 'Fe_SOLO'
+        [[[MergeSeries]]]
+            Source     = "['Fe','Fe_SOLO']"
+    [[Fh]]
+        [[[GapFillUsingSOLO]]]
+            drivers = "['Fa','Ta','Ws']"                        #minimalist
+           #drivers = "['Fn','Fg','q','SHD','Ta','Ts']"         #James'
+           #drivers = "['Fsd','SHD','Ts','Sws','Ws','EVI']"     #Jason
+            output = 'Fh_SOLO'
+        [[[MergeSeries]]]
+            Source     = "['Fh','Fh_SOLO']"
+    [[Fc]]
+        [[[GapFillUsingSOLO]]]
+            drivers = "['Fsd','q','Ta','Ts']"                   #minimalist
+           #drivers = "['Fn','Fg','q','SHD','Ta','Ts']"         #James'
+           #drivers = "['Fsd','SHD','Ts','Sws','Ws','EVI']"     #Jason
+            output = 'Fc_SOLO'
+        [[[MergeSeries]]]
+            Source     = "['Fc','Fc_SOLO']"
 
-[Respiration]
-    [[Fre_SOLO]]
-        [[[FreUsingSOLO]]]
-            target ="Fre"
-            drivers = "['Ts','Sws']"
-            output = "Fre_SOLO_all"
-        [[[MergeSeries]]]
-            Source = "['Fre','Fre_SOLO_all']"
-    [[Fre_FFNET]]
-        [[[FreUsingFFNET]]]
-            target ="Fre"
-            drivers = "['Ts','Sws']"
-            output = "Fre_FFNET_all"
-        [[[MergeSeries]]]
-            Source = "['Fre','Fre_FFNET_all']"
-    [[Fre_LT]]
-        [[[FreUsingLloydTaylor]]]
-            target ="Fre"
-            drivers = "['Ts']"
-            output = "Fre_LT_all"
-        [[[MergeSeries]]]
-            Source = "['Fre','Fre_LT_all']"
-    [[Fre_LL]]
-        [[[FreUsingLasslop]]]
-            target = "Fre"
-            drivers = "['Ts']"
-            output = "Fre_LL_all"
-        [[[MergeSeries]]]
-            Source = "['Fre','Fre_LL_all']"
+[Plots]
+    [[1]]
+        Title = "Turbulent fluxes"
+        Variables = "['ustar','Fh','Fe','Fc']"
+    [[2]]
+        Title = "ustar gap filling"
+        Variables = "['ustar','ustar_SOLO']"
+    [[3]]
+        Title = "Fe gap filling"
+        Variables = "['Fe','Fe_SOLO']"
+    [[4]]
+        Title = "Fh gap filling"
+        Variables = "['Fh','Fh_SOLO']"
+    [[5]]
+        Title = "Fc gap filling"
+        Variables = "['Fc','Fc_SOLO']"
 
-[NEE]
-    [[NEE_SOLO]]
-        Fc  = "Fc"
-        Fre = "Fre_SOLO"
-    [[NEE_FFNET]]
-        Fc  = "Fc"
-        Fre = "Fre_FFNET"
-
-[GPP]
-    [[GPP_SOLO]]
-        NEE = "NEE_SOLO"
-        Fre = "Fre_SOLO"
-    [[GPP_FFNET]]
-        NEE = "NEE_FFNET"
-        Fre = "Fre_FFNET"
+[SOLO_Summary]
+    [[1]]
+        Title = "Fluxes"
+        Variables = "['ustar','Fh','Fe','Fc']"
