@@ -1,0 +1,63 @@
+[Files]
+    file_path = ../Sites/<site_name>/Data/Processed/all/
+    in_filename = <site_name>_<start_year>_to_<end_year>_L5.nc
+    out_filename = <site_name>_<start_year>_to_<end_year>_L6.nc
+
+[Options]
+    UseExistingOutFile    = No
+
+[Params]
+    Fsd_threshold   = 10     # Fsd threshold for determining day or night time
+
+[ustar_threshold]
+# put a line here for each date period being used (usually one year)
+# <start_datetime> is of the form YYYY-MM-DD hh:mm
+# <end_datetime> is of the form YYYY-MM-DD hh:mm
+    0 = "['<start_datetime>','<end_datetime>',<ustar_threshold>]"
+
+[Respiration]
+    [[Fre_SOLO]]
+        [[[FreUsingSOLO]]]
+            target ="Fre"
+           #drivers = "['Ts','Sws','Ta','EVI']"  #Jason
+            drivers = "['Ts','Sws']"             #minimal
+            output = "Fre_SOLO_all"
+        [[[MergeSeries]]]
+            Source = "['Fre','Fre_SOLO_all']"
+    [[Fre_FFNET]]
+        [[[FreUsingFFNET]]]
+            target ="Fre"
+            drivers = "['Ts','Sws']"
+            output = "Fre_FFNET_all"
+        [[[MergeSeries]]]
+            Source = "['Fre','Fre_FFNET_all']"
+    [[Fre_LT]]
+        [[[FreUsingLloydTaylor]]]
+            target ="Fre"
+            drivers = "['Ts']"
+            output = "Fre_LT_all"
+        [[[MergeSeries]]]
+            Source = "['Fre','Fre_LT_all']"
+    [[Fre_LL]]
+        [[[FreUsingLasslop]]]
+            target = "Fre"
+            drivers = "['Ts']"
+            output = "Fre_LL_all"
+        [[[MergeSeries]]]
+            Source = "['Fre','Fre_LL_all']"
+
+[NEE]
+    [[NEE_SOLO]]
+        Fc  = "Fc"
+        Fre = "Fre_SOLO"
+    [[NEE_FFNET]]
+        Fc  = "Fc"
+        Fre = "Fre_FFNET"
+
+[GPP]
+    [[GPP_SOLO]]
+        NEE = "NEE_SOLO"
+        Fre = "Fre_SOLO"
+    [[GPP_FFNET]]
+        NEE = "NEE_FFNET"
+        Fre = "Fre_FFNET"

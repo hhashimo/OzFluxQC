@@ -1,17 +1,11 @@
 [Sites]
-    [[AliceSpringsMulga]]
-        in_filepath = ../../ACCESS/AliceSpringsMulga/2011/
-        in_filename = access_Alice_Springs_Mulga_2011*.nc
-        out_filepath = ../../Sites/AliceSpringsMulga/Data/ACCESS/
-        out_filename = AliceSpringsMulga_2011_ACCESS.nc
+    [[CumberlandPlains]]
+        in_filepath = ../../ACCESS/CumberlandPlains/Daily/
+        in_filename = access_Cumberland_Plains_*.nc
+        out_filepath = ../../Sites/CumberlandPlains/Data/ACCESS/
+        out_filename = CumberlandPlains_ACCESS.nc
         interpolate = Yes
-        site_timezone = Australia/Darwin
-    [[Tumbarumba]]
-        in_filepath = ../../ACCESS/Tumbarumba/2011/
-        in_filename = access_Tumbarumba_2011*.nc
-        out_filepath = ../../Sites/Tumbarumba/Data/ACCESS/
-        out_filename = Tumbarumba_2011_ACCESS.nc
-        interpolate = No
+        site_name = "CumberlandPlains"
         site_timezone = Australia/Sydney
 
 [Variables]
