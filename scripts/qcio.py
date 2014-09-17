@@ -894,7 +894,7 @@ def nc_write_series(ncFile,ds,outputlist=None,ndims=3):
     else:
         for ThisOne in outputlist:
             if ThisOne not in ds.series.keys():
-                log.info(' Requested series '+ThisOne+' not found in data structure')
+                log.error(' Requested series '+ThisOne+' not found in data structure')
                 outputlist.remove(ThisOne)
         if len(outputlist)==0: outputlist = ds.series.keys()
     # can't write an array of Python datetime objects to a netCDF file

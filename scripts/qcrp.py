@@ -38,7 +38,7 @@ def CalculateNEE(cf,ds):
     """
     if "nee" not in dir(ds): return
     # get the Fsd and ustar thresholds
-    Fsd_threshold = qcio.get_keyvalue_from_cf(cf['Params'],'Fsd_threshold',default=10)
+    Fsd_threshold = float(qcio.get_keyvalue_from_cf(cf['Params'],'Fsd_threshold',default=10))
     # get the incoming shortwave radiation and friction velocity
     Fsd,Fsd_flag,Fsd_attr = qcutils.GetSeriesasMA(ds,"Fsd")
     if "Fsd_syn" in ds.series.keys():
@@ -99,7 +99,7 @@ def FreUsingFFNET(cf,ds):
     rpFFNET_gui.nodesLabel.grid(row=nrow,column=0,columnspan=1,sticky="E")
     rpFFNET_gui.nodesEntry = Tkinter.Entry(rpFFNET_gui,width=6)
     rpFFNET_gui.nodesEntry.grid(row=nrow,column=1,columnspan=1,sticky="W")
-    rpFFNET_gui.nodesEntry.insert(0,"6,4")
+    rpFFNET_gui.nodesEntry.insert(0,"2")
     rpFFNET_gui.trainingLabel = Tkinter.Label(rpFFNET_gui,text="Training")
     rpFFNET_gui.trainingLabel.grid(row=nrow,column=2,columnspan=1,sticky="E")
     rpFFNET_gui.trainingEntry = Tkinter.Entry(rpFFNET_gui,width=6)
@@ -675,7 +675,7 @@ def rpFFNET_main(ds,rpFFNET_gui,rpFFNET_info):
         # design the network
         hidden_layers = rpFFNET_info["hidden"].split(",")
         if len(hidden_layers)==1:
-            arch = (ndrivers,int(hidden_layers),1)
+            arch = (ndrivers,int(hidden_layers[0]),1)
         elif len(hidden_layers)==2:
             arch = (ndrivers,int(hidden_layers[0]),int(hidden_layers[1]),1)
         else:
