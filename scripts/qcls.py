@@ -116,7 +116,7 @@ def l3qc(cf,ds2):
     # check to see if the user wants to gap fill anything
     qcgf.GapFill_L2(cf,ds2,ds3)
     # correct measured soil water content using empirical relationship to collected samples
-    #qcts.CorrectSWC(cf,ds3)
+    qcts.CorrectSWC(cf,ds3)
     # apply linear corrections to the data
     qcck.do_linear(cf,ds3)
     # merge the HMP and corrected 7500 data
@@ -165,13 +165,13 @@ def l3qc(cf,ds2):
     # correct soil heat flux for storage
     #    ... either average the raw ground heat flux, soil temperature and moisture
     #        and then do the correction (OzFlux "standard")
+    qcts.AverageSeriesByElements(cf,ds3,'Ts')
+    qcts.AverageSeriesByElements(cf,ds3,'Sws')
     if qcutils.cfoptionskey(cf,Key='CorrectIndividualFg'):
         #    ... or correct the individual ground heat flux measurements (James' method)
             qcts.CorrectIndividualFgForStorage(cf,ds3)
     else:
         qcts.AverageSeriesByElements(cf,ds3,'Fg')
-        qcts.AverageSeriesByElements(cf,ds3,'Ts')
-        qcts.AverageSeriesByElements(cf,ds3,'Sws')
         qcts.CorrectFgForStorage(cf,ds3,Fg_out='Fg',Fg_in='Fg',Ts_in='Ts',Sws_in='Sws')
     # calculate the available energy
     qcts.CalculateAvailableEnergy(ds3,Fa_out='Fa',Fn_in='Fn',Fg_in='Fg')
@@ -234,9 +234,6 @@ def l4qc(cf,ds3):
         # parse the control file for information on how the user wants to do the gap filling
         qcgf.GapFillParseControlFile(cf,ds4,ThisOne,ds_alt)
     # *** start of the section that does the gap filling of the drivers ***
-    # do the QC checks at the start of L4
-    # this allows us to remove data identified as bad during the gap filling process
-    qcck.do_qcchecks(cf, ds4)
     # do the gap filling using the ACCESS output
     qcgf.GapFillFromAlternate(ds4,ds_alt)
     # gap fill using SOLO
@@ -257,23 +254,6 @@ def l4qc(cf,ds3):
     qcts.CalculateHumidities(ds4)
     # re-calculate the meteorological variables
     qcts.CalculateMeteorologicalVariables(ds4)
-    # now do the flux gap filling methods
-    #for ThisOne in cf["Fluxes"].keys():
-        ## interpolate over any gaps up to 1 hour in length
-        #qcts.InterpolateOverMissing(ds4,series=ThisOne,maxlen=6)
-        ## parse the control file for information on how the user wants to do the gap filling
-        #qcgf.GapFillParseControlFile(cf,ds4,ThisOne,ds_alt)
-    ## *** start of the section that does the gap filling of the fluxes ***
-    ## do the gap filling using SOLO on all series identified by _namecollector
-    #qcgf.GapFillUsingSOLO(ds3,ds4)
-    ### gap fill using marginal distribution sampling
-    ##qcgf.GapFillFluxUsingMDS(cf,ds4)
-    ### gap fill using ratios
-    ##qcgf.GapFillFluxFromDayRatio(cf,ds4)
-    ## gap fill using climatology
-    #qcgf.GapFillFromClimatology(ds4)
-    ## merge the gap filled drivers into a single series
-    #qcts.MergeSeriesUsingDict(ds4,merge_order="standard")
     # write the percentage of good data as a variable attribute
     qcutils.get_coverage_individual(ds4)
     # write the percentage of good data for groups
@@ -301,10 +281,7 @@ def l5qc(cf,ds4):
         # parse the control file for information on how the user wants to do the gap filling
         qcgf.GapFillParseControlFile(cf,ds5,ThisOne,ds_alt)
     # *** start of the section that does the gap filling of the fluxes ***
-    # do the QC checks at the start of L5
-    # this allows us to remove data identified as bad during the gap filling process
-    qcck.do_qcchecks(cf, ds5)
-    # do the gap filling using SOLO on all series identified by _namecollector
+    # do the gap filling using SOLO
     qcgf.GapFillUsingSOLO(ds4,ds5)
     ## gap fill using marginal distribution sampling
     #qcgf.GapFillFluxUsingMDS(cf,ds5)

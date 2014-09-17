@@ -12,6 +12,7 @@ import matplotlib.dates as mdt
 import matplotlib.pyplot as plt
 import os
 import platform
+import qcck
 import qcio
 import qcts
 import qcutils
@@ -884,6 +885,7 @@ def gfalternate_main(ds_tower,ds_alt,alternate_info):
     # be changed with the alternate GUI still displayed
     cfname = ds_tower.globalattributes["controlfile_name"]
     cf = qcio.get_controlfilecontents(cfname,mode="quiet")
+    qcck.do_qcchecks(cf,ds_tower,mode="quiet")
     # !!! need code here to update the ds.alternate dictionary !!!
     # get local pointer to the datetime series
     ldt_tower = ds_tower.series["DateTime"]["Data"]
@@ -1277,6 +1279,7 @@ def gfSOLO_main(dsa,dsb,solo_gui,solo_info):
     # be changed with the SOLO GUI still displayed
     cfname = dsb.globalattributes["controlfile_name"]
     cf = qcio.get_controlfilecontents(cfname,mode="quiet")
+    qcck.do_qcchecks(cf,dsb,mode="quiet")
     solo_series = gfSOLO_getserieslist(cf)
     #for series in dsb.solo.keys():
     for series in solo_series:

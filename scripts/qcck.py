@@ -294,9 +294,9 @@ def do_rangecheck(cf,ds,section='',series='',code=2):
     if 'RangeCheck' not in ds.globalattributes['Functions']:
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',RangeCheck'
 
-def do_qcchecks(cf,ds):
+def do_qcchecks(cf,ds,mode="verbose"):
     level = ds.globalattributes['nc_level']
-    log.info(' Doing the QC checks at level '+str(level))
+    if mode!="quiet": log.info(' Doing the QC checks at level '+str(level))
     for series in ds.series.keys():
             do_qcchecks_oneseries(cf,ds,series=series)
 
@@ -304,28 +304,13 @@ def do_qcchecks_oneseries(cf,ds,series=''):
     section = qcutils.get_cfsection(cf,series=series,mode='quiet')
     if len(section)==0: return
     level = ds.globalattributes['nc_level']
-    if level == 'L2':
-        range_code        = 2
-        diurnal_code      = 3
-        excludedates_code = 6
-        excludehours_code = 7
-    if level == 'L3':
-        excludedates_code = 6
-        excludehours_code = 7
-        range_code        = 16
-        diurnal_code      = 17
-    if level == 'L4':
-        excludedates_code = 6
-        excludehours_code = 7
-        range_code        = 38
-        diurnal_code      = 39
     # do the range check
-    do_rangecheck(cf,ds,section=section,series=series,code=range_code)
+    do_rangecheck(cf,ds,section=section,series=series,code=2)
     # do the diurnal check
-    do_diurnalcheck(cf,ds,section=section,series=series,code=diurnal_code)
+    do_diurnalcheck(cf,ds,section=section,series=series,code=5)
     # do exclude dates
-    do_excludedates(cf,ds,section=section,series=series,code=excludedates_code)
+    do_excludedates(cf,ds,section=section,series=series,code=6)
     # do exclude hours
-    do_excludehours(cf,ds,section=section,series=series,code=excludehours_code)
+    do_excludehours(cf,ds,section=section,series=series,code=7)
     if 'do_qcchecks' not in ds.globalattributes['Functions']:
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',do_qcchecks'

@@ -2487,54 +2487,6 @@ def TransformAlternate(TList,DateTime,Series,ts=30):
     Series[si:ei] = qcutils.polyval(TList[2],Series[si:ei])
     Series = numpy.ma.filled(Series,float(c.missing_value))
 
-def UstarFromFh(cf,ds,us_out='uscalc',T_in='Ta', Ah_in='Ah', p_in='ps', Fh_in='Fh', u_in='Ws_CSAT', us_in='ustar'):
-    # Calculate ustar from sensible heat flux, wind speed and
-    # roughness length using Wegstein's iterative method.
-    #  T is the air temperature, C
-    #  p is the atmospheric pressure, kPa
-    #  H is the sensible heat flux, W/m^2
-    #  u is the wind speed, m/s
-    #  z is the measurement height minus the displacement height, m
-    #  z0 is the momentum roughness length, m
-    log.info(' Calculating ustar from (Fh,Ta,Ah,p,u)')
-    # get z-d (measurement height minus displacement height) and z0 from the control file
-    if qcutils.cfkeycheck(cf,Base='Params',ThisOne='zmd') and qcutils.cfkeycheck(cf,Base='Params',ThisOne='z0'):
-        zmd = float(cf['Params']['zmd'])   # z-d for site
-        z0 = float(cf['Params']['z0'])     # z0 for site
-    else:
-        log.error('Parameters zmd or z0 not found in control file.  u* not determined from Fh')
-        return
-    if qcutils.cfkeycheck(cf,Base='FunctionArgs',ThisOne='ustarFh'):
-        args = ast.literal_eval(cf['FunctionArgs']['ustarFh'])
-        us_out = args[0]
-        T_in = args[1]
-        Ah_in = args[2]
-        p_in = args[3]
-        Fh_in = args[4]
-        u_in = args[5]
-        us_in = args[6]
-    T,T_flag,T_attr = qcutils.GetSeries(ds,T_in)
-    Ah,Ah_flag,Ah_attr = qcutils.GetSeries(ds,Ah_in)
-    p,p_flag,p_attr = qcutils.GetSeries(ds,p_in)
-    Fh,Fh_flag,Fh_attr = qcutils.GetSeries(ds,Fh_in)
-    u,u_flag,u_attr = qcutils.GetSeries(ds,u_in)
-    nRecs = numpy.size(Fh)
-    us = numpy.zeros(nRecs,dtype=numpy.float64) + numpy.float64(c.missing_value)
-    us_flag = numpy.zeros(nRecs,dtype=numpy.int)
-    for i in range(nRecs):
-        if((abs(T[i]-float(c.missing_value))>c.eps)&(abs(Ah[i]-float(c.missing_value))>c.eps)&
-           (abs(p[i]-float(c.missing_value))>c.eps)&(abs(Fh[i]-float(c.missing_value))>c.eps)&
-           (abs(u[i]-float(c.missing_value))>c.eps)):
-            #print ds.series['DateTime']['Data'][i],T[i]
-            us[i] = qcutils.Wegstein(T[i], Ah[i], p[i], Fh[i], u[i], z, z0)
-            us_flag[i] = 36
-        else:
-            us[i] = numpy.float64(c.missing_value)
-            us_flag[i] = 37
-    attr = qcutils.MakeAttributeDictionary(long_name='ustar from (Fh,Ta,Ah,p,u)',units='m/s')
-    qcutils.CreateSeries(ds,us_out,us,Flag=us_flag,Attr=attr)
-    return us_in, us_out
-
 def write_sums(cf,ds,ThisOne,xlCol,xlSheet,DoSum='False',DoMinMax='False',DoMean='False',DoSubSum='False',DoSoil='False'):
     monthabr = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
     if qcutils.cfkeycheck(cf,Base='Params',ThisOne='firstMonth'):

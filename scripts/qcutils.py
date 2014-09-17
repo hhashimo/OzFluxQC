@@ -413,44 +413,6 @@ def FixTimeGaps(ds):
         flag_nogaps[idx_gaps] = flag_gaps
         CreateSeries(ds,ThisOne,data_nogaps,Flag=flag_nogaps,Attr=attr)
     
-def Fm(z, z0, L):
-    ''' Integral form of the adiabatic correction to the wind speed profile.'''
-    Fm = math.log(z/z0)                 # Neutral case
-    if L<0:                             # Unstable case
-        R0 = (1-c.gamma*z0/L)**0.25
-        R1 = (1-c.gamma*z/L)**0.25
-        x = ((R0+1)/(R1+1))**2
-        Y = (R0*R0+1)/(R1*R1+1)
-        w = z/z0
-        V = 2 * numpy.arctan((R1-R0)/(1+R0*R1))
-        Fm = math.log(w*Y*x)+V
-    elif ((L>-200)|(L>200)):            # Neutral case
-        Fm = math.log(z/z0)
-    elif (z/L<=1):                      # Stable case, z < L
-        x = math.log(z/z0)
-        Y = c.beta*z/L
-        Fm = x+Y
-    elif ((z/L>1)&(z0/L<1)):            # Stable case, z > L > z0
-        x = math.log(L/z0)
-        Y = (1+c.beta)*math.log(z/L)
-        Fm = x+c.beta+Y
-    elif (z0/L>1):                      # Stable, L < z0
-        Fm = (1+c.beta)*math.log(z/z0)
-    else:
-        print 'Error in function Fm'
-    return Fm
-
-def Fustar(T, Ah, p, Fh, u, z, z0, ustar):
-#' Function used in iteration method to solve for ustar.
-#' The function used is:
-#'  ustar = u*k/Fm(z/L,z0/L)
-#' where Fm is the integral form of the PHIm, the adiabatic
-#' correction to the logarithmic wind speed profile.
-#' Evaluate the function for ustar with this value for L.
-    MO = mf.molen(T, Ah, p, ustar, Fh, fluxtype='sensible')
-    Fustar = u*c.k/(Fm(z, z0, MO))
-    return Fustar
-
 def GetAverageSeriesKeys(cf,ThisOne):
     if incf(cf,ThisOne) and haskey(cf,ThisOne,'AverageSeries'):
         if 'Source' in cf['Variables'][ThisOne]['AverageSeries'].keys():
@@ -1226,38 +1188,3 @@ def startlog(loggername,loggerfile):
     logger.addHandler(fh)
     logger.addHandler(ch)
     return logger
-
-def Wegstein(T, Ah, p, Fh, u, z, z0):
-
-    NumIters = 50
-    SolveErr = numpy.float64(0.001)
- 
-    FirstEst =  u*c.k/math.log(z/z0)
-    ustar = Fustar(T, Ah, p, Fh, u, z, z0, FirstEst)
-    Inc = ustar-FirstEst
-    IncDiv = -Inc
-    Residual = ustar-Fustar(T, Ah, p, Fh, u, z, z0, ustar)
- 
-    i = 1
-    while (i<NumIters)&(float(Residual)>float(SolveErr)):
-        IncDiv = (IncDiv/Residual)-1
-        if (IncDiv == 0):
-            print 'Wegstein: IncDiv equals 0'
-            ustar = u*c.k/math.log(z/z0)
-            break
-        Inc = Inc/IncDiv
-        ustar = ustar+Inc
-        IncDiv = Residual
-        Residual = ustar-Fustar(T, Ah, p, Fh, u, z, z0, ustar)
-        if (abs(ustar)<=1):
-            RangeErr = SolveErr
-        else:
-            RangeErr = SolveErr*abs(ustar)
-        if (abs(Inc)<=RangeErr):
-            if (abs(Residual)<=10*RangeErr):
-                break
-        i = i + 1
-    if (i==NumIters):
-        print 'Wegstein: did not converge'
-        ustar = u*c.k/math.log(z/z0)
-    return ustar
