@@ -1,5 +1,12 @@
 version_name = "OzFluxQC"
-version_number = "V2.8.3"
+version_number = "V2.8.4"
+# V2.8.4   - changes as follows:
+#            - split gap filling into L4 (meteorological drivers) and
+#              L5 (fluxes), partitioning is now L6
+#            - associated changes to the template control files
+#            - implemented gap filling from BIOS2
+#            - implemented "Import" at L4 to allow importing MODIS data
+#              into OzFluxQC data path
 # V2.8.3   - implemented estimation of u* threshold by CPD (Barr et al)
 # V2.8.2   - implemented;
 #            - estimation of ecosystem respiration from nocturnal Fc

@@ -301,6 +301,9 @@ def l5qc(cf,ds4):
         # parse the control file for information on how the user wants to do the gap filling
         qcgf.GapFillParseControlFile(cf,ds5,ThisOne,ds_alt)
     # *** start of the section that does the gap filling of the fluxes ***
+    # do the QC checks at the start of L5
+    # this allows us to remove data identified as bad during the gap filling process
+    qcck.do_qcchecks(cf, ds5)
     # do the gap filling using SOLO on all series identified by _namecollector
     qcgf.GapFillUsingSOLO(ds4,ds5)
     ## gap fill using marginal distribution sampling
