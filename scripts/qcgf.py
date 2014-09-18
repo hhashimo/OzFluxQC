@@ -1279,9 +1279,10 @@ def gfSOLO_main(dsa,dsb,solo_gui,solo_info):
     # be changed with the SOLO GUI still displayed
     cfname = dsb.globalattributes["controlfile_name"]
     cf = qcio.get_controlfilecontents(cfname,mode="quiet")
-    qcck.do_qcchecks(cf,dsb,mode="quiet")
+    # put the control file object in the solo_info dictionary
+    dsb.cf = cf.copy()
+    # get the list of series to gap fill using SOLO
     solo_series = gfSOLO_getserieslist(cf)
-    #for series in dsb.solo.keys():
     for series in solo_series:
         section = qcutils.get_cfsection(cf,series=series,mode="quiet")
         if len(section)==0: continue
@@ -1312,6 +1313,8 @@ def gfSOLO_main(dsa,dsb,solo_gui,solo_info):
         for i in plt.get_fignums(): plt.close(i)
     fig_num = 0
     for series in solo_series:
+        # clean up the target series if required
+        qcck.do_qcchecks_oneseries(dsb.cf,dsa,series=series)
         dsb.solo[series]["results"]["startdate"].append(xldt[si])
         dsb.solo[series]["results"]["enddate"].append(xldt[ei])
         d,f,a = qcutils.GetSeriesasMA(dsb,series,si=si,ei=ei)

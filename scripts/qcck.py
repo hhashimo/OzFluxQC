@@ -167,8 +167,6 @@ def do_CSATcheck(cf,ds):
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',CSATCheck'
 
 def do_diurnalcheck(cf,ds,section='',series='',code=5):
-    if len(section)==0: return
-    if len(series)==0: return
     if 'DiurnalCheck' not in cf[section][series].keys(): return
     if 'NumSd' not in cf[section][series]['DiurnalCheck'].keys(): return
     dt = float(ds.globalattributes['time_step'])
@@ -202,8 +200,6 @@ def do_diurnalcheck(cf,ds,section='',series='',code=5):
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',DiurnalCheck'
 
 def do_excludedates(cf,ds,section='',series='',code=6):
-    if len(section)==0: return
-    if len(series)==0: return
     if 'ExcludeDates' not in cf[section][series].keys(): return
     ldt = ds.series['DateTime']['Data']
     ExcludeList = cf[section][series]['ExcludeDates'].keys()
@@ -225,8 +221,6 @@ def do_excludedates(cf,ds,section='',series='',code=6):
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',ExcludeDates'
 
 def do_excludehours(cf,ds,section='',series='',code=7):
-    if len(section)==0: return
-    if len(series)==0: return
     if 'ExcludeHours' not in cf[section][series].keys(): return
     ldt = ds.series['DateTime']['Data']
     ExcludeList = cf[section][series]['ExcludeHours'].keys()
@@ -269,8 +263,6 @@ def do_rangecheck(cf,ds,section='',series='',code=2):
     '''Applies a range check to data series listed in the control file.  Data values that
        are less than the lower limit or greater than the upper limit are replaced with
        c.missing_value and the corresponding QC flag element is set to 2.'''
-    if len(section)==0: return
-    if len(series)==0: return
     if 'RangeCheck' not in cf[section][series].keys(): return
     if 'Lower' in cf[section][series]['RangeCheck'].keys():
         lwr = numpy.array(eval(cf[section][series]['RangeCheck']['Lower']))
@@ -303,7 +295,6 @@ def do_qcchecks(cf,ds,mode="verbose"):
 def do_qcchecks_oneseries(cf,ds,series=''):
     section = qcutils.get_cfsection(cf,series=series,mode='quiet')
     if len(section)==0: return
-    level = ds.globalattributes['nc_level']
     # do the range check
     do_rangecheck(cf,ds,section=section,series=series,code=2)
     # do the diurnal check
