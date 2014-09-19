@@ -15,6 +15,7 @@ import time
 import Tkinter, tkFileDialog
 import xlrd
 import xlwt
+import xlsxwriter
 import netCDF4
 import logging
 import qcts
@@ -26,6 +27,7 @@ class DataStructure(object):
     def __init__(self):
         self.series = {}
         self.globalattributes = {}
+        self.globalattributes["Functions"] = ""
         self.dimensions = {}
         self.mergeserieslist = []
         self.averageserieslist = []
@@ -136,11 +138,17 @@ def copy_datastructure(cf,ds_in):
     return ds_out
 
 def nc_2xls(ncfilename,outputlist=None):
-    xlfilename= ncfilename.replace('.nc','.xls')
     # read the netCDF file
     ds = nc_read_series(ncfilename)
-    # write the variables to the Excel file
-    xl_write_series(ds,xlfilename,outputlist=outputlist)
+    nRecs = int(ds.globalattributes["nc_nrecs"])
+    if nRecs<65535:
+        # write the variables to the Excel 97/2003 file
+        xlfilename= ncfilename.replace('.nc','.xls')
+        xl_write_series(ds,xlfilename,outputlist=outputlist)
+    else:
+        # write the variables to the Excel 2010 file
+        xlsxfilename= ncfilename.replace('.nc','.xlsx')
+        xlsx_write_series(ds,xlsxfilename,outputlist=outputlist)
 
 def read_eddypro_full(csvname):
     ds = DataStructure()
@@ -1164,21 +1172,21 @@ def xl_write_SOLOStats(ds):
             xlCol = xlCol + 1
     xlfile.save(xl_filename)
 
-def xl_write_series(ds, xlfullname, outputlist=None):
+def xlsx_write_series(ds, xlsxfullname, outputlist=None):
     if "nc_nrecs" in ds.globalattributes.keys():
         nRecs = int(ds.globalattributes["nc_nrecs"])
     else:
         variablelist = ds.series.keys()
         nRecs = len(ds.series[variablelist[0]]["Data"])
     # open the Excel file
-    log.info(' Opening and writing Excel file '+xlfullname)
-    xlfile = xlwt.Workbook()
+    log.info(' Opening and writing Excel file '+xlsxfullname)
+    xlfile = xlsxwriter.Workbook(xlsxfullname)
     # add sheets to the Excel file
-    xlAttrSheet = xlfile.add_sheet('Attr')
-    xlDataSheet = xlfile.add_sheet('Data')
-    xlFlagSheet = xlfile.add_sheet('Flag')
+    xlAttrSheet = xlfile.add_worksheet('Attr')
+    xlDataSheet = xlfile.add_worksheet('Data')
+    xlFlagSheet = xlfile.add_worksheet('Flag')
     # write the global attributes
-    log.info(' Writing the global attributes to Excel file '+xlfullname)
+    log.info(' Writing the global attributes to Excel file '+xlsxfullname)
     xlcol = 0
     xlrow = 0
     xlAttrSheet.write(xlrow,xlcol,'Global attributes')
@@ -1194,7 +1202,7 @@ def xl_write_series(ds, xlfullname, outputlist=None):
         xlAttrSheet.write(xlrow,xlcol+1,str(ds.globalattributes[ThisOne]))
         xlrow = xlrow + 1
     # write the variable attributes
-    log.info(' Writing the variable attributes to Excel file '+xlfullname)
+    log.info(' Writing the variable attributes to Excel file '+xlsxfullname)
     xlrow = xlrow + 1
     xlAttrSheet.write(xlrow,xlcol,'Variable attributes')
     xlrow = xlrow + 1
@@ -1224,23 +1232,16 @@ def xl_write_series(ds, xlfullname, outputlist=None):
             xlrow = xlrow + 1
     # write the Excel date/time to the data and the QC flags as the first column
     datemode = 0
-    if platform.system()=="Darwin": datemode = 1
+    if platform.system()=="darwin": datemode = 1
     ldt = ds.series["DateTime"]["Data"]
     xlDateTime = qcutils.get_xldate_from_datetime(ldt,datemode=datemode)
-    log.info(' Writing the datetime to Excel file '+xlfullname)
-    d_xf = xlwt.easyxf(num_format_str='dd/mm/yyyy hh:mm')
+    log.info(' Writing the datetime to Excel file '+xlsxfullname)
+    dt_format = xlfile.add_format({'num_format': 'dd/mm/yyyy hh:mm'})
     xlDataSheet.write(2,xlcol,'xlDateTime')
+    xlFlagSheet.write(2,xlcol,'xlDateTime')
     for j in range(nRecs):
-        xlDataSheet.write(j+3,xlcol,xlDateTime[j],d_xf)
-        xlFlagSheet.write(j+3,xlcol,xlDateTime[j],d_xf)
-    # output the xl datetime as UTC if it exists in the file
-    #if "xlDateTime_UTC" in ds.series.keys():
-        #xlcol = xlcol + 1
-        #xlDateTime = ds.series["xlDateTime_UTC"]["Data"]
-        #xlDataSheet.write(2,xlcol,"xlDateTime_UTC")
-        #for j in range(nRecs):
-            #xlDataSheet.write(j+3,xlcol,xlDateTime[j],d_xf)
-            #xlFlagSheet.write(j+3,xlcol,xlDateTime[j],d_xf)
+        xlDataSheet.write_datetime(j+3,xlcol,ldt[j],dt_format)
+        xlFlagSheet.write_datetime(j+3,xlcol,ldt[j],dt_format)
     # remove xlDateTime from the list of variables to be written to the Excel file
     if "xlDateTime" in outputlist: outputlist.remove("xlDateTime")
     if "xlDateTime_UTC" in outputlist: outputlist.remove("xlDateTime_UTC")
@@ -1272,15 +1273,14 @@ def xl_write_series(ds, xlfullname, outputlist=None):
             xlDataSheet.write(j+3,xlcol,float(ds.series[ThisOne]['Data'][j]))
         # check to see if this variable has a quality control flag
         if 'Flag' in ds.series[ThisOne].keys():
-            # write the QC flag name to the xk file
+            # write the QC flag name to the Excel file
             xlFlagSheet.write(2,xlcol,ThisOne)
             # specify the format of the QC flag (integer)
-            d_xf = xlwt.easyxf(num_format_str='0')
-            # loop over QV flag values and write to xl file
+            flag_format = xlfile.add_format({'num_format': '0'})
+            # loop over QC flag values and write to xl file
             for j in range(nRecs):
-                xlFlagSheet.write(j+3,xlcol,int(ds.series[ThisOne]['Flag'][j]),d_xf)
+                xlFlagSheet.write(j+3,xlcol,int(ds.series[ThisOne]['Flag'][j]),flag_format)
         # increment the column pointer
         xlcol = xlcol + 1
     
-    xlfile.save(xlfullname)
-    
+    xlfile.close()

@@ -26,52 +26,6 @@ import xlrd
 
 log = logging.getLogger('qc.gf')
 
-#def GapFillFromAlternate(cf,ds,series=''):
-    #"""
-        #Gap fill using data from alternate sites specified in the control file
-        #"""
-    #section = qcutils.get_cfsection(cf,series=series,mode='quiet')
-    #if len(section)==0: return
-    #if 'GapFillFromAlternate' not in cf[section][series].keys(): return
-    #log.info(' Gap filling '+series+' using data from alternate sites')
-    #ts = ds.globalattributes['time_step']
-    ## Gap fill using data from alternate sites specified in the control file
-    #ds_alt = {}               # create a dictionary for the data from alternate sites
-    #open_ncfiles = []         # create an empty list of open netCDF files
-    ## loop over the entries in the GapFillFromAlternate section
-    #for Alt in cf[section][series]['GapFillFromAlternate'].keys():
-        #log.info(' Gap filling '+ThisOne+' by replacing with alternate site data')
-        ## get the file name for the alternate site
-        #alt_filename = cf[section][series]['GapFillFromAlternate'][Alt]['FileName']
-        ## get the variable name for the alternate site data if specified, otherwise use the same name
-        #if 'AltVarName' in cf[section][series]['GapFillFromAlternate'][Alt].keys():
-            #alt_varname = cf[section][series]['GapFillFromAlternate'][Alt]['AltVarName']
-        #else:
-            #alt_varname = series
-        ## check to see if the alternate site file is already open
-        #if alt_filename not in open_ncfiles:
-            ## open and read the file if it is not already open
-            #n = len(open_ncfiles)
-            #open_ncfiles.append(alt_filename)
-            #ds_alt[n] = qcio.nc_read_series_file(alt_filename)
-        #else:
-            ## get the file index number if it is already open
-            #n = open_ncfiles.index(alt_filename)
-        ## check to see if alternate site data needs transform
-        #if 'Transform' in cf[section][series]['GapFillFromAlternate'][Alt].keys():
-            ## get the datetime series for the alternate site
-            #AltDateTime = ds_alt[n].series['DateTime']['Data']
-            ## get the data for the alternate site
-            #AltSeriesData = ds_alt[n].series[alt_varname]['Data']
-            ## evaluate the list of start dates, end dates and transform coefficients
-            #TList = ast.literal_eval(cf[section][section]['GapFillFromAlternate'][Alt]['Transform'])
-            ## loop over the datetime ranges for the transform
-            #for TListEntry in TList:
-                #qcts.TransformAlternate(TListEntry,AltDateTime,AltSeriesData,ts=ts)
-        #qcts.ReplaceWhereMissing(ds.series[series],ds.series[series],ds_alt[n].series[alt_varname],FlagOffset=100)
-    #if 'GapFillFromAlternate' not in ds.globalattributes['Functions']:
-        #ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', GapFillFromAlternate'
-
 def GapFill_L2(cf,ds2,ds3):
     for series in ds3.series.keys():
         section = qcutils.get_cfsection(cf,series=series,mode='quiet')
