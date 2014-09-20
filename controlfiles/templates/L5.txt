@@ -6,13 +6,10 @@
 [Output]
     # uncomment the xl and nc lists to output specific variables
     #xl = "['Ah','Cc','Fa','Fc','Fe','Fg','Fh','Fld','Flu','Fm','Fn','Fsd','Fsu','ps','RH','Sws','Ta','Ts','ustar','Ws','Wd']"
-    nc = "['Ah','Cc','eta','EVI','Fa','Fc','Fc_storage','Fe','Fg','Fh','Fld','Flu','Fm','Fn','Fsd','Fsu','Precip','ps','q','RH','Sws','SHD','Ta','theta','Ts','ustar','Ws','Wd']"
+    nc = "['Ah','Cc','eta','Fa','Fc','Fc_storage','Fe','Fg','Fh','Fld','Flu','Fm','Fn','Fsd','Fsu','Precip','ps','q','RH','Sws','SHD','Ta','theta','Ts','ustar','Ws','Wd']"
 
 [Options]
     UseExistingOutFile = No
-
-[Params]
-    Fsd_threshold   = 10     # Fsd threshold for determining day or night time, W/m2
 
 [Fluxes]
     [[ustar]]

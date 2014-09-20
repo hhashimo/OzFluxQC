@@ -13,6 +13,8 @@
 # put a line here for each date period being used (usually one year)
 # <start_datetime> is of the form YYYY-MM-DD hh:mm
 # <end_datetime> is of the form YYYY-MM-DD hh:mm
+# <ustar_threshold> is a number
+# eg     0 = "['2011-01-01 00:30','2012-01-01 00:00',0.27]"
     0 = "['<start_datetime>','<end_datetime>',<ustar_threshold>]"
 
 [Respiration]
@@ -27,6 +29,7 @@
     [[Fre_FFNET]]
         [[[FreUsingFFNET]]]
             target ="Fre"
+           #drivers = "['Ts','Sws','Ta','EVI']"  #Jason
             drivers = "['Ts','Sws']"
             output = "Fre_FFNET_all"
         [[[MergeSeries]]]
