@@ -205,7 +205,7 @@ def mixingratio(ps,vp):
 
 def molen(T,Ah,p,ustar,heatflux,fluxtype='sensible'):
     # Calculate the Monin-Obukhov length
-    ustar = numpy.sqrt(ustar**2)    # force the sign of ustar to be positive
+    ustar = numpy.ma.sqrt(numpy.ma.sqr(ustar))    # force the sign of ustar to be positive
     vp = vapourpressure(Ah,T)       # calculate the vapour pressure
     mr = mixingratio(p,vp)          # calculate the mixing ratio
     Tv = theta(T,p)                 # calculate potential temperature
