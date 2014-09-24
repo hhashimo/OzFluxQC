@@ -211,7 +211,7 @@ def molen(T,Ah,p,ustar,heatflux,fluxtype='sensible'):
     Tv = theta(T,p)                 # calculate potential temperature
     Tvp = virtualtheta(Tv,mr)
     if fluxtype=='sensible':
-        L = -Tvp*densitydryair(T, p)*c.Cp*(ustar**3)/(c.g*c.k*heatflux)
+        L = -Tvp*densitydryair(T, p, vp)*c.Cp*(ustar**3)/(c.g*c.k*heatflux)
     elif fluxtype=='kinematic':
         L = -Tvp*(ustar**3)/(c.g*c.k*heatflux)
     else:
