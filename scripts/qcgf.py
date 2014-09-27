@@ -737,6 +737,7 @@ def gfalternate_getlagcorrecteddata(ds_tower,ds_alternate,label_tower,label_alte
     ei_alternate_lagcorr = ei_alternate - nLags
     results["Lag (uncorrected)"].append(numpy.float64(nLags*ai["time_step"]))
     data_alternate_lagcorr,f,a = qcutils.GetSeriesasMA(ds_alternate,label_alternate,si=si_alternate_lagcorr,ei=ei_alternate_lagcorr,mode="pad")
+    #data_alternate_lagcorr,f,a = qcutils.GetSeriesasMA(ds_alternate,label_alternate,si=si_alternate_lagcorr,ei=ei_alternate_lagcorr)
     # get the lagged correlations
     lags,corr = qcts.get_laggedcorrelation(data_tower,data_alternate_lagcorr,maxlags=ai["maxlags"])
     nLags = numpy.argmax(corr)-ai["maxlags"]
@@ -861,6 +862,10 @@ def gfalternate_main(ds_tower,ds_alt,alternate_info):
         # get the tower data
         data_tower,flag,attr = qcutils.GetSeriesasMA(ds_tower,label_tower,si=tower_exact["si"],ei=tower_exact["ei"])
         units_tower = attr["units"]
+        if numpy.ma.count(data_tower)<alternate_info["min_points"]:
+            msg = " less than "+str(alternate_info["min_points"])+" points in series "+label_tower+", skipping ..."
+            log.error(msg)
+            continue
         # save the start and end datetimes for later output
         ds_tower.alternate[label_tower]["results"]["startdate"].append(xldt_tower[tower_exact["si"]])
         ds_tower.alternate[label_tower]["results"]["enddate"].append(xldt_tower[tower_exact["ei"]])
@@ -876,6 +881,10 @@ def gfalternate_main(ds_tower,ds_alt,alternate_info):
         data_alternate,flag,attr = qcutils.GetSeriesasMA(ds_alternate,label_alternate,
                                                          si=alternate_exact["si"],ei=alternate_exact["ei"])
         units_alternate = attr["units"]
+        if numpy.ma.count(data_alternate)<alternate_info["min_points"]:
+            msg = " less than "+str(alternate_info["min_points"])+" points in series "+label_alternate+", skipping ..."
+            log.error(msg)
+            continue
         # correct for lag in the alternate data if required
         data_alternate_lagcorr,flag,attr = gfalternate_getlagcorrecteddata(ds_tower,ds_alternate,label_tower,
                                                                            label_alternate,alternate_info)

@@ -1173,7 +1173,7 @@ def CorrectFgForStorage(cf,ds,Fg_out='Fg',Fg_in='Fg',Ts_in='Ts',Sws_in='Sws'):
     Sws,Sws_flag,Sws_attr = qcutils.GetSeriesasMA(ds,Sws_in)
     iom = numpy.where(numpy.mod(Sws_flag,10)!=0)[0]
     if len(iom)!=0:
-        log.error('  CorrectFgForStorage: Sws_default used for '+str(len(iom))+' values')
+        log.warning('  CorrectFgForStorage: Sws_default used for '+str(len(iom))+' values')
         Sws[iom] = Sws_default
         Sws_flag[iom] = numpy.int32(22)
     # get the soil temperature difference from time step to time step

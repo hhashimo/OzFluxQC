@@ -751,6 +751,10 @@ def nc_read_series(ncFullName):
         qcutils.get_datetimefromymdhms(ds)
     # get series of UTC datetime
     qcutils.get_UTCfromlocaltime(ds)
+    # tell the user when the data starts and ends
+    ldt = ds.series["DateTime"]["Data"]
+    msg = " Got data from "+ldt[0].strftime("%Y-%m-%d %H:%M")+" to "+ldt[-1].strftime("%Y-%m-%d %H:%M")
+    log.info(msg)
     return ds
 
 def nc_read_todf(ncFullName,var_data=[]):

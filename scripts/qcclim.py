@@ -216,7 +216,7 @@ def climatology(cf):
             log.info("Doing climatology for "+ThisOne)
             data,f,a = qcutils.GetSeriesasMA(ds,ThisOne,si=si,ei=ei)
             if numpy.ma.count(data)==0:
-                log.info(" No data for "+ThisOne+", skipping ...")
+                log.error(" No data for "+ThisOne+", skipping ...")
                 continue
             fmt_str = get_formatstring(cf,ThisOne,fmt_def='')
             xlSheet = xlFile.add_sheet(ThisOne)

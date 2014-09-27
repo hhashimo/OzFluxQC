@@ -819,7 +819,7 @@ class qcgui(tk.Tk):
         # get the output filename
         outfilename = qcio.get_outfilename_from_cf(self.cf)
         # get the output list
-        outputlist = get_outputlist_from_cf(self.cf,'xl')
+        outputlist = qcio.get_outputlist_from_cf(self.cf,'xl')
         qcio.nc_2xls(outfilename,outputlist=outputlist)
         self.do_progress(text='Finished L3 Data Export')              # tell the user we are done
         log.info(' Finished saving L3 data')
