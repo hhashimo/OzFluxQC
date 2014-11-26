@@ -774,7 +774,7 @@ def gfalternate_getolscorrecteddata(x_in,y_in,fit,min_points,thru0=False):
         return y_out,eqnstr,results
     # check the input arrays contain something
     if nx==0:
-        log.error('qcts.getolscorrecteddata: either x or y all masked')
+        #log.warn('qcts.getolscorrecteddata: either x or y all masked')
         if fit.lower()=="replace":
             results = [1,0]
             eqnstr = "All missing, replaced"
@@ -862,10 +862,13 @@ def gfalternate_main(ds_tower,ds_alt,alternate_info):
         # get the tower data
         data_tower,flag,attr = qcutils.GetSeriesasMA(ds_tower,label_tower,si=tower_exact["si"],ei=tower_exact["ei"])
         units_tower = attr["units"]
-        if numpy.ma.count(data_tower)<alternate_info["min_points"]:
+        if numpy.ma.count(data_tower)<alternate_info["min_points"] and ds_tower.alternate[label_tower]["fit"]!="replace":
             msg = " less than "+str(alternate_info["min_points"])+" points in series "+label_tower+", skipping ..."
             log.error(msg)
             continue
+        elif numpy.ma.count(data_tower)<alternate_info["min_points"] and ds_tower.alternate[label_tower]["fit"]=="replace":
+            msg = " less than "+str(alternate_info["min_points"])+" points in series "+label_tower+", replacing ..."
+            log.warn(msg)
         # save the start and end datetimes for later output
         ds_tower.alternate[label_tower]["results"]["startdate"].append(xldt_tower[tower_exact["si"]])
         ds_tower.alternate[label_tower]["results"]["enddate"].append(xldt_tower[tower_exact["ei"]])
@@ -1072,8 +1075,8 @@ def gfalternate_plotdetailed(nfig,label,data_plot,alternate_info,pd):
         # time series plot
         ax6.plot(data_plot["odt_tower"],data_plot["data_tower"],'ro',label="Tower")
         ax6.plot(data_plot["odt_alternate"],data_plot["data_alternate_lagolscorr"],'g-',label=source+" (OLS)")
-    else:
-        log.error("gfalternate: Less than 100 points available for series "+label+" ...")
+    #else:
+        #log.error("gfalternate: Less than 100 points available for series "+label+" ...")
     # put up the legends
     ax5.legend(loc='upper right',frameon=False,prop={'size':8})
     ax6.legend(loc='upper right',frameon=False,prop={'size':8})

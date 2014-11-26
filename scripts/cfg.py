@@ -1,5 +1,7 @@
 version_name = "OzFluxQC"
-version_number = "V2.8.4"
+version_number = "V2.8.5"
+# V2.8.5   - miscellaneous changes arising from use of V2.8.4 at the
+#            2014 OzFlux Data Workshop
 # V2.8.4   - changes as follows:
 #            - split gap filling into L4 (meteorological drivers) and
 #              L5 (fluxes), partitioning is now L6

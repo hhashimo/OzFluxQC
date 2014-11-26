@@ -826,17 +826,43 @@ def get_datetimefromymdhms(ds):
     nRecs = get_nrecs(ds)
     ds.series[unicode('DateTime')] = {}
     ds.series['DateTime']['Data'] = [None]*nRecs
+    ds.series[unicode('Date')] = {}
+    ds.series['Date']['Data'] = [None]*nRecs
+    ds.series[unicode('Time')] = {}
+    ds.series['Time']['Data'] = [None]*nRecs
+    #seconds = numpy.array(ds.series["Second"]["Data"])
+    #microseconds = (seconds%1)*float(1000000)
+    if "Microseconds" in ds.series.keys():
+        microseconds = ds.series["Microseconds"]["Data"]
+    else:
+        microseconds = numpy.zeros(nRecs,dtype=numpy.float64)
     for i in range(nRecs):
         ds.series['DateTime']['Data'][i] = datetime.datetime(int(ds.series['Year']['Data'][i]),
                                                        int(ds.series['Month']['Data'][i]),
                                                        int(ds.series['Day']['Data'][i]),
                                                        int(ds.series['Hour']['Data'][i]),
                                                        int(ds.series['Minute']['Data'][i]),
-                                                       int(ds.series['Second']['Data'][i]))
+                                                       int(ds.series['Second']['Data'][i]),
+                                                       int(microseconds[i]))
+        ds.series['Date']['Data'][i] = datetime.date(int(ds.series['Year']['Data'][i]),
+                                                       int(ds.series['Month']['Data'][i]),
+                                                       int(ds.series['Day']['Data'][i]))
+        ds.series['Time']['Data'][i] = datetime.time(int(ds.series['Hour']['Data'][i]),
+                                                       int(ds.series['Minute']['Data'][i]),
+                                                       int(ds.series['Second']['Data'][i]),
+                                                       int(microseconds[i]))
     ds.series['DateTime']['Flag'] = numpy.zeros(nRecs)
     ds.series['DateTime']['Attr'] = {}
     ds.series['DateTime']['Attr']['long_name'] = 'Date-time object'
     ds.series['DateTime']['Attr']['units'] = 'None'
+    ds.series['Date']['Flag'] = numpy.zeros(nRecs)
+    ds.series['Date']['Attr'] = {}
+    ds.series['Date']['Attr']['long_name'] = 'Date object'
+    ds.series['Date']['Attr']['units'] = 'None'
+    ds.series['Time']['Flag'] = numpy.zeros(nRecs)
+    ds.series['Time']['Attr'] = {}
+    ds.series['Time']['Attr']['long_name'] = 'Time object'
+    ds.series['Time']['Attr']['units'] = 'None'
 
 def get_nrecs(ds):
     if 'nc_nrecs' in ds.globalattributes.keys():
