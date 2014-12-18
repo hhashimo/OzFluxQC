@@ -132,17 +132,19 @@ def l3qc(cf,ds2):
     qcts.MergeSeries(cf,ds3,'Cc',[0,10])
     # add relevant meteorological values to L3 data
     qcts.CalculateMeteorologicalVariables(ds3)
-    # do the 2D coordinate rotation
-    qcts.CoordRotation2D(cf,ds3)
-    # do the Massman frequency attenuation correction
-    qcts.MassmanStandard(cf,ds3)
-    # calculate the fluxes
-    qcts.CalculateFluxes(cf,ds3)
-    # approximate wT from virtual wT using wA (ref: Campbell OPECSystem manual)
-    qcts.FhvtoFh(cf,ds3)
-    # correct the H2O & CO2 flux due to effects of flux on density measurements
-    qcts.Fe_WPL(cf,ds3)
-    qcts.Fc_WPL(cf,ds3)
+    # check to see if the user wants to use the fluxes in the L2 file
+    if not qcutils.cfoptionskey(cf,Key="UseL2Fluxes",default=False):
+        # do the 2D coordinate rotation
+        qcts.CoordRotation2D(cf,ds3)
+        # do the Massman frequency attenuation correction
+        qcts.MassmanStandard(cf,ds3)
+        # calculate the fluxes
+        qcts.CalculateFluxes(cf,ds3)
+        # approximate wT from virtual wT using wA (ref: Campbell OPECSystem manual)
+        qcts.FhvtoFh(cf,ds3)
+        # correct the H2O & CO2 flux due to effects of flux on density measurements
+        qcts.Fe_WPL(cf,ds3)
+        qcts.Fc_WPL(cf,ds3)
     # convert CO2 units if required
     qcutils.ConvertCO2Units(cf,ds3,Cc='Cc')
     # calculate Fc storage term - single height only at present
@@ -151,8 +153,6 @@ def l3qc(cf,ds2):
     qcutils.ConvertFcUnits(cf,ds3,Fc='Fc',Fc_storage='Fc_storage')
     # correct Fc for storage term - only recommended if storage calculated from profile available
     qcts.CorrectFcForStorage(cf,ds3)
-    # create a series of filtered ustar
-    qcts.FilterUstar(cf,ds3)
     # merge the incoming shortwave radiation
     qcts.MergeSeries(cf,ds3,'Fsd',[0,10])
     # calculate the net radiation from the Kipp and Zonen CNR1
