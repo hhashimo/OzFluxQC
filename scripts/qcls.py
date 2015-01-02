@@ -170,6 +170,7 @@ def l3qc(cf,ds2):
     if qcutils.cfoptionskey(cf,Key='CorrectIndividualFg'):
         #    ... or correct the individual ground heat flux measurements (James' method)
             qcts.CorrectIndividualFgForStorage(cf,ds3)
+            qcts.AverageSeriesByElements(cf,ds3,'Fg')
     else:
         qcts.AverageSeriesByElements(cf,ds3,'Fg')
         qcts.CorrectFgForStorage(cf,ds3,Fg_out='Fg',Fg_in='Fg',Ts_in='Ts',Sws_in='Sws')

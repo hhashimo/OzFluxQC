@@ -1122,7 +1122,7 @@ def CorrectIndividualFgForStorage(cf,ds):
         List = cf['FunctionArgs']['CFgArgs'].keys()
         for i in range(len(List)):
             CFgArgs = ast.literal_eval(cf['FunctionArgs']['CFgArgs'][str(i)])
-            CorrectFgForStorage(cf,ds,Fg_out=CFgArgs[0],Fg_in=CFgArgs[1],Ts_in=CFgArgs[2],SWC_in=CFgArgs[3])
+            CorrectFgForStorage(cf,ds,Fg_out=CFgArgs[0],Fg_in=CFgArgs[1],Ts_in=CFgArgs[2],Sws_in=CFgArgs[3])
         return
 
 def CorrectFgForStorage(cf,ds,Fg_out='Fg',Fg_in='Fg',Ts_in='Ts',Sws_in='Sws'):
