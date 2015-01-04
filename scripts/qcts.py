@@ -422,7 +422,7 @@ def AbsoluteHumidityFromRH(ds):
         Ah_attr["long_name"] = Ah_attr["long_name"]+", merged with Ah calculated from RH"
         qcutils.CreateSeries(ds,"Ah",Ah,Flag=Ah_flag,Attr=Ah_attr)
     else:
-        attr = qcutils.MakeAttributeDictionary(long_name='Absolute humidity',units='g/m3',standard_name='not defined')
+        attr = qcutils.MakeAttributeDictionary(long_name='Absolute humidity',units='g/m3',standard_name='mass_concentration_of_water_vapor_in_air')
         qcutils.CreateSeries(ds,'Ah',Ah_new,Flag=Ah_new_flag,Attr=attr)
 
 def AbsoluteHumidityFromq(ds):
@@ -442,7 +442,7 @@ def AbsoluteHumidityFromq(ds):
         Ah_attr["long_name"] = Ah_attr["long_name"]+", merged with Ah calculated from q"
         qcutils.CreateSeries(ds,"Ah",Ah,Flag=Ah_flag,Attr=Ah_attr)
     else:
-        attr = qcutils.MakeAttributeDictionary(long_name='Absolute humidity',units='g/m3',standard_name='not defined')
+        attr = qcutils.MakeAttributeDictionary(long_name='Absolute humidity',units='g/m3',standard_name='mass_concentration_of_water_vapor_in_air')
         qcutils.CreateSeries(ds,"Ah",Ah_new,Flag=Ah_new_flag,Attr=attr)
 
 def RelativeHumidityFromq(ds):
@@ -461,7 +461,7 @@ def RelativeHumidityFromq(ds):
         RH_attr["long_name"] = RH_attr["long_name"]+", merged with RH calculated from q"
         qcutils.CreateSeries(ds,"RH",RH,Flag=RH_flag,Attr=RH_attr)
     else:
-        attr = qcutils.MakeAttributeDictionary(long_name='Relative humidity',units='%',standard_name='not defined')
+        attr = qcutils.MakeAttributeDictionary(long_name='Relative humidity',units='%',standard_name='relative_humidity')
         qcutils.CreateSeries(ds,'RH',RH_new,Flag=RH_new_flag,Attr=attr)
     
 def RelativeHumidityFromAh(ds):
@@ -479,7 +479,7 @@ def RelativeHumidityFromAh(ds):
         RH_attr["long_name"] = RH_attr["long_name"]+", merged with RH calculated from Ah"
         qcutils.CreateSeries(ds,"RH",RH,Flag=RH_flag,Attr=RH_attr)
     else:
-        attr = qcutils.MakeAttributeDictionary(long_name='Relative humidity',units='%',standard_name='not defined')
+        attr = qcutils.MakeAttributeDictionary(long_name='Relative humidity',units='%',standard_name='relative_humidity')
         qcutils.CreateSeries(ds,"RH",RH_new,Flag=RH_new_flag,Attr=attr)
 
 def SpecificHumidityFromAh(ds):
@@ -634,7 +634,7 @@ def CalculateNetRadiation(cf,ds,Fn_out='Fn',Fsd_in='Fsd',Fsu_in='Fsu',Fld_in='Fl
         Flu,f,a = qcutils.GetSeriesasMA(ds,Flu_in)
         Fn = (Fsd - Fsu) + (Fld - Flu)
         attr = qcutils.MakeAttributeDictionary(long_name='Calculated net radiation using '+Fsd_in+','+Fsu_in+','+Fld_in+','+Flu_in,
-                             standard_name='surface_net_allwave_radiation',units='W/m2')
+                             standard_name='surface_net_downwawrd_radiative_flux',units='W/m2')
         qcutils.CreateSeries(ds,Fn_out,Fn,FList=[Fsd_in,Fsu_in,Fld_in,Flu_in],Attr=attr)
         if "Variables" in cf:
             if Fn_out in cf["Variables"]:
@@ -645,274 +645,8 @@ def CalculateNetRadiation(cf,ds,Fn_out='Fn',Fsd_in='Fsd',Fsu_in='Fsu',Fld_in='Fl
         Fn = numpy.array([c.missing_value]*nRecs,dtype=numpy.float64)
         flag = numpy.ones(nRecs,dtype=numpy.int32)
         attr = qcutils.MakeAttributeDictionary(long_name='Calculated net radiation (one or more components missing)',
-                             standard_name='surface_net_allwave_radiation',units='W/m2')
+                             standard_name='surface_net_downwawrd_radiative_flux',units='W/m2')
         qcutils.CreateSeries(ds,Fn_out,Fn,Flag=flag,Attr=attr)
-
-def ComputeDailySums(cf,ds,SumList,SubSumList,MinMaxList,MeanList,SoilList):
-    """
-        Computes daily sums, mininima and maxima on a collection variables in
-        the L4 dataset containing gap filled fluxes.  Sums are computed only
-        when the number of daily 30-min observations is equal to 48 (i.e., no
-        missing data) to avoid biasing.  Output to an excel file that specified
-        in the control file.
-        
-        Usage qcts.ComputeDailySums(cf,ds)
-        cf: control file
-        ds: data structure
-        
-        Parameters loaded from control file:
-            M1st: dataset start month
-            M2nd: dataset end month
-            SumList: list of variables to be summed
-            SubSumList: list of variables to sum positive and negative observations separately
-            MinMaxList: list of variables to compute daily min & max
-            SoilList: list of soil moisture measurements groups
-            SW0, SW10, etc: list of soil moisture sensors at a common level (e.g., surface, 10cm, etc)
-        
-        Default List of sums:
-            Rain, ET, Fe_MJ, Fh_MJ, Fg_MJ, Fld_MJ, Flu_MJ, Fnr_MJ, Fsd_MJ,
-            Fsu_MJ, Fc_g, Fc_mmol
-        Default List of sub-sums (sums split between positive and negative observations)
-            Fe_MJ, Fh_MJ, Fg_MJ
-        Default List of min/max:
-            Ta_HMP, Vbat, Tpanel, Fc_mg, Fc_umol
-        Default List of soil moisture measurements:
-        """
-    OutList = []
-    SumOutList = []
-    SubOutList = []
-    MinMaxOutList = []
-    MeanOutList = []
-    SoilOutList = []
-    
-    for ThisOne in SubSumList:
-        if ThisOne not in SumList:
-            SumList.append(ThisOne)
-    
-    for ThisOne in SumList:
-        if ThisOne == 'ET':
-            if qcutils.cfkeycheck(cf,Base='Sums',ThisOne='ETin'):
-                Invar = ast.literal_eval(cf['Sums']['ETin'])
-            else:
-                Invar = ['Fe']
-            Fe,f,a = qcutils.GetSeriesasMA(ds,Invar[0])
-            if 'Lv' in ds.series.keys():
-                Lv,f,a = qcutils.GetSeriesasMA(ds,'Lv')
-            else:
-                Lv = c.Lv
-            ET = Fe * 60 * 30 * 1000 / (Lv * c.rho_water)  # mm/30min for summing
-            attr = qcutils.MakeAttributeDictionary(long_name='Evapotranspiration Flux',units='mm')
-            qcutils.CreateSeries(ds,'ET',ET,FList=Invar,Attr=attr)
-            SumOutList.append('ET')
-            OutList.append('ET')
-            if ThisOne in SubSumList:
-                SubOutList.append('ET')
-        elif ThisOne == 'Energy':
-            if qcutils.cfkeycheck(cf,Base='Sums',ThisOne='Energyin'):
-                EnergyIn = ast.literal_eval(cf['Sums']['Energyin'])
-            else:
-                EnergyIn = ['Fe', 'Fh', 'Fg']
-            Fe,f,a = qcutils.GetSeriesasMA(ds,EnergyIn[0])
-            Fh,f,a = qcutils.GetSeriesasMA(ds,EnergyIn[1])
-            Fg,f,a = qcutils.GetSeriesasMA(ds,EnergyIn[2])
-            EnergyOut = ['Fe_MJ','Fh_MJ','Fg_MJ']
-            for index in range(0,3):
-                convert_energy(ds,EnergyIn[index],EnergyOut[index])
-                OutList.append(EnergyOut[index])
-                SumOutList.append(EnergyOut[index])
-                if ThisOne in SubSumList:
-                    SubOutList.append(EnergyOut[index])
-        elif ThisOne == 'Radiation':
-            if qcutils.cfkeycheck(cf,Base='Sums',ThisOne='Radin'):
-                RadiationIn = ast.literal_eval(cf['Sums']['Radin'])
-            else:
-                RadiationIn = ['Fld','Flu','Fn','Fsd','Fsu']
-            Fld,f,a = qcutils.GetSeriesasMA(ds,RadiationIn[0])
-            Flu,f,a = qcutils.GetSeriesasMA(ds,RadiationIn[1])
-            Fnr,f,a = qcutils.GetSeriesasMA(ds,RadiationIn[2])
-            Fsd,f,a = qcutils.GetSeriesasMA(ds,RadiationIn[3])
-            Fsu,f,a = qcutils.GetSeriesasMA(ds,RadiationIn[4])
-            RadiationOut = ['Fld_MJ','Flu_MJ','Fnr_MJ','Fsd_MJ','Fsu_MJ']
-            for index in range(0,5):
-                convert_energy(ds,RadiationIn[index],RadiationOut[index])
-                OutList.append(RadiationOut[index])
-                SumOutList.append(RadiationOut[index])
-                if ThisOne in SubSumList:
-                    log.error('  Subsum: Negative radiation flux not defined')
-        elif ThisOne == 'Carbon':
-            if qcutils.cfkeycheck(cf,Base='Sums',ThisOne='Cin'):
-                CIn = ast.literal_eval(cf['Sums']['Cin'])
-            else:
-                CIn = ['Fc']
-            
-            if qcutils.cfkeycheck(cf,Base='Sums',ThisOne='GPPin'):
-                GPPIn = ast.literal_eval(cf['Sums']['GPPin'])
-                GPP,f,a = qcutils.GetSeriesasMA(ds,GPPIn[0])
-                Re,f,a = qcutils.GetSeriesasMA(ds,GPPIn[1])
-                GPP_mmol = GPP * 1800 / 1000
-                Re_mmol = Re * 1800 / 1000
-                attr = qcutils.MakeAttributeDictionary(long_name='Cumulative 30-min GPP',units='mmol/m2',standard_name='gross_primary_productivity_of_carbon')
-                qcutils.CreateSeries(ds,'GPP_mmol',GPP_mmol,FList=[GPPIn[0]],Attr=attr)
-                attr = qcutils.MakeAttributeDictionary(long_name='Cumulative 30-min Re',units='mmol/m2')
-                qcutils.CreateSeries(ds,'Re_mmol',Re_mmol,FList=[GPPIn[1]],Attr=attr)
-                GPPOut = ['GPP_mmol','Re_mmol']
-                for listindex in range(0,2):
-                    OutList.append(GPPOut[listindex])
-                    SumOutList.append(GPPOut[listindex])
-            
-            Fc,f,a = qcutils.GetSeriesasMA(ds,CIn[0])
-            Fc_umol = Fc * 1e6 / (1000 * 44)               # umol/m2-s for min/max
-            Fc_mmol = Fc_umol * 1800 / 1000                # mmol/m2-30min for summing
-            Fc_g = Fc * 1800 / 1000                        # g/m2-30min for summing
-            attr = qcutils.MakeAttributeDictionary(long_name='Cumulative 30-min Flux',units='mmol/m2',standard_name='surface_upward_mole_flux_of_carbon_dioxide')
-            qcutils.CreateSeries(ds,'Fc_mmol',Fc_mmol,FList=CIn,Attr=attr)
-            attr = qcutils.MakeAttributeDictionary(long_name='Cumulative 30-min Flux',units='g/m2')
-            qcutils.CreateSeries(ds,'Fc_g',Fc_g,FList=CIn,Attr=attr)
-            COut = ['Fc_g','Fc_mmol']
-            for listindex in range(0,2):
-                OutList.append(COut[listindex])
-                SumOutList.append(COut[listindex])
-                if ThisOne in SubSumList:
-                    SubOutList.append(COut[listindex])
-        elif ThisOne == 'PM':
-            if qcutils.cfkeycheck(cf,Base='FunctionArgs',ThisOne='PMin'):
-                if 'Gst' not in ds.series.keys():
-                    SumList.remove('PM')
-                    info.error('  Penman-Monteith Daily sum: input Source not located')
-                else:
-                    Gst_mmol,f,a = qcutils.GetSeriesasMA(ds,'Gst')   # mmol/m2-s
-                    Gst_mol =  Gst_mmol * 1800 / 1000                 # mol/m2-30min for summing
-                    attr = qcutils.MakeAttributeDictionary(long_name='Cumulative 30-min Bulk Stomatal Conductance',units='mol/m2')
-                    qcutils.CreateSeries(ds,'Gst_mol',Gst_mol,FList=['Gst'],Attr=attr)
-                    PMout = 'Gst_mol'
-                    if PMout not in OutList:
-                        OutList.append(PMout)
-                    if ThisOne in SubSumList:
-                        log.error('  Subsum: Negative bulk stomatal conductance not defined')
-                    SumOutList.append(PMout)
-            else:
-                info.error('  Penman-Monteith Daily sums: input Source not defined')
-        else:
-            OutList.append(ThisOne)
-            SumOutList.append(ThisOne)
-    
-    for ThisOne in MinMaxList:
-        if ThisOne == 'Carbon':
-            if qcutils.cfkeycheck(cf,Base='Sums',ThisOne='Cin'):
-                CIn = ast.literal_eval(cf['Sums']['Cin'])
-            else:
-                CIn = ['Fc']
-            Fc,f,a = qcutils.GetSeriesasMA(ds,CIn[0])
-            Fc_umol = Fc * 1e6 / (1000 * 44)               # umol/m2-s for min/max
-            attr = qcutils.MakeAttributeDictionary(long_name='Average Flux',units='umol/(m2 s)',standard_name='surface_upward_mole_flux_of_carbon_dioxide')
-            qcutils.CreateSeries(ds,'Fc_umol',Fc_umol,FList=CIn,Attr=attr)
-            attr = qcutils.MakeAttributeDictionary(long_name='Average Flux',units='mg/(m2 s)')
-            qcutils.CreateSeries(ds,'Fc_mg',Fc,FList=CIn,Attr=attr)
-            COut = ['Fc_mg','Fc_umol']
-            for listindex in range(0,2):
-                OutList.append(COut[listindex])
-                MinMaxOutList.append(COut[listindex])
-        elif ThisOne == 'PM':
-            if ThisOne not in SumList:
-                if 'Gst' not in ds.series.keys() or 'rst' not in ds.series.keys():
-                    MinMaxList.remove('PM')
-                    PMout = []
-                    info.error('  Penman-Monteith Daily min/max: input Source not located')
-                else:
-                    PMout = ['rst','Gst']
-            else:
-                PMout = ['rst','Gst']
-            if len(PMout) > 0:
-                for listindex in range(0,2):
-                    if PMout[listindex] not in OutList:
-                        OutList.append(PMout[listindex])
-                    MinMaxOutList.append(PMout[listindex])
-        else:
-            if ThisOne not in OutList:
-                OutList.append(ThisOne)
-            MinMaxOutList.append(ThisOne)
-    
-    for ThisOne in MeanList:
-        if ThisOne == 'Energy' or ThisOne == 'Carbon' or ThisOne == 'Radiation':
-            log.error(' Mean error: '+ThisOne+' to be placed in SumList')
-        elif ThisOne == 'PM':
-            if ThisOne not in MinMaxList and ThisOne not in SumList:
-                if 'Gst' not in ds.series.keys() or 'rst' not in ds.series.keys():
-                    MeanList.remove('PM')
-                    PMout = []
-                    info.error('  Penman-Monteith Daily mean: input Source not located')
-                else:
-                    PMout = ['rst','Gst']
-            else:
-                PMout = ['rst','Gst']
-            if len(PMout) > 0:
-                for listindex in range(0,2):
-                    if PMout[listindex] not in OutList:
-                        OutList.append(PMout[listindex])
-                    MeanOutList.append(PMout[listindex])
-        else:
-            MeanOutList.append(ThisOne)
-            if ThisOne not in OutList:
-                OutList.append(ThisOne)
-    
-    if len(SoilList) > 0:
-        for ThisOne in SoilList:
-            if qcutils.cfkeycheck(cf,Base='Sums',ThisOne=ThisOne):
-                vars = ast.literal_eval(cf['Sums'][ThisOne])
-                for index in range(0,len(vars)):
-                    SoilOutList.append(vars[index])
-                OutList.append(ThisOne)
-    
-    xlFileName = cf['Files']['L4']['xlSumFilePath']+cf['Files']['L4']['xlSumFileName']
-    xlFile = xlwt.Workbook()
-    
-    for ThisOne in OutList:
-        xlSheet = xlFile.add_sheet(ThisOne)
-        xlCol = 0
-        if ThisOne in SumOutList:
-            if ThisOne in SubOutList:
-                write_sums(cf,ds,ThisOne,xlCol,xlSheet,DoSum='True',DoSubSum='True')
-            else:
-                write_sums(cf,ds,ThisOne,xlCol,xlSheet,DoSum='True')
-        
-        if ThisOne in MinMaxOutList:
-            if ThisOne in MeanOutList:
-                write_sums(cf,ds,ThisOne,xlCol,xlSheet,DoMinMax='True',DoMean='True')
-            else:
-                write_sums(cf,ds,ThisOne,xlCol,xlSheet,DoMinMax='True')
-        
-        if ThisOne in MeanOutList:
-            if ThisOne not in MinMaxOutList:
-                write_sums(cf,ds,ThisOne,xlCol,xlSheet,DoMean='True')
-        
-        if ThisOne in SoilList:
-            soilvars = ast.literal_eval(cf['Sums'][ThisOne])
-            for n in soilvars:
-                if n == soilvars[0]:
-                    xC,xS = write_sums(cf,ds,n,xlCol,xlSheet,DoSoil='True')
-                else:
-                    xC,xS = write_sums(cf,ds,n,xlCol,xS,DoSoil='True')
-                xlCol = xC + 1
-        
-    log.info(' Saving Excel file '+xlFileName)
-    xlFile.save(xlFileName)
-
-    log.info(' Daily sums: All done')
-
-def convert_energy(ds,InVar,OutVar):
-    """
-        Integrate energy flux over 30-min time period.
-        Converts flux in W/m2 to MJ/(m2 30-min)
-        
-        Usage qcts.convert_energy(ds,InVar,OutVar)
-        ds: data structure
-        InVar: name of input variable.  Example: 'Fe_gapfilled'
-        OutVar: name of output variable.  Example: 'Fe_MJ'
-        """
-    Wm2,f,a = qcutils.GetSeriesasMA(ds,InVar)
-    MJ = Wm2 * 1800 / 1e6
-    attr = qcutils.MakeAttributeDictionary(long_name=ds.series[InVar]['Attr']['long_name'],units='MJ/m2',standard_name=ds.series[InVar]['Attr']['standard_name'])
-    qcutils.CreateSeries(ds,OutVar,MJ,FList=[InVar],Attr=attr)
 
 def CoordRotation2D(cf,ds):
     """
@@ -1493,38 +1227,6 @@ def do_solo(cf,ds4,Fc_in='Fc',Fe_in='Fe',Fh_in='Fh',Fc_out='Fc',Fe_out='Fe',Fh_o
         attr = qcutils.MakeAttributeDictionary(long_name='ANN gapfilled Sensible Heat Flux',units='W/m2',standard_name='surface_upward_sensible_heat_flux')
         qcutils.CreateSeries(ds4,Fh_out,Fh,Flag=flag,Attr=attr)
 
-def do_sums(cf,ds):
-    if not qcutils.cfoptionskey(cf,Key='DoSums',default=False): return
-    # compute daily statistics
-    if qcutils.cfkeycheck(cf,Base='Sums',ThisOne='SumList'):
-        SumList = ast.literal_eval(cf['Sums']['SumList'])
-    else:
-        SumList = ['Rain','ET','Energy','Radiation','Carbon']
-    
-    if qcutils.cfkeycheck(cf,Base='Sums',ThisOne='SubSumList'):
-        SubSumList = ast.literal_eval(cf['Sums']['SubSumList'])
-    else:
-        SubSumList = []
-    
-    if qcutils.cfkeycheck(cf,Base='Sums',ThisOne='MinMaxList'):
-        MinMaxList = ast.literal_eval(cf['Sums']['MinMaxList'])
-    else:
-        MinMaxList = ['Ta','Vbat','Tpanel','Carbon']
-    
-    if qcutils.cfkeycheck(cf,Base='Sums',ThisOne='MeanList'):
-        MeanList = ast.literal_eval(cf['Sums']['MeanList'])
-    else:
-        MeanList = ['Ta','Tpanel']
-    
-    if qcutils.cfkeycheck(cf,Base='Sums',ThisOne='SoilList'):
-        SoilList = ast.literal_eval(cf['Sums']['SoilList'])
-    else:
-        SoilList = []
-    
-    StatsList = SumList + MinMaxList + MeanList + SoilList
-    if len(StatsList) > 0:
-        qcts.ComputeDailySums(cf,ds,SumList,SubSumList,MinMaxList,MeanList,SoilList)
-
 def Fc_WPL(cf,ds,Fc_wpl_out='Fc',Fc_raw_in='Fc',Fh_in='Fh',Fe_in='Fe',Ta_in='Ta',Ah_in='Ah',Cc_in='Cc',ps_in='ps'):
     """
         Apply Webb, Pearman and Leuning correction to carbon flux.  This
@@ -1948,7 +1650,7 @@ def get_synthetic_fsd(ds):
     nRecs = len(Fsd_syn)
     flag = numpy.zeros(nRecs,dtype=numpy.int32)
     attr = qcutils.MakeAttributeDictionary(long_name='Synthetic downwelling shortwave radiation',\
-                                           units='W/m2',standard_name='not defined')
+                                           units='W/m2',standard_name='surface_downwelling_shortwave_flux_in_air')
     qcutils.CreateSeries(ds,"Fsd_syn",Fsd_syn,Flag=flag,Attr=attr)
 
 def InvertSign(ds,ThisOne):
@@ -2486,160 +2188,3 @@ def TransformAlternate(TList,DateTime,Series,ts=30):
     Series = numpy.ma.masked_where(abs(Series-float(c.missing_value))<c.eps,Series)
     Series[si:ei] = qcutils.polyval(TList[2],Series[si:ei])
     Series = numpy.ma.filled(Series,float(c.missing_value))
-
-def write_sums(cf,ds,ThisOne,xlCol,xlSheet,DoSum='False',DoMinMax='False',DoMean='False',DoSubSum='False',DoSoil='False'):
-    monthabr = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-    if qcutils.cfkeycheck(cf,Base='Params',ThisOne='firstMonth'):
-        M1st = int(cf['Params']['firstMonth'])
-    else:
-        M1st = 1
-    if qcutils.cfkeycheck(cf,Base='Params',ThisOne='secondMonth'):
-        M2nd = int(cf['Params']['secondMonth'])
-    else:
-        M2nd = 12
-    log.info(' Doing daily sums for '+ThisOne)
-    Units = ds.series[ThisOne]['Attr']['units']
-    
-    xlRow = 1
-    if xlCol == 0:
-        xlSheet.write(xlRow,xlCol,'Month')
-        xlCol = xlCol + 1
-        xlSheet.write(xlRow,xlCol,'Day')
-        xlCol = xlCol + 1
-    xlSheet.write(xlRow,xlCol,'n')
-    xlCol = xlCol + 1
-    if DoMinMax == 'True':
-        xlSheet.write(xlRow,xlCol,ThisOne+'_min')
-        xlSheet.write(xlRow-1,xlCol,Units)
-        xlCol = xlCol + 1
-        xlSheet.write(xlRow,xlCol,ThisOne+'_max')
-        if DoMean == 'True':
-            xlSheet.write(xlRow-1,xlCol,Units)
-            xlCol = xlCol + 1
-            xlSheet.write(xlRow,xlCol,ThisOne+'_mean')
-    elif DoMinMax == 'False' and DoMean == 'True':
-        xlSheet.write(xlRow,xlCol,ThisOne+'_mean')
-    elif DoMinMax == 'False' and DoMean == 'False':
-        xlSheet.write(xlRow,xlCol,ThisOne)
-        
-    xlSheet.write(xlRow-1,xlCol,Units)
-
-    if DoSubSum == 'True':
-        xlCol = xlCol + 1
-        xlSheet.write(xlRow,xlCol,'Pos n')
-        xlCol = xlCol + 1
-        xlSheet.write(xlRow,xlCol,ThisOne+'_pos')
-        xlSheet.write(xlRow-1,xlCol,Units)
-        xlCol = xlCol + 1
-        xlSheet.write(xlRow,xlCol,'Neg n')
-        xlCol = xlCol + 1
-        xlSheet.write(xlRow,xlCol,ThisOne+'_neg')
-        xlSheet.write(xlRow-1,xlCol,Units)
-    
-    data = numpy.ma.masked_where(abs(ds.series[ThisOne]['Data']-float(c.missing_value))<c.eps,ds.series[ThisOne]['Data'])
-    for month in range(M1st,M2nd+1):
-        if month == 1 or month == 3 or month == 5 or month == 7 or month == 8 or month == 10 or month == 12:
-            dRan = 31
-        if month == 2:
-            if ds.series['Year']['Data'][0] % 4 == 0:
-                dRan = 29
-            else:
-                dRan = 28
-        if month == 4 or month == 6 or month == 9 or month == 11:
-            dRan = 30
-            
-        for day in range(1,dRan+1):
-            xlRow = xlRow + 1
-            if ThisOne == 'rst' or ThisOne == 'Gst' or ThisOne == 'Gst_mol':
-                di = numpy.where((ds.series['Month']['Data']==month) & (ds.series['Day']['Data']==day) & (ds.series[ThisOne]['Flag'] < 61))[0]
-                ti = numpy.where((ds.series['Month']['Data']==month) & (ds.series['Day']['Data']==day))[0]
-                nRecs = len(ti)
-                check = numpy.ma.empty(nRecs,str)
-                for i in range(nRecs):
-                    index = ti[i]
-                    check[i] = ds.series['Day']['Data'][index]
-                if len(check) < 48:
-                    di = []
-            elif ThisOne == 'GPP' or ThisOne == 'GPP_mmol':
-                di = numpy.where((ds.series['Month']['Data']==month) & (ds.series['Day']['Data']==day) & ((ds.series[ThisOne]['Flag'] != 31) & (ds.series[ThisOne]['Flag'] != 81)))[0]
-                ti = numpy.where((ds.series['Month']['Data']==month) & (ds.series['Day']['Data']==day))[0]
-                nRecs = len(ti)
-                check = numpy.ma.empty(nRecs,str)
-                for i in range(nRecs):
-                    index = ti[i]
-                    check[i] = ds.series['Day']['Data'][index]
-                if len(check) < 48:
-                    di = []
-            elif ThisOne == 'Re_mmol':
-                di = numpy.where((ds.series['Month']['Data']==month) & (ds.series['Day']['Data']==day) & ((ds.series[ThisOne]['Flag'] == 0) | (ds.series[ThisOne]['Flag'] > 69)))[0]
-                ti = numpy.where((ds.series['Month']['Data']==month) & (ds.series['Day']['Data']==day))[0]
-                nRecs = len(ti)
-                check = numpy.ma.empty(nRecs,str)
-                for i in range(nRecs):
-                    index = ti[i]
-                    check[i] = ds.series['Day']['Data'][index]
-                if len(check) < 48:
-                    di = []
-            else:
-                di = numpy.where((ds.series['Month']['Data']==month) & (ds.series['Day']['Data']==day))[0]
-                nRecs = len(di)
-                check = numpy.ma.empty(nRecs,str)
-                for i in range(nRecs):
-                    index = di[i]
-                    check[i] = ds.series['Day']['Data'][index]
-                if len(check) < 48:
-                    di = []
-            
-            if DoSoil == 'True':
-                Num,Av = get_soilaverages(data[di])
-                if xlCol == 3:
-                    xlCol = 2
-                    xlSheet.write(xlRow,xlCol-2,monthabr[month-1])
-                    xlSheet.write(xlRow,xlCol-1,day)
-                else:
-                    xlCol = xlCol - 1
-            else:
-                if DoSum == 'True':
-                    Num,Sum = get_sums(data[di])
-                if DoMinMax == 'True':
-                    Num,Min,Max = get_minmax(data[di])
-                if DoMean == 'True':
-                    if DoMinMax == 'True':
-                        Num2,Av = get_averages(data[di])
-                    else:
-                        Num,Av = get_averages(data[di])
-                if DoSubSum == 'True':
-                    PosNum,NegNum,SumPos,SumNeg = get_subsums(data[di])
-                xlCol = 2
-                xlSheet.write(xlRow,xlCol-2,monthabr[month-1])
-                xlSheet.write(xlRow,xlCol-1,day)
-            
-            xlSheet.write(xlRow,xlCol,Num)
-            xlCol = xlCol + 1
-            if DoSoil == 'True':
-                xlSheet.write(xlRow,xlCol,Av)
-            elif DoMinMax == 'True':
-                xlSheet.write(xlRow,xlCol,Min)
-                xlCol = xlCol + 1
-                xlSheet.write(xlRow,xlCol,Max)
-                if DoMean == 'True':
-                    xlCol = xlCol + 1
-                    xlSheet.write(xlRow,xlCol,Av)
-            elif DoMinMax == 'False' and DoMean == 'True':
-                xlSheet.write(xlRow,xlCol,Av)
-            elif DoSum == 'True':
-                xlSheet.write(xlRow,xlCol,Sum)
-                if DoSubSum == 'True':
-                    xlCol = xlCol + 1
-                    xlSheet.write(xlRow,xlCol,PosNum)
-                    xlCol = xlCol + 1
-                    xlSheet.write(xlRow,xlCol,SumPos)
-                    xlCol = xlCol + 1
-                    xlSheet.write(xlRow,xlCol,NegNum)
-                    xlCol = xlCol + 1
-                    xlSheet.write(xlRow,xlCol,SumNeg)
-    
-    if DoSoil == 'True': 
-        return xlCol,xlSheet
-    else:
-        return

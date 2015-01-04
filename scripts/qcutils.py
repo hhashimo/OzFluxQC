@@ -158,7 +158,7 @@ def ConvertCO2Units(cf,ds,Cc='Cc'):
             p,f,a = GetSeriesasMA(ds,'ps')
             c_ppm = mf.co2_ppmfrommgpm3(c_mgpm3,T,p)
             long_name = attr["long_name"]+", converted to umol/mol"
-            attr = MakeAttributeDictionary(long_name=long_name,units=Cc_units_out)
+            attr = MakeAttributeDictionary(long_name=long_name,units=Cc_units_out,standard_name='mole_concentration_of_carbon_dioxide_in_air')
             CreateSeries(ds,Cc,c_ppm,Flag=flag,Attr=attr)
         elif Cc_units_out=="mg/m3" and Cc_units_in=="umol/mol":
             c_ppm,flag,attr = GetSeriesasMA(ds,Cc)
@@ -166,7 +166,7 @@ def ConvertCO2Units(cf,ds,Cc='Cc'):
             p,f,a = GetSeriesasMA(ds,'ps')
             c_mgpm3 = mf.co2_mgpm3fromppm(c_ppm,T,p)
             long_name = attr["long_name"]+", converted to mg/m3"
-            attr = MakeAttributeDictionary(long_name=long_name,units=Cc_units_out)
+            attr = MakeAttributeDictionary(long_name=long_name,units=Cc_units_out,standard_name='mass_concentration_of_carbon_dioxide_in_air')
             CreateSeries(ds,Cc,c_mgpm3,Flag=flag,Attr=attr)
         else:
             log.info('  ConvertCO2Units: input or output units for CO2 concentration not recognised')
@@ -185,13 +185,13 @@ def ConvertFcUnits(cf,ds,Fc='Fc',Fc_storage='Fc_storage'):
                 Fc_mgpm2ps,flag,attr = GetSeriesasMA(ds,Fc)
                 Fc_umolpm2ps = mf.Fc_umolpm2psfrommgpm2ps(Fc_mgpm2ps)
                 long_name = attr["long_name"]+', converted to umol/m2/s'
-                attr =MakeAttributeDictionary(long_name=long_name,units=Fc_units_out)
+                attr =MakeAttributeDictionary(long_name=long_name,units=Fc_units_out,standard_name='surface_upward_mole_flux_of_carbon_dioxide')
                 CreateSeries(ds,Fc,Fc_umolpm2ps,Flag=flag,Attr=attr)
             elif Fc_units_out=="mg/m2/s" and Fc_units_in=="umol/m2/s":
                 Fc_umolpm2ps,f,a = GetSeriesasMA(ds,Fc)
                 Fc_mgpm2ps = mf.Fc_mgpm2psfromumolpm2ps(Fc_umolpm2ps)
                 long_name = attr["long_name"]+', converted to mg/m2/s'
-                attr = MakeAttributeDictionary(long_name=long_name,units=Fc_units_out)
+                attr = MakeAttributeDictionary(long_name=long_name,units=Fc_units_out,standard_name='not defined')
                 CreateSeries(ds,Fc,Fc_mgpm2ps,Flag=flag,Attr=attr)
             else:
                 log.info('  ConvertFcUnits: input or output units for Fc unrecognised')

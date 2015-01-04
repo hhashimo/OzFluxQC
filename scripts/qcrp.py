@@ -434,7 +434,7 @@ def GetFreFromFc(cf,ds):
     # loop over the list of ustar thresholds
     # make the attribute dictionary first so we can add the ustar thresholds to it
     attr = qcutils.MakeAttributeDictionary(long_name='Ecosystem respiration (observed)',units=Fc_attr["units"],
-                                           Fsd_threshold=str(Fsd_threshold))
+                                           Fsd_threshold=str(Fsd_threshold),standard_name='surface_upward_mass_flux_of_carbon_dioxide_expressed_as_carbon_due_to_emission_from_natural_sources')
     for i,list_item in enumerate(ustar_threshold_list):
         attr["ustar_threshold_"+str(i)] = str(list_item)
         # get the start and end datetime indices
