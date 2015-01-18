@@ -30,6 +30,8 @@
   	canopy_height  = ""
   	comment        = "CF metadata, OzFlux standard variable names"
   	elevation      = ""
+    conventions = "CF-1.6"
+    conventions_names = "CF convention standard names table version 27, 28 Nov 2013, audited 4 Jan 2015"
   	data_url       = "http://data.ozflux.org.au/"
     doi            = "DOI:????"
   	history        = "V2.6.3 September 2013"
@@ -72,7 +74,7 @@
             instrument = "NR Lite"
             long_name = "Net radiation (NRLite)"
             serial_number = ""
-            standard_name = "not defined"
+            standard_name = "surface_net_downwawrd_radiative_flux"
             units = "W/m2"
     [[Fld]]
         [[[xl]]]
@@ -317,7 +319,7 @@
             instrument = "CSAT"
             long_name = "Virtual air temperature"
             serial_number = ""
-            standard_name = "not defined"
+            standard_name = "virtual_temperature"
             units = "C"
 # Meteorology: Li-7500 average H2O and CO2 concentrations
     [[Cc_7500_Av]]
@@ -330,7 +332,7 @@
             instrument = "Li-7500"
             long_name = "CO2 concentration, average"
             serial_number = ""
-            standard_name = "not defined"
+            standard_name = "mass_concentration_of_carbon_dioxide_in_air"
             units = "mg/m3"
     [[Ah_7500_Av]]
         [[[xl]]]
@@ -342,7 +344,7 @@
             instrument = "Li-7500"
             long_name = "Absolute humidity, average"
             serial_number = ""
-            standard_name = "not defined"
+            standard_name = "mass_concentration_of_water_vapor_in_air"
             units = "g/m3"
 # Meteorology: Li-7500 variance of H2O and CO2 concentrations
     [[AhAh]]
@@ -380,7 +382,7 @@
             instrument = "HMP45C"
             long_name = "Absolute humidity, average"
             serial_number = ""
-            standard_name = "not defined"
+            standard_name = "mass_concentration_of_water_vapor_in_air"
             units = "g/m3"
 # Meteorology: HMP45 temperatures
     [[Ta_HMP_<height>m]]
@@ -393,7 +395,7 @@
             instrument = "HMP45C"
             long_name = "Air temperature, average"
             serial_number = ""
-            standard_name = "not defined"
+            standard_name = "air_temperature"
             units = "C"
 # Soil: Ground heat flux
     [[Fg_8cma]]
@@ -406,7 +408,7 @@
             instrument = "Middleton CN3"
             long_name = "Ground heat flux, sensor 1a"
             serial_number = ""
-            standard_name = "not defined"
+            standard_name = "downward_heat_flux_in_soil"
             units = "W/m2"
     [[Fg_8cmb]]
         [[[xl]]]
@@ -418,7 +420,7 @@
             instrument = "Middleton CN3"
             long_name = "Ground heat flux, sensor 1b"
             serial_number = ""
-            standard_name = "not defined"
+            standard_name = "downward_heat_flux_in_soil"
             units = "W/m2"
     [[Fg_8cmc]]
         [[[xl]]]
@@ -430,7 +432,7 @@
             instrument = "Middleton CN3"
             long_name = "Ground heat flux, sensor 1c"
             serial_number = ""
-            standard_name = "not defined"
+            standard_name = "downward_heat_flux_in_soil"
             units = "W/m2"
 # Soil: Volumetric soil water content
 # Repeat the following section for as many soil moisture sensors
@@ -445,7 +447,7 @@
             instrument = "Campbell Scientific CS616"
             long_name = "Soil water fraction, sensor 1a"
             serial_number = ""
-            standard_name = "not defined"
+            standard_name = "soil_moisture_content"
             units = "frac"
 # Soil: Soil temperature
     [[Ts_8cma]]
@@ -458,7 +460,7 @@
             instrument = "Campbell Scientific TCAV"
             long_name = "Soil temperature, sensor 1a"
             serial_number = ""
-            standard_name = "not defined"
+            standard_name = "soil_temperature"
             units = "C"
     [[Ts_8cmb]]
         [[[xl]]]
@@ -470,7 +472,7 @@
             instrument = "Campbell Scientific TCAV"
             long_name = "Soil temperature, sensor 1b"
             serial_number = ""
-            standard_name = "not defined"
+            standard_name = "soil_temperature"
             units = "C"
     [[Ts_8cmc]]
         [[[xl]]]
@@ -482,7 +484,7 @@
             instrument = "Campbell Scientific TCAV"
             long_name = "Soil temperature, sensor 1c"
             serial_number = ""
-            standard_name = "not defined"
+            standard_name = "soil_temperature"
             units = "C"
 # Meteorology: Rain
     [[Precip]]
@@ -495,7 +497,7 @@
             instrument = "Hydrological Services CS7000"
             long_name = "Rainfall, 30 minute total"
             serial_number = ""
-            standard_name = "not defined"
+            standard_name = "rainfall_amount"
             units = "mm"
 # Meteorology: Wind speed and direction from the WindSonic
     [[Wd_WS4]]
@@ -533,7 +535,7 @@
             instrument = "CSAT"
             long_name = "Wind direction"
             serial_number = ""
-            standard_name = "not defined"
+            standard_name = "wind_from_direction"
             units = "deg"
     [[Ws_CSAT]]
         [[[xl]]]
@@ -545,7 +547,7 @@
             instrument = "CSAT"
             long_name = "Wind speed"
             serial_number = ""
-            standard_name = "not defined"
+            standard_name = "wind_speed"
             units = "m/s"
     [[Ux]]
         [[[xl]]]

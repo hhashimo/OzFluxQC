@@ -14,20 +14,6 @@ def absolutehumidityfromRH(Ta,RH):
     if WasND: ah, WasMA = MAtoSeries(ah)    
     return ah
 
-def aerodynamicresistance(Uavg,Ce):
-    # Calculate the aerodynamic resistance, Stull 1988
-    #  U - wind speed
-    #  Ce - bulk transfer coefficient
-    # Returns
-    #  rav, s/m
-    rav = 1 / (Uavg * Ce)
-    return rav
-
-def bulktransfercoefficient(Fe,Lv,Uavg,q,qsat):
-    # Calculate the bulk transfer coefficient to be used in aerodynamic resistance, Stull 1988
-    Ce = (0 - (Fe / (Lv / 1000))) / (Uavg * (q - qsat))
-    return Ce
-
 def co2_ppmfrommgpm3(c_mgpm3,T,p):
     """
      Convert CO2 concentration units of mg/m3 to umol/mol (ppm)
@@ -73,14 +59,6 @@ def co2_mgpm3fromppm(c_ppm,T,p):
     # convert back to ndarray if input is not a masked array
     if WasND: c_mgpm3, WasMA = MAtoSeries(c_mgpm3)
     return c_mgpm3
-
-def delta(Ta):
-    # Calculate the slope of the saturation vapour pressure curve
-    #  Ta - air temperature
-    # Returns
-    #  delta, kPa/K
-    delta = (2503 / ((Ta + 237.3) ** 2 )) * numpy.ma.exp((17.27 * Ta) / (Ta + 237.3))
-    return delta
 
 def densitydryair(Ta,ps,vp):
     # Calculate density of dry air from temperature, pressure and vapour pressure
@@ -154,17 +132,6 @@ def Fc_mgpm2psfromumolpm2ps(Fc_umolpm2ps):
     if WasND: Fc_mgpm2ps, WasMA = MAtoSeries(Fc_mgpm2ps)
     return Fc_mgpm2ps
 
-# the following code is not used as of 29/7/2014
-# Tom van Neil has reported that the units of gamma given in the
-# comments (kPa/K) are inconsistent with the equations used.
-#def gamma(ps,Cpm,Lv):
-    ## Calculate the approximate psychrometric coefficient
-    ##  ps - atmopsheric pressure, kPa
-    ## Returns
-    ##  gamma, kPa/K
-    #gamma = (Cpm * ps) / (0.622 * (Lv / 1000))
-    #return gamma
-
 def h2o_mmolpmolfromgpm3(h_gpm3,T,p):
     """
      Convert H2O concentration units of g/m3 to mmol/mol.
@@ -205,7 +172,7 @@ def mixingratio(ps,vp):
 
 def molen(T,Ah,p,ustar,heatflux,fluxtype='sensible'):
     # Calculate the Monin-Obukhov length
-    ustar = numpy.ma.sqrt(numpy.ma.sqr(ustar))    # force the sign of ustar to be positive
+    ustar = numpy.ma.sqrt(numpy.square(ustar))    # force the sign of ustar to be positive
     vp = vapourpressure(Ah,T)       # calculate the vapour pressure
     mr = mixingratio(p,vp)          # calculate the mixing ratio
     Tv = theta(T,p)                 # calculate potential temperature
@@ -217,12 +184,6 @@ def molen(T,Ah,p,ustar,heatflux,fluxtype='sensible'):
     else:
         raise Exception(" meteorologicalfunctions.molen: unkown value for fluxtype (="+str(fluxtype)+") encountered")
     return L
-
-# molenv does not seem to be used anywhere, function removed by PRI on 7/6/2013
-#def molenv(Tv,ustar,Fhv):
-    ## Calculate the Obukhov length using sonic virtual temperature measurement
-    #L = -(Tv * ustar ** 3) / (c.k * c.g * Fhv)
-    #return L
 
 def qfromrh(RH, T, p):
     # Specific humidity (kg/kg) from relative humidity, temperature and pressure

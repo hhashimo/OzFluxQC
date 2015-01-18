@@ -26,6 +26,7 @@
 #             - the following switches control processing options
 #               - defaults as indicated, options are listed after the # symbol
 #               - default values are used if these switches are not present
+#    UseL2Fluxes             = No            # Yes/No, use fluxes from L2 file, do not calculate fluxes from covariances
 #    2DCoordRotation         = Yes           # Yes/No, apply the 2D coordinate rotation
 #    MassmanCorrection       = No            # Yes/No, apply the Massman correction
 #    ApplyFcStorage          = No            # Yes/No, correct Fc for storage, single point
@@ -171,11 +172,6 @@
             Lower      = "[-1]*12"
             Upper      = "[1]*12"
     [[ustar]]
-        [[[RangeCheck]]]
-            Lower      = "[0]*12"
-            Upper      = "[2]*12"
-    [[ustar_filtered]]
-        ustar_threshold = 0.25
         [[[RangeCheck]]]
             Lower      = "[0]*12"
             Upper      = "[2]*12"

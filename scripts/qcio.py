@@ -255,7 +255,7 @@ def fn_write_csv(cf):
         Ah,f,a = qcutils.GetSeriesasMA(ds,'Ah')
         Ta,f,a = qcutils.GetSeriesasMA(ds,'Ta')
         RH = mf.RHfromabsolutehumidity(Ah, Ta)
-        attr = qcutils.MakeAttributeDictionary(long_name='Relative humidity',units='%',standard_name='not defined')
+        attr = qcutils.MakeAttributeDictionary(long_name='Relative humidity',units='%',standard_name='relative_humidity')
         qcutils.CreateSeries(ds,"RH",RH,FList=['Ta','Ah'],Attr=attr)
     ts = int(ds.globalattributes["time_step"])
     ts_delta = datetime.timedelta(minutes=ts)
@@ -611,6 +611,7 @@ def nc_concatenate(cf):
                 log.info("Converting Fc to umol/m2/s")
                 Fc = mf.Fc_umolpm2psfrommgpm2ps(Fc)
                 attr['units'] = 'umol/m2/s'
+                attr['standard_name'] = 'surface_upward_mole_flux_of_carbon_dioxide'
                 qcutils.CreateSeries(ds_n,ThisOne,Fc,Flag=flag,Attr=attr)
         ds.series[ThisOne] = {}
         ds.series[ThisOne]['Data'] = ds_n.series[ThisOne]['Data']
@@ -653,6 +654,7 @@ def nc_concatenate(cf):
                     log.info("Converting Fc to umol/m2/s")
                     Fc = mf.Fc_umolpm2psfrommgpm2ps(Fc)
                     attr['units'] = 'umol/m2/s'
+                    attr['standard_name'] = 'surface_upward_mole_flux_of_carbon_dioxide'
                     qcutils.CreateSeries(ds_n,ThisOne,Fc,Flag=flag,Attr=attr)
             # does this series exist in the file being added to the concatenated file
             if ThisOne in ds_n.series.keys():
