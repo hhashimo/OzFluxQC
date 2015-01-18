@@ -1,5 +1,8 @@
 version_name = "OzFluxQC"
-version_number = "V2.8.5"
+version_number = "V2.8.6"
+# V2.8.6   - added a new switch "UseL2Fluxes" to the L3 processing:
+#            - if true, skip calculating fluxes from covariances and skip corrections
+#            - if false (default), use covariances as normal
 # V2.8.5   - miscellaneous changes arising from use of V2.8.4 at the
 #            2014 OzFlux Data Workshop
 # V2.8.4   - changes as follows:

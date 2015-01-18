@@ -1,4 +1,6 @@
 import ast
+import sys
+sys.path.append('../scripts')
 import constants as c
 import datetime
 import matplotlib.pyplot as plt
@@ -90,10 +92,10 @@ PlotTitle = SiteName + ': ' + str(DateTime[0]) + ' to ' + str(DateTime[-1])
 
 # first figure is general plots of Fc as a function of ustar, Ts and Sws
 # get the data as masked arrays
-Fc,f=qcutils.GetSeriesasMA(ds3,'Fc')
+Fc,f,a=qcutils.GetSeriesasMA(ds3,'Fc')
 Fc_units = ds3.series['Fc']['Attr']['units']
-us,f=qcutils.GetSeriesasMA(ds3,'ustar')
-Fsd,f=qcutils.GetSeriesasMA(ds3,'Fsd')
+us,f,a=qcutils.GetSeriesasMA(ds3,'ustar')
+Fsd,f,a=qcutils.GetSeriesasMA(ds3,'Fsd')
 nFig = 1
 fig = plt.figure(nFig,figsize=(8,8))
 plt.figtext(0.5,0.95,PlotTitle,horizontalalignment='center',size=16)
@@ -107,12 +109,12 @@ xyplot(us_night,Fc_night,sub=[2,2,1],title="Night",xlabel='u* (m/s)',ylabel='Fc 
 # scatter plot of Fc binned on ustar
 bin_size = 0.05
 # get the data as numpy array (not masked)
-Fc,f = qcutils.GetSeries(ds3,'Fc')
-us,f = qcutils.GetSeries(ds3,'ustar')
-Fsd,f = qcutils.GetSeries(ds3,'Fsd')
-Ts,f = qcutils.GetSeries(ds3,'Ts')
-Sws,f=qcutils.GetSeries(ds3,'Sws')
-month,f=qcutils.GetSeries(ds3,'Month')
+Fc,f,a = qcutils.GetSeries(ds3,'Fc')
+us,f,a = qcutils.GetSeries(ds3,'ustar')
+Fsd,f,a = qcutils.GetSeries(ds3,'Fsd')
+Ts,f,a = qcutils.GetSeries(ds3,'Ts')
+Sws,f,a = qcutils.GetSeries(ds3,'Sws')
+month,f,a = qcutils.GetSeries(ds3,'Month')
 # make sure all data is missing if one series is missing
 #  - there are more more efficient ways to do this
 for s1 in [Fc,us,Fsd,Ts,Sws]:
@@ -245,57 +247,57 @@ for i in [12,1,2,3,4,5,6,7,8,9,10,11]:
 figname='../plots/'+ds3.globalattributes['site_name'].replace(' ','')+'_'+ds3.globalattributes['nc_level']+'_'+'FcLloydTaylor_monthly.png'
 fig.savefig(figname,format='png')
 
-# fourth figure is thumbnails of Fc vs Fsd for day time conditions with
-# the Lasslop et al 2010 LUE fitted
-window_size = 10    # number of days in the data window
-nWindows = 36
-nrows = 6
-ncols = 6
-ldt = ds3.series['DateTime']['Data']
-StartDate = ldt[0]
-nFig = nFig + 1
-#fig = plt.figure(nFig,figsize=(7.5,10.9))
-fig,ax = plt.subplots(6,6,sharex=True,sharey=True)
-fig.subplots_adjust(hspace=0)
-fig.subplots_adjust(wspace=0)
-plt.figtext(0.5,0.95,'Respiration: LUE intercept',horizontalalignment='center',size=16)
-for n in range(nWindows):
-    EndDate = StartDate + datetime.timedelta(days=window_size)
-    si = qcutils.GetDateIndex(ldt,str(StartDate),ts=30,default=0,match='exact')
-    ei = qcutils.GetDateIndex(ldt,str(EndDate),ts=30,default=-1,match='exact')
-    Fsd,f = qcutils.GetSeries(ds3,'Fsd',si=si,ei=ei)
-    Fc,f = qcutils.GetSeries(ds3,'Fc',si=si,ei=ei)
-    VPD,f = qcutils.GetSeries(ds3,'VPD',si=si,ei=ei)
-    us,f = qcutils.GetSeries(ds3,'ustar',si=si,ei=ei)
-    # get the day time data
-    index = numpy.where((Fsd>Fsd_lower)&(Fsd<Fsd_upper)&(Fsd!=float(-9999))&(Fc!=float(-9999))&(VPD!=float(-9999))&(us>0.10))[0]
-    Fsd_day = Fsd[index]
-    Fc_day = Fc[index]
-    VPD_day = VPD[index]
-    VPD_day = float(10) * VPD_day
-    ax = plt.subplot(6,6,n)
-    plt.plot(Fsd_day,Fc_day,'b.')
-    plt.xlim(0,1200)
-    plt.ylim(-50,20)
-    plt.gca().invert_yaxis()
-    ax.text(0.075,0.85,StartDate.strftime('%Y-%m-%d'),horizontalalignment='left',transform=ax.transAxes,fontsize=10)
-    if n not in [1,7,13,19,25,31]: plt.setp(ax.get_yticklabels(),visible=False)
-    if n not in [31,32,33,34,35,0]: plt.setp(ax.get_xticklabels(),visible=False)
-    # now do the curve fit
-    try:
-        data = []
-        data.append(Fsd_day)
-        data.append(VPD_day)
-        popt, pcov = curve_fit(NEE_Lasslop_org, data, Fc_day,p0=(-0.1,-100,0,10))
-        Yfit = NEE_Lasslop_org(data, *popt)
-        plt.plot(Fsd_day,Yfit,'r.')
-        textstr = '(%.3f,%.1f,%.1f)'%(popt[0],popt[1],popt[2])
-        ax.text(0.9,0.075,textstr,horizontalalignment='right',transform=ax.transAxes,fontsize=10)
-    except:
-        pass
-    StartDate = EndDate
-figname='../plots/'+ds3.globalattributes['site_name'].replace(' ','')+'_'+ds3.globalattributes['nc_level']+'_'+'LUE_10day.png'
-fig.savefig(figname,format='png')
+## fourth figure is thumbnails of Fc vs Fsd for day time conditions with
+## the Lasslop et al 2010 LUE fitted
+#window_size = 10    # number of days in the data window
+#nWindows = 36
+#nrows = 6
+#ncols = 6
+#ldt = ds3.series['DateTime']['Data']
+#StartDate = ldt[0]
+#nFig = nFig + 1
+##fig = plt.figure(nFig,figsize=(7.5,10.9))
+#fig,ax = plt.subplots(6,6,sharex=True,sharey=True)
+#fig.subplots_adjust(hspace=0)
+#fig.subplots_adjust(wspace=0)
+#plt.figtext(0.5,0.95,'Respiration: LUE intercept',horizontalalignment='center',size=16)
+#for n in range(nWindows):
+    #EndDate = StartDate + datetime.timedelta(days=window_size)
+    #si = qcutils.GetDateIndex(ldt,str(StartDate),ts=30,default=0,match='exact')
+    #ei = qcutils.GetDateIndex(ldt,str(EndDate),ts=30,default=-1,match='exact')
+    #Fsd,f,a = qcutils.GetSeries(ds3,'Fsd',si=si,ei=ei)
+    #Fc,f,a = qcutils.GetSeries(ds3,'Fc',si=si,ei=ei)
+    #VPD,f,a = qcutils.GetSeries(ds3,'VPD',si=si,ei=ei)
+    #us,f,a = qcutils.GetSeries(ds3,'ustar',si=si,ei=ei)
+    ## get the day time data
+    #index = numpy.where((Fsd>Fsd_lower)&(Fsd<Fsd_upper)&(Fsd!=float(-9999))&(Fc!=float(-9999))&(VPD!=float(-9999))&(us>0.10))[0]
+    #Fsd_day = Fsd[index]
+    #Fc_day = Fc[index]
+    #VPD_day = VPD[index]
+    #VPD_day = float(10) * VPD_day
+    #ax = plt.subplot(6,6,n)
+    #plt.plot(Fsd_day,Fc_day,'b.')
+    #plt.xlim(0,1200)
+    #plt.ylim(-50,20)
+    #plt.gca().invert_yaxis()
+    #ax.text(0.075,0.85,StartDate.strftime('%Y-%m-%d'),horizontalalignment='left',transform=ax.transAxes,fontsize=10)
+    #if n not in [1,7,13,19,25,31]: plt.setp(ax.get_yticklabels(),visible=False)
+    #if n not in [31,32,33,34,35,0]: plt.setp(ax.get_xticklabels(),visible=False)
+    ## now do the curve fit
+    #try:
+        #data = []
+        #data.append(Fsd_day)
+        #data.append(VPD_day)
+        #popt, pcov = curve_fit(NEE_Lasslop_org, data, Fc_day,p0=(-0.1,-100,0,10))
+        #Yfit = NEE_Lasslop_org(data, *popt)
+        #plt.plot(Fsd_day,Yfit,'r.')
+        #textstr = '(%.3f,%.1f,%.1f)'%(popt[0],popt[1],popt[2])
+        #ax.text(0.9,0.075,textstr,horizontalalignment='right',transform=ax.transAxes,fontsize=10)
+    #except:
+        #pass
+    #StartDate = EndDate
+#figname='../plots/'+ds3.globalattributes['site_name'].replace(' ','')+'_'+ds3.globalattributes['nc_level']+'_'+'LUE_10day.png'
+#fig.savefig(figname,format='png')
 
 ## let's see how well SOFM/SOLO does
 #driverlist = ast.literal_eval(cf['SOLO']['drivers'])

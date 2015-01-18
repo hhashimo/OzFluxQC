@@ -132,17 +132,19 @@ def l3qc(cf,ds2):
     qcts.MergeSeries(cf,ds3,'Cc',[0,10])
     # add relevant meteorological values to L3 data
     qcts.CalculateMeteorologicalVariables(ds3)
-    # do the 2D coordinate rotation
-    qcts.CoordRotation2D(cf,ds3)
-    # do the Massman frequency attenuation correction
-    qcts.MassmanStandard(cf,ds3)
-    # calculate the fluxes
-    qcts.CalculateFluxes(cf,ds3)
-    # approximate wT from virtual wT using wA (ref: Campbell OPECSystem manual)
-    qcts.FhvtoFh(cf,ds3)
-    # correct the H2O & CO2 flux due to effects of flux on density measurements
-    qcts.Fe_WPL(cf,ds3)
-    qcts.Fc_WPL(cf,ds3)
+    # check to see if the user wants to use the fluxes in the L2 file
+    if not qcutils.cfoptionskey(cf,Key="UseL2Fluxes",default="False"):
+        # do the 2D coordinate rotation
+        qcts.CoordRotation2D(cf,ds3)
+        # do the Massman frequency attenuation correction
+        qcts.MassmanStandard(cf,ds3)
+        # calculate the fluxes
+        qcts.CalculateFluxes(cf,ds3)
+        # approximate wT from virtual wT using wA (ref: Campbell OPECSystem manual)
+        qcts.FhvtoFh(cf,ds3)
+        # correct the H2O & CO2 flux due to effects of flux on density measurements
+        qcts.Fe_WPL(cf,ds3)
+        qcts.Fc_WPL(cf,ds3)
     # convert CO2 units if required
     qcutils.ConvertCO2Units(cf,ds3,Cc='Cc')
     # calculate Fc storage term - single height only at present
@@ -230,7 +232,7 @@ def l4qc(cf,ds3):
     for ThisOne in cf["Drivers"].keys():
         if ThisOne not in ds4.series.keys(): log.error("Series "+ThisOne+" not in data structure"); continue
         # interpolate over short gaps
-        qcts.InterpolateOverMissing(ds4,series=ThisOne,maxlen=6)
+        qcts.InterpolateOverMissing(ds4,series=ThisOne,maxlen=3)
         # parse the control file for information on how the user wants to do the gap filling
         qcgf.GapFillParseControlFile(cf,ds4,ThisOne,ds_alt)
     # *** start of the section that does the gap filling of the drivers ***
@@ -277,7 +279,7 @@ def l5qc(cf,ds4):
     # now do the flux gap filling methods
     for ThisOne in cf["Fluxes"].keys():
         # interpolate over any gaps up to 1 hour in length
-        qcts.InterpolateOverMissing(ds5,series=ThisOne,maxlen=6)
+        qcts.InterpolateOverMissing(ds5,series=ThisOne,maxlen=3)
         # parse the control file for information on how the user wants to do the gap filling
         qcgf.GapFillParseControlFile(cf,ds5,ThisOne,ds_alt)
     # *** start of the section that does the gap filling of the fluxes ***
