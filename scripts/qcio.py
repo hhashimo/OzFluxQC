@@ -1191,7 +1191,7 @@ def xl_write_series(ds, xlfullname, outputlist=None):
         nRecs = len(ds.series[variablelist[0]]["Data"])
     # open the Excel file
     log.info(' Opening and writing Excel file '+xlfullname)
-    xlfile = xlwt.Workbook()
+    xlfile = xlwt.Workbook(encoding="latin-1")
     # add sheets to the Excel file
     xlAttrSheet = xlfile.add_sheet('Attr')
     xlDataSheet = xlfile.add_sheet('Data')
@@ -1206,7 +1206,7 @@ def xl_write_series(ds, xlfullname, outputlist=None):
     globalattrlist.sort()
     for ThisOne in sorted([x for x in globalattrlist if 'Flag' not in x]):
         xlAttrSheet.write(xlrow,xlcol,ThisOne)
-        xlAttrSheet.write(xlrow,xlcol+1,str(ds.globalattributes[ThisOne]))
+        xlAttrSheet.write(xlrow,xlcol+1,ds.globalattributes[ThisOne])
         xlrow = xlrow + 1
     for ThisOne in sorted([x for x in globalattrlist if 'Flag' in x]):
         xlAttrSheet.write(xlrow,xlcol,ThisOne)
