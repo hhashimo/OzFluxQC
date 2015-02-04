@@ -79,7 +79,7 @@ def write_data_1columnpertimestep(xlSheet, data, ts, year=None, format_string=''
     xlSheet.write(1,xlCol,'Day')
     nrows = numpy.shape(tmp)[0]
     ncols = numpy.shape(tmp)[1]
-    if year==None:
+    if year is None:
         for j in range(nrows+1):
             xlSheet.write(j+2,xlCol,j)
     else:

@@ -2073,9 +2073,9 @@ def ReplaceWhereMissing(Destination,Primary,Secondary,FlagOffset=None,FlagValue=
     index = numpy.where((abs(p_data-float(c.missing_value))<c.eps)&
                         (abs(s_data-float(c.missing_value))>c.eps))[0]
     p_data[index] = s_data[index]
-    if FlagValue==None and FlagOffset!=None:
+    if FlagValue is None and FlagOffset is not None:
         p_flag[index] = s_flag[index] + numpy.int32(FlagOffset)
-    elif FlagValue!=None and FlagOffset==None:
+    elif FlagValue is not None and FlagOffset is None:
         p_flag[index] = numpy.int32(FlagValue)
     else:
         p_flag[index] = s_flag[index]

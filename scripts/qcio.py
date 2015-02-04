@@ -689,7 +689,9 @@ def nc_concatenate(cf):
     # get a list of series in ds excluding the QC flags
     series_list = [item for item in ds.series.keys() if "_QCFlag" not in item]
     # remove the datetime variables, these will have no gaps
-    for item in ["DateTime","DateTime_UTC","xlDateTime","xlDateTime_UTC","Year","Month","Day","Hour","Minute","Second","Hdh"]:
+    datetime_list = ["xlDateTime","xlDateTime_UTC","DateTime","DateTime_UTC",
+                    "Year","Month","Day","Hour","Minute","Second","Hdh","Ddd"]
+    for item in datetime_list:
         if item in series_list: series_list.remove(item)
     # loop over the non-datetime data series in ds and interpolate
     # get the maximum gap length (in hours) from the control file
@@ -754,9 +756,10 @@ def nc_read_series(ncFullName):
     # get series of UTC datetime
     qcutils.get_UTCfromlocaltime(ds)
     # tell the user when the data starts and ends
-    ldt = ds.series["DateTime"]["Data"]
-    msg = " Got data from "+ldt[0].strftime("%Y-%m-%d %H:%M")+" to "+ldt[-1].strftime("%Y-%m-%d %H:%M")
-    log.info(msg)
+    #ldt = ds.series["DateTime"]["Data"]
+    #print ldt[0],ldt[-1]
+    #msg = " Got data from "+ldt[0].strftime("%Y-%m-%d %H:%M")+" to "+ldt[-1].strftime("%Y-%m-%d %H:%M")
+    #log.info(msg)
     return ds
 
 def nc_read_todf(ncFullName,var_data=[]):
@@ -903,7 +906,7 @@ def nc_write_series(ncFile,ds,outputlist=None,ndims=3):
         dims = ("time","latitude","longitude")
     else:
         dims = ("time",)
-    if outputlist==None:
+    if outputlist is None:
         outputlist = ds.series.keys()
     else:
         for ThisOne in outputlist:
@@ -916,14 +919,14 @@ def nc_write_series(ncFile,ds,outputlist=None,ndims=3):
     for ThisOne in ["DateTime","DateTime_UTC"]:
         if ThisOne in outputlist: outputlist.remove(ThisOne)
     # write the time variable
-    if "time" not in outputlist:
-        nc_time = netCDF4.date2num(ldt,"days since 1800-01-01 00:00:00.0",calendar="gregorian")
-        ncVar = ncFile.createVariable("time","d",("time",))
-        ncVar[:] = nc_time
-        setattr(ncVar,"long_name","time")
-        setattr(ncVar,"standard_name","time")
-        setattr(ncVar,"units","days since 1800-01-01 00:00:00.0")
-        setattr(ncVar,"calendar","gregorian")
+    nc_time = netCDF4.date2num(ldt,"days since 1800-01-01 00:00:00.0",calendar="gregorian")
+    ncVar = ncFile.createVariable("time","d",("time",))
+    ncVar[:] = nc_time
+    setattr(ncVar,"long_name","time")
+    setattr(ncVar,"standard_name","time")
+    setattr(ncVar,"units","days since 1800-01-01 00:00:00.0")
+    setattr(ncVar,"calendar","gregorian")
+    if "time" in outputlist: outputlist.remove("time")
     # now write the latitude and longitude variables
     if ndims==3:
         if "latitude" not in outputlist:
@@ -986,6 +989,8 @@ def nc_write_var(ncFile,ds,ThisOne,dim):
     for attr in ds.series[ThisOne]['Attr']:
         if attr!="_FillValue":
             setattr(ncVar,attr,ds.series[ThisOne]['Attr'][attr])
+    # make sure the missing_value attribute is written
+    if "missing_value" not in ds.series[ThisOne]['Attr']: setattr(ncVar,"missing_value",c.missing_value)
     # get the data type of the QC flag
     dt = get_ncdtype(ds.series[ThisOne]['Flag'])
     # create the variable
@@ -1216,7 +1221,7 @@ def xl_write_series(ds, xlfullname, outputlist=None):
     xlcol_attrname = 1
     xlcol_attrvalue = 2
     variablelist = ds.series.keys()
-    if outputlist==None:
+    if outputlist is None:
         outputlist = variablelist
     else:
         for ThisOne in outputlist:
@@ -1336,7 +1341,7 @@ def xlsx_write_series(ds, xlsxfullname, outputlist=None):
     xlcol_attrname = 1
     xlcol_attrvalue = 2
     variablelist = ds.series.keys()
-    if outputlist==None:
+    if outputlist is None:
         outputlist = variablelist
     else:
         for ThisOne in outputlist:

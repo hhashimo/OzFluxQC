@@ -994,7 +994,7 @@ def plot_onetimeseries_left(fig,n,ThisOne,xarray,yarray,p):
     else:
         # if not, then use an existing axis
         rect = [p['ts_XAxOrg'],p['YAxOrg'],p['ts_XAxLen'],p['ts_YAxLen']]
-        if p["ts_ax_left"][0]!=None:
+        if p["ts_ax_left"][0] is not None:
             # a left axis was defined for the first graph, use it
             ts_ax_left = fig.add_axes(rect,sharex=p["ts_ax_left"][0])
         else:
@@ -1028,11 +1028,11 @@ def plot_onetimeseries_left(fig,n,ThisOne,xarray,yarray,p):
     if n > 0: plt.setp(ts_ax_left.get_xticklabels(),visible=False)
 
 def plot_onetimeseries_right(fig,n,ThisOne,xarray,yarray,p):
-    if p["ts_ax_left"][n]!=None:
+    if p["ts_ax_left"][n] is not None:
         ts_ax_right = p["ts_ax_left"][n].twinx()
     else:
         rect = [p['ts_XAxOrg'],p['YAxOrg'],p['ts_XAxLen'],p['ts_YAxLen']]
-        if p["ts_ax_left"][0]!=None:
+        if p["ts_ax_left"][0] is not None:
             # a left axis was defined for the first graph, use it
             ts_ax_right = fig.add_axes(rect,sharex=p["ts_ax_left"][0])
         else:
@@ -1093,11 +1093,11 @@ def xyplot(x,y,sub=[1,1,1],regr=0,thru0=0,title=None,xlabel=None,ylabel=None,fna
     plt.subplot(sub[0],sub[1],sub[2])
     plt.plot(x,y,'b.')
     ax = plt.gca()
-    if xlabel!=None: plt.xlabel(xlabel)
-    if ylabel!=None:
+    if xlabel is not None: plt.xlabel(xlabel)
+    if ylabel is not None:
         plt.ylabel(ylabel)
         wspace = 0.3
-    if title!=None:
+    if title is not None:
         plt.title(title)
         hspace = 0.3
     if regr==1:
@@ -1133,17 +1133,17 @@ def hrplot(x,y,sub=[1,1,1],title=None,xlabel=None,ylabel=None,colours=None):
     plt.subplot(sub[0],sub[1],sub[2])
     if (y.all() is numpy.ma.masked):
         y = numpy.ma.zeros(len(y))
-    if colours!=None:
+    if colours is not None:
         plt.scatter(x,y,c=colours)
     else:
         plt.scatter(x,y)
     plt.xlim(0,24)
     plt.xticks([0,6,12,18,24])
-    if title!=None:
+    if title is not None:
         plt.title(title)
-    if ylabel!=None:
+    if ylabel is not None:
         plt.ylabel(ylabel)
-    if xlabel!=None:
+    if xlabel is not None:
         plt.xlabel(xlabel)
 
 def tsplot(x,y,sub=[1,1,1],title=None,xlabel=None,ylabel=None,colours=None,lineat=None):
@@ -1151,18 +1151,18 @@ def tsplot(x,y,sub=[1,1,1],title=None,xlabel=None,ylabel=None,colours=None,linea
     MTFmt = mdt.DateFormatter('%d/%m')
     if (y.all() is numpy.ma.masked):
         y = numpy.ma.zeros(len(y))
-    if colours!=None:
+    if colours is not None:
         plt.scatter(x,y,c=colours)
     else:
         plt.scatter(x,y)
-    if lineat!=None:
+    if lineat is not None:
         plt.plot((x[0],x[-1]),(float(lineat),float(lineat)))
     plt.xlim((x[0],x[-1]))
     ax = plt.gca()
     ax.xaxis.set_major_formatter(MTFmt)
-    if title!=None:
+    if title is not None:
         plt.title(title)
-    if ylabel!=None:
+    if ylabel is not None:
         ax.yaxis.set_label_text(ylabel)
-    if xlabel!=None:
+    if xlabel is not None:
         ax.xaxis.set_label_text(xlabel)

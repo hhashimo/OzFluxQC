@@ -16,7 +16,7 @@ def cliptorange(data, lower, upper):
     return data
 
 def rangecheckserieslower(data,lower):
-    if lower==None:
+    if lower is None:
         log.info(' rangecheckserieslower: no lower bound set')
         return data
     if numpy.ma.isMA(data):
@@ -27,7 +27,7 @@ def rangecheckserieslower(data,lower):
     return data
 
 def rangecheckseriesupper(data,upper):
-    if upper==None:
+    if upper is None:
         log.info(' rangecheckserieslower: no upper bound set')
         return data
     if numpy.ma.isMA(data):

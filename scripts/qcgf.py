@@ -774,7 +774,7 @@ def gfalternate_getolscorrecteddata(x_in,y_in,fit,min_points,thru0=False):
         return y_out,eqnstr,results
     # check the input arrays contain something
     if nx==0:
-        #log.warn('qcts.getolscorrecteddata: either x or y all masked')
+        #log.warning('qcts.getolscorrecteddata: either x or y all masked')
         if fit.lower()=="replace":
             results = [1,0]
             eqnstr = "All missing, replaced"
@@ -868,7 +868,7 @@ def gfalternate_main(ds_tower,ds_alt,alternate_info):
             continue
         elif numpy.ma.count(data_tower)<alternate_info["min_points"] and ds_tower.alternate[label_tower]["fit"]=="replace":
             msg = " less than "+str(alternate_info["min_points"])+" points in series "+label_tower+", replacing ..."
-            log.warn(msg)
+            log.warning(msg)
         # save the start and end datetimes for later output
         ds_tower.alternate[label_tower]["results"]["startdate"].append(xldt_tower[tower_exact["si"]])
         ds_tower.alternate[label_tower]["results"]["enddate"].append(xldt_tower[tower_exact["ei"]])

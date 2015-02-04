@@ -46,17 +46,17 @@ def xyplot(x,y,sub=[1,1,1],regr=0,thru0=0,title=None,xlabel=None,ylabel=None,col
     wspace = 0.0
     hspace = 0.0
     plt.subplot(sub[0],sub[1],sub[2])
-    if colours==None:
+    if colours is None:
         plt.plot(x,y,'b.')
     else:
         plt.scatter(x,y,c=colours)
     ax = plt.gca()
-    if xlabel!=None:
+    if xlabel is not None:
         plt.xlabel(xlabel)
-    if ylabel!=None:
+    if ylabel is not None:
         plt.ylabel(ylabel)
         wspace = 0.3
-    if title!=None:
+    if title is not None:
         plt.title(title)
         hspace = 0.3
     if regr!=0:
@@ -241,8 +241,8 @@ for i in [12,1,2,3,4,5,6,7,8,9,10,11]:
         plt.plot(Xfit,Yfit, 'r-')
         plt.plot(Xfit,Yfit_long, 'r--',linewidth=3.0)
         plt.title(MnthList[i-1])
-        if xlabel!=None: plt.xlabel(xlabel)
-        if ylabel!=None: plt.ylabel(ylabel)
+        if xlabel is not None: plt.xlabel(xlabel)
+        if ylabel is not None: plt.ylabel(ylabel)
         plt.subplots_adjust(wspace=0.275,hspace=0.275)
 figname='../plots/'+ds3.globalattributes['site_name'].replace(' ','')+'_'+ds3.globalattributes['nc_level']+'_'+'FcLloydTaylor_monthly.png'
 fig.savefig(figname,format='png')
@@ -360,8 +360,8 @@ fig.savefig(figname,format='png')
         #plt.scatter(Ts[index],Fc[index],c=Sws[index])
         #plt.scatter(Ts[index],Reco_SOLO[index],color='r')
         #plt.title(MnthList[i-1])
-        #if xlabel!=None: plt.xlabel(xlabel)
-        #if ylabel!=None: plt.ylabel(ylabel)
+        #if xlabel is not None: plt.xlabel(xlabel)
+        #if ylabel is not None: plt.ylabel(ylabel)
         #plt.subplots_adjust(wspace=0.275,hspace=0.275)
 #figname='../plots/'+ds3.globalattributes['site_name'].replace(' ','')+'_'+ds3.globalattributes['nc_level']+'_'+'Reco_SOLO_monthly.png'
 #fig.savefig(figname,format='png')

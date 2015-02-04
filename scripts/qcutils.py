@@ -97,7 +97,7 @@ def CheckTimeStep(ds,mode="fix"):
     index = numpy.where(dt!=ts)[0]
     if len(index)!=0:
         has_gaps = True
-        log.error(' CheckTimeStep: '+str(len(index))+ ' gaps found in the time series')
+        log.warning(' CheckTimeStep: '+str(len(index))+ ' gaps found in the time series')
         dtmin = numpy.min(dt)
         dtmax = numpy.max(dt)
         if dtmin < ts:
@@ -274,7 +274,7 @@ def CreateSeries(ds,Label,Data,FList=None,Flag=None,Attr=None):
     else:
         ds.series['_tmp_']['Data'] = numpy.array(Data)
     # copy or make the QC flag
-    if Flag == None:
+    if Flag is None:
         ds.series['_tmp_']['Flag'] = MakeQCFlag(ds,FList)
     else:
         ds.series['_tmp_']['Flag'] = Flag
@@ -398,10 +398,11 @@ def FixTimeGaps(ds):
     get_ymdhmsfromxldate(ds)
     # replace the "gappy" UTC datetime
     get_UTCfromlocaltime(ds)
+    # get a list of series in the data structure
+    series_list = [item for item in ds.series.keys() if '_QCFlag' not in item]
     # remove the datetime-related series from data structure
     datetime_list = ["xlDateTime","xlDateTime_UTC","DateTime","DateTime_UTC",
                     "Year","Month","Day","Hour","Minute","Second","Hdh","Ddd"]
-    series_list = [item for item in ds.series.keys() if '_QCFlag' not in item]
     for item in datetime_list:
         if item in series_list: series_list.remove(item)
     # now loop over the rest of the series in the data structure
@@ -826,10 +827,10 @@ def get_datetimefromymdhms(ds):
     nRecs = get_nrecs(ds)
     ds.series[unicode('DateTime')] = {}
     ds.series['DateTime']['Data'] = [None]*nRecs
-    ds.series[unicode('Date')] = {}
-    ds.series['Date']['Data'] = [None]*nRecs
-    ds.series[unicode('Time')] = {}
-    ds.series['Time']['Data'] = [None]*nRecs
+    #ds.series[unicode('Date')] = {}
+    #ds.series['Date']['Data'] = [None]*nRecs
+    #ds.series[unicode('Time')] = {}
+    #ds.series['Time']['Data'] = [None]*nRecs
     #seconds = numpy.array(ds.series["Second"]["Data"])
     #microseconds = (seconds%1)*float(1000000)
     if "Microseconds" in ds.series.keys():
@@ -844,25 +845,25 @@ def get_datetimefromymdhms(ds):
                                                        int(ds.series['Minute']['Data'][i]),
                                                        int(ds.series['Second']['Data'][i]),
                                                        int(microseconds[i]))
-        ds.series['Date']['Data'][i] = datetime.date(int(ds.series['Year']['Data'][i]),
-                                                       int(ds.series['Month']['Data'][i]),
-                                                       int(ds.series['Day']['Data'][i]))
-        ds.series['Time']['Data'][i] = datetime.time(int(ds.series['Hour']['Data'][i]),
-                                                       int(ds.series['Minute']['Data'][i]),
-                                                       int(ds.series['Second']['Data'][i]),
-                                                       int(microseconds[i]))
+        #ds.series['Date']['Data'][i] = datetime.date(int(ds.series['Year']['Data'][i]),
+                                                       #int(ds.series['Month']['Data'][i]),
+                                                       #int(ds.series['Day']['Data'][i]))
+        #ds.series['Time']['Data'][i] = datetime.time(int(ds.series['Hour']['Data'][i]),
+                                                       #int(ds.series['Minute']['Data'][i]),
+                                                       #int(ds.series['Second']['Data'][i]),
+                                                       #int(microseconds[i]))
     ds.series['DateTime']['Flag'] = numpy.zeros(nRecs)
     ds.series['DateTime']['Attr'] = {}
     ds.series['DateTime']['Attr']['long_name'] = 'Date-time object'
     ds.series['DateTime']['Attr']['units'] = 'None'
-    ds.series['Date']['Flag'] = numpy.zeros(nRecs)
-    ds.series['Date']['Attr'] = {}
-    ds.series['Date']['Attr']['long_name'] = 'Date object'
-    ds.series['Date']['Attr']['units'] = 'None'
-    ds.series['Time']['Flag'] = numpy.zeros(nRecs)
-    ds.series['Time']['Attr'] = {}
-    ds.series['Time']['Attr']['long_name'] = 'Time object'
-    ds.series['Time']['Attr']['units'] = 'None'
+    #ds.series['Date']['Flag'] = numpy.zeros(nRecs)
+    #ds.series['Date']['Attr'] = {}
+    #ds.series['Date']['Attr']['long_name'] = 'Date object'
+    #ds.series['Date']['Attr']['units'] = 'None'
+    #ds.series['Time']['Flag'] = numpy.zeros(nRecs)
+    #ds.series['Time']['Attr'] = {}
+    #ds.series['Time']['Attr']['long_name'] = 'Time object'
+    #ds.series['Time']['Attr']['units'] = 'None'
 
 def get_nrecs(ds):
     if 'nc_nrecs' in ds.globalattributes.keys():
@@ -905,15 +906,15 @@ def get_UTCfromlocaltime(ds):
     '''
     # check the time_zone global attribute is set, we cant continue without it
     if "time_zone" not in ds.globalattributes.keys():
-        log.error("get_UTCfromlocaltime: time_zone not in global attributes, checking elsewhere ...")
+        log.warning("get_UTCfromlocaltime: time_zone not in global attributes, checking elsewhere ...")
         if "site_name" in ds.globalattributes.keys():
             site_name = ds.globalattributes["site_name"]
         else:
-            log.error("get_UTCfromlocaltime: site_name not in global attributes, skipping UTC calculation ...")
+            log.warning("get_UTCfromlocaltime: site_name not in global attributes, skipping UTC calculation ...")
             return
         time_zone,found = get_timezone(site_name,prompt="no")
         if not found:
-            log.error("get_UTCfromlocaltime: site_name not in time zone dictionary")
+            log.warning("get_UTCfromlocaltime: site_name not in time zone dictionary")
             return
         else:
             log.info("get_UTCfromlocaltime: time_zone found in time zone dictionary")
