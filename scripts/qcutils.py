@@ -88,32 +88,32 @@ def CheckTimeStep(ds,mode="fix"):
     Date: April 2013
     """
     has_gaps = False
-    ts = int(ds.globalattributes['time_step'])
-    xldt = ds.series['xlDateTime']['Data']
-    dt = numpy.zeros(len(xldt))
-    dt[0] = ts
-    dt[1:-1] = (1440*(xldt[1:-1]-xldt[0:-2])+0.5).astype(int)
-    dt[-1] = (1440*(xldt[-1]-xldt[-2])+0.5).astype(int)
-    index = numpy.where(dt!=ts)[0]
+    nRecs = int(ds.globalattributes["nc_nrecs"])
+    ts = int(ds.globalattributes["time_step"])
+    xldt = ds.series["xlDateTime"]["Data"]
+    ldt = ds.series["DateTime"]["Data"]
+    dt = numpy.array([(ldt[i]-ldt[i-1]).total_seconds() for i in range(1,len(ldt))])
+    index = numpy.where(dt!=ts*60)[0]
     if len(index)!=0:
         has_gaps = True
-        log.warning(' CheckTimeStep: '+str(len(index))+ ' gaps found in the time series')
+        log.warning(' CheckTimeStep: '+str(len(index))+ ' errors found in the time step')
         dtmin = numpy.min(dt)
         dtmax = numpy.max(dt)
-        if dtmin < ts:
-            log.info(' CheckTimeStep: duplicate or overlapping times found, removing ...')
+        if dtmin < ts*60:
             if mode=="fix":
+                log.info(' CheckTimeStep: duplicate or overlapping times found, removing ...')
                 RemoveDuplicateRecords(ds)
                 has_gaps = False
-        if numpy.min(numpy.mod(dt,ts))!=0 or numpy.max(numpy.mod(dt,ts))!=0:
-            log.critical(' CheckTimeStep: time gaps are not multiples of the time step ('+str(ts)+')')
-            #raise Exception(' CheckTimeStep: time gaps are not multiples of the time step ('+str(ts)+')')
-        if dtmax > ts:
-            log.info(' CheckTimeStep: one or more time gaps found')
+        if numpy.min(numpy.mod(dt,ts*60))!=0 or numpy.max(numpy.mod(dt,ts*60))!=0:
             if mode=="fix":
-                #print "before FixTimeGaps: ",len(ds.series["DateTime"]["Data"]),ds.globalattributes["nc_nrecs"]
+                log.info(" CheckTimeStep: Non-integral time steps found "+str(len(index))+" times out of "+str(nRecs))
+                log.info(" CheckTimeStep: Maximum time step was "+str(numpy.max(dt))+" seconds, minimum time step was "+str(numpy.min(dt)))
+                FixNonIntegralTimeSteps(ds)
+                has_gaps = False
+        if dtmax > ts*60:
+            if mode=="fix":
+                log.info(' CheckTimeStep: one or more time gaps found, inserting times ...')
                 FixTimeGaps(ds)
-                #print "after FixTimeGaps: ",len(ds.series["DateTime"]["Data"]),ds.globalattributes["nc_nrecs"]
                 has_gaps = False
     else:
         log.info(' CheckTimeStep: no time gaps found')
@@ -359,6 +359,32 @@ def RemoveDuplicateRecords(ds):
         CreateSeries(ds,ThisOne,data_nodups,Flag=flag_nodups,Attr=attr)
     ds.globalattributes['nc_nrecs'] = len(ds.series["DateTime"]["Data"])
 
+def FixNonIntegralTimeSteps(ds):
+    #print "Non-integral time steps found",len(idx),"times out of",str(nRecs)
+    #print "Maximum time step was",numpy.max(dt),"seconds, minimum time step was",numpy.min(dt)
+    ts = int(ds.globalattributes["time_step"])
+    ldt = ds.series["DateTime"]["Data"]
+    dt_diffs = numpy.array([(ldt[i]-rounddttots(ldt[i],ts=ts)).total_seconds() for i in range(1,len(ldt))])
+    log.info(" Maximum drift is "+str(numpy.max(dt_diffs))+" seconds, minimum drift is "+str(numpy.min(dt_diffs))+" seconds")
+    ans = raw_input("Do you want to [Q]uit, [I]nterploate or [R]ound? ")
+    if ans.lower()=="q":
+        print "Quiting ..."
+        sys.exit()
+    if ans.lower()=="i":
+        print "Interpolation to regular time step not implemented yet ..."
+        sys.exit()
+    if ans.lower()=="r":
+        print "Rounding to the nearest time step"
+        ldt_rounded = [rounddttots(dt,ts=ts) for dt in ldt]
+        rdt = numpy.array([(ldt_rounded[i]-ldt_rounded[i-1]).total_seconds() for i in range(1,len(ldt))])
+        log.info("Maximum time step is now "+str(numpy.max(rdt))+" seconds, minimum time step is now "+str(numpy.min(rdt)))
+        # replace the existing datetime series with the datetime series rounded to the nearest time step
+        ds.series["DateTime"]["Data"] = ldt_rounded
+    # replace the year, month, day, hour, minute and second series in the data structure
+    get_ymdhmsfromxldate(ds)
+    # replace the UTC datetime
+    get_UTCfromlocaltime(ds)
+    
 def FixTimeGaps(ds):
     """
     Purpose:
@@ -825,14 +851,9 @@ def get_datetimefromymdhms(ds):
         return
     log.info(' Getting the date and time series')
     nRecs = get_nrecs(ds)
+    ts = ds.globalattributes["time_step"]
     ds.series[unicode('DateTime')] = {}
     ds.series['DateTime']['Data'] = [None]*nRecs
-    #ds.series[unicode('Date')] = {}
-    #ds.series['Date']['Data'] = [None]*nRecs
-    #ds.series[unicode('Time')] = {}
-    #ds.series['Time']['Data'] = [None]*nRecs
-    #seconds = numpy.array(ds.series["Second"]["Data"])
-    #microseconds = (seconds%1)*float(1000000)
     if "Microseconds" in ds.series.keys():
         microseconds = ds.series["Microseconds"]["Data"]
     else:
@@ -845,25 +866,11 @@ def get_datetimefromymdhms(ds):
                                                        int(ds.series['Minute']['Data'][i]),
                                                        int(ds.series['Second']['Data'][i]),
                                                        int(microseconds[i]))
-        #ds.series['Date']['Data'][i] = datetime.date(int(ds.series['Year']['Data'][i]),
-                                                       #int(ds.series['Month']['Data'][i]),
-                                                       #int(ds.series['Day']['Data'][i]))
-        #ds.series['Time']['Data'][i] = datetime.time(int(ds.series['Hour']['Data'][i]),
-                                                       #int(ds.series['Minute']['Data'][i]),
-                                                       #int(ds.series['Second']['Data'][i]),
-                                                       #int(microseconds[i]))
+    #ds.series["DateTime"]["Data"] = RoundDateTime(ds.series["DateTime"]["Data"],ts=ts)
     ds.series['DateTime']['Flag'] = numpy.zeros(nRecs)
     ds.series['DateTime']['Attr'] = {}
     ds.series['DateTime']['Attr']['long_name'] = 'Date-time object'
     ds.series['DateTime']['Attr']['units'] = 'None'
-    #ds.series['Date']['Flag'] = numpy.zeros(nRecs)
-    #ds.series['Date']['Attr'] = {}
-    #ds.series['Date']['Attr']['long_name'] = 'Date object'
-    #ds.series['Date']['Attr']['units'] = 'None'
-    #ds.series['Time']['Flag'] = numpy.zeros(nRecs)
-    #ds.series['Time']['Attr'] = {}
-    #ds.series['Time']['Attr']['long_name'] = 'Time object'
-    #ds.series['Time']['Attr']['units'] = 'None'
 
 def get_nrecs(ds):
     if 'nc_nrecs' in ds.globalattributes.keys():
@@ -1157,15 +1164,13 @@ def polyval(p,x):
         y = x*y + p[i]
     return y
 
+def rounddttots(dt,ts=30):
+    dt += datetime.timedelta(minutes=int(ts/2))
+    dt -= datetime.timedelta(minutes=dt.minute % int(ts),seconds=dt.second,microseconds=dt.microsecond)
+    return dt    
+
 def RoundDateTime(datetimeseries,ts=30):
-    RoundedDateTime = []
-    for tm in datetimeseries:
-        tm += datetime.timedelta(minutes=int(ts/2))
-        tm -= datetime.timedelta(minutes=tm.minute % int(ts),
-                                 seconds=tm.second,
-                                 microseconds=tm.microsecond)
-        RoundedDateTime.append(tm)
-    return RoundedDateTime
+    return [rounddttots(dt,ts=ts) for dt in datetimeseries]
 
 def round2sig(x,sig=2):
     '''

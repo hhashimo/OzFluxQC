@@ -730,7 +730,7 @@ def nc_read_series(ncFullName):
     if len(gattrlist)!=0:
         for gattr in gattrlist:
             ds.globalattributes[gattr] = getattr(ncFile,gattr)
-            if "time_step" in ds.globalattributes: c.ts = ds.globalattributes["time_step"]
+        if "time_step" in ds.globalattributes: c.ts = ds.globalattributes["time_step"]
     # get a list of the variables in the netCDF file (not their QC flags)
     varlist = [x for x in ncFile.variables.keys() if "_QCFlag" not in x]
     for ThisOne in varlist:
@@ -748,18 +748,21 @@ def nc_read_series(ncFullName):
     # make sure all values of -9999 have non-zero QC flag
     qcutils.CheckQCFlags(ds)
     # get a series of Python datetime objects
-    if "time" in ds.series.keys():
-        time,f,a = qcutils.GetSeries(ds,"time")
-        qcutils.get_datetimefromnctime(ds,time,a["units"])
-    else:
-        qcutils.get_datetimefromymdhms(ds)
+    #if "time" in ds.series.keys():
+        #time,f,a = qcutils.GetSeries(ds,"time")
+        #qcutils.get_datetimefromnctime(ds,time,a["units"])
+    #else:
+        #qcutils.get_datetimefromymdhms(ds)
+    qcutils.get_datetimefromymdhms(ds)
     # get series of UTC datetime
     qcutils.get_UTCfromlocaltime(ds)
+    # check the time step and fix it required
+    has_gaps = qcutils.CheckTimeStep(ds,mode="fix")
     # tell the user when the data starts and ends
-    #ldt = ds.series["DateTime"]["Data"]
-    #print ldt[0],ldt[-1]
-    #msg = " Got data from "+ldt[0].strftime("%Y-%m-%d %H:%M")+" to "+ldt[-1].strftime("%Y-%m-%d %H:%M")
-    #log.info(msg)
+    ldt = ds.series["DateTime"]["Data"]
+    print ldt[0],ldt[-1]
+    msg = " Got data from "+ldt[0].strftime("%Y-%m-%d %H:%M:%S")+" to "+ldt[-1].strftime("%Y-%m-%d %H:%M:%S")
+    log.info(msg)
     return ds
 
 def nc_read_todf(ncFullName,var_data=[]):
