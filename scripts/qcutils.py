@@ -408,8 +408,7 @@ def FixTimeGaps(ds):
     nRecs = len(ldt_nogaps)
     ds.globalattributes['nc_nrecs'] = nRecs
     idx_gaps = find_indices(ldt_nogaps,ldt_gaps)
-    datemode = 0
-    if platform.system()=="darwin": datemode = 1
+    datemode = int(ds.globalattributes["xl_datemode"])
     xlDateTime = get_xldate_from_datetime(ldt_nogaps,datemode=datemode)
     # replace the "gappy" Excel and Python datetime values in the data structure
     ds.series['xlDateTime']['Data'] = numpy.array(xlDateTime,dtype=numpy.float64)
@@ -953,7 +952,7 @@ def get_xldate_from_datetime(dt,datemode=0):
      Returns a list of xldatetime (floating point number represent decimal days
      since 00:00 1/1/1900) from a list of Python datetimes
     USAGE:
-    datemode = ds.globalattributes["xl_datemode"]
+    datemode = int(ds.globalattributes["xl_datemode"])
      xl_date = qcutils.get_xldate_from_datetime(py_date,datemode=datemode)
      ds.series["xlDateTime"] = numpy.array(xl_date)
     ASSUMPTIONS:

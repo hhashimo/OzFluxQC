@@ -760,7 +760,6 @@ def nc_read_series(ncFullName):
     has_gaps = qcutils.CheckTimeStep(ds,mode="fix")
     # tell the user when the data starts and ends
     ldt = ds.series["DateTime"]["Data"]
-    print ldt[0],ldt[-1]
     msg = " Got data from "+ldt[0].strftime("%Y-%m-%d %H:%M:%S")+" to "+ldt[-1].strftime("%Y-%m-%d %H:%M:%S")
     log.info(msg)
     return ds
@@ -1195,6 +1194,8 @@ def xl_write_series(ds, xlfullname, outputlist=None):
     # open the Excel file
     log.info(' Opening and writing Excel file '+xlfullname)
     xlfile = xlwt.Workbook(encoding="latin-1")
+    # set the datemode
+    xlfile.dates_1904 = int(ds.globalattributes["xl_datemode"])
     # add sheets to the Excel file
     xlAttrSheet = xlfile.add_sheet('Attr')
     xlDataSheet = xlfile.add_sheet('Data')
@@ -1245,9 +1246,9 @@ def xl_write_series(ds, xlfullname, outputlist=None):
             xlAttrSheet.write(xlrow,xlcol_attrvalue,str(ds.series[ThisOne]['Attr'][Attr]))
             xlrow = xlrow + 1
     # write the Excel date/time to the data and the QC flags as the first column
-    datemode = 0
-    if platform.system()=="Darwin": datemode = 1
     ldt = ds.series["DateTime"]["Data"]
+    # get the datemode of the original spreadsheet
+    datemode = int(ds.globalattributes["xl_datemode"])
     xlDateTime = qcutils.get_xldate_from_datetime(ldt,datemode=datemode)
     log.info(' Writing the datetime to Excel file '+xlfullname)
     d_xf = xlwt.easyxf(num_format_str='dd/mm/yyyy hh:mm')
@@ -1255,14 +1256,6 @@ def xl_write_series(ds, xlfullname, outputlist=None):
     for j in range(nRecs):
         xlDataSheet.write(j+3,xlcol,xlDateTime[j],d_xf)
         xlFlagSheet.write(j+3,xlcol,xlDateTime[j],d_xf)
-    # output the xl datetime as UTC if it exists in the file
-    #if "xlDateTime_UTC" in ds.series.keys():
-        #xlcol = xlcol + 1
-        #xlDateTime = ds.series["xlDateTime_UTC"]["Data"]
-        #xlDataSheet.write(2,xlcol,"xlDateTime_UTC")
-        #for j in range(nRecs):
-            #xlDataSheet.write(j+3,xlcol,xlDateTime[j],d_xf)
-            #xlFlagSheet.write(j+3,xlcol,xlDateTime[j],d_xf)
     # remove xlDateTime from the list of variables to be written to the Excel file
     if "xlDateTime" in outputlist: outputlist.remove("xlDateTime")
     if "xlDateTime_UTC" in outputlist: outputlist.remove("xlDateTime_UTC")
@@ -1314,7 +1307,10 @@ def xlsx_write_series(ds, xlsxfullname, outputlist=None):
         nRecs = len(ds.series[variablelist[0]]["Data"])
     # open the Excel file
     log.info(' Opening and writing Excel file '+xlsxfullname)
-    xlfile = xlsxwriter.Workbook(xlsxfullname)
+    if int(ds.globalattributes["xl_datemode"])==1:
+        xlfile = xlsxwriter.Workbook(xlsxfullname, {'date_1904': True})
+    else:
+        xlfile = xlsxwriter.Workbook(xlsxfullname, {'date_1904': False})
     # add sheets to the Excel file
     xlAttrSheet = xlfile.add_worksheet('Attr')
     xlDataSheet = xlfile.add_worksheet('Data')
@@ -1365,8 +1361,7 @@ def xlsx_write_series(ds, xlsxfullname, outputlist=None):
             xlAttrSheet.write(xlrow,xlcol_attrvalue,str(ds.series[ThisOne]['Attr'][Attr]))
             xlrow = xlrow + 1
     # write the Excel date/time to the data and the QC flags as the first column
-    datemode = 0
-    if platform.system()=="darwin": datemode = 1
+    datemode = int(ds.globalattributes["xl_datemode"])
     ldt = ds.series["DateTime"]["Data"]
     xlDateTime = qcutils.get_xldate_from_datetime(ldt,datemode=datemode)
     log.info(' Writing the datetime to Excel file '+xlsxfullname)
