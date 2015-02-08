@@ -93,7 +93,7 @@ def CheckTimeStep(ds,mode="fix"):
     xldt = ds.series["xlDateTime"]["Data"]
     ldt = ds.series["DateTime"]["Data"]
     dt = numpy.array([(ldt[i]-ldt[i-1]).total_seconds() for i in range(1,len(ldt))])
-    index = numpy.where(dt!=ts*60)[0]
+    index = numpy.where((dt<(ts*60)-0.01) | (dt>(ts*60)+0.01))[0]
     if len(index)!=0:
         has_gaps = True
         log.warning(' CheckTimeStep: '+str(len(index))+ ' errors found in the time step')
