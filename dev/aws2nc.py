@@ -37,7 +37,7 @@ for n in range(xl_row,sheet.nrows):
             bom_sites_info[str(xlrow[0])][str(int(xlrow[i+1]))]["elevation"] = xlrow[i+4]
             bom_sites_info[str(xlrow[0])][str(int(xlrow[i+1]))]["distance"] = xlrow[i+5]
 
-in_path = "../../AWS/30MinuteMeteorology/"
+in_path = "../../AWS/30MinuteMeteorology/20140701/"
 in_filename = in_path+"HM01X_Data*.txt"
 file_list = sorted(glob.glob(in_filename))
 
@@ -45,7 +45,7 @@ site_list = bom_sites_info.keys()
 for site_name in sorted(site_list):
     log.info("Starting site: "+site_name)
     sname = site_name.replace(" ","")
-    ncname = "../../Sites/"+sname+"/Data/AWS/"+sname+"_AWS.nc"
+    ncname = in_path+sname+"_AWS.nc"
     site_latitude = bom_sites_info[site_name]["latitude"]
     site_longitude = bom_sites_info[site_name]["longitude"]
     site_elevation = bom_sites_info[site_name]["elevation"]
@@ -87,6 +87,7 @@ for site_name in sorted(site_list):
         # put the year, month, day, hour and minute into the data structure
         nRecs = data_dict[bom_id].shape[0]
         ds.globalattributes["nc_nrecs"] = nRecs
+        ds.globalattributes["time_step"] = 30
         ds.globalattributes["latitude"] = bom_sites_info[site_name][str(bom_id)]["latitude"]
         ds.globalattributes["longitude"] = bom_sites_info[site_name][str(bom_id)]["longitude"]
         flag = numpy.zeros(nRecs,dtype=numpy.int32)
@@ -151,6 +152,7 @@ for site_name in sorted(site_list):
     log.info("Merging file contents")
     ds_all = qcio.DataStructure()
     ds_all.globalattributes["time_step"] = 30
+    ds_all.globalattributes["xl_datemode"] = 0
     ds_all.globalattributes["site_name"] = site_name
     ds_all.globalattributes["latitude"] = site_latitude
     ds_all.globalattributes["longitude"] = site_longitude
@@ -167,9 +169,9 @@ for site_name in sorted(site_list):
     ds_all.series['DateTime']["Attr"]["long_name"] = "Date-time object"
     ds_all.series['DateTime']["Attr"]["units"] = "None"
     # get the year, month, day, hour, minute and seconds from the Python datetime
-    qcutils.get_ymdhms_from_datetime(ds_all)
+    qcutils.get_ymdhmsfromdatetime(ds_all)
     # get the xlDateTime from the 
-    xlDateTime = qcutils.get_xldate_from_datetime(ldt_all,datemode=0)
+    xlDateTime = qcutils.get_xldatefromdatetime(ds_all)
     attr = qcutils.MakeAttributeDictionary(long_name="Date/time in Excel format",units="days since 1899-12-31 00:00:00")
     qcutils.CreateSeries(ds_all,"xlDateTime",xlDateTime,Flag=flag,Attr=attr)
     # loop over the stations

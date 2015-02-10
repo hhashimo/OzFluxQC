@@ -303,10 +303,10 @@ def fn_write_csv(cf):
             ds.series[thisone]["Flag"] = ds.series[thisone]["Flag"][:ei+1]
         ds.globalattributes["nc_nrecs"] = str(len(ds.series["DateTime"]["Data"]))
     elif dt[-1]<end_datetime:
-        # requested start_datetime is before the start of the file
+        # requested end_datetime is before the requested end date
         msg = " Padding end of file "+dt[-1].strftime("%Y-%m-%d %H:%M")+" "+end_datetime.strftime("%Y-%m-%d %H:%M")
         log.info(msg)
-        dt_patched = [ldt for ldt in qcutils.perdelta(dt[-1]+ts_delta, end_datetime+ts_delta, ts_delta)]
+        dt_patched = [ldt for ldt in qcutils.perdelta(dt[-1]+ts_delta, end_datetime, ts_delta)]
         data_patched = numpy.ones(len(dt_patched))*float(c.missing_value)
         flag_patched = numpy.ones(len(dt_patched))
         # list of series in the data structure
