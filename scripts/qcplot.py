@@ -103,7 +103,7 @@ def get_yaxislimitsfromcf(cf,nFig,maxkey,minkey,nSer,YArray):
 
 def plot_fingerprint(cf):
     """ Do a fingerprint plot"""
-    infilename = qcio.get_infilename_from_cf(cf)
+    infilename = qcio.get_infilenamefromcf(cf)
     # read the netCDF file and return the data structure "ds"
     ds = qcio.nc_read_series(infilename)
     if len(ds.series.keys())==0:
@@ -129,7 +129,12 @@ def plot_fingerprint(cf):
     level = str(ds.globalattributes['nc_level'])
     nRecs = int(ds.globalattributes['nc_nrecs'])
     # check for time gaps in the file
-    has_gaps = qcutils.CheckTimeStep(ds,mode="fix")
+    if qcutils.CheckTimeStep(ds):
+        qcutils.FixTimeStep(ds)
+        # update the Excel datetime from the Python datetime
+        qcutils.get_xldatefromdatetime(ds)
+        # update the Year, Month, Day etc from the Python datetime
+        qcutils.get_ymdhmsfromdatetime(ds)        
     # title string for plots
     TitleStr = site_name+' '+level
     # number of records per hour and number per day
@@ -189,7 +194,7 @@ def plot_fluxnet(cf):
     """ Plot the FluxNet style plots. """
     
     series_list = cf["Variables"].keys()
-    infilename = qcio.get_infilename_from_cf(cf)
+    infilename = qcio.get_infilenamefromcf(cf)
     
     ds = qcio.nc_read_series(infilename)
     site_name = ds.globalattributes["site_name"]
@@ -318,7 +323,7 @@ def plottimeseries(cf,nFig,dsa,dsb,si,ei):
 def plot_quickcheck(cf):
     nFig = 0
     # get the netCDF filename
-    ncfilename = qcio.get_infilename_from_cf(cf)
+    ncfilename = qcio.get_infilenamefromcf(cf)
     # get the plot width and height
     PlotWidth_landscape = float(cf['General']['PlotWidth_landscape'])
     PlotHeight_landscape = float(cf['General']['PlotHeight_landscape'])

@@ -41,7 +41,7 @@ def cfkeycheck(cf,Base='Variables',ThisOne=[],key=[]):
         else:
             return
 
-def cfoptionskey(cf,Key='',default=False):
+def cfoptionskeylogical(cf,Key='',default=False):
     if 'Options' in cf:
         if Key in cf['Options']:
             if str(cf['Options'][Key]).lower()=="true" or str(cf['Options'][Key]).lower()=="yes":
@@ -74,49 +74,32 @@ def CheckTimeStep(ds,mode="fix"):
     """
     Purpose:
      Checks the datetime series in the data structure ds to see if there are
-     any missing time stamps.  If missing time stamps are found, this routine
-     will print a message to the screen and log file and then check to see
-     if all gaps in the datetime series are multiples of the time step.  If
-     not, the routine prints a message to the screen and the log file.
+     any missing time stamps.
      This function returns a logical variable that is true if any gaps exist
      in the time stamp.
     Useage:
-     has_gaps = CheckTimeSTep(ds,mode=mode)
+     has_gaps = CheckTimeSTep(ds)
      if has_gaps:
          <do something about missing time stamps>
     Author: PRI
     Date: April 2013
     """
+    # set the has_gaps logical
     has_gaps = False
+    # get the number of records
     nRecs = int(ds.globalattributes["nc_nrecs"])
+    # get the time step
     ts = int(ds.globalattributes["time_step"])
-    xldt = ds.series["xlDateTime"]["Data"]
-    ldt = ds.series["DateTime"]["Data"]
-    dt = numpy.array([(ldt[i]-ldt[i-1]).total_seconds() for i in range(1,len(ldt))])
+    # time step between records in seconds
+    dt = get_timestep(ds)
+    # indices of elements where time step not equal to default
     index = numpy.where(dt!=ts*60)[0]
+    # check to see if ww have any time step problems
     if len(index)!=0:
         has_gaps = True
-        log.warning(' CheckTimeStep: '+str(len(index))+ ' errors found in the time step')
-        dtmin = numpy.min(dt)
-        dtmax = numpy.max(dt)
-        if dtmin < ts*60:
-            if mode=="fix":
-                log.info(' CheckTimeStep: duplicate or overlapping times found, removing ...')
-                RemoveDuplicateRecords(ds)
-                has_gaps = False
-        if numpy.min(numpy.mod(dt,ts*60))!=0 or numpy.max(numpy.mod(dt,ts*60))!=0:
-            if mode=="fix":
-                log.info(" CheckTimeStep: Non-integral time steps found "+str(len(index))+" times out of "+str(nRecs))
-                log.info(" CheckTimeStep: Maximum time step was "+str(numpy.max(dt))+" seconds, minimum time step was "+str(numpy.min(dt)))
-                FixNonIntegralTimeSteps(ds)
-                has_gaps = False
-        if dtmax > ts*60:
-            if mode=="fix":
-                log.info(' CheckTimeStep: one or more time gaps found, inserting times ...')
-                FixTimeGaps(ds)
-                has_gaps = False
+        log.warning(" CheckTimeStep: "+str(len(index))+" problems found with the time stamp")
     else:
-        log.info(' CheckTimeStep: no time gaps found')
+        log.info(" CheckTimeStep: no problems found with time stamp")
     return has_gaps
 
 def contiguous_regions(condition):
@@ -336,7 +319,7 @@ def find_indices(a,b):
 def RemoveDuplicateRecords(ds):
     """ Remove duplicate records."""
     # the ds.series["DateTime"]["Data"] series is actually a list
-    for item in ["DateTime","DateTime_UTC"]:
+    for item in ["DateTime"]:
         if item in ds.series.keys():
             ldt,ldt_flag,ldt_attr = GetSeries(ds,item)
             # ldt_nodups is returned as an ndarray
@@ -349,7 +332,7 @@ def RemoveDuplicateRecords(ds):
     # get a list of the series in the data structure
     series_list = [item for item in ds.series.keys() if '_QCFlag' not in item]
     # remove the DateTime
-    for item in ["DateTime","DateTime_UTC"]:
+    for item in ["DateTime"]:
         if item in series_list: series_list.remove(item)
     # loop over the series in the data structure
     for ThisOne in series_list:
@@ -360,8 +343,21 @@ def RemoveDuplicateRecords(ds):
     ds.globalattributes['nc_nrecs'] = len(ds.series["DateTime"]["Data"])
 
 def FixNonIntegralTimeSteps(ds):
-    #print "Non-integral time steps found",len(idx),"times out of",str(nRecs)
-    #print "Maximum time step was",numpy.max(dt),"seconds, minimum time step was",numpy.min(dt)
+    """
+    Purpose:
+     Fix time steps that are not an integral number of the default time step.
+     The default time step is read from the "time_step" global attribute which is read from
+     the L1 control file and written to the L1 netCDF file.
+     The most common cause of non-integral time steps is drift in logger time stamp or
+     rounding errors in Excel's treatment of datetimes.
+    Usage:
+     FixNonIntegralTimeSteps(ds)
+    Called By: CheckTimeStep
+    Author: PRI
+    Date: February 2015
+    To do:
+     Implement [I]nterpolate
+    """
     ts = int(ds.globalattributes["time_step"])
     ldt = ds.series["DateTime"]["Data"]
     dt_diffs = numpy.array([(ldt[i]-rounddttots(ldt[i],ts=ts)).total_seconds() for i in range(1,len(ldt))])
@@ -374,16 +370,13 @@ def FixNonIntegralTimeSteps(ds):
         print "Interpolation to regular time step not implemented yet ..."
         sys.exit()
     if ans.lower()=="r":
-        print "Rounding to the nearest time step"
+        log.info("Rounding to the nearest time step")
         ldt_rounded = [rounddttots(dt,ts=ts) for dt in ldt]
         rdt = numpy.array([(ldt_rounded[i]-ldt_rounded[i-1]).total_seconds() for i in range(1,len(ldt))])
         log.info("Maximum time step is now "+str(numpy.max(rdt))+" seconds, minimum time step is now "+str(numpy.min(rdt)))
         # replace the existing datetime series with the datetime series rounded to the nearest time step
         ds.series["DateTime"]["Data"] = ldt_rounded
-    # replace the year, month, day, hour, minute and second series in the data structure
-    get_ymdhmsfromxldate(ds)
-    # replace the UTC datetime
-    get_UTCfromlocaltime(ds)
+    ds.globalattributes['nc_nrecs'] = len(ds.series["DateTime"]["Data"])
     
 def FixTimeGaps(ds):
     """
@@ -397,6 +390,7 @@ def FixTimeGaps(ds):
     Date: April 2013
     Modified:
      September 2014 - rewrite for clarity and efficiency
+     February 2015 - and again ...
     """
     ts = int(ds.globalattributes["time_step"])
     ldt_gaps,ldt_flag,ldt_attr = GetSeries(ds,"DateTime")
@@ -407,27 +401,17 @@ def FixTimeGaps(ds):
     # update the global attribute containing the number of records
     nRecs = len(ldt_nogaps)
     ds.globalattributes['nc_nrecs'] = nRecs
+    # find the indices of the original data in the no-gap data
     idx_gaps = find_indices(ldt_nogaps,ldt_gaps)
-    datemode = int(ds.globalattributes["xl_datemode"])
-    xlDateTime = get_xldate_from_datetime(ldt_nogaps,datemode=datemode)
-    # replace the "gappy" Excel and Python datetime values in the data structure
-    ds.series['xlDateTime']['Data'] = numpy.array(xlDateTime,dtype=numpy.float64)
-    org_flag = ds.series['xlDateTime']['Flag'].astype(numpy.int32)
-    ds.series['xlDateTime']['Flag'] = numpy.ones(nRecs,dtype=numpy.int32)
-    ds.series['xlDateTime']['Flag'][idx_gaps] = org_flag
+    # update the series of Python datetimes
     ds.series['DateTime']['Data'] = ldt_nogaps
     org_flag = ds.series['DateTime']['Flag'].astype(numpy.int32)
     ds.series['DateTime']['Flag'] = numpy.ones(nRecs,dtype=numpy.int32)
     ds.series['DateTime']['Flag'][idx_gaps] = org_flag
-    # replace the "gappy" year, month, day, hour, minute and second series in the data structure
-    get_ymdhmsfromxldate(ds)
-    # replace the "gappy" UTC datetime
-    get_UTCfromlocaltime(ds)
     # get a list of series in the data structure
     series_list = [item for item in ds.series.keys() if '_QCFlag' not in item]
     # remove the datetime-related series from data structure
-    datetime_list = ["xlDateTime","xlDateTime_UTC","DateTime","DateTime_UTC",
-                    "Year","Month","Day","Hour","Minute","Second","Hdh","Ddd"]
+    datetime_list = ["DateTime"]
     for item in datetime_list:
         if item in series_list: series_list.remove(item)
     # now loop over the rest of the series in the data structure
@@ -438,7 +422,54 @@ def FixTimeGaps(ds):
         data_nogaps[idx_gaps] = data_gaps
         flag_nogaps[idx_gaps] = flag_gaps
         CreateSeries(ds,ThisOne,data_nogaps,Flag=flag_nogaps,Attr=attr)
-    
+
+def FixTimeStep(ds):
+    """
+    Purpose:
+     Fix problems with the time stamp.
+    Useage:
+     qcutils.FixTimeStep(ds)
+    Author: PRI
+    Date: April 2013
+    Modified:
+     February 2015 - split check and fix functions into different routines
+    """
+    # get the number of records
+    nRecs = int(ds.globalattributes["nc_nrecs"])
+    # get the time step
+    ts = int(ds.globalattributes["time_step"])
+    # time step between records in seconds
+    dt = get_timestep(ds)
+    dtmin = numpy.min(dt)
+    dtmax = numpy.max(dt)
+    if dtmin < ts*60:
+        # duplicate or overlapping times found
+        log.info(' FixTimeStep: duplicate or overlapping times found, removing ...')
+        RemoveDuplicateRecords(ds)
+        dt = get_timestep(ds)
+        dtmin = numpy.min(dt)
+        dtmax = numpy.max(dt)
+        #log.info("After RemoveDuplicateRecords:"+str(dtmin)+" "+str(dtmax))
+    if numpy.min(numpy.mod(dt,ts*60))!=0 or numpy.max(numpy.mod(dt,ts*60))!=0:
+        # non-integral time steps found
+        # indices of elements where time step not equal to default
+        index = numpy.where(numpy.min(numpy.mod(dt,ts*60))!=0 or numpy.max(numpy.mod(dt,ts*60))!=0)[0]
+        log.info(" FixTimeStep: Non-integral time steps found "+str(len(index))+" times out of "+str(nRecs))
+        log.info(" FixTimeStep: Maximum time step was "+str(numpy.max(dt))+" seconds, minimum time step was "+str(numpy.min(dt)))
+        FixNonIntegralTimeSteps(ds)
+        dt = get_timestep(ds)
+        dtmin = numpy.min(dt)
+        dtmax = numpy.max(dt)
+        #log.info("After FixNonIntegralTimeSteps:"+str(dtmin)+" "+str(dtmax))
+    if dtmax > ts*60:
+        # time gaps found
+        log.info(' FixTimeStep: one or more time gaps found, inserting times ...')
+        FixTimeGaps(ds)
+        dt = get_timestep(ds)
+        dtmin = numpy.min(dt)
+        dtmax = numpy.max(dt)
+        #log.info("After FixTimeGaps: "+str(dtmin)+" "+str(dtmax))
+
 def GetAverageSeriesKeys(cf,ThisOne):
     if incf(cf,ThisOne) and haskey(cf,ThisOne,'AverageSeries'):
         if 'Source' in cf['Variables'][ThisOne]['AverageSeries'].keys():
@@ -529,9 +560,9 @@ def GetRangesFromCF(cf,ThisOne):
 
 def GetDateIndex(datetimeseries,date,ts=30,default=0,match='exact'):
     '''
-    PURPOSE:
+    Purpose:
      Return the index of a date/datetime string in an array of datetime objects
-    USAGE:
+    Usage:
      si = qcutils.GetDateIndex(datetimeseries,date_str,ts=30,default=0,match='exact')
     where
      datetimeseries - array of datetime objects
@@ -551,7 +582,7 @@ def GetDateIndex(datetimeseries,date,ts=30,default=0,match='exact'):
                                           in the next hour
                 NOTE: "startnextday" and "endpreviousday" can be used to pick
                     out time periods with an integer number of days
-    AUTHOR: PRI
+    Author: PRI
     '''
     try:
         if len(date)!=0:
@@ -718,9 +749,9 @@ def MakeEmptySeries(ds,ThisOne):
 
 def GetSeriesasMA(ds,ThisOne,si=0,ei=-1,mode="truncate"):
     '''
-    PURPOSE:
+    Purpose:
      Returns a data series and the QC flag series from the data structure.
-    USAGE:
+    Usage:
      data,flag,attr = qcutils.GetSeriesasMA(ds,label,si=0,ei=-1)
     where the arguments are;
       ds    - the data structure (dict)
@@ -733,12 +764,12 @@ def GetSeriesasMA(ds,ThisOne,si=0,ei=-1,mode="truncate"):
       flag - QC flag for the requested series in ds
              (numpy masked array, int32)
       attr - attribute dictionary for series
-    EXAMPLE:
+    Example:
      The code snippet below will return the incoming shortwave data values
      (Fsd) and the associated QC flag (f) as numpy masked arrays;
       ds = qcio.nc_read_series("HowardSprings_2011_L3.nc")
       Fsd,f,a = qcutils.GetSeriesasMA(ds,"Fsd")
-    AUTHOR: PRI
+    Author: PRI
     '''
     Series,Flag,Attr = GetSeries(ds,ThisOne,si=si,ei=ei,mode=mode)
     Series,WasND = SeriestoMA(Series)
@@ -793,7 +824,7 @@ def get_coverage_groups(ds,rad=None,met=None,flux=None,soil=None):
 def get_coverage_individual(ds):
     level = str(ds.globalattributes['nc_level'])
     SeriesList = ds.series.keys()
-    for ThisOne in ["DateTime","DateTime_UTC"]:
+    for ThisOne in ["DateTime"]:
         if ThisOne in SeriesList: SeriesList.remove(ThisOne)
     for ThisOne in SeriesList:
         num_good = len(numpy.where(abs(ds.series[ThisOne]['Data']-float(c.missing_value))>c.eps)[0])
@@ -814,7 +845,6 @@ def get_datetimefromnctime(ds,time,time_units):
     ts = int(ds.globalattributes["time_step"])
     nRecs = int(ds.globalattributes["nc_nrecs"])
     dt = netCDF4.num2date(time,time_units)
-    dt = RoundDateTime(dt,ts=ts)
     ds.series[unicode("DateTime")] = {}
     ds.series["DateTime"]["Data"] = list(dt)
     ds.series["DateTime"]["Flag"] = numpy.zeros(nRecs)
@@ -834,6 +864,8 @@ def get_datetimefromxldate(ds):
     ds.series[unicode('DateTime')] = {}
     ds.series['DateTime']['Data'] = [None]*nRecs
     basedate = datetime.datetime(1899, 12, 30)
+    #ldt = [basedate + datetime.timedelta(days=xldate[i] + 1462 * datemode) for i in range(nRecs)]
+    #ds.series['DateTime']['Data'][i] = ldt
     for i in range(nRecs):
         ds.series['DateTime']['Data'][i] = basedate + datetime.timedelta(days=xldate[i] + 1462 * datemode)
     ds.series['DateTime']['Flag'] = numpy.zeros(nRecs)
@@ -865,7 +897,6 @@ def get_datetimefromymdhms(ds):
                                                        int(ds.series['Minute']['Data'][i]),
                                                        int(ds.series['Second']['Data'][i]),
                                                        int(microseconds[i]))
-    #ds.series["DateTime"]["Data"] = RoundDateTime(ds.series["DateTime"]["Data"],ts=ts)
     ds.series['DateTime']['Flag'] = numpy.zeros(nRecs)
     ds.series['DateTime']['Attr'] = {}
     ds.series['DateTime']['Attr']['long_name'] = 'Date-time object'
@@ -879,6 +910,21 @@ def get_nrecs(ds):
     else:
         nRecs = len(ds.series[SeriesList[0]]['Data'])
     return nRecs
+
+def get_timestep(ds):
+    """
+    Purpose:
+     Return an array of time steps in seconds between records
+    Useage:
+     dt = qcutils.get_timestep(ds)
+    Author: PRI
+    Date: February 2015
+    """
+    # local pointer to the Python datetime series
+    ldt = ds.series["DateTime"]["Data"]
+    # time step between records in seconds
+    dt = numpy.array([(ldt[i]-ldt[i-1]).total_seconds() for i in range(1,len(ldt))])
+    return dt
 
 def get_timezone(site_name,prompt="no"):
     """ Return the time zone based on the site name."""
@@ -901,14 +947,14 @@ def get_timezone(site_name,prompt="no"):
 
 def get_UTCfromlocaltime(ds):
     '''
-    PURPOSE:
+    Purpose:
      Creates a UTC datetime series in the data structure from the
      local datetime series.
-    USAGE:
-     qcutils.get_UTCfromlocaltime(ds)
-    ASSUMPTIONS:
+    Usage:
+     ldt_UTC = qcutils.get_UTCfromlocaltime(ds)
+    Assumptions:
      No daylight savings used in the local datetime
-    AUTHOR: PRI
+    Author: PRI
     '''
     # check the time_zone global attribute is set, we cant continue without it
     if "time_zone" not in ds.globalattributes.keys():
@@ -938,48 +984,49 @@ def get_UTCfromlocaltime(ds):
     ldt_loc = [loc_tz.localize(dt) for dt in ldt]
     # convert to UTC
     ldt_utc = [dt.astimezone(pytz.utc) for dt in ldt_loc]
-    # put the UTC datetime into the data structure
-    ds.series[unicode("DateTime_UTC")] = {}
-    ds.series["DateTime_UTC"]["Data"] = ldt_utc
-    ds.series['DateTime_UTC']["Flag"] = numpy.zeros(nRecs)
-    ds.series['DateTime_UTC']["Attr"] = {}
-    ds.series['DateTime_UTC']["Attr"]["long_name"] = "Datetime as UTC"
-    ds.series['DateTime_UTC']["Attr"]["units"] = "None"
+    return ldt_utc
 
-def get_xldate_from_datetime(dt,datemode=0):
+def get_xldatefromdatetime(ds):
     '''
-    PURPOSE:
+    Purpose:
      Returns a list of xldatetime (floating point number represent decimal days
      since 00:00 1/1/1900) from a list of Python datetimes
-    USAGE:
+    Usage:
+     qcutils.get_xldatefromdatetime(ds)
+    Assumptions:
+     The Excel datetime series ("xlDateTime") exists in the data structure ds.
+    Author: PRI
+    '''
+    # get the datemode of the original Excel spreadsheet
     datemode = int(ds.globalattributes["xl_datemode"])
-     xl_date = qcutils.get_xldate_from_datetime(py_date,datemode=datemode)
-     ds.series["xlDateTime"] = numpy.array(xl_date)
-    ASSUMPTIONS:
-     datemode is set to 0 (1900 date system), use on Windows assumed
-    AUTHOR: PRI
-    '''
-    xldate = [xlrd.xldate.xldate_from_datetime_tuple((dt[i].year,
-                                                      dt[i].month,
-                                                      dt[i].day,
-                                                      dt[i].hour,
-                                                      dt[i].minute,
-                                                      dt[i].second),
-                                                      datemode) for i in range(0,len(dt))]
-    return xldate
+    # get the Excel datetime series, flag and attributes
+    xldt_org,xldt_flag,xldt_attr = GetSeriesasMA(ds,"xlDateTime")
+    # get a local pointer to the Python DateTime series in ds
+    ldt = ds.series["DateTime"]["Data"]
+    # get a list of Excel datetimes from the Python datetime objects
+    xldate = [xlrd.xldate.xldate_from_datetime_tuple((ldt[i].year,
+                                                      ldt[i].month,
+                                                      ldt[i].day,
+                                                      ldt[i].hour,
+                                                      ldt[i].minute,
+                                                      ldt[i].second),
+                                                      datemode) for i in range(0,len(ldt))]
+    xldt_new = numpy.ma.array(xldate, dtype=numpy.float64)
+    # overwrite the existing Excel datetime series
+    CreateSeries(ds,"xlDateTime",xldt_new,Flag=xldt_flag,Attr=xldt_attr)
 
-def get_ymdhms_from_datetime(ds):
+def get_ymdhmsfromdatetime(ds):
     '''
-    PURPOSE:
+    Purpose:
      Gets the year, month, day, hour, minute and second from a list of
      Python datetimes.  The Python datetime series is read from
      the input data structure and the results are written back to the
      data structure.
-    USAGE:
-     qcutils.get_ymdhms_from_datetime(ds)
-    ASSUMPTIONS:
+    Usage:
+     qcutils.get_ymdhmsfromdatetime(ds)
+    Assumptions:
      None
-    AUTHOR: PRI
+    Author: PRI
     '''
     nRecs = int(ds.globalattributes["nc_nrecs"])
     dt = ds.series["DateTime"]["Data"]
@@ -1168,8 +1215,40 @@ def rounddttots(dt,ts=30):
     dt -= datetime.timedelta(minutes=dt.minute % int(ts),seconds=dt.second,microseconds=dt.microsecond)
     return dt    
 
-def RoundDateTime(datetimeseries,ts=30):
-    return [rounddttots(dt,ts=ts) for dt in datetimeseries]
+def rounddttoseconds(dt):
+    dt += datetime.timedelta(seconds=0.5)
+    dt -= datetime.timedelta(seconds=dt.second % 1,microseconds=dt.microsecond)
+    return dt
+
+def round_datetime(ds,mode="nearest_timestep"):
+    """
+    Purpose:
+     Round the series of Python datetimes to the nearest time based on mode
+    Usage:
+     qcutils.round_datetime(ds,mode=mode)
+     where;
+      mode = "nearest_second" rounds to the nearesy second
+      mode = "nearest_timestep" rounds to the nearest time step
+    Author: PRI
+    Date: February 2015
+    """
+    # get the time step
+    ts = int(ds.globalattributes["time_step"])
+    # local pointer to the datetime series
+    ldt = ds.series["DateTime"]["Data"]
+    # check which rounding option has been chosen
+    if mode.lower()=="nearest_timestep":
+        # round to the nearest time step
+        rldt = [rounddttots(dt,ts=ts) for dt in ldt]
+    elif mode.lower()=="nearest_second":
+        # round to the nearest second
+        rldt = [rounddttoseconds(dt) for dt in ldt]
+    else:
+        # unrecognised option for mode, return original datetime series
+        log.error(" round_datetime: unrecognised mode ("+str(mode)+")"+" ,returning original time series")
+        rldt = ds.series["DateTime"]["Data"]
+    # replace the original datetime series with the rounded one
+    ds.series["DateTime"]["Data"] = rldt
 
 def round2sig(x,sig=2):
     '''

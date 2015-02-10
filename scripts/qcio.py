@@ -89,7 +89,7 @@ def copy_datastructure(cf,ds_in):
         else:
             # the user wants to use the data from an existing L4 file
             # get the netCDF file name at the "input" level
-            outfilename = get_outfilename_from_cf(cf)
+            outfilename = get_outfilenamefromcf(cf)
             # read the netCDF file at the "input" level
             ds_file = nc_read_series(outfilename)
             dt_file = ds_file.series['DateTime']['Data']
@@ -191,7 +191,7 @@ def read_eddypro_full(csvname):
             Fc_flag_list.append(float(row[Fc_flag_col]))
         n = n + 1
     nRecs = len(adatetime)
-    adatetime = qcutils.RoundDateTime(adatetime,ts=30)
+    adatetime = qcutils.round_datetime(ds,mode="nearest_timestep")
     ds.series['DateTime'] = {}
     ds.series['DateTime']['Data'] = adatetime
     ds.series['ustar'] = {}
@@ -208,7 +208,7 @@ def read_eddypro_full(csvname):
     ds.series['Fc']['Flag'] = numpy.array(Fc_flag_list,dtype=numpy.int32)
     ds.globalattributes["nc_nrecs"] = nRecs
     return ds
-    
+
 def xl2nc(cf,InLevel):
     # get the data series from the Excel file
     ds = xl_read_series(cf)
@@ -217,10 +217,14 @@ def xl2nc(cf,InLevel):
     qcts.do_attributes(cf,ds)
     # get a series of Python datetime objects from the Excel datetime
     qcutils.get_datetimefromxldate(ds)
-    # get series of UTC datetime
-    qcutils.get_UTCfromlocaltime(ds)
-    #check for gaps in the Excel datetime series
-    has_gaps = qcutils.CheckTimeStep(ds,mode="fix")
+    # round the Python datetime to the nearest second
+    qcutils.round_datetime(ds,mode="nearest_second")
+    #check for gaps in the Python datetime series and fix if present
+    if qcutils.CheckTimeStep(ds): qcutils.FixTimeStep(ds)
+    # recalculate the Excel datetime
+    qcutils.get_xldatefromdatetime(ds)
+    # get the Year, Month, Day etc from the Python datetime
+    qcutils.get_ymdhmsfromdatetime(ds)
     # write the processing level to a global attribute
     ds.globalattributes['nc_level'] = str(InLevel)
     # get the start and end date from the datetime series unless they were
@@ -229,22 +233,20 @@ def xl2nc(cf,InLevel):
         ds.globalattributes['start_date'] = str(ds.series['DateTime']['Data'][0])
     if 'end_date' not in ds.globalattributes.keys():
         ds.globalattributes['end_date'] = str(ds.series['DateTime']['Data'][-1])
-    # get the year, month, day, hour, minute and second from the xl date/time
-    qcutils.get_ymdhmsfromxldate(ds)
     # do any functions to create new series
     qcts.do_functions(cf,ds)
     # create a series of synthetic downwelling shortwave radiation
     qcts.get_synthetic_fsd(ds)
     # write the data to the netCDF file
-    outfilename = get_outfilename_from_cf(cf)
+    outfilename = get_outfilenamefromcf(cf)
     ncFile = nc_open_write(outfilename)
     nc_write_series(ncFile,ds)
     return 0
 
 def fn_write_csv(cf):
     # get the file names
-    ncFileName = get_infilename_from_cf(cf)
-    csvFileName = get_outfilename_from_cf(cf)
+    ncFileName = get_infilenamefromcf(cf)
+    csvFileName = get_outfilenamefromcf(cf)
     # open the csv file
     csvfile = open(csvFileName,'wb')
     writer = csv.writer(csvfile)
@@ -288,7 +290,7 @@ def fn_write_csv(cf):
             ds.series[thisone]["Flag"] = numpy.concatenate((flag_patched,ds.series[thisone]["Flag"]))
         ds.globalattributes["nc_nrecs"] = str(len(ds.series["DateTime"]["Data"]))
         # refresh the year, month, day etc arrays now that we have padded the datetime series
-        qcutils.get_ymdhms_from_datetime(ds)
+        qcutils.get_ymdhmsfromdatetime(ds)
     # now check the end datetime of the file
     end_datetime = dateutil.parser.parse(str(cf["General"]["end_datetime"]))
     if dt[-1]>end_datetime:
@@ -318,7 +320,7 @@ def fn_write_csv(cf):
             ds.series[thisone]["Flag"] = numpy.concatenate((ds.series[thisone]["Flag"],flag_patched))
         ds.globalattributes["nc_nrecs"] = str(len(ds.series["DateTime"]["Data"]))
         # refresh the year, month, day etc arrays now that we have padded the datetime series
-        qcutils.get_ymdhms_from_datetime(ds)
+        qcutils.get_ymdhmsfromdatetime(ds)
     if ts==30:
         nRecs_year = 17520
         nRecs_leapyear = 17568
@@ -447,48 +449,66 @@ def get_filename_dialog(path='.',title='Choose a file'):
     root.destroy()
     return str(FileName)
 
-def get_infilename_from_cf(cf):
-    filename = ""
-    if "Files" in cf.keys():
-        if "file_path" in cf['Files'].keys():
-            if "in_filename" in cf['Files'].keys():
-                filename = cf['Files']['file_path']+cf['Files']['in_filename']
-            else:
-                log.error("get_infilename_from_cf: 'in_filename' key not found in 'Files' section of control file")
+def get_infilenamefromcf(cf):
+    path = get_keyvaluefromcf(cf,["Files"],"file_path",default="")
+    name = get_keyvaluefromcf(cf,["Files"],"in_filename",default="")
+    return str(path)+str(name)
+
+def get_outfilenamefromcf(cf):
+    path = get_keyvaluefromcf(cf,["Files"],"file_path",default="")
+    name = get_keyvaluefromcf(cf,["Files"],"out_filename",default="")
+    return str(path)+str(name)
+
+def get_keyvaluefromcf(cf,sections,key,default=None):
+    """
+    Purpose:
+     General return a keyword value from a control file.
+    Usage:
+     keyval = qcio.get_keyvaluefromcf(cf,sections,key,default=default)
+     where
+      cf is a control file object from ConfigObj
+      sections is a list of sections and nested sub-sections to search
+      key is the keyword
+      default is a default value
+    Example:
+     ncOutFileName = qcio.get_keyvaluefromcf(cf,["Files","Out"],"ncFileName",default="")
+     The example above will return the value for ncFileName from the ["Files"]["Out"] sub-section
+     in the control file.
+    Author: PRI
+    Date: February 2015
+    """
+    if len(sections)<1: log.info(" get_keyvaluefromsections: no sections specified")
+    if sections[0] in cf:
+        section = cf[sections[0]]
+        if len(sections)>1:
+            for item in sections[1:]:
+                if item in section:
+                    section = section[item]
+                else:
+                    log.info(" get_keyvaluefromcf: Sub section "+item+" not found in control file, used default ("+str(default)+")")
+                    value = default
+        if key in section:
+            value = section[key]
         else:
-            log.error("get_infilename_from_cf: 'file_path' key not found in 'Files' section of control file")
+            log.info(" get_keyvaluefromcf: Key "+key+" not found in section, used default ("+str(default)+")")
+            value = default
     else:
-        log.error("get_infilename_from_cf: 'Files' section not found in control file")
-    return str(filename)
-
-def get_outfilename_from_cf(cf):
-    try:
-        filename = cf['Files']['file_path']+cf['Files']['out_filename']
-    except:
-        log.error('get_outfilename_from_cf: Error getting out_filename from control file')
-        filename = ''
-    return str(filename)
-
-def get_keyvalue_from_cf(section,key,default=''):
-    try:
-        value = section[key]
-    except:
-        log.error('get_keyvalue_from_cf: '+str(key)+' not found in '+str(section.name)+' section of control file')
+        log.error(" get_keyvaluefromcf: Section "+sections[0]+" not found in control file, used default ("+str(default)+")")
         value = default
     return value
 
-def get_outputlist_from_cf(cf,filetype):
+def get_outputlistfromcf(cf,filetype):
     try:
         outputlist = ast.literal_eval(cf['Output'][filetype])
     except:
-        #log.info('get_outputlist_from_cf: Unable to get output list from Output section in control file')
+        #log.info('get_outputlistfromcf: Unable to get output list from Output section in control file')
         outputlist = None
     return outputlist
 
 def get_seriesstats(cf,ds):
     # open an Excel file for the flag statistics
     level = ds.globalattributes['nc_level']
-    out_filename = get_outfilename_from_cf(cf)
+    out_filename = get_outfilenamefromcf(cf)
     xl_filename = out_filename.replace('.nc','_FlagStats.xls')
     log.info(' Writing flag stats to Excel file '+xl_filename)
     xlFile = xlwt.Workbook()
@@ -595,10 +615,10 @@ def nc_concatenate(cf):
     InFile_list = cf['Files']['In'].keys()
     # read in the first file
     ncFileName = cf['Files']['In'][InFile_list[0]]
-    log.info('nc_concatenate: Reading data from '+ncFileName)
+    log.info(' Reading data from '+ncFileName)
     ds_n = nc_read_series(ncFileName)
     if len(ds_n.series.keys())==0:
-        log.error('nc_concatenate: An error occurred reading netCDF file: '+ncFileName)
+        log.error(' An error occurred reading netCDF file: '+ncFileName)
         return
     # fill the global attributes
     for ThisOne in ds_n.globalattributes.keys():
@@ -623,11 +643,11 @@ def nc_concatenate(cf):
     # loop over the remaining files given in the control file
     for n in InFile_list[1:]:
         ncFileName = cf['Files']['In'][InFile_list[int(n)]]
-        log.info('nc_concatenate: Reading data from '+ncFileName)
+        log.info(' Reading data from '+ncFileName)
         #print 'ncconcat: reading data from '+ncFileName
         ds_n = nc_read_series(ncFileName)
         if len(ds.series.keys())==0:
-            log.error('nc_concatenate: An error occurred reading the netCDF file: '+ncFileName)
+            log.error(' An error occurred reading the netCDF file: '+ncFileName)
             return
         dt_n = ds_n.series['DateTime']['Data']
         dt = ds.series['DateTime']['Data']
@@ -636,14 +656,14 @@ def nc_concatenate(cf):
         #print ds.series['DateTime']['Data'][-1],ds_n.series['DateTime']['Data'][-1]
         #print dt[-1],dt[-1]+datetime.timedelta(minutes=ts),dt_n[0]
         if dt_n[0]<dt[-1]+datetime.timedelta(minutes=ts):
-            log.info('nc_concatenate: Overlapping times detected in consecutive files')
+            log.info(' Overlapping times detected in consecutive files')
             si = qcutils.GetDateIndex(dt_n,str(dt[-1]),ts=ts)+1
             ei = -1
         if dt_n[0]==dt[-1]+datetime.timedelta(minutes=ts):
-            log.info('nc_concatenate: Start and end times OK in consecutive files')
+            log.info(' Start and end times OK in consecutive files')
             si = 0; ei = -1
         if dt_n[0]>dt[-1]+datetime.timedelta(minutes=ts):
-            log.info('nc_concatenate: Gap between start and end times in consecutive files')
+            log.info(' Gap between start and end times in consecutive files')
             si = 0; ei = -1
             #TimeGap = True
         # loop over the data series in the concatenated file
@@ -651,7 +671,7 @@ def nc_concatenate(cf):
             if ThisOne=="Fc":
                 Fc,flag,attr = qcutils.GetSeriesasMA(ds_n,ThisOne)
                 if attr['units']=='mg/m2/s':
-                    log.info("Converting Fc to umol/m2/s")
+                    log.info(" Converting Fc to umol/m2/s")
                     Fc = mf.Fc_umolpm2psfrommgpm2ps(Fc)
                     attr['units'] = 'umol/m2/s'
                     attr['standard_name'] = 'surface_upward_mole_flux_of_carbon_dioxide'
@@ -681,38 +701,34 @@ def nc_concatenate(cf):
                 ds.series[ThisOne]['Attr'] = {}
                 for attr in ds_n.series[ThisOne]['Attr'].keys():
                     ds.series[ThisOne]['Attr'][attr] = ds_n.series[ThisOne]['Attr'][attr]
+    # update the number of records
+    ds.globalattributes["nc_nrecs"] = len(ds.series["DateTime"]["Data"])
     # now sort out any time gaps
-    ds.globalattributes['nc_nrecs'] = str(len(ds.series['xlDateTime']['Data']))
-    has_gaps = qcutils.CheckTimeStep(ds,mode="fix")
-    ds.globalattributes['nc_nrecs'] = str(len(ds.series['xlDateTime']['Data']))
+    if qcutils.CheckTimeStep(ds):
+        qcutils.FixTimeStep(ds)
+        # update the Excel datetime from the Python datetime
+        qcutils.get_xldatefromdatetime(ds)
+        # update the Year, Month, Day etc from the Python datetime
+        qcutils.get_ymdhmsfromdatetime(ds)
     # if requested, fill any small gaps by interpolation
     # get a list of series in ds excluding the QC flags
     series_list = [item for item in ds.series.keys() if "_QCFlag" not in item]
     # remove the datetime variables, these will have no gaps
-    datetime_list = ["xlDateTime","xlDateTime_UTC","DateTime","DateTime_UTC",
-                    "Year","Month","Day","Hour","Minute","Second","Hdh","Ddd"]
+    datetime_list = ["xlDateTime","DateTime","Year","Month","Day","Hour","Minute","Second","Hdh","Ddd"]
     for item in datetime_list:
         if item in series_list: series_list.remove(item)
     # loop over the non-datetime data series in ds and interpolate
     # get the maximum gap length (in hours) from the control file
-    if "Options" in cf.keys():
-        maxlen = int(get_keyvalue_from_cf(cf['Options'],'MaxGapInterpolate',default=3))
-    else:
-        maxlen = 3
-    # convert from maximum length in hours to maximum length in time steps
-    maxlen = int(maxlen*60/ts)
+    maxlen = int(get_keyvaluefromcf(cf,["Options"],"MaxGapInterpolate",default=3))
     # now loop over the series and do the interpolation
+    log.info(" Interpolating over fixed time gaps ("+str(maxlen)+" hour max)")
     for item in series_list:
         qcts.InterpolateOverMissing(ds,series=item,maxlen=maxlen)
     # write the netCDF file
-    ncFileName = get_keyvalue_from_cf(cf['Files']['Out'],'ncFileName')
-    log.info('nc_concatenate: Writing data to '+ncFileName)
+    ncFileName = get_keyvaluefromcf(cf,["Files","Out"],"ncFileName",default="out.nc")
+    log.info(' Writing data to '+ncFileName)
     ncFile = nc_open_write(ncFileName)
-    if "Options" in cf.keys():
-        ndims = int(get_keyvalue_from_cf(cf['Options'],'NumberOfDimensions',default=3))
-    else:
-        ndims = 3
-    nc_write_series(ncFile,ds,ndims=ndims)
+    nc_write_series(ncFile,ds,ndims=3)
 
 def nc_read_series(ncFullName):
     ''' Read a netCDF file and put the data and meta-data into a DataStructure'''
@@ -748,16 +764,20 @@ def nc_read_series(ncFullName):
     # make sure all values of -9999 have non-zero QC flag
     qcutils.CheckQCFlags(ds)
     # get a series of Python datetime objects
-    #if "time" in ds.series.keys():
-        #time,f,a = qcutils.GetSeries(ds,"time")
-        #qcutils.get_datetimefromnctime(ds,time,a["units"])
-    #else:
-        #qcutils.get_datetimefromymdhms(ds)
-    qcutils.get_datetimefromymdhms(ds)
-    # get series of UTC datetime
-    qcutils.get_UTCfromlocaltime(ds)
+    if "time" in ds.series.keys():
+        time,f,a = qcutils.GetSeries(ds,"time")
+        qcutils.get_datetimefromnctime(ds,time,a["units"])
+    else:
+        qcutils.get_datetimefromymdhms(ds)
+    # round the Python datetime to the nearest second
+    qcutils.round_datetime(ds,mode="nearest_second")
     # check the time step and fix it required
-    has_gaps = qcutils.CheckTimeStep(ds,mode="fix")
+    if qcutils.CheckTimeStep(ds):
+        qcutils.FixTimeStep(ds)
+        # update the Excel datetime from the Python datetime
+        qcutils.get_xldatefromdatetime(ds)
+        # update the Year, Month, Day etc from the Python datetime
+        qcutils.get_ymdhmsfromdatetime(ds)        
     # tell the user when the data starts and ends
     ldt = ds.series["DateTime"]["Data"]
     msg = " Got data from "+ldt[0].strftime("%Y-%m-%d %H:%M:%S")+" to "+ldt[-1].strftime("%Y-%m-%d %H:%M:%S")
@@ -918,7 +938,7 @@ def nc_write_series(ncFile,ds,outputlist=None,ndims=3):
         if len(outputlist)==0: outputlist = ds.series.keys()
     # can't write an array of Python datetime objects to a netCDF file
     # actually, this could be written as characters
-    for ThisOne in ["DateTime","DateTime_UTC"]:
+    for ThisOne in ["DateTime"]:
         if ThisOne in outputlist: outputlist.remove(ThisOne)
     # write the time variable
     nc_time = netCDF4.date2num(ldt,"days since 1800-01-01 00:00:00.0",calendar="gregorian")
@@ -944,7 +964,7 @@ def nc_write_series(ncFile,ds,outputlist=None,ndims=3):
             setattr(ncVar,'standard_name','longitude')
             setattr(ncVar,'units','degrees east')
     # now make sure the date and time series are in outputlist
-    datetimelist = ['xlDateTime','xlDateTime_UTC','Year','Month','Day','Hour','Minute','Second','Hdh']
+    datetimelist = ['xlDateTime','Year','Month','Day','Hour','Minute','Second','Hdh']
     # and write them to the netCDF file
     for ThisOne in sorted(datetimelist):
         if ThisOne in ds.series.keys(): nc_write_var(ncFile,ds,ThisOne,dims)
@@ -964,16 +984,16 @@ def nc_write_series(ncFile,ds,outputlist=None,ndims=3):
 
 def nc_write_var(ncFile,ds,ThisOne,dim):
     """
-    PURPOSE:
+    Purpose:
      Function to write data from a series in the data structure to a netCDF variable.
-    USAGE:
+    Usage:
      nc_write_var(ncFile,ds,ThisOne,("time","latitude","longitude"))
       where ncFile is a netCDF file object
             ds is the data structure
             ThisOne is the label of a series in ds
             ("time","latitude","longitude") is the dimension tuple
-    AUTHOR: PRI
-    DATE: August 2014
+    Author: PRI
+    Date: August 2014
     """
     # get the data type of the series in ds
     dt = get_ncdtype(ds.series[ThisOne]['Data'])
@@ -1006,8 +1026,8 @@ def nc_write_var(ncFile,ds,ThisOne,dim):
 
 def xl_read_flags(cf,ds,level,VariablesInFile):
     # First data row in Excel worksheets.
-    FirstDataRow = int(get_keyvalue_from_cf(cf['Files'][level],'first_data_row')) - 1
-    HeaderRow = int(get_keyvalue_from_cf(cf['Files']['in'],'header_row')) - 1
+    FirstDataRow = int(get_keyvaluefromcf(cf,["Files",level],"first_data_row")) - 1
+    HeaderRow = int(get_keyvaluefromcf(cf,['Files','in'],'header_row')) - 1
     # Get the full name of the Excel file from the control file.
     xlFullName = get_filename_from_cf(cf,level)
     # Get the Excel workbook object.
@@ -1043,7 +1063,7 @@ def xl_read_series(cf):
     # Instance the data structure object.
     ds = DataStructure()
     # get the filename
-    FileName = get_infilename_from_cf(cf)
+    FileName = get_infilenamefromcf(cf)
     if len(FileName)==0:
         log.error(' in_filename not found in control file')
         return ds
@@ -1051,12 +1071,12 @@ def xl_read_series(cf):
         log.error(' Input file '+FileName+' specified in control file not found')
         return ds
     # convert from Excel row number to xlrd row number
-    FirstDataRow = int(get_keyvalue_from_cf(cf['Files'],'in_firstdatarow')) - 1
-    HeaderRow = int(get_keyvalue_from_cf(cf['Files'],'in_headerrow')) - 1
+    FirstDataRow = int(get_keyvaluefromcf(cf,["Files"],"in_firstdatarow")) - 1
+    HeaderRow = int(get_keyvaluefromcf(cf,["Files"],"in_headerrow")) - 1
     # get the Excel workbook object.
-    log.info(' Opening and reading Excel file '+FileName)
+    log.info(" Opening and reading Excel file "+FileName)
     xlBook = xlrd.open_workbook(FileName)
-    log.info(' Opened and read Excel file '+FileName)
+    log.info(" Opened and read Excel file "+FileName)
     ds.globalattributes['featureType'] = 'timeseries'
     ds.globalattributes['xl_filename'] = FileName
     ds.globalattributes['xl_datemode'] = str(xlBook.datemode)
@@ -1107,7 +1127,7 @@ def xl_write_AlternateStats(ds):
     # open an Excel file for the fit statistics
     cfname = ds.globalattributes["controlfile_name"]
     cf = get_controlfilecontents(cfname,mode="quiet")
-    out_filename = get_outfilename_from_cf(cf)
+    out_filename = get_outfilenamefromcf(cf)
     # get the Excel file name
     xl_filename = out_filename.replace('.nc','_AlternateStats.xls')
     log.info(' Writing alternate fit statistics to Excel file '+xl_filename)
@@ -1148,7 +1168,7 @@ def xl_write_SOLOStats(ds):
     # open an Excel file for the fit statistics
     cfname = ds.globalattributes["controlfile_name"]
     cf = get_controlfilecontents(cfname)
-    out_filename = get_outfilename_from_cf(cf)
+    out_filename = get_outfilenamefromcf(cf)
     # get the Excel file name
     xl_filename = out_filename.replace('.nc','_SOLOStats.xls')
     log.info(' Writing SOLO fit statistics to Excel file '+xl_filename)
@@ -1235,7 +1255,7 @@ def xl_write_series(ds, xlfullname, outputlist=None):
         if len(outputlist)==0:
             outputlist = variablelist
     outputlist.sort()
-    for ThisOne in ["DateTime","DateTime_UTC"]:
+    for ThisOne in ["DateTime"]:
         if ThisOne in outputlist: outputlist.remove(ThisOne)
     for ThisOne in outputlist:
         xlAttrSheet.write(xlrow,xlcol_varname,ThisOne)
@@ -1246,10 +1266,7 @@ def xl_write_series(ds, xlfullname, outputlist=None):
             xlAttrSheet.write(xlrow,xlcol_attrvalue,str(ds.series[ThisOne]['Attr'][Attr]))
             xlrow = xlrow + 1
     # write the Excel date/time to the data and the QC flags as the first column
-    ldt = ds.series["DateTime"]["Data"]
-    # get the datemode of the original spreadsheet
-    datemode = int(ds.globalattributes["xl_datemode"])
-    xlDateTime = qcutils.get_xldate_from_datetime(ldt,datemode=datemode)
+    xlDateTime,f,a = qcutils.GetSeries(ds,"xlDateTime")
     log.info(' Writing the datetime to Excel file '+xlfullname)
     d_xf = xlwt.easyxf(num_format_str='dd/mm/yyyy hh:mm')
     xlDataSheet.write(2,xlcol,'xlDateTime')
@@ -1258,7 +1275,6 @@ def xl_write_series(ds, xlfullname, outputlist=None):
         xlFlagSheet.write(j+3,xlcol,xlDateTime[j],d_xf)
     # remove xlDateTime from the list of variables to be written to the Excel file
     if "xlDateTime" in outputlist: outputlist.remove("xlDateTime")
-    if "xlDateTime_UTC" in outputlist: outputlist.remove("xlDateTime_UTC")
     # now start looping over the other variables in the xl file
     xlcol = xlcol + 1
     # loop over variables to be output to xl file
@@ -1350,7 +1366,7 @@ def xlsx_write_series(ds, xlsxfullname, outputlist=None):
         if len(outputlist)==0:
             outputlist = variablelist
     outputlist.sort()
-    for ThisOne in ["DateTime","DateTime_UTC"]:
+    for ThisOne in ["DateTime"]:
         if ThisOne in outputlist: outputlist.remove(ThisOne)
     for ThisOne in outputlist:
         xlAttrSheet.write(xlrow,xlcol_varname,ThisOne)
@@ -1361,9 +1377,7 @@ def xlsx_write_series(ds, xlsxfullname, outputlist=None):
             xlAttrSheet.write(xlrow,xlcol_attrvalue,str(ds.series[ThisOne]['Attr'][Attr]))
             xlrow = xlrow + 1
     # write the Excel date/time to the data and the QC flags as the first column
-    datemode = int(ds.globalattributes["xl_datemode"])
     ldt = ds.series["DateTime"]["Data"]
-    xlDateTime = qcutils.get_xldate_from_datetime(ldt,datemode=datemode)
     log.info(' Writing the datetime to Excel file '+xlsxfullname)
     dt_format = xlfile.add_format({'num_format': 'dd/mm/yyyy hh:mm'})
     xlDataSheet.write(2,xlcol,'xlDateTime')
@@ -1373,7 +1387,6 @@ def xlsx_write_series(ds, xlsxfullname, outputlist=None):
         xlFlagSheet.write_datetime(j+3,xlcol,ldt[j],dt_format)
     # remove xlDateTime from the list of variables to be written to the Excel file
     if "xlDateTime" in outputlist: outputlist.remove("xlDateTime")
-    if "xlDateTime_UTC" in outputlist: outputlist.remove("xlDateTime_UTC")
     # now start looping over the other variables in the xl file
     xlcol = xlcol + 1
     # loop over variables to be output to xl file

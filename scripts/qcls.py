@@ -133,7 +133,7 @@ def l3qc(cf,ds2):
     # add relevant meteorological values to L3 data
     qcts.CalculateMeteorologicalVariables(ds3)
     # check to see if the user wants to use the fluxes in the L2 file
-    if not qcutils.cfoptionskey(cf,Key="UseL2Fluxes",default=False):
+    if not qcutils.cfoptionskeylogical(cf,Key="UseL2Fluxes",default=False):
         # do the 2D coordinate rotation
         qcts.CoordRotation2D(cf,ds3)
         # do the Massman frequency attenuation correction
@@ -167,7 +167,7 @@ def l3qc(cf,ds2):
     #        and then do the correction (OzFlux "standard")
     qcts.AverageSeriesByElements(cf,ds3,'Ts')
     qcts.AverageSeriesByElements(cf,ds3,'Sws')
-    if qcutils.cfoptionskey(cf,Key='CorrectIndividualFg'):
+    if qcutils.cfoptionskeylogical(cf,Key='CorrectIndividualFg'):
         #    ... or correct the individual ground heat flux measurements (James' method)
             qcts.CorrectIndividualFgForStorage(cf,ds3)
             qcts.AverageSeriesByElements(cf,ds3,'Fg')

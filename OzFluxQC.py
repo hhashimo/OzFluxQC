@@ -306,7 +306,7 @@ class qcgui(tk.Tk):
         self.do_progress(text='Load L2 Control File ...')
         self.cf = qcio.load_controlfile(path='controlfiles')
         if len(self.cf)==0: self.do_progress(text='Waiting for input ...'); return
-        infilename = qcio.get_infilename_from_cf(self.cf)
+        infilename = qcio.get_infilenamefromcf(self.cf)
         if len(infilename)==0: self.do_progress(text='An error occurred, check the console ...'); return
         self.do_progress(text='Doing L2 QC ...')
         self.ds1 = qcio.nc_read_series(infilename)
@@ -317,7 +317,7 @@ class qcgui(tk.Tk):
         log.info(' Finished L2 QC process')
         self.do_progress(text='Finished L2 QC process')
         self.do_progress(text='Saving L2 QC ...')                     # put up the progress message
-        outfilename = qcio.get_outfilename_from_cf(self.cf)
+        outfilename = qcio.get_outfilenamefromcf(self.cf)
         if len(outfilename)==0: self.do_progress(text='An error occurred, check the console ...'); return
         ncFile = qcio.nc_open_write(outfilename)
         qcio.nc_write_series(ncFile,self.ds2)                                  # save the L2 data
@@ -396,7 +396,7 @@ class qcgui(tk.Tk):
             """
         self.cf = qcio.load_controlfile(path='controlfiles')
         if len(self.cf)==0: self.do_progress(text='Waiting for input ...'); return
-        infilename = qcio.get_infilename_from_cf(self.cf)
+        infilename = qcio.get_infilenamefromcf(self.cf)
         if len(infilename)==0: self.do_progress(text='An error occurred, check the console ...'); return
         self.ds2 = qcio.nc_read_series(infilename)
         if len(self.ds2.series.keys())==0: self.do_progress(text='An error occurred, check the console ...'); del self.ds2; return
@@ -409,10 +409,10 @@ class qcgui(tk.Tk):
         txtstr = txtstr+self.ds3.globalattributes['site_name'].replace(' ','')
         log.info(txtstr)
         self.do_progress(text='Saving L3 QC & Corrected NetCDF data ...')       # put up the progress message
-        outfilename = qcio.get_outfilename_from_cf(self.cf)
+        outfilename = qcio.get_outfilenamefromcf(self.cf)
         if len(outfilename)==0: self.do_progress(text='An error occurred, check the console ...'); return
         ncFile = qcio.nc_open_write(outfilename)
-        outputlist = qcio.get_outputlist_from_cf(self.cf,'nc')
+        outputlist = qcio.get_outputlistfromcf(self.cf,'nc')
         qcio.nc_write_series(ncFile,self.ds3,outputlist=outputlist)             # save the L3 data
         self.do_progress(text='Finished saving L3 QC & Corrected NetCDF data')  # tell the user we are done
         log.info(' Finished saving L3 QC & Corrected NetCDF data')
@@ -448,7 +448,7 @@ class qcgui(tk.Tk):
             """
         self.cf = qcio.load_controlfile(path='controlfiles')
         if len(self.cf)==0: self.do_progress(text='Waiting for input ...'); return
-        infilename = qcio.get_infilename_from_cf(self.cf)
+        infilename = qcio.get_infilenamefromcf(self.cf)
         if len(infilename)==0: self.do_progress(text='An error occurred, check the console ...'); return
         if not qcutils.file_exists(infilename): self.do_progress(text='An error occurred, check the console ...'); return
         self.ds3 = qcio.nc_read_series(infilename)
@@ -462,10 +462,10 @@ class qcgui(tk.Tk):
         self.do_progress(text='Finished L4: '+sitename)
         log.info(' Finished L4: '+sitename)
         self.do_progress(text='Saving L4 gap filled data ...')           # put up the progress message
-        outfilename = qcio.get_outfilename_from_cf(self.cf)
+        outfilename = qcio.get_outfilenamefromcf(self.cf)
         if len(outfilename)==0: self.do_progress(text='An error occurred, check the console ...'); return
         ncFile = qcio.nc_open_write(outfilename)
-        outputlist = qcio.get_outputlist_from_cf(self.cf,'nc')
+        outputlist = qcio.get_outputlistfromcf(self.cf,'nc')
         qcio.nc_write_series(ncFile,self.ds4,outputlist=outputlist)             # save the L4 data
         self.do_progress(text='Finished saving L4 gap filled data')      # tell the user we are done
         log.info(' Finished saving L4 gap filled data')
@@ -476,7 +476,7 @@ class qcgui(tk.Tk):
         """
         self.cf = qcio.load_controlfile(path='controlfiles')
         if len(self.cf)==0: self.do_progress(text='Waiting for input ...'); return
-        infilename = qcio.get_infilename_from_cf(self.cf)
+        infilename = qcio.get_infilenamefromcf(self.cf)
         if len(infilename)==0: self.do_progress(text='An error occurred, check the console ...'); return
         if not qcutils.file_exists(infilename): self.do_progress(text='An error occurred, check the console ...'); return
         self.ds4 = qcio.nc_read_series(infilename)
@@ -490,10 +490,10 @@ class qcgui(tk.Tk):
         self.do_progress(text='Finished L5: '+sitename)
         log.info(' Finished L5: '+sitename)
         self.do_progress(text='Saving L5 gap filled data ...')           # put up the progress message
-        outfilename = qcio.get_outfilename_from_cf(self.cf)
+        outfilename = qcio.get_outfilenamefromcf(self.cf)
         if len(outfilename)==0: self.do_progress(text='An error occurred, check the console ...'); return
         ncFile = qcio.nc_open_write(outfilename)
-        outputlist = qcio.get_outputlist_from_cf(self.cf,'nc')
+        outputlist = qcio.get_outputlistfromcf(self.cf,'nc')
         qcio.nc_write_series(ncFile,self.ds5,outputlist=outputlist)             # save the L5 data
         self.do_progress(text='Finished saving L5 gap filled data')      # tell the user we are done
         log.info(' Finished saving L5 gap filled data')
@@ -504,7 +504,7 @@ class qcgui(tk.Tk):
         """
         self.cf = qcio.load_controlfile(path='controlfiles')
         if len(self.cf)==0: self.do_progress(text='Waiting for input ...'); return
-        infilename = qcio.get_infilename_from_cf(self.cf)
+        infilename = qcio.get_infilenamefromcf(self.cf)
         if len(infilename)==0: self.do_progress(text='An error occurred, check the console ...'); return
         if not qcutils.file_exists(infilename): self.do_progress(text='An error occurred, check the console ...'); return
         self.ds5 = qcio.nc_read_series(infilename)
@@ -518,10 +518,10 @@ class qcgui(tk.Tk):
         self.do_progress(text='Finished L6: '+sitename)
         log.info(' Finished L6: '+sitename)
         self.do_progress(text='Saving L6 partitioned data ...')           # put up the progress message
-        outfilename = qcio.get_outfilename_from_cf(self.cf)
+        outfilename = qcio.get_outfilenamefromcf(self.cf)
         if len(outfilename)==0: self.do_progress(text='An error occurred, check the console ...'); return
         ncFile = qcio.nc_open_write(outfilename)
-        outputlist = qcio.get_outputlist_from_cf(self.cf,'nc')
+        outputlist = qcio.get_outputlistfromcf(self.cf,'nc')
         qcio.nc_write_series(ncFile,self.ds6,outputlist=outputlist)             # save the L6 data
         self.do_progress(text='Finished saving L6 partitioned data')      # tell the user we are done
         log.info(' Finished saving L6 partitioned data')
@@ -625,11 +625,11 @@ class qcgui(tk.Tk):
         if 'ds1' not in dir(self) or 'ds2' not in dir(self):
             self.cf = qcio.load_controlfile(path='controlfiles')
             if len(self.cf)==0: self.do_progress(text='Waiting for input ...'); return
-            l1filename = qcio.get_infilename_from_cf(self.cf)
+            l1filename = qcio.get_infilenamefromcf(self.cf)
             if len(l1filename)==0: return
             self.ds1 = qcio.nc_read_series(l1filename)
             if len(self.ds1.series.keys())==0: self.do_progress(text='An error occurred, check the console ...'); del self.ds1; return
-            l2filename = qcio.get_outfilename_from_cf(self.cf)
+            l2filename = qcio.get_outfilenamefromcf(self.cf)
             self.ds2 = qcio.nc_read_series(l2filename)
             if len(self.ds2.series.keys())==0: self.do_progress(text='An error occurred, check the console ...'); del self.ds2; return
             self.update_startenddate(str(self.ds1.series['DateTime']['Data'][0]),
@@ -666,7 +666,7 @@ class qcgui(tk.Tk):
         if 'ds3' not in dir(self):
             self.cf = qcio.load_controlfile(path='controlfiles')
             if len(self.cf)==0: self.do_progress(text='Waiting for input ...'); return
-            l3filename = qcio.get_outfilename_from_cf(self.cf)
+            l3filename = qcio.get_outfilenamefromcf(self.cf)
             self.ds3 = qcio.nc_read_series(l3filename)
             if len(self.ds3.series.keys())==0: self.do_progress(text='An error occurred, check the console ...'); del self.ds3; return
             self.update_startenddate(str(self.ds3.series['DateTime']['Data'][0]),
@@ -707,11 +707,11 @@ class qcgui(tk.Tk):
             if len(self.cf)==0:
                 self.do_progress(text='Waiting for input ...')
                 return
-            l3filename = qcio.get_infilename_from_cf(self.cf)
+            l3filename = qcio.get_infilenamefromcf(self.cf)
             if len(l3filename)==0: self.do_progress(text='An error occurred, check the console ...'); return
             self.ds3 = qcio.nc_read_series(l3filename)
             if len(self.ds3.series.keys())==0: self.do_progress(text='An error occurred, check the console ...'); del self.ds3; return
-            l4filename = qcio.get_outfilename_from_cf(self.cf)
+            l4filename = qcio.get_outfilenamefromcf(self.cf)
             self.ds4 = qcio.nc_read_series(l4filename)
             if len(self.ds4.series.keys())==0: self.do_progress(text='An error occurred, check the console ...'); del self.ds4; return
             self.update_startenddate(str(self.ds3.series['DateTime']['Data'][0]),
@@ -738,11 +738,11 @@ class qcgui(tk.Tk):
             #if len(self.cf)==0:
                 #self.do_progress(text='Waiting for input ...')
                 #return
-            #l3filename = qcio.get_infilename_from_cf(self.cf)
+            #l3filename = qcio.get_infilenamefromcf(self.cf)
             #if len(l3filename)==0: self.do_progress(text='An error occurred, check the console ...'); return
             #self.ds3 = qcio.nc_read_series(l3filename)
             #if len(self.ds3.series.keys())==0: self.do_progress(text='An error occurred, check the console ...'); del self.ds3; return
-            #l4filename = qcio.get_outfilename_from_cf(self.cf)
+            #l4filename = qcio.get_outfilenamefromcf(self.cf)
             #self.ds4 = qcio.nc_read_series(l4filename)
             #if len(self.ds4.series.keys())==0: self.do_progress(text='An error occurred, check the console ...'); del self.ds4; return
             #self.update_startenddate(str(self.ds3.series['DateTime']['Data'][0]),
@@ -801,9 +801,9 @@ class qcgui(tk.Tk):
             """
         self.do_progress(text='Exporting L2 NetCDF -> Xcel ...')                     # put up the progress message
         # get the output filename
-        outfilename = qcio.get_outfilename_from_cf(self.cf)
+        outfilename = qcio.get_outfilenamefromcf(self.cf)
         # get the output list
-        outputlist = qcio.get_outputlist_from_cf(self.cf,'xl')
+        outputlist = qcio.get_outputlistfromcf(self.cf,'xl')
         qcio.nc_2xls(outfilename,outputlist=outputlist)
         self.do_progress(text='Finished L2 Data Export')              # tell the user we are done
         log.info(' Finished saving L2 data')
@@ -817,9 +817,9 @@ class qcgui(tk.Tk):
             """
         self.do_progress(text='Exporting L3 NetCDF -> Xcel ...')                     # put up the progress message
         # get the output filename
-        outfilename = qcio.get_outfilename_from_cf(self.cf)
+        outfilename = qcio.get_outfilenamefromcf(self.cf)
         # get the output list
-        outputlist = qcio.get_outputlist_from_cf(self.cf,'xl')
+        outputlist = qcio.get_outputlistfromcf(self.cf,'xl')
         qcio.nc_2xls(outfilename,outputlist=outputlist)
         self.do_progress(text='Finished L3 Data Export')              # tell the user we are done
         log.info(' Finished saving L3 data')
@@ -833,9 +833,9 @@ class qcgui(tk.Tk):
             """
         self.do_progress(text='Exporting L4 NetCDF -> Xcel ...')                     # put up the progress message
         # get the output filename
-        outfilename = qcio.get_outfilename_from_cf(self.cf)
+        outfilename = qcio.get_outfilenamefromcf(self.cf)
         # get the output list
-        outputlist = qcio.get_outputlist_from_cf(self.cf,'xl')
+        outputlist = qcio.get_outputlistfromcf(self.cf,'xl')
         qcio.nc_2xls(outfilename,outputlist=outputlist)
         self.do_progress(text='Finished L4 Data Export')              # tell the user we are done
         log.info(' Finished saving L4 data')
@@ -849,9 +849,9 @@ class qcgui(tk.Tk):
             """
         self.do_progress(text='Exporting L5 NetCDF -> Xcel ...')                     # put up the progress message
         # get the output filename
-        outfilename = qcio.get_outfilename_from_cf(self.cf)
+        outfilename = qcio.get_outfilenamefromcf(self.cf)
         # get the output list
-        outputlist = qcio.get_outputlist_from_cf(self.cf,'xl')
+        outputlist = qcio.get_outputlistfromcf(self.cf,'xl')
         qcio.nc_2xls(outfilename,outputlist=outputlist)
         self.do_progress(text='Finished L5 Data Export')              # tell the user we are done
         log.info(' Finished saving L5 data')

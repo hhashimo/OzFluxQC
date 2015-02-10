@@ -38,7 +38,7 @@ def CalculateNEE(cf,ds):
     """
     if "nee" not in dir(ds): return
     # get the Fsd and ustar thresholds
-    Fsd_threshold = float(qcio.get_keyvalue_from_cf(cf['Params'],'Fsd_threshold',default=10))
+    Fsd_threshold = float(qcio.get_keyvaluefromcf(cf,["Params"],"Fsd_threshold",default=10))
     # get the incoming shortwave radiation and friction velocity
     Fsd,Fsd_flag,Fsd_attr = qcutils.GetSeriesasMA(ds,"Fsd")
     if "Fsd_syn" in ds.series.keys():

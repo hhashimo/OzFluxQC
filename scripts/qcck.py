@@ -38,7 +38,7 @@ def rangecheckseriesupper(data,upper):
     return data
 
 def CoordinateFluxGaps(cf,ds,Fc_in='Fc',Fe_in='Fe',Fh_in='Fh'):
-    if not qcutils.cfoptionskey(cf,Key='CoordinateFluxGaps'): return
+    if not qcutils.cfoptionskeylogical(cf,Key='CoordinateFluxGaps'): return
     if qcutils.cfkeycheck(cf,Base='FunctionArgs',ThisOne='gapsvars'):
         vars = ast.literal_eval(cf['FunctionArgs']['gapsvars'])
         Fc_in = vars[0]
@@ -115,7 +115,7 @@ def do_7500check(cf,ds):
 
 def CoordinateAh7500AndFcGaps(cf,ds,Fcvar='Fc'):
     '''Cleans up Ah_7500_Av based upon Fc gaps to for QA check on Ah_7500_Av v Ah_HMP.'''
-    if not qcutils.cfoptionskey(cf,Key='CoordinateAh7500&FcGaps'): return
+    if not qcutils.cfoptionskeylogical(cf,Key='CoordinateAh7500&FcGaps'): return
     log.info(' Doing the Ah_7500 check')
     if qcutils.cfkeycheck(cf,Base='FunctionArgs',ThisOne='AhcheckFc'):
         Fclist = ast.literal_eval(cf['FunctionArgs']['AhcheckFc'])

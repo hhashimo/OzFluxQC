@@ -176,7 +176,7 @@ def get_formatstring(cf,label,fmt_def=''):
     return fmt_str
 
 def climatology(cf):
-    nc_filename = qcio.get_infilename_from_cf(cf)
+    nc_filename = qcio.get_infilenamefromcf(cf)
     if not qcutils.file_exists(nc_filename): return
     xl_filename = nc_filename.replace(".nc","_Climatology.xls")
     xlFile = xlwt.Workbook()

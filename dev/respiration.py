@@ -78,7 +78,7 @@ def xyplot(x,y,sub=[1,1,1],regr=0,thru0=0,title=None,xlabel=None,ylabel=None,col
 cf = qcio.load_controlfile(path='../controlfiles')
 if len(cf)==0: sys.exit()
 # get the netCDF filename
-ncfilename = qcio.get_infilename_from_cf(cf)
+ncfilename = qcio.get_infilenamefromcf(cf)
 # get the Fsdand ustar thresholds
 Fsd_lower = float(cf['Params']['Fsd_lower'])
 Fsd_upper = float(cf['Params']['Fsd_upper'])

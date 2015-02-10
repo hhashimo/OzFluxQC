@@ -761,7 +761,7 @@ def CoordRotation2D(cf,ds):
             #ds.series[ThisOne]['Flag'][index] = numpy.int32(11)
     if 'CoordRotation2D' not in ds.globalattributes['Functions']:
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', CoordRotation2D'
-    if qcutils.cfoptionskey(cf,Key='RelaxRotation'):
+    if qcutils.cfoptionskeylogical(cf,Key='RelaxRotation'):
         RotatedSeriesList = ['wT','wA','wC','uw','vw']
         NonRotatedSeriesList = ['UzT','UzA','UzC','UxUz','UyUz']
         for ThisOne, ThatOne in zip(RotatedSeriesList,NonRotatedSeriesList):
@@ -827,7 +827,7 @@ def CorrectFcForStorage(cf,ds,Fc_out='Fc',Fc_in='Fc',Fc_storage_in='Fc_storage')
     Fc_storage: series label of the CO2 flux storage term
 
     """
-    if not qcutils.cfoptionskey(cf,Key='ApplyFcStorage'): return
+    if not qcutils.cfoptionskeylogical(cf,Key='ApplyFcStorage'): return
     if (Fc_in not in ds.series.keys()) or (Fc_storage_in not in ds.series.keys()): return
     log.info(' ***!!! Applying Fc storage term !!!***')
     Fc_raw,Fc_flag,Fc_attr = qcutils.GetSeriesasMA(ds,Fc_in)
@@ -837,7 +837,7 @@ def CorrectFcForStorage(cf,ds,Fc_out='Fc',Fc_in='Fc',Fc_storage_in='Fc_storage')
         return
     log.info(' Applying storage correction to Fc')
     Fc = Fc_raw + Fc_storage
-    if qcutils.cfoptionskey(cf,Key='RelaxFcStorage'):
+    if qcutils.cfoptionskeylogical(cf,Key='RelaxFcStorage'):
         idx=numpy.ma.where(Fc.mask==True)[0]
         Fc[idx]=Fc_raw[idx]
         log.info(' Replaced corrected Fc with '+str(len(idx))+' raw values')
@@ -949,7 +949,7 @@ def CorrectFgForStorage(cf,ds,Fg_out='Fg',Fg_in='Fg',Ts_in='Ts',Sws_in='Sws'):
     qcutils.CreateSeries(ds,'Cs',Cs,FList=[Sws_in],Attr=attr)
     if 'CorrectFgForStorage' not in ds.globalattributes['Functions']:
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', CorrectFgForStorage'
-    if qcutils.cfoptionskey(cf,Key='RelaxFgStorage'):
+    if qcutils.cfoptionskeylogical(cf,Key='RelaxFgStorage'):
         ReplaceWhereMissing(ds.series['Fg'],ds.series['Fg'],ds.series['Fg_Av'],FlagValue=20)
         if 'RelaxFgStorage' not in ds.globalattributes['Functions']:
             ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', RelaxFgStorage'
@@ -988,7 +988,7 @@ def CorrectSWC(cf,ds):
             TDR_b1: parameter in exponential model, actual = b0 * exp(b1 * sensor)
             TDR_t: threshold parameter for switching from exponential to logarithmic model
         """
-    if not qcutils.cfoptionskey(cf,Key='CorrectSWC'): return
+    if not qcutils.cfoptionskeylogical(cf,Key='CorrectSWC'): return
     log.info(' Correcting soil moisture data ...')
     SWCempList = ast.literal_eval(cf['Soil']['empSWCin'])
     SWCoutList = ast.literal_eval(cf['Soil']['empSWCout'])
@@ -1339,7 +1339,7 @@ def Fe_WPL(cf,ds,Fe_wpl_out='Fe',Fe_raw_in='Fe',Fh_in='Fh',Ta_in='Ta',Ah_in='Ah'
     qcutils.CreateSeries(ds,Fe_wpl_out,Fe_wpl_data,Flag=Fe_wpl_flag,Attr=attr)
     attr = qcutils.MakeAttributeDictionary(long_name='Fe (uncorrected for WPL)',units='W/m2')
     qcutils.CreateSeries(ds,'Fe_raw',Fe_raw,Flag=Fe_raw_flag,Attr=attr)
-    if qcutils.cfoptionskey(cf,Key='RelaxFeWPL'):
+    if qcutils.cfoptionskeylogical(cf,Key='RelaxFeWPL'):
         ReplaceWhereMissing(ds.series['Fe'],ds.series['Fe'],ds.series['Fe_raw'],FlagValue=20)
         if 'RelaxFeWPL' not in ds.globalattributes['Functions']:
             ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', RelaxFeWPL'
@@ -1384,7 +1384,7 @@ def FhvtoFh(cf,ds,Fh_out='Fh',Fhv_in='Fhv',Tv_in='Tv_CSAT',q_in='q',wA_in='wA',w
     qcutils.CreateSeries(ds,Fh_out,Fh,FList=[Fhv_in,Tv_in,wA_in,q_in,wT_in],Attr=attr)
     if 'FhvtoFh' not in ds.globalattributes['Functions']:
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', FhvtoFh'
-    if qcutils.cfoptionskey(cf,Key='RelaxFhvtoFh'):
+    if qcutils.cfoptionskeylogical(cf,Key='RelaxFhvtoFh'):
         ReplaceWhereMissing(ds.series['Fh'],ds.series['Fh'],ds.series['Fhv'],FlagValue=20)
         if 'RelaxFhvtoFh' not in ds.globalattributes['Functions']:
             ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', RelaxFhvtoFh'
@@ -1639,11 +1639,10 @@ def get_qcflag(ds):
         ds.series[ThisOne]['Flag'][index] = numpy.int32(1)
 
 def get_synthetic_fsd(ds):
-    if "DateTime_UTC" not in ds.series.keys(): return
     log.info(' Calculating synthetic Fsd')
     lat = float(ds.globalattributes["latitude"])
     lon = float(ds.globalattributes["longitude"])
-    ldt_UTC = ds.series["DateTime_UTC"]["Data"]
+    ldt_UTC = qcutils.get_UTCfromlocaltime(ds)
     alt_solar = [pysolar.GetAltitude(lat,lon,dt) for dt in ldt_UTC]
     Fsd_syn = [pysolar.GetRadiationDirect(dt,alt) for dt,alt in zip(ldt_UTC,alt_solar)]
     Fsd_syn = numpy.ma.array(Fsd_syn)
@@ -1769,7 +1768,7 @@ def MassmanStandard(cf,ds,Ta_in='Ta',Ah_in='Ah',ps_in='ps',ustar_in='ustar',usta
        The steps involved are as follows:
         1) calculate ustar and L using rotated but otherwise uncorrected covariances
        """
-    if not qcutils.cfoptionskey(cf,Key='MassmanCorrection'): return
+    if not qcutils.cfoptionskeylogical(cf,Key='MassmanCorrection'): return
     if 'Massman' not in cf:
         log.info(' Massman section not found in control file, no corrections applied')
         return
