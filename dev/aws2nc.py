@@ -4,6 +4,7 @@ import csv
 import datetime
 import constants as c
 import glob
+import logging
 import meteorologicalfunctions as mf
 import netCDF4
 import numpy
@@ -12,11 +13,12 @@ import qcts
 import qcutils
 import xlrd
 
+logging.basicConfig()
 # open the logging file
 log = qcutils.startlog('aws2nc','../logfiles/aws2nc.log')
 
 # get the site information and the AWS stations to use
-xlname = "../../AWS/Locations/AWS_Locations.xls"
+xlname = "../../BoM/Locations/AWS_Locations.xls"
 wb = xlrd.open_workbook(xlname)
 sheet = wb.sheet_by_name("OzFlux")
 xl_row = 10
@@ -37,8 +39,8 @@ for n in range(xl_row,sheet.nrows):
             bom_sites_info[str(xlrow[0])][str(int(xlrow[i+1]))]["elevation"] = xlrow[i+4]
             bom_sites_info[str(xlrow[0])][str(int(xlrow[i+1]))]["distance"] = xlrow[i+5]
 
-in_path = "../../AWS/30MinuteMeteorology/20140701/"
-in_filename = in_path+"HM01X_Data*.txt"
+in_path = "../../BoM/AWS/Current/"
+in_filename = in_path+"HM01X_Data*.csv"
 file_list = sorted(glob.glob(in_filename))
 
 site_list = bom_sites_info.keys()
@@ -57,6 +59,8 @@ for site_name in sorted(site_list):
     for idx,sn in enumerate(site_number_list):
         # get a list of file names that contain the relevent station numbers
         csvname = [fn for fn in file_list if str(sn) in fn]
+        # continue to next station if this station not in file_list
+        if len(csvname)==0: continue
         log.info("Reading CSV file: "+str(csvname[0]))
         # columns are:
         # file data content
@@ -100,6 +104,11 @@ for site_name in sorted(site_list):
         qcutils.CreateSeries(ds,'Second',Seconds,Flag=flag,Attr=qcutils.MakeAttributeDictionary(long_name='Second',units='none'))
         # now get the Python datetime
         qcutils.get_datetimefromymdhms(ds)
+        # fix any time stamp issues
+        if qcutils.CheckTimeStep(ds):
+            qcutils.FixTimeStep(ds)
+            # update the Year, Month, Day etc from the Python datetime
+            qcutils.get_ymdhmsfromdatetime(ds)
         ldt = ds.series["DateTime"]["Data"]
         year = ds.series["Year"]["Data"]
         month = ds.series["Month"]["Data"]
@@ -108,22 +117,38 @@ for site_name in sorted(site_list):
         minute = ds.series["Minute"]["Data"]
         #print bom_id,ldt[-1],year[-1],month[-1],day[-1],hour[-1],minute[-1]
         # now put the data into the data structure
-        attr=qcutils.MakeAttributeDictionary(long_name='Precipitation since 0900',units='mm')
+        attr=qcutils.MakeAttributeDictionary(long_name='Precipitation since 0900',units='mm',
+                                             bom_id=str(bom_id),bom_name=bom_sites_info[site_name][str(bom_id)]["site_name"],
+                                             bom_dist=bom_sites_info[site_name][str(bom_id)]["distance"])
         qcutils.CreateSeries(ds,'Precip',data_dict[bom_id][:,6],Flag=flag,Attr=attr)
-        attr=qcutils.MakeAttributeDictionary(long_name='Air temperature',units='C')
+        attr=qcutils.MakeAttributeDictionary(long_name='Air temperature',units='C',
+                                             bom_id=str(bom_id),bom_name=bom_sites_info[site_name][str(bom_id)]["site_name"],
+                                             bom_dist=bom_sites_info[site_name][str(bom_id)]["distance"])
         qcutils.CreateSeries(ds,'Ta',data_dict[bom_id][:,7],Flag=flag,Attr=attr)
-        attr=qcutils.MakeAttributeDictionary(long_name='Dew point temperature',units='C')
+        attr=qcutils.MakeAttributeDictionary(long_name='Dew point temperature',units='C',
+                                             bom_id=str(bom_id),bom_name=bom_sites_info[site_name][str(bom_id)]["site_name"],
+                                             bom_dist=bom_sites_info[site_name][str(bom_id)]["distance"])
         qcutils.CreateSeries(ds,'Td',data_dict[bom_id][:,8],Flag=flag,Attr=attr)
-        attr=qcutils.MakeAttributeDictionary(long_name='Relative humidity',units='%')
+        attr=qcutils.MakeAttributeDictionary(long_name='Relative humidity',units='%',
+                                             bom_id=str(bom_id),bom_name=bom_sites_info[site_name][str(bom_id)]["site_name"],
+                                             bom_dist=bom_sites_info[site_name][str(bom_id)]["distance"])
         qcutils.CreateSeries(ds,'RH',data_dict[bom_id][:,9],Flag=flag,Attr=attr)
-        attr=qcutils.MakeAttributeDictionary(long_name='Wind speed',units='m/s')
+        attr=qcutils.MakeAttributeDictionary(long_name='Wind speed',units='m/s',
+                                             bom_id=str(bom_id),bom_name=bom_sites_info[site_name][str(bom_id)]["site_name"],
+                                             bom_dist=bom_sites_info[site_name][str(bom_id)]["distance"])
         qcutils.CreateSeries(ds,'Ws',data_dict[bom_id][:,10],Flag=flag,Attr=attr)
-        attr=qcutils.MakeAttributeDictionary(long_name='Wind direction',units='degT')
+        attr=qcutils.MakeAttributeDictionary(long_name='Wind direction',units='degT',
+                                             bom_id=str(bom_id),bom_name=bom_sites_info[site_name][str(bom_id)]["site_name"],
+                                             bom_dist=bom_sites_info[site_name][str(bom_id)]["distance"])
         qcutils.CreateSeries(ds,'Wd',data_dict[bom_id][:,11],Flag=flag,Attr=attr)
-        attr=qcutils.MakeAttributeDictionary(long_name='Wind gust',units='m/s')
+        attr=qcutils.MakeAttributeDictionary(long_name='Wind gust',units='m/s',
+                                             bom_id=str(bom_id),bom_name=bom_sites_info[site_name][str(bom_id)]["site_name"],
+                                             bom_dist=bom_sites_info[site_name][str(bom_id)]["distance"])
         qcutils.CreateSeries(ds,'Wd',data_dict[bom_id][:,12],Flag=flag,Attr=attr)
         data_dict[bom_id][:,13] = data_dict[bom_id][:,13]/float(10)
-        attr=qcutils.MakeAttributeDictionary(long_name='Air Pressure',units='kPa')
+        attr=qcutils.MakeAttributeDictionary(long_name='Air Pressure',units='kPa',
+                                             bom_id=str(bom_id),bom_name=bom_sites_info[site_name][str(bom_id)]["site_name"],
+                                             bom_dist=bom_sites_info[site_name][str(bom_id)]["distance"])
         qcutils.CreateSeries(ds,'ps',data_dict[bom_id][:,13],Flag=flag,Attr=attr)
         # now interpolate
         for label in ["Precip","Ta","Td","RH","Ws","Wd","ps"]:

@@ -248,10 +248,8 @@ for site in site_list:
     # get the year, month etc from the datetime
     flag_60minutes = numpy.zeros(nRecs,dtype=numpy.int32)
     ds_60minutes.series["DateTime"]["Flag"] = flag_60minutes
-    xl_date = qcutils.get_xldate_from_datetime(dt_loc_60minutes)
-    attr = qcutils.MakeAttributeDictionary(long_name="Date/time in Excel format",units="days since 1899-12-31 00:00:00")
-    qcutils.CreateSeries(ds_60minutes,"xlDateTime",xl_date,Flag=flag_60minutes,Attr=attr)
-    qcutils.get_ymdhms_from_datetime(ds_60minutes)
+    qcutils.get_xldatefromdatetime(ds_60minutes)
+    qcutils.get_ymdhmsfromdatetime(ds_60minutes)
     # get derived quantities and adjust units
     # air temperature from K to C
     attr = qcutils.GetAttributeDictionary(ds_60minutes,"Ta_00")
@@ -394,9 +392,9 @@ for site in site_list:
             qcutils.CreateSeries(ds_60minutes,label_Fa,Fa,Flag=f,Attr=attr)
 
     # dump to an Excel file so we can see what is going on
-    #xlfullname= outfilename.replace('.nc','.xls')
-    #log.info("Writing to file: "+xlfullname)
-    #qcio.xl_write_series(ds_60minutes, xlfullname, outputlist=None)
+    xlfullname= outfilename.replace('.nc','.xls')
+    log.info("Writing to file: "+xlfullname)
+    qcio.xl_write_series(ds_60minutes, xlfullname, outputlist=None)
 
     # check for time gaps in the file
     log.info("Checking for time gaps")
@@ -427,13 +425,8 @@ for site in site_list:
         ds_30minutes.series["DateTime_UTC"] = {}
         ds_30minutes.series["DateTime_UTC"]["Data"] = dt_utc_30minutes
         # get the year, month etc from the datetime
-        xl_date_loc = qcutils.get_xldate_from_datetime(dt_loc_30minutes)
-        attr = qcutils.MakeAttributeDictionary(long_name="Date/time (local) in Excel format",units="days since 1899-12-31 00:00:00")
-        qcutils.CreateSeries(ds_30minutes,"xlDateTime",xl_date_loc,Flag=flag_30minutes,Attr=attr)
-        qcutils.get_ymdhms_from_datetime(ds_30minutes)
-        xl_date_utc = qcutils.get_xldate_from_datetime(dt_utc_30minutes)
-        attr = qcutils.MakeAttributeDictionary(long_name="Date/time (UTC) in Excel format",units="days since 1899-12-31 00:00:00")
-        qcutils.CreateSeries(ds_30minutes,"xlDateTime_UTC",xl_date_utc,Flag=flag_30minutes,Attr=attr)
+        qcutils.get_xldatefromdatetime(ds_30minutes)
+        qcutils.get_ymdhmsfromdatetime(ds_30minutes)
         # interpolate to 30 minutes
         nRecs_60 = len(ds_60minutes.series["DateTime"]["Data"])
         nRecs_30 = len(ds_30minutes.series["DateTime"]["Data"])
@@ -441,7 +434,7 @@ for site in site_list:
         x_30minutes = numpy.arange(0,nRecs_60-0.5,0.5)
         varlist_60 = ds_60minutes.series.keys()
         # strip out the date and time variables already done
-        for item in ["DateTime","DateTime_UTC","xlDateTime","xlDateTime_UTC","Year","Month","Day","Hour","Minute","Second","Hdh"]:
+        for item in ["DateTime","DateTime_UTC","xlDateTime","Year","Month","Day","Hour","Minute","Second","Hdh"]:
             if item in varlist_60: varlist_60.remove(item)
         # now do the interpolation (its OK to interpolate accumulated precipitation)
         for label in varlist_60:
@@ -476,10 +469,6 @@ for site in site_list:
         qcio.nc_write_series(ncfile, ds_30minutes,ndims=1)
         log.info("Finished site : "+site)
     else:
-        # get the xlDateTime as UTC
-        xl_date_utc = qcutils.get_xldate_from_datetime(ds_60minutes.series["DateTime_UTC"]["Data"])
-        attr = qcutils.MakeAttributeDictionary(long_name="Date/time (UTC) in Excel format",units="days since 1899-12-31 00:00:00")
-        qcutils.CreateSeries(ds_60minutes,"xlDateTime_UTC",xl_date_utc,Flag=ds_60minutes.series["DateTime"]["Flag"],Attr=attr)
         # now get precipitation per time step from the precipitation accumulated over the day
         dt_utc_60minutes=ds_60minutes.series["DateTime_UTC"]["Data"]
         idx_0100 = [x for x in range(len(dt_utc_60minutes)) if (dt_utc_60minutes[x].hour==1) and (dt_utc_60minutes[x].minute==0)]

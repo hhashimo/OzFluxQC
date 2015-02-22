@@ -998,9 +998,17 @@ def get_xldatefromdatetime(ds):
     Author: PRI
     '''
     # get the datemode of the original Excel spreadsheet
-    datemode = int(ds.globalattributes["xl_datemode"])
+    if "xl_datemode" in ds.globalattributes.keys():
+        datemode = int(ds.globalattributes["xl_datemode"])
+    else:
+        datemode = int(0)
+    nRecs = int(ds.globalattributes["nc_nrecs"])
     # get the Excel datetime series, flag and attributes
-    xldt_org,xldt_flag,xldt_attr = GetSeriesasMA(ds,"xlDateTime")
+    if "xlDateTime" in ds.series.keys():
+        xldt_org,xldt_flag,xldt_attr = GetSeriesasMA(ds,"xlDateTime")
+    else:
+        xldt_flag = numpy.zeros(nRecs,dtype=numpy.int32)
+        xldt_attr = MakeAttributeDictionary(long_name="Date/time in Excel format",units="days since 1899-12-31 00:00:00")
     # get a local pointer to the Python DateTime series in ds
     ldt = ds.series["DateTime"]["Data"]
     # get a list of Excel datetimes from the Python datetime objects

@@ -43,7 +43,7 @@ def do_2dinterpolation(array_2d):
     mn_1d=numpy.reshape(mn,numpy.shape(mn)[0]*numpy.shape(mn)[1])
     hr_1d=numpy.reshape(hr,numpy.shape(hr)[0]*numpy.shape(hr)[1])
     index=numpy.where(array_2d_3x3_1d!=c.missing_value)
-    array_2d_3x3i=griddata(mn_1d[index],hr_1d[index],array_2d_3x3_1d[index],mni,hri)
+    array_2d_3x3i=griddata(mn_1d[index],hr_1d[index],array_2d_3x3_1d[index],mni,hri,interp="linear")
     array_2di=array_2d_3x3i[nhr/3:2*nhr/3,nmn/3:2*nmn/3]
     #array_2di=numpy.ma.filled(array_2d_3x3i[nhr/3:2*nhr/3,nmn/3:2*nmn/3],0)
     if WasMA:

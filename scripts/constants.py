@@ -15,6 +15,7 @@ Lv = 2453600   # latent heat of vapourisation, J/kg
 Mc = 0.04401   # molecular weight of carbon dioxide, kg/mol
 Md = 0.02897   # molecular weight of dry air, kg/mol
 missing_value = -9999         # missing data value
+large_value = 1E35            # large value
 Mv = 0.01802   # molecular weight of water vapour, kg/mol
 mu = Md/Mv     # ratio of dry air molecular weight to water vapour molecular weight
 PT100_alpha = 3.9080E-3

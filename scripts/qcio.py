@@ -938,7 +938,7 @@ def nc_write_series(ncFile,ds,outputlist=None,ndims=3):
         if len(outputlist)==0: outputlist = ds.series.keys()
     # can't write an array of Python datetime objects to a netCDF file
     # actually, this could be written as characters
-    for ThisOne in ["DateTime"]:
+    for ThisOne in ["DateTime","DateTime_UTC"]:
         if ThisOne in outputlist: outputlist.remove(ThisOne)
     # write the time variable
     nc_time = netCDF4.date2num(ldt,"days since 1800-01-01 00:00:00.0",calendar="gregorian")
@@ -1230,7 +1230,7 @@ def xl_write_series(ds, xlfullname, outputlist=None):
     globalattrlist.sort()
     for ThisOne in sorted([x for x in globalattrlist if 'Flag' not in x]):
         xlAttrSheet.write(xlrow,xlcol,ThisOne)
-        xlAttrSheet.write(xlrow,xlcol+1,ds.globalattributes[ThisOne])
+        xlAttrSheet.write(xlrow,xlcol+1,str(ds.globalattributes[ThisOne]))
         xlrow = xlrow + 1
     for ThisOne in sorted([x for x in globalattrlist if 'Flag' in x]):
         xlAttrSheet.write(xlrow,xlcol,ThisOne)
@@ -1255,7 +1255,7 @@ def xl_write_series(ds, xlfullname, outputlist=None):
         if len(outputlist)==0:
             outputlist = variablelist
     outputlist.sort()
-    for ThisOne in ["DateTime"]:
+    for ThisOne in ["DateTime","DateTime_UTC"]:
         if ThisOne in outputlist: outputlist.remove(ThisOne)
     for ThisOne in outputlist:
         xlAttrSheet.write(xlrow,xlcol_varname,ThisOne)

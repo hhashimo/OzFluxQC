@@ -563,19 +563,19 @@ def gfalternate_plotsummary(ds):
                 if col==0: axs[row,col].set_ylabel(ylabel,visible=True)
                 # get the results to be plotted
                 result = numpy.ma.masked_equal(ds.alternate[label]["results"][rlabel],float(c.missing_value))
-                if numpy.ma.count(result)!=0:
-                    # put the data into the right order to be plotted
-                    dt,data = gfalternate_plotsummary_getdata(dt_start,dt_end,result)
-                    # plot the results
-                    axs[row,col].plot(dt,data)
-                    # put in the major ticks
-                    axs[row,col].xaxis.set_major_locator(MTLoc)
-                    # if this is not the last row, hide the tick mark labels
-                    if row<len(result_list)-1: plt.setp(axs[row,col].get_xticklabels(),visible=False)
-                    # if this is the last row, add the major tick mark and axis labels
-                    if row==len(result_list)-1:
-                        axs[row,col].xaxis.set_major_formatter(MTFmt)
-                        axs[row,col].set_xlabel('Month',visible=True)
+                if numpy.ma.count(result)==0: result = numpy.ma.ones(len(dt_start),dtype=numpy.float32)*float(c.large_value)
+                # put the data into the right order to be plotted
+                dt,data = gfalternate_plotsummary_getdata(dt_start,dt_end,result)
+                # plot the results
+                axs[row,col].plot(dt,data)
+                # put in the major ticks
+                axs[row,col].xaxis.set_major_locator(MTLoc)
+                # if this is not the last row, hide the tick mark labels
+                if row<len(result_list)-1: plt.setp(axs[row,col].get_xticklabels(),visible=False)
+                # if this is the last row, add the major tick mark and axis labels
+                if row==len(result_list)-1:
+                    axs[row,col].xaxis.set_major_formatter(MTFmt)
+                    axs[row,col].set_xlabel('Month',visible=True)
         # draw the plot
         plt.draw()
         # make the hard-copy file name and save the plot as a PNG file
@@ -980,7 +980,10 @@ def gfalternate_getstatistics(results,tower,alternate,alternate_info):
         results["Var (tower)"].append(var_tow)
         var_acc = numpy.ma.var(alternate)
         results["Var (alternate)"].append(var_acc)
-        results["Var ratio"].append(var_tow/var_acc)
+        if var_acc!=0:
+            results["Var ratio"].append(var_tow/var_acc)
+        else:
+            results["Var ratio"].append(c.missing_value)
         results["Avg (tower)"].append(numpy.ma.average(tower))
         results["Avg (alternate)"].append(numpy.ma.average(alternate))
         #results["Lag (uncorrected)"].append(alternate_info["Lag (uncorrected)"])
