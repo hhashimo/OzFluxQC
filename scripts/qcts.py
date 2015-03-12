@@ -352,6 +352,41 @@ def CalculateLongwave(ds,Fl_out,Fl_in,Tbody_in):
     qcutils.CreateSeries(ds,Fl_out,Fl,FList=[Fl_in,Tbody_in],Attr=attr)
 
 def CalculateHumidities(ds):
+    """
+    Purpose:
+     Calculate any missing humidities from whatever is available.
+     If absolute humidity (Ah) is available then;
+      - calculate specific humidity (q) if it is not present
+      - calculate relative humidity (RH) if it is not present
+     If specific humidity (q) is available then;
+      - calculate absolute humidity (Ah) if it is not present
+      - calculate relative humidity (RH) if it is not present
+     If reative humidity (RH) is available then;
+      - calculate specific humidity (q) if it is not present
+      - calculate relative humidity (RH) if it is not present
+    Usage:
+     qcts.CalculateHumidities(ds)
+    Date:
+     March 2015
+    Author: PRI
+    """
+    if "Ah" not in ds.series.keys():
+        if "q" in ds.series.keys():
+            AbsoluteHumidityFromq(ds)    # calculate Ah from q
+        elif "RH" in ds.series.keys():
+            AbsoluteHumidityFromRH(ds)   # calculate Ah from RH
+    if "q" not in ds.series.keys():
+        if "Ah" in ds.series.keys():
+            SpecificHumidityFromAh(ds)
+        elif "RH" in ds.series.keys():
+            SpecificHumidityFromRH(ds)
+    if "RH" not in ds.series.keys():
+        if "Ah" in ds.series.keys():
+            RelativeHumidityFromAh(ds)
+        elif "q" in ds.series.keys():
+            RelativeHumidityFromq(ds)
+
+def CalculateHumiditiesAfterGapFill(ds):
     if "access" in dir(ds):
         if "Ah" not in ds.access.keys():
             if "q" in ds.access.keys():
@@ -386,26 +421,6 @@ def CalculateHumidities(ds):
             elif "q" in ds.climatology.keys():
                 RelativeHumidityFromq(ds)
         del ds.climatology
-
-#def RefreshAh(ds):
-    #if "q" in ds.access.keys():
-        ## q has been gap filled but not Ah so calculate Ah from q
-        #AbsoluteHumidityFromq(ds)
-    #elif "RH" in ds.access.keys():
-        ## RH has been gap filled but not Ah so calculate Ah from RH
-        #AbsoluteHumidityFromRH(ds)
-
-#def Refreshq(ds):
-    #if "Ah" in ds.access.keys():
-        #SpecificHumidityFromAh(ds)
-    #elif "RH" in ds.access.keys():
-        #SpecificHumidityFromRH(ds)
-
-#def RefreshRH(ds):
-    #if "Ah" in ds.access.keys():
-        #RelativeHumidityFromAh(ds)
-    #elif "q" in ds.access.keys():
-        #RelativeHumidityFromq(ds)
 
 def AbsoluteHumidityFromRH(ds):
     """ Calculate absolute humidity from relative humidity. """
@@ -875,6 +890,10 @@ def CorrectFgForStorage(cf,ds,Fg_out='Fg',Fg_in='Fg',Ts_in='Ts',Sws_in='Sws'):
             OrganicContent: soil organic content, fraction
             SwsDefault: default value of soil moisture content used when no sensors present
         """
+    # check to see if the user wants to skip the correction
+    if not qcutils.cfoptionskeylogical(cf,Key="CorrectFgForStorage",default=True):
+        log.info(' CorrectFgForStorage: storage correction disabled in L3 control file')
+        return
     # check to see if there is a [Soil] section in the control file
     if 'Soil' not in cf.keys():
         # if there isn't, check to see if the soil information is in the netCDF global attributes
@@ -1901,7 +1920,10 @@ def MergeSeriesUsingDict(ds,merge_order=""):
     """ Merge series as defined in the ds.merge dictionary."""
     # check that ds has a "merge" attribute
     if "merge" not in dir(ds): raise Exception("MergeSeriesUsingDict: No merge dictionary in ds")
-    if merge_order not in ds.merge.keys(): raise Exception("MergeSeriesUsingDict: merge_order not found in merge dictionary")
+    if merge_order not in ds.merge.keys():
+        msg = "MergeSeriesUsingDict: merge_order ("+merge_order+") not found in merge dictionary"
+        log.info(msg)
+        return
     # loop over the entries in ds.merge
     for target in ds.merge[merge_order].keys():
         srclist = ds.merge[merge_order][target]["source"]
@@ -1928,6 +1950,17 @@ def MergeSeriesUsingDict(ds,merge_order=""):
         attr["long_name"] = attr["long_name"]+", merged from " + SeriesNameString
         qcutils.CreateSeries(ds,target,data,Flag=flag,Attr=attr)
     del ds.merge[merge_order]
+
+def MergeHumidities(cf,ds):
+    if "Ah" not in cf["Variables"] and "RH" not in cf["Variables"] and "q" not in cf["Variables"]:
+        log.error(" MergeHumidities: No humidities found in control file, returning ...")
+        return
+    if "Ah" in cf["Variables"]:
+        MergeSeries(cf,ds,'Ah',[0,10])
+    if "RH" in cf["Variables"]:
+        MergeSeries(cf,ds,'RH',[0,10])
+    if "q" in cf["Variables"]:
+        MergeSeries(cf,ds,'q',[0,10])
 
 def MergeSeries(cf,ds,series,okflags):
     """
@@ -2155,22 +2188,40 @@ def SquareRoot(Series):
     tmp[index] = Series[index] ** .5
     return tmp
 
-def TaFromTv(cf,ds,Ta_out='Ta_CSAT',Tv_in='Tv_CSAT',Ah_in='Ah',ps_in='ps'):
+def TaFromTv(cf,ds,Ta_out='Ta_CSAT',Tv_in='Tv_CSAT',Ah_in='Ah',RH_in='RH',q_in='q',ps_in='ps'):
     # Calculate the air temperature from the virtual temperature, the
     # absolute humidity and the pressure.
     # NOTE: the virtual temperature is used in place of the air temperature
     #       to calculate the vapour pressure from the absolute humidity, the
     #       approximation involved here is of the order of 1%.
     log.info(' Calculating Ta from Tv')
+    # check to see if we have enough data to proceed
+    if Tv_in not in ds.series.keys():
+        log.error(" TaFromTv: sonic virtual temperature ("+str(Tv_in)+") not found in data structure")
+        return
+    if Ah_in not in ds.series.keys() and RH_in not in ds.series.keys() and q_in not in ds.series.keys():
+        labstr = str(Ah_in)+","+str(RH_in)+","+str(q_in)
+        log.error(" TaFromTv: no humidity data ("+labstr+") found in data structure")
+        return
+    if ps_in not in ds.series.keys():
+        log.error(" TaFromTv: pressure ("+str(ps_in)+") not found in data structure")
+        return
+    # we seem to have enough to continue
     Tv,f,a = qcutils.GetSeriesasMA(ds,Tv_in)
-    Ah,f,a = qcutils.GetSeriesasMA(ds,Ah_in)
     ps,f,a = qcutils.GetSeriesasMA(ds,ps_in)
+    if Ah_in in ds.series.keys():
+        Ah,f,a = qcutils.GetSeriesasMA(ds,Ah_in)
+        vp = mf.vapourpressure(Ah,Tv)
+        mr = mf.mixingratio(ps,vp)
+        q = mf.specifichumidity(mr)
+    elif RH_in in ds.series.keys():
+        RH,f,a = qcutils.GetSeriesasMA(ds,RH_in)
+        q = mf.specifichumidityfromRH(RH,Tv,ps)
+    elif q_in in ds.series.keys():
+        q,f,a = qcutils.GetSeriesasMA(ds,q_in)
+    Ta_data = mf.tafromtv(Tv,q)
     nRecs = int(ds.globalattributes['nc_nrecs'])
     Ta_flag = numpy.zeros(nRecs,numpy.int32)
-    vp = mf.vapourpressure(Ah,Tv)
-    mr = mf.mixingratio(ps,vp)
-    q = mf.specifichumidity(mr)
-    Ta_data = mf.tafromtv(Tv,q)
     mask = numpy.ma.getmask(Ta_data)
     index = numpy.where(mask.astype(numpy.int32)==1)
     Ta_flag[index] = 15

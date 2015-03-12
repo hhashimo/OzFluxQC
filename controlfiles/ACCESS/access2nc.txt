@@ -1,3 +1,7 @@
+[Options]
+    WriteExcelIntermediate = No
+    WriteExcelNoGaps       = No
+    
 [Sites]
     [[AliceSpringsMulga]]
         in_filepath = ../../ACCESS/AliceSpringsMulga/Daily/
@@ -7,14 +11,14 @@
         interpolate = Yes
         site_name = "AliceSpringsMulga"
         site_timezone = Australia/Darwin
-    [[Arcturus]]
-        in_filepath = ../../ACCESS/Arcturus/Daily/
-        in_filename = access_Arcturus_*.nc
-        out_filepath = ../../Sites/Arcturus/Data/ACCESS/
-        out_filename = Arcturus_ACCESS.nc
-        interpolate = Yes
-        site_name = "Arcturus"
-        site_timezone = Australia/Brisbane
+#    [[Arcturus]]
+#        in_filepath = ../../ACCESS/Arcturus/Daily/
+#        in_filename = access_Arcturus_*.nc
+#        out_filepath = ../../Sites/Arcturus/Data/ACCESS/
+#        out_filename = Arcturus_ACCESS.nc
+#        interpolate = Yes
+#        site_name = "Arcturus"
+#        site_timezone = Australia/Brisbane
     [[Calperum]]
         in_filepath = ../../ACCESS/Calperum/Daily/
         in_filename = access_Calperum_*.nc

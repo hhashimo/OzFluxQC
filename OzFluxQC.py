@@ -163,12 +163,20 @@ class qcgui(tk.Tk):
         plotmenu.add_command(label="Plot L4",command=self.do_plotL3L4)
         plotmenu.add_command(label="Plot L5",command=self.option_not_implemented)
         plotmenu.add_command(label="Plot L6",command=self.option_not_implemented)
-        pltsummenu = tk.Menu(menubar,tearoff=0)
-        pltsummenu.add_command(label="Fingerprint",command=self.do_plotfingerprint)
-        pltsummenu.add_command(label="FluxNet",command=self.do_plotfluxnet)
-        pltsummenu.add_command(label="Quick check",command=self.do_plotquickcheck)
-        pltsummenu.add_command(label="Years check",command=self.option_not_implemented)
-        plotmenu.add_cascade(label="Summary",menu=pltsummenu)
+        fpmenu = tk.Menu(menubar,tearoff=0)
+        fpmenu.add_command(label="Standard",command=lambda:self.do_plotfingerprint(mode="standard"))
+        fpmenu.add_command(label="Custom",command=lambda:self.do_plotfingerprint(mode="custom"))
+        plotmenu.add_cascade(label="Fingerprint",menu=fpmenu)
+        plotmenu.add_command(label="FluxNet",command=self.do_plotfluxnet)
+        plotmenu.add_command(label="Quick check",command=self.do_plotquickcheck)
+        plotmenu.add_command(label="Years check",command=self.option_not_implemented)
+
+        #pltsummenu = tk.Menu(menubar,tearoff=0)
+        #pltsummenu.add_command(label="Fingerprint",command=self.do_plotfingerprint)
+        #pltsummenu.add_command(label="FluxNet",command=self.do_plotfluxnet)
+        #pltsummenu.add_command(label="Quick check",command=self.do_plotquickcheck)
+        #pltsummenu.add_command(label="Years check",command=self.option_not_implemented)
+        #plotmenu.add_cascade(label="Summary",menu=pltsummenu)
         plotmenu.add_separator()
         plotmenu.add_command(label="Close plots",command=self.do_closeplotwindows)
         menubar.add_cascade(label="Plot",menu=plotmenu)
@@ -207,7 +215,7 @@ class qcgui(tk.Tk):
             if os.path.exists(stdname):
                 cf = qcio.get_controlfilecontents(stdname)
                 self.do_progress(text='Opening input file ...')
-                filename = qcio.get_filename_dialog(path='../Sites',title='Choose an input file')
+                filename = qcio.get_filename_dialog(path='../Sites',title='Choose a netCDF file')
                 if len(filename)==0:
                     log.info( " Climatology: no input file chosen")
                     self.do_progress(text='Waiting for input ...')
@@ -558,20 +566,26 @@ class qcgui(tk.Tk):
         self.do_progress(text='Finished concatenating files')
         log.info(' Finished concatenating files')
 
-    def do_plotfingerprint(self):
+    def do_plotfingerprint(self,mode="standard"):
         """ Plot fingerprint"""
-        self.do_progress(text='Loading control file ...')
-        stdname = "controlfiles/standard/fingerprint.txt"
-        if os.path.exists(stdname):
-            cf = qcio.get_controlfilecontents(stdname)
-            filename = qcio.get_filename_dialog(path='../Sites',title='Choose an input file')
-            if len(filename)==0: self.do_progress(text='Waiting for input ...'); return
-            if "Files" not in dir(cf): cf["Files"] = {}
-            cf["Files"]["file_path"] = ntpath.split(filename)[0]+"/"
-            cf["Files"]["in_filename"] = ntpath.split(filename)[1]
+        self.do_progress(text='Doing fingerprint plot ...')
+        if mode=="standard":
+            stdname = "controlfiles/standard/fingerprint.txt"
+            if os.path.exists(stdname):
+                cf = qcio.get_controlfilecontents(stdname)
+                filename = qcio.get_filename_dialog(path='../Sites',title='Choose a netCDF file')
+                if len(filename)==0: self.do_progress(text='Waiting for input ...'); return
+                if "Files" not in dir(cf): cf["Files"] = {}
+                cf["Files"]["file_path"] = ntpath.split(filename)[0]+"/"
+                cf["Files"]["in_filename"] = ntpath.split(filename)[1]
+            else:
+                self.do_progress(text='Loading control file ...')
+                cf = qcio.load_controlfile(path='controlfiles')
+                if len(cf)==0: self.do_progress(text='Waiting for input ...'); return
         else:
+            self.do_progress(text='Loading control file ...')
             cf = qcio.load_controlfile(path='controlfiles')
-        if len(cf)==0: self.do_progress(text='Waiting for input ...'); return
+            if len(cf)==0: self.do_progress(text='Waiting for input ...'); return
         self.do_progress(text='Plotting fingerprint ...')
         qcplot.plot_fingerprint(cf)
         self.do_progress(text='Finished plotting fingerprint')

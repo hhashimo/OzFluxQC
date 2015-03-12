@@ -22,6 +22,7 @@ from scipy.interpolate import interp1d
 class ACCESSData(object):
     def __init__(self):
         self.globalattr = {}
+        self.globalattr["file_list"] = []
         self.variables = {}
         self.varattr = {}
 
@@ -47,6 +48,8 @@ def access_read_mfiles(file_list=[],var_list=[]):
         else:
             print "ACCESS variable "+access_name+" not found in "+file_list[0]
             f.variables[access_name] = makedummyseries(shape)
+    if len(ncfile.variables["valid_date"])!=25:
+        print "ACCESS file "+file_list[0]+" has "+str(len(ncfile.variables[access_name]))+" records (25 expected)"
     ncfile.close()
     if len(file_list)>1:
         # loop over the remaining files and append the data
@@ -66,7 +69,73 @@ def access_read_mfiles(file_list=[],var_list=[]):
                     print "ACCESS variable "+access_name+" not found in "+filename
                     empty_series = makedummyseries(shape)
                     f.variables[access_name] = numpy.concatenate((f.variables[access_name],empty_series),axis=0)
+            if len(ncfile.variables["valid_date"])!=25:
+                print "ACCESS file "+filename+" has "+str(len(ncfile.variables[access_name]))+" records (25 expected)"
             ncfile.close()
+    return f
+
+def access_read_mfiles2(file_list,var_list=[]):
+    f = ACCESSData()
+    # check that we have a list of files to process
+    if len(file_list)==0:
+        print "access_read_mfiles: empty file_list received, returning ..."
+        return f
+    for file_name in file_list:
+        # open the netCDF file
+        ncfile = Dataset(file_name)
+        # check the number of records
+        dims = ncfile.dimensions
+        shape = (len(dims["time"]),len(dims["lat"]),len(dims["lon"]))
+        # move to the next file if this file doesn't have 25 time records
+        if shape[0]!=25:
+            print "access_read_mfiles: length of time dimension in "+file_name+" is "+str(shape[0])+" (expected 25)"
+            continue
+        # move to the next file if this file doesn't have 3 latitude records
+        if shape[1]!=3:
+            print "access_read_mfiles: length of lat dimension in "+file_name+" is "+str(shape[1])+" (expected 3)"
+            continue
+        # move to the next file if this file doesn't have 3 longitude records
+        if shape[2]!=3:
+            print "access_read_mfiles: length of lon dimension in "+file_name+" is "+str(shape[2])+" (expected 3)"
+            continue
+        # seems OK to continue with this file ...
+        # add the file name to the file_list in the global attributes
+        f.globalattr["file_list"].append(file_name)
+        # get the global attributes
+        for gattr in ncfile.ncattrs():
+            if gattr not in f.globalattr:
+                f.globalattr[gattr] = getattr(ncfile,gattr)
+        # if no variable list was passed to this routine, use all variables
+        if len(var_list)==0: var_list=ncfile.variables.keys()
+        # load the data into the data structure
+        for var in var_list:
+            # get the name of the variable in the ACCESS file
+            access_name = qcio.get_keyvaluefromcf(cf,["Variables",var],"access_name",default=None)
+            # check that the requested variable exists in the ACCESS file
+            if access_name in ncfile.variables.keys():
+                # check to see if the variable is already in the data structure
+                if access_name not in f.variables.keys():
+                    f.variables[access_name] = ncfile.variables[access_name][:]
+                else:
+                    f.variables[access_name] = numpy.concatenate((f.variables[access_name],ncfile.variables[access_name][:]),axis=0)
+                # now copy the variable attribiutes
+                # create the variable attribute dictionary
+                if access_name not in f.varattr: f.varattr[access_name] = {}
+                # loop over the variable attributes
+                for this_attr in ncfile.variables[access_name].ncattrs():
+                    # check to see if the attribute has already 
+                    if this_attr not in f.varattr[access_name].keys():
+                        # add the variable attribute if it's not there already
+                        f.varattr[access_name][this_attr] = getattr(ncfile.variables[access_name],this_attr)
+            else:
+                print "access_read_mfiles: ACCESS variable "+access_name+" not found in "+file_name
+                if access_name not in f.variables.keys():
+                    f.variables[access_name] = makedummyseries(shape)
+                else:
+                    f.variables[access_name] = numpy.concatenate((f.variables[access_name],makedummyseries(shape)),axis=0)
+        # close the netCDF file
+        ncfile.close()
+    # return with the data structure
     return f
 
 def makedummyseries(shape):
@@ -125,13 +194,15 @@ for site in site_list:
     ds_30minutes = qcio.DataStructure()
     # read the netCDF files
     #f = MFDataset(infilename)
-    f = access_read_mfiles(file_list=file_list,var_list=var_list)
+    f = access_read_mfiles2(file_list,var_list=var_list)
     # get the date and time
     valid_date = f.variables["valid_date"][:]
     valid_time = f.variables["valid_time"][:]
     # get the number of records in the file
     nRecs = len(valid_date)
     # check the files have the expected number of records
+    nFiles = len(f.globalattr["file_list"])
+    log.info(str(nFiles)+" left after rejecting non-compliant files")
     if nRecs!=25*nFiles:
         log.error("Number of records expected was "+str(25*nFiles)+", got "+str(nRecs))
         continue
@@ -392,18 +463,23 @@ for site in site_list:
             qcutils.CreateSeries(ds_60minutes,label_Fa,Fa,Flag=f,Attr=attr)
 
     # dump to an Excel file so we can see what is going on
-    xlfullname= outfilename.replace('.nc','.xls')
-    log.info("Writing to file: "+xlfullname)
-    qcio.xl_write_series(ds_60minutes, xlfullname, outputlist=None)
+    if qcio.get_keyvaluefromcf(cf,["Options"],"WriteExcelIntermediate",default="No")=="Yes":
+        xlfullname= outfilename.replace('.nc','.xls')
+        log.info("Writing to file: "+xlfullname)
+        qcio.xl_write_series(ds_60minutes, xlfullname, outputlist=None)
 
     # check for time gaps in the file
     log.info("Checking for time gaps")
-    has_gaps = qcutils.CheckTimeStep(ds_60minutes,mode="fix")
-    
-    # dump corrected data to an Excel file
-    #xlfullname= xlfullname.replace('.xls','_nogaps.xls')
-    #log.info("Writing to file: "+xlfullname)
-    #qcio.xl_write_series(ds_60minutes, xlfullname, outputlist=None)
+    if qcutils.CheckTimeStep(ds_60minutes):
+        qcutils.FixTimeStep(ds_60minutes)
+        # update the Year, Month, Day etc from the Python datetime
+        qcutils.get_ymdhmsfromdatetime(ds_60minutes)
+
+    # dump the time step corrected data to an Excel file
+    if qcio.get_keyvaluefromcf(cf,["Options"],"WriteExcelNoGaps",default="No")=="Yes":
+        xlfullname= xlfullname.replace('.xls','_nogaps.xls')
+        log.info("Writing to file: "+xlfullname)
+        qcio.xl_write_series(ds_60minutes, xlfullname, outputlist=None)
 
     # interpolate from 60 to 30 minutes if requested
     if interpolate:

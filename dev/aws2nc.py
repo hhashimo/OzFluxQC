@@ -43,7 +43,10 @@ in_path = "../../BoM/AWS/Current/"
 in_filename = in_path+"HM01X_Data*.csv"
 file_list = sorted(glob.glob(in_filename))
 
-site_list = bom_sites_info.keys()
+#site_list = bom_sites_info.keys()
+#site_list = ["Tumbarumba"]
+#site_list = ["Great Western Woodlands"]
+site_list = ["Otway"]
 for site_name in sorted(site_list):
     log.info("Starting site: "+site_name)
     sname = site_name.replace(" ","")
@@ -105,16 +108,17 @@ for site_name in sorted(site_list):
         # now get the Python datetime
         qcutils.get_datetimefromymdhms(ds)
         # fix any time stamp issues
-        if qcutils.CheckTimeStep(ds):
-            qcutils.FixTimeStep(ds)
-            # update the Year, Month, Day etc from the Python datetime
-            qcutils.get_ymdhmsfromdatetime(ds)
-        ldt = ds.series["DateTime"]["Data"]
-        year = ds.series["Year"]["Data"]
-        month = ds.series["Month"]["Data"]
-        day = ds.series["Day"]["Data"]
-        hour = ds.series["Hour"]["Data"]
-        minute = ds.series["Minute"]["Data"]
+        #if qcutils.CheckTimeStep(ds):
+            #print "Calling FixTimeStep"
+            #qcutils.FixTimeStep(ds)
+            ## update the Year, Month, Day etc from the Python datetime
+            #qcutils.get_ymdhmsfromdatetime(ds)
+        #ldt = ds.series["DateTime"]["Data"]
+        #year = ds.series["Year"]["Data"]
+        #month = ds.series["Month"]["Data"]
+        #day = ds.series["Day"]["Data"]
+        #hour = ds.series["Hour"]["Data"]
+        #minute = ds.series["Minute"]["Data"]
         #print bom_id,ldt[-1],year[-1],month[-1],day[-1],hour[-1],minute[-1]
         # now put the data into the data structure
         attr=qcutils.MakeAttributeDictionary(long_name='Precipitation since 0900',units='mm',
@@ -144,14 +148,19 @@ for site_name in sorted(site_list):
         attr=qcutils.MakeAttributeDictionary(long_name='Wind gust',units='m/s',
                                              bom_id=str(bom_id),bom_name=bom_sites_info[site_name][str(bom_id)]["site_name"],
                                              bom_dist=bom_sites_info[site_name][str(bom_id)]["distance"])
-        qcutils.CreateSeries(ds,'Wd',data_dict[bom_id][:,12],Flag=flag,Attr=attr)
+        qcutils.CreateSeries(ds,'Wg',data_dict[bom_id][:,12],Flag=flag,Attr=attr)
         data_dict[bom_id][:,13] = data_dict[bom_id][:,13]/float(10)
         attr=qcutils.MakeAttributeDictionary(long_name='Air Pressure',units='kPa',
                                              bom_id=str(bom_id),bom_name=bom_sites_info[site_name][str(bom_id)]["site_name"],
                                              bom_dist=bom_sites_info[site_name][str(bom_id)]["distance"])
         qcutils.CreateSeries(ds,'ps',data_dict[bom_id][:,13],Flag=flag,Attr=attr)
+        # fix any time stamp issues
+        if qcutils.CheckTimeStep(ds):
+            qcutils.FixTimeStep(ds)
+            # update the Year, Month, Day etc from the Python datetime
+            qcutils.get_ymdhmsfromdatetime(ds)
         # now interpolate
-        for label in ["Precip","Ta","Td","RH","Ws","Wd","ps"]:
+        for label in ["Precip","Ta","Td","RH","Ws","Wd","Wg","ps"]:
             qcts.InterpolateOverMissing(ds,series=label,maxlen=2)
         # put this stations data into the data structure dictionary
         ds_dict[bom_id] = ds
@@ -206,7 +215,7 @@ for site_name in sorted(site_list):
         ldt = ds.series["DateTime"]["Data"]
         index = qcutils.find_indices(ldt_all,ldt)
         # loop over the variables
-        for label in ["Precip","Ta","Td","RH","Ws","Wd","ps"]:
+        for label in ["Precip","Ta","Td","RH","Ws","Wd","Wg","ps"]:
             data_all = numpy.ma.ones(nRecs,dtype=numpy.float64)*float(c.missing_value)
             flag_all = numpy.zeros(nRecs,dtype=numpy.int32)
             data,flag,attr = qcutils.GetSeriesasMA(ds,label)
@@ -221,18 +230,59 @@ for site_name in sorted(site_list):
     #print precip_list
     log.info("Converting 24 hour accumulated precipitation")
     for output_label in precip_list:
-        accum_24hr,flag,attr = qcutils.GetSeriesasMA(ds_all,output_label)
-        index = numpy.ma.where(accum_24hr<0.001)[0]
-        accum_24hr[index] = float(0)
-        precip = numpy.ma.ediff1d(accum_24hr,to_begin=0)
-        index = [x for x in range(len(ldt_all)) if (ldt_all[x].hour==8) and (ldt_all[x].minute==30)]
+        # getthe accumlated precipitation
+        accum_data,accum_flag,accum_attr = qcutils.GetSeriesasMA(ds_all,output_label)
+        # make the flag a masked array
+        accum_flag = numpy.ma.array(accum_flag)
+        # round small precipitations to 0
+        index = numpy.ma.where(accum_data<0.01)[0]
+        accum_data[index] = float(0)
+        # get the precipitation per time step
+        precip = numpy.ma.ediff1d(accum_data,to_begin=0)
+        # trap the times when the accumlated precipitation is reset
+        # This should be at a standard time every day for all BoM sites but this is not the case
+        # For eaxample, at 72161, there is a period in 09/2010 when the reset seems to occur at
+        # 1000 instead of the expected 0900 (possible daylight saving error?)
+        # To get around this, we check the differentiated precipitation:
+        # - if the precipitation per time step is positive, do nothing
+        # - if the precipitation per time step is negative;
+        #   - if the QC flag is 50 (linear interpolation) then set the precipitation to 0
+        #   - if the QC flag is 0 then set the precipitation per time step to the accumlated
+        #     precipitation
+        # find times when the precipitation per time step is negative and the QC flag is not 0 ...
+        index = numpy.ma.where((precip<0)&(accum_flag!=0))[0]
+        # ... and set the precipitation per time step for these times to 0
         precip[index] = float(0)
-        index = [x for x in range(len(ldt_all)) if (ldt_all[x].hour==9) and (ldt_all[x].minute==0)]
-        precip[index] = accum_24hr[index]
+        # find any remaining times when the precipitation per time step is negative ...
+        index = numpy.ma.where(precip<0)[0]
+        # ... and set them to the accumulated precipitation
+        precip[index] = accum_data[index]
+        #index = [x for x in range(len(ldt_all)) if (ldt_all[x].hour==8) and (ldt_all[x].minute==30)]
+        #precip[index] = float(0)
+        #index = [x for x in range(len(ldt_all)) if (ldt_all[x].hour==9) and (ldt_all[x].minute==0)]
+        #precip[index] = accum_24hr[index]
+        # set attributes as appropriate
         attr["long_name"] = "Precipitation total over time step"
         attr["units"] = "mm/30 minutes"
-        qcutils.CreateSeries(ds_all,output_label,precip,Flag=flag,Attr=attr)
-
+        # put the precipitation per time step back into the data struicture
+        qcutils.CreateSeries(ds_all,output_label,precip,Flag=accum_flag,Attr=attr)
+    # calculate missing humidities
+    RH_list = sorted([x for x in ds_all.series.keys() if ("RH" in x) and ("_QCFlag" not in x)])
+    Ta_list = sorted([x for x in ds_all.series.keys() if ("Ta" in x) and ("_QCFlag" not in x)])
+    ps_list = sorted([x for x in ds_all.series.keys() if ("ps" in x) and ("_QCFlag" not in x)])
+    for RH_label,Ta_label,ps_label in zip(RH_list,Ta_list,ps_list):
+        Ta,f,a = qcutils.GetSeriesasMA(ds_all,Ta_label)
+        RH,f,a = qcutils.GetSeriesasMA(ds_all,RH_label)
+        ps,f,a = qcutils.GetSeriesasMA(ds_all,ps_label)
+        Ah = mf.absolutehumidityfromRH(Ta, RH)
+        attr = qcutils.MakeAttributeDictionary(long_name='Absolute humidity',units='g/m3',standard_name='not defined',
+                                               bom_id=a["bom_id"],bom_name=a["bom_name"],bom_dist=a["bom_dist"])
+        qcutils.CreateSeries(ds_all,RH_label.replace("RH","Ah"),Ah,Flag=f,Attr=attr)
+        q = mf.specifichumidityfromRH(RH, Ta, ps)
+        attr = qcutils.MakeAttributeDictionary(long_name='Specific humidity',units='kg/kg',standard_name='not defined',
+                                               bom_id=a["bom_id"],bom_name=a["bom_name"],bom_dist=a["bom_dist"])
+        qcutils.CreateSeries(ds_all,RH_label.replace("RH","q"),q,Flag=f,Attr=attr)
+    
     # now write the data structure to file
     ncfile = qcio.nc_open_write(ncname)
     qcio.nc_write_series(ncfile,ds_all,ndims=1)

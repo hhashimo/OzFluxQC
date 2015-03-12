@@ -115,6 +115,14 @@
         average = No
         site_name = "Nimmo"
         site_timezone = Australia/Sydney
+    [[Otway]]
+        in_filepath = ../../BIOS2/2014/
+        in_filename = Otway.nc
+        out_filepath = ../../Sites/Otway/Data/BIOS2/
+        out_filename = Otway_BIOS2.nc
+        average = Yes
+        site_name = "Otway"
+        site_timezone = Australia/Melbourne
     [[RedDirtMelonFarm]]
         in_filepath = ../../BIOS2/2014/
         in_filename = RDMF.nc

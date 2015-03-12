@@ -31,6 +31,7 @@
 #    MassmanCorrection       = No            # Yes/No, apply the Massman correction
 #    ApplyFcStorage          = No            # Yes/No, correct Fc for storage, single point
 #    CorrectIndividualFg     = No            # Yes/No, correct individual Fg for storage or correct average Fg
+#    CorrectFgForStorage     = Yes           # Yes/No, correct Fg for storage in soil column above sensor
 #    CoordinateFluxGaps      = No            # Yes/No, remove Fh and Fe when Fc missing and vice versa
 #    CoordinateAh7500&FcGaps = No            # Yes/No, remove Fc data when any Li-7500 missing and vice versa
 #             - the following switches are for advanced users only

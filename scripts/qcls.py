@@ -119,15 +119,14 @@ def l3qc(cf,ds2):
     qcts.CorrectSWC(cf,ds3)
     # apply linear corrections to the data
     qcck.do_linear(cf,ds3)
-    # merge the HMP and corrected 7500 data
-    qcts.MergeSeries(cf,ds3,'Ah',[0,10])
+    # merge whatever humidities are available
+    qcts.MergeHumidities(cf,ds3)
     # get the air temperature from the CSAT virtual temperature
     qcts.TaFromTv(cf,ds3)
     # merge the HMP and corrected CSAT data
     qcts.MergeSeries(cf,ds3,'Ta',[0,10])
-    # get merged series of relative humidity and specific humidity
-    qcts.RelativeHumidityFromAh(ds3)
-    qcts.SpecificHumidityFromRH(ds3)
+    # calculate humidities (absolute, specific and relative) from whatever is available
+    qcts.CalculateHumidities(ds3)
     # merge the 7500 CO2 concentration
     qcts.MergeSeries(cf,ds3,'Cc',[0,10])
     # add relevant meteorological values to L3 data
@@ -252,7 +251,7 @@ def l4qc(cf,ds3):
     # merge the second group of gap filled drivers into a single series
     qcts.MergeSeriesUsingDict(ds4,merge_order="standard")
     # re-calculate the water vapour concentrations
-    qcts.CalculateHumidities(ds4)
+    qcts.CalculateHumiditiesAfterGapFill(ds4)
     # re-calculate the meteorological variables
     qcts.CalculateMeteorologicalVariables(ds4)
     # write the percentage of good data as a variable attribute
@@ -311,6 +310,8 @@ def l6qc(cf,ds5):
     ds6.globalattributes["controlfile_name"] = cf["controlfile_name"]
     # parse the control file
     qcrp.ParseL6ControlFile(cf,ds6)
+    # check to see if we have any imports
+    qcgf.ImportSeries(cf,ds6)
     # filter Fc for night time and ustar threshold, write to ds as "Fre"
     qcrp.GetFreFromFc(cf,ds6)
     # estimate Reco using SOLO
@@ -325,6 +326,8 @@ def l6qc(cf,ds5):
     qcts.MergeSeriesUsingDict(ds6,merge_order="standard")
     # calculate NEE from Fc and Fre
     qcrp.CalculateNEE(cf,ds6)
+    # calculate NEP from NEE
+    #qcrp.CalculateNEP(cf,ds6)
     # partition NEE into GPP and Reco
     qcrp.PartitionNEE(cf,ds6)
     # write the percentage of good data as a variable attribute

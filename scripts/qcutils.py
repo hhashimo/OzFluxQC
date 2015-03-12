@@ -70,7 +70,7 @@ def CheckQCFlags(ds):
         index = numpy.ma.where(mask==True)[0]
         ds.series[ThisOne]["Flag"][index] = numpy.int32(8)
 
-def CheckTimeStep(ds,mode="fix"):
+def CheckTimeStep(ds):
     """
     Purpose:
      Checks the datetime series in the data structure ds to see if there are
@@ -237,6 +237,41 @@ def convert_anglestring(anglestring):
         # return with the string converted to a float
         return (float(new[0])+float(new[1])/60.0+float(new[2])/3600.0) * direction[new_dir]    
 
+def convert_WsWdtoUV(Ws,Wd):
+    """
+    Purpose:
+     Convert wind speed and direction to U and V conponents.
+     This routine follows the meteorological convention:
+      - wind direction is positive going clockwise from north
+      - U is positive towards east
+      - V is positive towards north
+    Usage:
+     u,v = qcutils.convert_WsWdtoUV(Ws,Wd)
+    Author: PRI
+    Date: February 2015
+    """
+    u = -Ws*numpy.sin(numpy.radians(Wd))
+    v = -Ws*numpy.cos(numpy.radians(Wd))
+    return u,v
+
+def convert_UVtoWsWd(u,v):
+    """
+    Purpose:
+     Convert U and V conponents to wind speed and direction
+     This routine follows the meteorological convention:
+      - wind direction is positive going clockwise from north
+      - U is positive towards east
+      - V is positive towards north
+    Usage:
+     Ws,Wd = qcutils.convert_UVtoWsWd(U,V)
+    Author: PRI
+    Date: February 2015
+    """
+    Wd = float(270) - (numpy.degrees(numpy.arctan2(v,u)))
+    Wd = numpy.mod(Wd,360)
+    Ws = numpy.sqrt(u*u + v*v)
+    return Ws,Wd
+
 def CreateSeries(ds,Label,Data,FList=None,Flag=None,Attr=None):
     """
     Create a series (1d array) of data in the data structure.
@@ -319,7 +354,7 @@ def find_indices(a,b):
 def RemoveDuplicateRecords(ds):
     """ Remove duplicate records."""
     # the ds.series["DateTime"]["Data"] series is actually a list
-    for item in ["DateTime"]:
+    for item in ["DateTime","DateTime_UTC"]:
         if item in ds.series.keys():
             ldt,ldt_flag,ldt_attr = GetSeries(ds,item)
             # ldt_nodups is returned as an ndarray
@@ -332,7 +367,7 @@ def RemoveDuplicateRecords(ds):
     # get a list of the series in the data structure
     series_list = [item for item in ds.series.keys() if '_QCFlag' not in item]
     # remove the DateTime
-    for item in ["DateTime"]:
+    for item in ["DateTime","DateTime_UTC"]:
         if item in series_list: series_list.remove(item)
     # loop over the series in the data structure
     for ThisOne in series_list:
@@ -411,7 +446,7 @@ def FixTimeGaps(ds):
     # get a list of series in the data structure
     series_list = [item for item in ds.series.keys() if '_QCFlag' not in item]
     # remove the datetime-related series from data structure
-    datetime_list = ["DateTime"]
+    datetime_list = ["DateTime","DateTime_UTC"]
     for item in datetime_list:
         if item in series_list: series_list.remove(item)
     # now loop over the rest of the series in the data structure
@@ -824,7 +859,7 @@ def get_coverage_groups(ds,rad=None,met=None,flux=None,soil=None):
 def get_coverage_individual(ds):
     level = str(ds.globalattributes['nc_level'])
     SeriesList = ds.series.keys()
-    for ThisOne in ["DateTime"]:
+    for ThisOne in ["DateTime","DateTime_UTC"]:
         if ThisOne in SeriesList: SeriesList.remove(ThisOne)
     for ThisOne in SeriesList:
         num_good = len(numpy.where(abs(ds.series[ThisOne]['Data']-float(c.missing_value))>c.eps)[0])

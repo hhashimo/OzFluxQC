@@ -43,9 +43,11 @@ for site in site_list:
     ts = ds_30.globalattributes["time_step"] = 30
     ds_30.globalattributes["time_zone"] = site_timezone
     ds_30.globalattributes["nc_nrecs"] = nRecs
+    ds_30.globalattributes["xl_datemode"] = str(0)
     ds_30.globalattributes["site_name"] = cf["Sites"][site]["site_name"]
     time_units = getattr(bios_ncfile.variables["time"],"units")
     qcutils.get_datetimefromnctime(ds_30,time,time_units)
+    qcutils.round_datetime(ds_30,mode="nearest_timestep")
     ldt_30 = ds_30.series["DateTime"]["Data"]
     si = qcutils.GetDateIndex(ldt_30,start_date,default=0,ts=ts,match="startnexthour")
     ei = qcutils.GetDateIndex(ldt_30,end_date,default=len(ldt_30),ts=ts,match="endprevioushour")
@@ -54,8 +56,8 @@ for site in site_list:
     ldt_30 = ds_30.series["DateTime"]["Data"]
     nRecs = ds_30.globalattributes["nc_nrecs"] = len(ldt_30)
     flag = numpy.zeros(nRecs)
-    qcutils.get_ymdhms_from_datetime(ds_30)
-    xl_date_loc = qcutils.get_xldate_from_datetime(ldt_30)
+    qcutils.get_ymdhmsfromdatetime(ds_30)
+    xl_date_loc = qcutils.get_xldatefromdatetime(ds_30)
     attr = qcutils.MakeAttributeDictionary(long_name="Date/time (local) in Excel format",units="days since 1899-12-31 00:00:00")
     qcutils.CreateSeries(ds_30,"xlDateTime",xl_date_loc,Flag=flag,Attr=attr)
     # get the data
@@ -168,7 +170,8 @@ for site in site_list:
         # get a list of the variables, exclude the QC flags
         series_list = [item for item in ds_30.series.keys() if "_QCFlag" not in item]
         # remove the datetime variables
-        for item in ["DateTime","DateTime_UTC","time","Precip"]:
+        for item in ["DateTime","DateTime_UTC","time","Precip","xlDateTime","xlDateTime_UTC"
+                     "Year","Month","Day","Hour","Minute","Second"]:
             if item in series_list: series_list.remove(item)
         # loop over variables
         for series in series_list:
@@ -177,11 +180,9 @@ for site in site_list:
             data_60=numpy.average(data_30_2d,axis=1)
             qcutils.CreateSeries(ds_60,series,data_60,Flag=flag_60,Attr=attr)
         # get the year, month etc
-        qcutils.get_ymdhms_from_datetime(ds_60)
+        qcutils.get_ymdhmsfromdatetime(ds_60)
         # get the Excel datetime values
-        xl_date_loc = qcutils.get_xldate_from_datetime(ds_60.series["DateTime"]["Data"])
-        attr = qcutils.MakeAttributeDictionary(long_name="Date/time (local) in Excel format",units="days since 1899-12-31 00:00:00")
-        qcutils.CreateSeries(ds_60,"xlDateTime",xl_date_loc,Flag=flag_60,Attr=attr)
+        xl_date_loc = qcutils.get_xldatefromdatetime(ds_60)
         # write the output file
         ncfile = qcio.nc_open_write(outfilename)
         qcio.nc_write_series(ncfile,ds_60,ndims=1)

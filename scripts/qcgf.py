@@ -699,6 +699,10 @@ def gfalternate_getalternatevaratmaxr(alternate_var_list,data_tower,ds_alternate
             data_alternate,flag,attr = qcutils.GetSeriesasMA(ds_alternate,var,si=si,ei=ei)
             # check the lengths of the tower and alternate data are the same
             if len(data_alternate)!=len(data_tower):
+                msg = "gfalternate_getalternatevaratmaxr: alternate data length is "+str(len(data_alternate))
+                log.info(msg)
+                msg = "gfalternate_getalternatevaratmaxr: tower data length is "+str(len(data_tower))
+                log.info(msg)
                 raise ValueError('gfalternate_getalternatevaratmaxr: data_tower and data_alternate lengths differ')
             # put the correlation into the r array
             rval = numpy.ma.corrcoef(data_tower,data_alternate)[0,1]

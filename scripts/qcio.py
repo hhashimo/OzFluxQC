@@ -1366,7 +1366,7 @@ def xlsx_write_series(ds, xlsxfullname, outputlist=None):
         if len(outputlist)==0:
             outputlist = variablelist
     outputlist.sort()
-    for ThisOne in ["DateTime"]:
+    for ThisOne in ["DateTime","DateTime_UTC"]:
         if ThisOne in outputlist: outputlist.remove(ThisOne)
     for ThisOne in outputlist:
         xlAttrSheet.write(xlrow,xlcol_varname,ThisOne)
