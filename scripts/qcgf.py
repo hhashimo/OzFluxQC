@@ -697,15 +697,20 @@ def gfalternate_getalternatevaratmaxr(alternate_var_list,data_tower,ds_alternate
         for idx,var in enumerate(alternate_var_list):
             # get the alternate data
             data_alternate,flag,attr = qcutils.GetSeriesasMA(ds_alternate,var,si=si,ei=ei)
-            # check the lengths of the tower and alternate data are the same
-            if len(data_alternate)!=len(data_tower):
-                msg = "gfalternate_getalternatevaratmaxr: alternate data length is "+str(len(data_alternate))
+            if numpy.ma.count(data_alternate)>alternate_info["min_points"]:
+                # check the lengths of the tower and alternate data are the same
+                if len(data_alternate)!=len(data_tower):
+                    msg = "gfalternate_getalternatevaratmaxr: alternate data length is "+str(len(data_alternate))
+                    log.info(msg)
+                    msg = "gfalternate_getalternatevaratmaxr: tower data length is "+str(len(data_tower))
+                    log.info(msg)
+                    raise ValueError('gfalternate_getalternatevaratmaxr: data_tower and data_alternate lengths differ')
+                # put the correlation into the r array
+                rval = numpy.ma.corrcoef(data_tower,data_alternate)[0,1]
+            else:
+                msg = "gfalternate_getalternatevaratmaxr: less than "+str(alternate_info["min_points"])+" for "+var
                 log.info(msg)
-                msg = "gfalternate_getalternatevaratmaxr: tower data length is "+str(len(data_tower))
-                log.info(msg)
-                raise ValueError('gfalternate_getalternatevaratmaxr: data_tower and data_alternate lengths differ')
-            # put the correlation into the r array
-            rval = numpy.ma.corrcoef(data_tower,data_alternate)[0,1]
+                rval = float(0)
             if rval!="nan": r[idx] = rval
     # get the index of the maximum r value
     maxidx = numpy.ma.argmax(numpy.abs(r))
@@ -929,9 +934,13 @@ def gfalternate_main(ds_tower,ds_alt,alternate_info):
         si = alternate_info["tower"]["exact"]["si"]
         ei = alternate_info["tower"]["exact"]["ei"]
         if alternate_info["overwrite"]==False:
-            ind = numpy.where(abs(ds_tower.series[output]["Data"][si:ei+1]-float(c.missing_value))<c.eps)[0]
+            #ind = numpy.where(abs(ds_tower.series[output]["Data"][si:ei+1]-float(c.missing_value))<c.eps)[0]
+            ind = numpy.where((abs(ds_tower.series[output]["Data"][si:ei+1]-float(c.missing_value))<c.eps)|
+                              (abs(data_alternate_lagolscorr-float(c.missing_value))>c.eps))[0]
             ds_tower.series[output]["Data"][si:ei+1][ind] = numpy.ma.filled(data_alternate_lagolscorr[ind],float(c.missing_value))
         else:
+            #ds_tower.series[output]["Data"][si:ei+1] = numpy.ma.filled(data_alternate_lagolscorr,float(c.missing_value))
+            #if numpy.ma.count(data_alternate_lagolscorr)
             ds_tower.series[output]["Data"][si:ei+1] = numpy.ma.filled(data_alternate_lagolscorr,float(c.missing_value))
         # make a QC flag for the gap filled data
         # default value is 20 for tower data replaced by alternate data

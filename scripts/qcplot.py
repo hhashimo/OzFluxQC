@@ -174,7 +174,10 @@ def plot_fingerprint(cf):
             units = str(ds.series[VarName]['Attr']['units'])
             label = VarName + ' (' + units + ')'
             loc,fmt = get_ticks(datetime.datetime.fromordinal(sd),datetime.datetime.fromordinal(ed))
-            ax = plt.subplot(1,nPlots,n)
+            if n==1:
+                ax = plt.subplot(1,nPlots,n)
+            else:
+                ax = plt.subplot(1,nPlots,n,sharey=ax)
             plt.imshow(data_daily,extent=[0,24,sd,ed],aspect='auto',origin='lower')
             ax.yaxis.set_major_locator(loc)
             ax.yaxis.set_major_formatter(fmt)

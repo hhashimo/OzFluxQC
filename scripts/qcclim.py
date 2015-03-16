@@ -95,7 +95,7 @@ def write_data_1columnpertimestep(xlSheet, data, ts, year=None, format_string=''
     for m in range(1,ncols+1):
         xlSheet.write(1,xlCol,float(m)*ts/60)
         for j in range(nrows):
-            xlSheet.write(j+2,xlCol,tmp[j,m-1],d_xf)
+            xlSheet.write(j+2,xlCol,float(tmp[j,m-1]),d_xf)
         xlCol = xlCol + 1
 
 def do_diurnalstats(Month, Hdh, data, xlSheet, format_string='',ts=30):

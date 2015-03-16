@@ -14,6 +14,11 @@
         Ticks = "[0,0.01,0.02,0.03,0.04,0.05]"
         Lower = 0
         Upper = 8
+    [[Fa]]
+        AltVarName = "Fa"
+        Ticks = "[-200,0,250,500,750]"
+        Lower = -200
+        Upper = 1000
     [[Fe]]
         AltVarName = "Fe"
         Ticks = "[-200,0,200,400,600]"
@@ -94,6 +99,11 @@
         Ticks = "[0,5,10,15]"
         Lower = 0
         Upper = 20
+    [[ps]]
+        AltVarName = "ps"
+        Ticks = "[95,97.5,100,102.5]"
+        Lower = 90
+        Upper = 105
 
 [Plots]
     [[1]]
@@ -107,7 +117,7 @@
         Variables = "['Ta','H2O','CO2','Ws','Wd']"
     [[4]]
         Title = "Flux fingerprint"
-        Variables = "['ustar','Fh','Fe','Fc']"
+        Variables = "['ustar','Fh','Fe','Fc','Fa']"
     [[5]]
         Title = "Soil fingerprint"
-        Variables = "['Fg','Ts','Sws','Precip']"
+        Variables = "['Fg','Ts','Sws','Precip','ps']"

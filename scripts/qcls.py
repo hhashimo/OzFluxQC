@@ -226,6 +226,8 @@ def l4qc(cf,ds3):
     ds_alt = {}
     # check to see if we have any imports
     qcgf.ImportSeries(cf,ds4)
+    # re-apply the quality control checks (range, diurnal and rules)
+    qcck.do_qcchecks(cf,ds4)
     # now do the meteorological driver gap filling
     for ThisOne in cf["Drivers"].keys():
         if ThisOne not in ds4.series.keys(): log.error("Series "+ThisOne+" not in data structure"); continue
