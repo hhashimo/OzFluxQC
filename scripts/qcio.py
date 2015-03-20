@@ -1215,6 +1215,11 @@ def xl_write_series(ds, xlfullname, outputlist=None):
     log.info(' Opening and writing Excel file '+xlfullname)
     xlfile = xlwt.Workbook(encoding="latin-1")
     # set the datemode
+    if "xl_datemode" not in ds.globalattributes:
+        if platform.system()=="Darwin":
+            ds.globalattributes["xl_datemode"] = 0
+        else:
+            ds.globalattributes["xl_datemode"] = 1
     xlfile.dates_1904 = int(ds.globalattributes["xl_datemode"])
     # add sheets to the Excel file
     xlAttrSheet = xlfile.add_sheet('Attr')
@@ -1323,6 +1328,11 @@ def xlsx_write_series(ds, xlsxfullname, outputlist=None):
         nRecs = len(ds.series[variablelist[0]]["Data"])
     # open the Excel file
     log.info(' Opening and writing Excel file '+xlsxfullname)
+    if "xl_datemode" not in ds.globalattributes:
+        if platform.system()=="Darwin":
+            ds.globalattributes["xl_datemode"] = 0
+        else:
+            ds.globalattributes["xl_datemode"] = 1
     if int(ds.globalattributes["xl_datemode"])==1:
         xlfile = xlsxwriter.Workbook(xlsxfullname, {'date_1904': True})
     else:
