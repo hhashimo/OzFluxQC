@@ -137,6 +137,7 @@ class qcgui(tk.Tk):
         menubar = tk.Menu(self)
         filemenu = tk.Menu(menubar,tearoff=0)
         filemenu.add_command(label="Concatenate netCDF",command=self.do_ncconcat)
+        filemenu.add_command(label="Split netCDF",command=self.do_ncsplit)
         filemenu.add_command(label="List netCDF contents",command=self.option_not_implemented)
         fileconvertmenu = tk.Menu(menubar,tearoff=0)
         fileconvertmenu.add_command(label="V2.7 to V2.8",command=self.do_v27tov28)
@@ -565,6 +566,18 @@ class qcgui(tk.Tk):
         qcio.nc_concatenate(cf)
         self.do_progress(text='Finished concatenating files')
         log.info(' Finished concatenating files')
+
+    def do_ncsplit(self):
+        """
+        Calls qcio.nc_split
+        """
+        #self.do_progress(text='Loading control file ...')
+        #cf = qcio.load_controlfile(path='controlfiles')
+        #if len(cf)==0: self.do_progress(text='Waiting for input ...'); return
+        self.do_progress(text='Splitting file')
+        qcio.nc_split()
+        self.do_progress(text='Finished splitting file')
+        log.info(' Finished splitting file')
 
     def do_plotfingerprint(self,mode="standard"):
         """ Plot fingerprint"""

@@ -127,7 +127,7 @@ def gfClimatology_interpolateddaily(ds,series,xlbook):
     # get the data to be filled with climatological values
     data,flag,attr = qcutils.GetSeriesasMA(ds,series)
     # get an index of missing values
-    idx = numpy.ma.where(data.mask==True)[0]
+    idx = numpy.ma.where(numpy.ma.getmaskarray(data)==True)[0]
     # there must be a better way to do this ...
     # simply using the index (idx) to set a slice of the data array to the gap filled values in val1d
     # does not seem to work (mask stays true on replaced values in data), the work around is to
@@ -599,7 +599,7 @@ def gfalternate_run(ds_tower,ds_alt,alt_gui,alternate_info):
     # populate the alternate_info dictionary with things that will be useful
     alternate_info["peropt"] = alt_gui.peropt.get()
     alternate_info["overwrite"] = True
-    if alt_gui.owopt.get()==1: alternate_info["overwrite"] = True
+    if alt_gui.owopt.get()==0: alternate_info["overwrite"] = False
     alternate_info["min_points"] = int(alt_gui.minpts.get())
     alternate_info["site_name"] = ds_tower.globalattributes["site_name"]
     alternate_info["time_step"] = int(ds_tower.globalattributes["time_step"])
@@ -607,7 +607,7 @@ def gfalternate_run(ds_tower,ds_alt,alt_gui,alternate_info):
     alternate_info["nperday"] = int(float(24)*alternate_info["nperhr"]+0.5)
     alternate_info["maxlags"] = int(float(12)*alternate_info["nperhr"]+0.5)
     alternate_info["tower"] = {}
-    alternate_info["alternate"] = {}    
+    alternate_info["alternate"] = {}
     log.info(" Gap filling "+str(ds_tower.alternate.keys())+" using alternate data")
     if alt_gui.peropt.get()==1:
         gfalternate_progress(alt_gui,"Starting manual run ...")
@@ -710,8 +710,8 @@ def gfalternate_getalternatevaratmaxr(alternate_var_list,data_tower,ds_alternate
                 rval = numpy.ma.corrcoef(data_tower,data_alternate)[0,1]
                 if rval=="nan": rval = float(0)
             else:
-                msg = "gfalternate_getalternatevaratmaxr: less than "+str(alternate_info["min_points"])+" for "+var
-                log.info(msg)
+                #msg = "gfalternate_getalternatevaratmaxr: less than "+str(alternate_info["min_points"])+" for "+var
+                #log.info(msg)
                 rval = float(0)
             r[idx] = rval
             altvarlist[idx] = var
@@ -813,7 +813,7 @@ def gfalternate_getolscorrecteddata(x_in,y_in,fit,min_points,thru0=False):
                 eqnstr = 'y = %.3fx + %.3f'%(resols.params[0],resols.params[1])
                 results = [resols.params[0],resols.params[1]]
             else:
-                log.error("qcts.getolscorrecteddata: OLS did not give a solution")
+                #log.error("qcts.getolscorrecteddata: OLS did not give a solution")
                 if fit.lower()=="replace":
                     results = [1,0]
                     eqnstr = "OLS error, data replaced"
@@ -880,12 +880,13 @@ def gfalternate_main(ds_tower,ds_alt,alternate_info):
         data_tower,flag,attr = qcutils.GetSeriesasMA(ds_tower,label_tower,si=tower_exact["si"],ei=tower_exact["ei"])
         units_tower = attr["units"]
         if numpy.ma.count(data_tower)<alternate_info["min_points"] and ds_tower.alternate[label_tower]["fit"]!="replace":
-            msg = " less than "+str(alternate_info["min_points"])+" points in series "+label_tower+", skipping ..."
-            log.error(msg)
+            #msg = " Less than "+str(alternate_info["min_points"])+" points in tower series "+label_tower+", skipping ..."
+            #log.error(msg)
             continue
         elif numpy.ma.count(data_tower)<alternate_info["min_points"] and ds_tower.alternate[label_tower]["fit"]=="replace":
-            msg = " less than "+str(alternate_info["min_points"])+" points in series "+label_tower+", replacing ..."
-            log.warning(msg)
+            #msg = " Less than "+str(alternate_info["min_points"])+" points in tower series "+label_tower+", replacing ..."
+            #log.warning(msg)
+            pass
         # save the start and end datetimes for later output
         ds_tower.alternate[label_tower]["results"]["startdate"].append(xldt_tower[tower_exact["si"]])
         ds_tower.alternate[label_tower]["results"]["enddate"].append(xldt_tower[tower_exact["ei"]])
@@ -902,21 +903,26 @@ def gfalternate_main(ds_tower,ds_alt,alternate_info):
             # get the raw alternate data
             data_alternate,flag,attr = qcutils.GetSeriesasMA(ds_alternate,label_alternate,
                                                              si=alternate_exact["si"],ei=alternate_exact["ei"])
-            # get indices of missing data in the alternate-to-date series
-            ind_tower = numpy.where(abs(ds_tower.series[output]["Data"][si:ei+1]-float(c.missing_value))<c.eps)[0]
-            # get indices of non-missing data in the new alternate series
-            ind_alternate = numpy.ma.where(data_alternate.mask==False)[0]
-            # check to see if any of the missing data in alternate-to-date is in the new alternate data
-            ind_both = numpy.in1d(ind_tower, ind_alternate)
-            # if there is no data in the new alternate to fill gaps in the alternate-to-date, skip this variable
-            if not numpy.any(ind_both): continue
+            # The following code block was intended to skip over alternate variables that will not
+            # fill any gaps in the current tower variable.
+            ## get indices of missing data in the alternate-to-date series
+            ##ind_tower = numpy.where(abs(ds_tower.series[output]["Data"][si:ei+1]-float(c.missing_value))<c.eps)[0]
+            #ind_tower = numpy.where(numpy.ma.getmaskarray(data_tower)==True)[0]
+            ## get indices of non-missing data in the new alternate series
+            #ind_alternate = numpy.ma.where(numpy.ma.getmaskarray(data_alternate)==False)[0]
+            ## check to see if any of the missing data in alternate-to-date is in the new alternate data
+            #ind_both = numpy.in1d(ind_tower, ind_alternate)
+            ## if there is no data in the new alternate to fill gaps in the alternate-to-date, skip this variable
+            #if not numpy.any(ind_both):
+                #print "gfalternate_main: test of ind_both dropped to here, continuing with next variable ..."
+                #continue
             # clear any existing bom_id in the alternate_info dictionary
             alternate_info.pop("bom_id",None)
             # if this variable has a bom_id attribute, put it in alternate_info
             if "bom_id" in attr.keys(): alternate_info["bom_id"] = attr["bom_id"]
             if numpy.ma.count(data_alternate)<alternate_info["min_points"]:
-                msg = " less than "+str(alternate_info["min_points"])+" points in series "+label_alternate+", skipping ..."
-                log.error(msg)
+                #msg = " Less than "+str(alternate_info["min_points"])+" points in alternate series "+label_alternate+", skipping ..."
+                #log.error(msg)
                 continue
             # correct for lag in the alternate data if required
             data_alternate_lagcorr,flag,attr = gfalternate_getlagcorrecteddata(ds_tower,ds_alternate,label_tower,
@@ -954,18 +960,16 @@ def gfalternate_main(ds_tower,ds_alt,alternate_info):
             # put the ordinary least-squares adjusted alternate data into the output series
             if alternate_info["overwrite"]==False:
                 ind = numpy.where((abs(ds_tower.series[output]["Data"][si:ei+1]-float(c.missing_value))<c.eps)|
-                                  (data_alternate_lagolscorr.mask==False))[0]
+                                  (numpy.ma.getmaskarray(data_alternate_lagolscorr)==False))[0]
                 ds_tower.series[output]["Data"][si:ei+1][ind] = numpy.ma.filled(data_alternate_lagolscorr[ind],c.missing_value)
                 ds_tower.series[output]["Flag"][si:ei+1][ind] = numpy.int32(20)
             else:
                 # only do the overwrite where an alternate exists (don't overwrite with missing data)
-                ind = numpy.ma.where(data_alternate_lagolscorr.mask==False)[0]
+                ind = numpy.ma.where(numpy.ma.getmaskarray(data_alternate_lagolscorr)==False)[0]
                 ds_tower.series[output]["Data"][si:ei+1][ind] = numpy.ma.filled(data_alternate_lagolscorr[ind],c.missing_value)
                 ds_tower.series[output]["Flag"][si:ei+1][ind] = numpy.int32(20)
             # check to see if we have alternate data for this whole period, if so there is no reason to continue
             ind_tower = numpy.where(abs(ds_tower.series[output]["Data"][si:ei+1]-float(c.missing_value))<c.eps)[0]
-            if output=="Fsd_bios":
-                pass
             if len(ind_tower)==0: break
     # make sure this processing step gets written to the global attribute "Functions"
     if "GapFillFromalternate" not in ds_tower.globalattributes["Functions"]:
@@ -1777,7 +1781,7 @@ def gfSOLO_plot(pd,dsa,dsb,driverlist,targetlabel,outputlabel,solo_gui,si=0,ei=-
     Hr2,Av2,Sd2,Mx2,Mn2 = gf_getdiurnalstats(Hdh,mod_mor,ts)
     ax1.plot(Hr2,Av2,'r-',label="SOLO(all)")
     if numpy.ma.count_masked(obs)!=0:
-        index = numpy.ma.where(obs.mask==False)[0]
+        index = numpy.ma.where(numpy.ma.getmaskarray(obs)==False)[0]
         # get the diurnal stats of SOLO predictions when observations are present
         Hr3,Av3,Sd3,Mx3,Mn3=gf_getdiurnalstats(Hdh[index],mod_mor[index],ts)
         ax1.plot(Hr3,Av3,'g-',label="SOLO(obs)")

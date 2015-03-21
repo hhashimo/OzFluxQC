@@ -47,7 +47,9 @@ def CoordinateFluxGaps(cf,ds,Fc_in='Fc',Fe_in='Fe',Fh_in='Fh'):
     Fc,f,a = qcutils.GetSeriesasMA(ds,Fc_in)
     Fe,f,a = qcutils.GetSeriesasMA(ds,Fe_in)
     Fh,f,a = qcutils.GetSeriesasMA(ds,Fh_in)
-    index = numpy.ma.where((Fc.mask==True) | (Fe.mask==True) | (Fh.mask==True))[0]
+    index = numpy.ma.where((numpy.ma.getmaskarray(Fc)==True)|
+                           (numpy.ma.getmaskarray(Fe)==True)|
+                           (numpy.ma.getmaskarray(Fh)==True))[0]
     # the following for ... in loop is not necessary
     for i in range(len(index)):
         j = index[i]

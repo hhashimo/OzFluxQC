@@ -431,7 +431,7 @@ def AbsoluteHumidityFromRH(ds):
     Ah_new = mf.absolutehumidityfromRH(Ta,RH)
     if "Ah" in ds.series.keys():
         Ah,Ah_flag,Ah_attr = qcutils.GetSeriesasMA(ds,"Ah")
-        index = numpy.ma.where(Ah.mask==True)[0]
+        index = numpy.ma.where(numpy.ma.getmaskarray(Ah)==True)[0]
         Ah[index] = Ah_new[index]
         Ah_flag[index] = Ah_new_flag[index]
         Ah_attr["long_name"] = Ah_attr["long_name"]+", merged with Ah calculated from RH"
@@ -451,7 +451,7 @@ def AbsoluteHumidityFromq(ds):
     Ah_new = mf.absolutehumidityfromRH(Ta,RH)
     if "Ah" in ds.series.keys():
         Ah,Ah_flag,Ah_attr = qcutils.GetSeriesasMA(ds,"Ah")
-        index = numpy.ma.where(Ah.mask==True)[0]
+        index = numpy.ma.where(numpy.ma.getmaskarray(Ah)==True)[0]
         Ah[index] = Ah_new[index]
         Ah_flag[index] = Ah_new_flag[index]
         Ah_attr["long_name"] = Ah_attr["long_name"]+", merged with Ah calculated from q"
@@ -470,7 +470,7 @@ def RelativeHumidityFromq(ds):
     RH_new = mf.RHfromspecifichumidity(q,Ta,ps)
     if "RH" in ds.series.keys():
         RH,RH_flag,RH_attr = qcutils.GetSeriesasMA(ds,"RH")
-        index = numpy.ma.where(RH.mask==True)[0]
+        index = numpy.ma.where(numpy.ma.getmaskarray(RH)==True)[0]
         RH[index] = RH_new[index]
         RH_flag[index] = RH_new_flag[index]
         RH_attr["long_name"] = RH_attr["long_name"]+", merged with RH calculated from q"
@@ -488,7 +488,7 @@ def RelativeHumidityFromAh(ds):
     RH_new = mf.RHfromabsolutehumidity(Ah,Ta)     # relative humidity in units of percent
     if "RH" in ds.series.keys():
         RH,RH_flag,RH_attr = qcutils.GetSeriesasMA(ds,"RH")
-        index = numpy.ma.where(RH.mask==True)[0]
+        index = numpy.ma.where(numpy.ma.getmaskarray(RH)==True)[0]
         RH[index] = RH_new[index]
         RH_flag[index] = RH_new_flag[index]
         RH_attr["long_name"] = RH_attr["long_name"]+", merged with RH calculated from Ah"
@@ -508,7 +508,7 @@ def SpecificHumidityFromAh(ds):
     q_new = mf.specifichumidityfromRH(RH, Ta, ps)
     if "q" in ds.series.keys():
         q,q_flag,q_attr = qcutils.GetSeriesasMA(ds,"q")
-        index = numpy.ma.where(q.mask==True)[0]
+        index = numpy.ma.where(numpy.ma.getmaskarray(q)==True)[0]
         q[index] = q_new[index]
         q_flag[index] = q_new_flag[index]
         q_attr["long_name"] = q_attr["long_name"]+", merged with q calculated from Ah"
@@ -527,7 +527,7 @@ def SpecificHumidityFromRH(ds):
     q_new = mf.specifichumidityfromRH(RH,Ta,ps)   # specific humidity in units of kg/kg
     if "q" in ds.series.keys():
         q,q_flag,q_attr = qcutils.GetSeriesasMA(ds,"q")
-        index = numpy.ma.where(q.mask==True)[0]
+        index = numpy.ma.where(numpy.ma.getmaskarray(q)==True)[0]
         q[index] = q_new[index]
         q_flag[index] = q_new_flag[index]
         q_attr["long_name"] = q_attr["long_name"]+", merged with q calculated from RH"
@@ -853,7 +853,7 @@ def CorrectFcForStorage(cf,ds,Fc_out='Fc',Fc_in='Fc',Fc_storage_in='Fc_storage')
     log.info(' Applying storage correction to Fc')
     Fc = Fc_raw + Fc_storage
     if qcutils.cfoptionskeylogical(cf,Key='RelaxFcStorage'):
-        idx=numpy.ma.where(Fc.mask==True)[0]
+        idx=numpy.ma.where(numpy.ma.getmaskarray(Fc)==True)[0]
         Fc[idx]=Fc_raw[idx]
         log.info(' Replaced corrected Fc with '+str(len(idx))+' raw values')
     long_name = Fc_attr['long_name'] + ', corrected for storage using supplied storage term'
@@ -934,7 +934,7 @@ def CorrectFgForStorage(cf,ds,Fg_out='Fg',Fg_in='Fg',Ts_in='Ts',Sws_in='Sws'):
     dTs[1:] = numpy.ma.diff(Ts)
     # write the temperature difference into the data structure so we can use its flag later
     dTs_flag = numpy.zeros(nRecs,dtype=numpy.int32)
-    index = numpy.ma.where(dTs.mask==True)[0]
+    index = numpy.ma.where(numpy.ma.getmaskarray(dTs)==True)[0]
     dTs_flag[index] = numpy.int32(1)
     attr = qcutils.MakeAttributeDictionary(long_name='Change in soil temperature',units='C')
     qcutils.CreateSeries(ds,"dTs",dTs,Flag=dTs_flag,Attr=attr)
@@ -1292,7 +1292,7 @@ def Fc_WPL(cf,ds,Fc_wpl_out='Fc',Fc_raw_in='Fc',Fh_in='Fh',Fe_in='Fe',Ta_in='Ta'
     co2_wpl_Fh = (Cc/TaK)*(Fh/RhoCp)
     Fc_wpl_data = Fc_raw+co2_wpl_Fe+co2_wpl_Fh
     Fc_wpl_flag = numpy.zeros(len(Fc_wpl_data))
-    index = numpy.where(Fc_wpl_data.mask==True)[0]
+    index = numpy.where(numpy.ma.getmaskarray(Fc_wpl_data)==True)[0]
     Fc_wpl_flag[index] = numpy.int32(14)
     attr = qcutils.MakeAttributeDictionary(long_name='WPL corrected Fc',units='mg/m2/s')
     qcutils.CreateSeries(ds,Fc_wpl_out,Fc_wpl_data,Flag=Fc_wpl_flag,Attr=attr)
@@ -1352,7 +1352,7 @@ def Fe_WPL(cf,ds,Fe_wpl_out='Fe',Fe_raw_in='Fe',Fh_in='Fh',Ta_in='Ta',Ah_in='Ah'
     Fe_wpl_data = Fe_raw+h2o_wpl_Fe+h2o_wpl_Fh
     Fe_wpl_flag = numpy.zeros(len(Fe_wpl_data))
     mask = numpy.ma.getmask(Fe_wpl_data)
-    index = numpy.where(Fe_wpl_data.mask==True)[0]
+    index = numpy.where(numpy.ma.getmaskarray(Fe_wpl_data)==True)[0]
     Fe_wpl_flag[index] = numpy.int32(14)
     attr = qcutils.MakeAttributeDictionary(long_name='WPL corrected Fe',units='W/m2',standard_name='surface_upward_latent_heat_flux')
     qcutils.CreateSeries(ds,Fe_wpl_out,Fe_wpl_data,Flag=Fe_wpl_flag,Attr=attr)
@@ -2038,7 +2038,8 @@ def ReplaceRotatedCovariance(cf,ds,rot_cov_label,non_cov_label):
     log.info(' Replacing missing '+rot_cov_label+' when '+non_cov_label+' is good')
     cr_data,cr_flag,cr_attr = qcutils.GetSeriesasMA(ds,rot_cov_label)
     cn_data,cn_flag,cn_attr = qcutils.GetSeriesasMA(ds,non_cov_label)
-    index = numpy.ma.where((cr_data.mask==True)&(cn_data.mask==False))[0]
+    index = numpy.ma.where((numpy.ma.getmaskarray(cr_data)==True)&
+                           (numpy.ma.getmaskarray(cn_data)==False))[0]
     if len(index)!=0:
         ds.series[rot_cov_label]['Data'][index] = cn_data[index]
         ds.series[rot_cov_label]['Flag'][index] = numpy.int32(20)

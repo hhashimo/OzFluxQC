@@ -8,6 +8,7 @@ import datetime
 import dateutil
 import meteorologicalfunctions as mf
 import numpy
+import ntpath
 import os
 import platform
 import sys
@@ -729,6 +730,76 @@ def nc_concatenate(cf):
     log.info(' Writing data to '+ncFileName)
     ncFile = nc_open_write(ncFileName)
     nc_write_series(ncFile,ds,ndims=3)
+
+def nc_split():
+    split_info = {}
+    split_gui = Tkinter.Toplevel()
+    split_gui.wm_title("Split netCDF file")
+    split_gui.grid()
+    # first row contains the input file name selection
+    nrow = 0
+    split_gui.infilenameLabel = Tkinter.Label(split_gui,text="Input file")
+    split_gui.infilenameLabel.grid(row=nrow,column=0,columnspan=1)
+    split_gui.infilename = Tkinter.StringVar()
+    split_gui.infilename.set("")
+    split_gui.infilenameEntry = Tkinter.Entry(split_gui,textvariable=split_gui.infilename,width=30)
+    split_gui.infilenameEntry.grid(row=nrow,column=1)
+    split_gui.infilenameBrowse = Tkinter.Button(split_gui,text="Browse",command=lambda:ncsplit_infilename_browse(split_gui))
+    split_gui.infilenameBrowse.grid(row=nrow,column=2)
+    # second row has the start date entry
+    nrow = nrow + 1
+    split_gui.startLabel = Tkinter.Label(split_gui, text="Start date (YYYY-MM-DD)")
+    split_gui.startLabel.grid(row=nrow,column=0,columnspan=1)
+    split_gui.startEntry = Tkinter.Entry(split_gui)
+    split_gui.startEntry.grid(row=nrow,column=1,columnspan=1)
+    # third row has the end date entry
+    nrow = nrow + 1
+    split_gui.endLabel = Tkinter.Label(split_gui, text="End date   (YYYY-MM-DD)")
+    split_gui.endLabel.grid(row=nrow,column=0,columnspan=1)
+    split_gui.endEntry = Tkinter.Entry(split_gui)
+    split_gui.endEntry.grid(row=nrow,column=1,columnspan=1)
+    # fourth row contains the output file name selection
+    nrow = nrow + 1
+    split_gui.outfilenameLabel = Tkinter.Label(split_gui,text="Output file")
+    split_gui.outfilenameLabel.grid(row=nrow,column=0,columnspan=1)
+    split_gui.outfilename = Tkinter.StringVar()
+    split_gui.outfilename.set("")
+    split_gui.outfilenameEntry = Tkinter.Entry(split_gui,textvariable=split_gui.outfilename,width=30)
+    split_gui.outfilenameEntry.grid(row=nrow,column=1)
+    split_gui.outfilenameBrowse = Tkinter.Button(split_gui,text="Browse",command=lambda:ncsplit_outfilename_browse(split_gui))
+    split_gui.outfilenameBrowse.grid(row=nrow,column=2)
+    # action buttons on the bottom row
+    nrow = nrow + 1
+    split_gui.doneButton = Tkinter.Button(split_gui,text="Done",command=lambda:ncsplit_done(split_gui))
+    split_gui.doneButton.grid(row=nrow,column=0,columnspan=1)
+    split_gui.runButton = Tkinter.Button(split_gui,text="Run",command=lambda:ncsplit_run(split_gui))
+    split_gui.runButton.grid(row=nrow,column=1,columnspan=1)
+    split_gui.wait_window(split_gui)
+
+def ncsplit_infilename_browse(split_gui):
+    root = Tkinter.Tk(); root.withdraw()
+    filename = tkFileDialog.askopenfilename(parent=root,title="Choose an input netCDF file")
+    root.destroy()
+    split_gui.inpathname = ntpath.split(filename)[0]+"/"
+    split_gui.infilename.set(ntpath.split(filename)[1])
+
+def ncsplit_outfilename_browse(split_gui):
+    root = Tkinter.Tk(); root.withdraw()
+    filename = tkFileDialog.asksaveasfilename(parent=root,initialdir=split_gui.inpathname,
+                                          title="Choose an output netCDF file")
+    root.destroy()
+    split_gui.outpathname = ntpath.split(filename)[0]+"/"
+    split_gui.outfilename.set(ntpath.split(filename)[1])
+
+def ncsplit_done(split_gui):
+    split_gui.destroy()
+
+def ncsplit_run(split_gui):
+    print split_gui.inpathname
+    print split_gui.infilename.get()
+    print split_gui.startEntry.get()
+    print split_gui.endEntry.get()
+    print split_gui.outfilename.get()
 
 def nc_read_series(ncFullName):
     ''' Read a netCDF file and put the data and meta-data into a DataStructure'''
