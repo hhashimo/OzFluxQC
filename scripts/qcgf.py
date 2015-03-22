@@ -787,6 +787,35 @@ def gfalternate_getolscorrecteddata(x_in,y_in,fit,min_points,thru0=False):
         y_out = numpy.empty_like(y_in); y_out[:] = y_in
         results = [0,0]
         return y_out,eqnstr,results
+    # check to see if the user wants to replace or attempt an OLS fit
+    if fit.lower()=="replace":
+        results = [1,0]
+        eqnstr = "No OLS, replaced"
+        y_out = numpy.copy(x_in)
+    else:
+        if nx>=min_points:
+            if thru0:
+                resols = sm.OLS(y,x).fit()
+                y_out = resols.params[0]*x_in
+                eqnstr = 'y = %.3fx'%(resols.params[0])
+                results = [resols.params[0],0]
+            else:
+                resols = sm.OLS(y,sm.add_constant(x,prepend=False)).fit()
+                if resols.params.shape[0]==2:
+                    y_out = resols.params[0]*x_in+resols.params[1]
+                    eqnstr = 'y = %.3fx + %.3f'%(resols.params[0],resols.params[1])
+                    results = [resols.params[0],resols.params[1]]
+                else:
+                    #log.error("qcts.getolscorrecteddata: OLS did not give a solution")
+                    if fit.lower()=="replace":
+                        results = [1,0]
+                        eqnstr = "OLS error, data replaced"
+                        y_out = numpy.empty_like(x_in); y_out[:] = x_in
+                    else:
+                        results = [0,0]
+                        eqnstr = "OLS error, did nothing"
+                        y_out = numpy.empty_like(y_in); y_out[:] = y_in
+                
     # check the input arrays contain something
     if nx==0:
         #log.warning('qcts.getolscorrecteddata: either x or y all masked')
@@ -878,15 +907,12 @@ def gfalternate_main(ds_tower,ds_alt,alternate_info):
         odt_alternate = ldt_alternate[alternate_exact["si"]:alternate_exact["ei"]+1]
         # get the tower data
         data_tower,flag,attr = qcutils.GetSeriesasMA(ds_tower,label_tower,si=tower_exact["si"],ei=tower_exact["ei"])
+        # get a copy of the tower data so we can track which gaps have been filled
+        data_tower_filled = numpy.ma.copy(data_tower)
         units_tower = attr["units"]
+        # skip tower variable if there are not enough points
         if numpy.ma.count(data_tower)<alternate_info["min_points"] and ds_tower.alternate[label_tower]["fit"]!="replace":
-            #msg = " Less than "+str(alternate_info["min_points"])+" points in tower series "+label_tower+", skipping ..."
-            #log.error(msg)
             continue
-        elif numpy.ma.count(data_tower)<alternate_info["min_points"] and ds_tower.alternate[label_tower]["fit"]=="replace":
-            #msg = " Less than "+str(alternate_info["min_points"])+" points in tower series "+label_tower+", replacing ..."
-            #log.warning(msg)
-            pass
         # save the start and end datetimes for later output
         ds_tower.alternate[label_tower]["results"]["startdate"].append(xldt_tower[tower_exact["si"]])
         ds_tower.alternate[label_tower]["results"]["enddate"].append(xldt_tower[tower_exact["ei"]])
@@ -897,38 +923,31 @@ def gfalternate_main(ds_tower,ds_alt,alternate_info):
         alternate_name = ds_tower.alternate[label_tower]["alternate_name"]
         alternate_var_list = gfalternate_getalternatevarlist(ds_alternate,alternate_name)
         # get the alternate series that has the highest correlation with the tower data
-        altvar_list_sorted = gfalternate_getalternatevaratmaxr(alternate_var_list,data_tower,ds_alternate,alternate_info)
+        alternate_var_list = gfalternate_getalternatevaratmaxr(alternate_var_list,data_tower,ds_alternate,alternate_info)
         # loop over alternate variables
-        for label_alternate in altvar_list_sorted:
+        for label_alternate in alternate_var_list:
             # get the raw alternate data
             data_alternate,flag,attr = qcutils.GetSeriesasMA(ds_alternate,label_alternate,
                                                              si=alternate_exact["si"],ei=alternate_exact["ei"])
-            # The following code block was intended to skip over alternate variables that will not
-            # fill any gaps in the current tower variable.
-            ## get indices of missing data in the alternate-to-date series
-            ##ind_tower = numpy.where(abs(ds_tower.series[output]["Data"][si:ei+1]-float(c.missing_value))<c.eps)[0]
-            #ind_tower = numpy.where(numpy.ma.getmaskarray(data_tower)==True)[0]
-            ## get indices of non-missing data in the new alternate series
-            #ind_alternate = numpy.ma.where(numpy.ma.getmaskarray(data_alternate)==False)[0]
-            ## check to see if any of the missing data in alternate-to-date is in the new alternate data
-            #ind_both = numpy.in1d(ind_tower, ind_alternate)
-            ## if there is no data in the new alternate to fill gaps in the alternate-to-date, skip this variable
-            #if not numpy.any(ind_both):
-                #print "gfalternate_main: test of ind_both dropped to here, continuing with next variable ..."
-                #continue
+            # skip this alternate variable if there are not enough points
+            if numpy.ma.count(data_alternate)<alternate_info["min_points"]: continue
+            # check to see if this alternate series will fill any existing gaps
+            # indices of gaps in filled tower data
+            ind_tower = numpy.ma.where(numpy.ma.getmaskarray(data_tower_filled)==True)[0]
+            # indices of good data in alternate series
+            ind_alternate = numpy.ma.where(numpy.ma.getmaskarray(data_alternate)==False)[0]
+            # boolean array with True where an element of ind_tower appears in ind_alternate
+            ind_both = numpy.ma.in1d(ind_tower,ind_alternate)
+            # skip this alternate variable if there is no good alternate data where there are gaps in the tower data
+            if not numpy.ma.any(ind_both): continue
             # clear any existing bom_id in the alternate_info dictionary
             alternate_info.pop("bom_id",None)
             # if this variable has a bom_id attribute, put it in alternate_info
             if "bom_id" in attr.keys(): alternate_info["bom_id"] = attr["bom_id"]
-            if numpy.ma.count(data_alternate)<alternate_info["min_points"]:
-                #msg = " Less than "+str(alternate_info["min_points"])+" points in alternate series "+label_alternate+", skipping ..."
-                #log.error(msg)
-                continue
             # correct for lag in the alternate data if required
             data_alternate_lagcorr,flag,attr = gfalternate_getlagcorrecteddata(ds_tower,ds_alternate,label_tower,
                                                                                label_alternate,alternate_info)
             # best fit to tower using Ordinary Least Squares
-            #x_in,y_in,fit,min_points,thru0=False
             data_alternate_lagolscorr,eqn,res = gfalternate_getolscorrecteddata(data_alternate_lagcorr,data_tower,
                                                                                 alternate_info["fit"],alternate_info["min_points"],
                                                                                 thru0=False)
@@ -961,11 +980,13 @@ def gfalternate_main(ds_tower,ds_alt,alternate_info):
             if alternate_info["overwrite"]==False:
                 ind = numpy.where((abs(ds_tower.series[output]["Data"][si:ei+1]-float(c.missing_value))<c.eps)|
                                   (numpy.ma.getmaskarray(data_alternate_lagolscorr)==False))[0]
+                data_tower_filled[ind] = data_alternate_lagolscorr[ind]
                 ds_tower.series[output]["Data"][si:ei+1][ind] = numpy.ma.filled(data_alternate_lagolscorr[ind],c.missing_value)
                 ds_tower.series[output]["Flag"][si:ei+1][ind] = numpy.int32(20)
             else:
                 # only do the overwrite where an alternate exists (don't overwrite with missing data)
                 ind = numpy.ma.where(numpy.ma.getmaskarray(data_alternate_lagolscorr)==False)[0]
+                data_tower_filled[ind] = data_alternate_lagolscorr[ind]
                 ds_tower.series[output]["Data"][si:ei+1][ind] = numpy.ma.filled(data_alternate_lagolscorr[ind],c.missing_value)
                 ds_tower.series[output]["Flag"][si:ei+1][ind] = numpy.int32(20)
             # check to see if we have alternate data for this whole period, if so there is no reason to continue

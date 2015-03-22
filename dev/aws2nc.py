@@ -43,10 +43,10 @@ in_path = "../../BoM/AWS/Current/"
 in_filename = in_path+"HM01X_Data*.csv"
 file_list = sorted(glob.glob(in_filename))
 
-#site_list = bom_sites_info.keys()
+site_list = bom_sites_info.keys()
 #site_list = ["Tumbarumba"]
 #site_list = ["Great Western Woodlands"]
-site_list = ["Otway"]
+#site_list = ["Otway"]
 for site_name in sorted(site_list):
     log.info("Starting site: "+site_name)
     sname = site_name.replace(" ","")
@@ -262,10 +262,10 @@ for site_name in sorted(site_list):
         #index = [x for x in range(len(ldt_all)) if (ldt_all[x].hour==9) and (ldt_all[x].minute==0)]
         #precip[index] = accum_24hr[index]
         # set attributes as appropriate
-        attr["long_name"] = "Precipitation total over time step"
-        attr["units"] = "mm/30 minutes"
+        accum_attr["long_name"] = "Precipitation total over time step"
+        accum_attr["units"] = "mm/30 minutes"
         # put the precipitation per time step back into the data struicture
-        qcutils.CreateSeries(ds_all,output_label,precip,Flag=accum_flag,Attr=attr)
+        qcutils.CreateSeries(ds_all,output_label,precip,Flag=accum_flag,Attr=accum_attr)
     # calculate missing humidities
     RH_list = sorted([x for x in ds_all.series.keys() if ("RH" in x) and ("_QCFlag" not in x)])
     Ta_list = sorted([x for x in ds_all.series.keys() if ("Ta" in x) and ("_QCFlag" not in x)])

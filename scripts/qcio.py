@@ -795,11 +795,52 @@ def ncsplit_done(split_gui):
     split_gui.destroy()
 
 def ncsplit_run(split_gui):
-    print split_gui.inpathname
-    print split_gui.infilename.get()
-    print split_gui.startEntry.get()
-    print split_gui.endEntry.get()
-    print split_gui.outfilename.get()
+    #print split_gui.inpathname
+    #print split_gui.infilename.get()
+    #print split_gui.startEntry.get()
+    #print split_gui.endEntry.get()
+    #print split_gui.outfilename.get()
+    infilename = split_gui.inpathname+split_gui.infilename.get()
+    outfilename = split_gui.inpathname+split_gui.outfilename.get()
+    startdate = str(split_gui.startEntry.get())
+    enddate = str(split_gui.endEntry.get())
+    # read the input file into the input data structure
+    ds_in = nc_read_series(infilename)
+    ts = int(ds_in.globalattributes["time_step"])
+    ldt_in = ds_in.series["DateTime"]["Data"]
+    ldt_in_flag = ds_in.series["DateTime"]["Flag"]
+    # create the output data structure
+    ds_out = DataStructure()
+    # copy the global attributes
+    for item in ds_in.globalattributes.keys():
+        ds_out.globalattributes[item] = ds_in.globalattributes[item]
+    # get the indices of the start and end datetimes
+    si = qcutils.GetDateIndex(ldt_in,startdate,ts=ts,default=0,match="exact")
+    ei = qcutils.GetDateIndex(ldt_in,enddate,ts=ts,default=len(ldt_in),match="exact")
+    # get a list of the series in ds_in
+    series_list = [item for item in ds_in.series.keys() if "_QCFlag" not in item]
+    # remove the Python datetime series
+    for item in ["DateTime","DateTime_UTC"]:
+        if item in series_list: series_list.remove(item)
+    # loop over the series
+    for item in series_list:
+        data,flag,attr = qcutils.GetSeriesasMA(ds_in,item,si=si,ei=ei)
+        qcutils.CreateSeries(ds_out,item,data,Flag=flag,Attr=attr)
+    # deal with the Python datetime series
+    ldt_out = ldt_in[si:ei+1]
+    ldt_out_flag = ldt_in_flag[si:ei+1]
+    ds_out.series["DateTime"] = {}
+    ds_out.series["DateTime"]["Data"] = ldt_out
+    ds_out.series["DateTime"]["Flag"] = ldt_out_flag
+    ds_out.series["DateTime"]["Attr"]= ds_in.series["DateTime"]["Attr"]
+    # update the number of records global attribute
+    ds_out.globalattributes["nc_nrecs"] = len(ldt_out)
+    # update the start and end datetime global attribute
+    ds_out.globalattributes["start_date"] = str(ldt_out[0])
+    ds_out.globalattributes["end_date"] = str(ldt_out[-1])
+    # write the output data structure to a netCDF file
+    ncFile = nc_open_write(outfilename)
+    nc_write_series(ncFile, ds_out)
 
 def nc_read_series(ncFullName):
     ''' Read a netCDF file and put the data and meta-data into a DataStructure'''

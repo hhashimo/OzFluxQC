@@ -1,5 +1,8 @@
 version_name = "OzFluxQC"
-version_number = "V2.8.6"
+version_number = "V2.8.7"
+# V2.8.7   - fixed several bugs in the gap filling routine and improved
+#            the gap filling workflow, implemented ability to split a
+#            netCDF file at specified dates
 # V2.8.6   - added a new switch "UseL2Fluxes" to the L3 processing:
 #            - if true, skip calculating fluxes from covariances and skip corrections
 #            - if false (default), use covariances as normal
