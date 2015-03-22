@@ -767,7 +767,7 @@ def gfalternate_getolscorrecteddata(x_in,y_in,fit,min_points,thru0=False):
     if numpy.ma.isMA(x_in)!=numpy.ma.isMA(y_in):
         log.error('qcts.getolscorrecteddata: one of x or y is a masked array, the other is not')
         eqnstr = "X & Y different array types"
-        y_out = numpy.empty_like(y_in); y_out[:] = y_in
+        y_out = numpy.empty_like(y_in); y_out[:] = x_in
         results = [0,0]
         return y_out,eqnstr,results
     # condition or copy the data
@@ -784,7 +784,7 @@ def gfalternate_getolscorrecteddata(x_in,y_in,fit,min_points,thru0=False):
     if nx!=ny:
         log.error('qcts.getolscorrecteddata: x and y must be equal length')
         eqnstr = "X & Y unequal lengths"
-        y_out = numpy.empty_like(y_in); y_out[:] = y_in
+        y_out = numpy.empty_like(y_in); y_out[:] = x_in
         results = [0,0]
         return y_out,eqnstr,results
     # check to see if the user wants to replace or attempt an OLS fit
@@ -806,61 +806,59 @@ def gfalternate_getolscorrecteddata(x_in,y_in,fit,min_points,thru0=False):
                     eqnstr = 'y = %.3fx + %.3f'%(resols.params[0],resols.params[1])
                     results = [resols.params[0],resols.params[1]]
                 else:
-                    #log.error("qcts.getolscorrecteddata: OLS did not give a solution")
-                    if fit.lower()=="replace":
-                        results = [1,0]
-                        eqnstr = "OLS error, data replaced"
-                        y_out = numpy.empty_like(x_in); y_out[:] = x_in
-                    else:
-                        results = [0,0]
-                        eqnstr = "OLS error, did nothing"
-                        y_out = numpy.empty_like(y_in); y_out[:] = y_in
-                
-    # check the input arrays contain something
-    if nx==0:
-        #log.warning('qcts.getolscorrecteddata: either x or y all masked')
-        if fit.lower()=="replace":
-            results = [1,0]
-            eqnstr = "All missing, replaced"
-            y_out = numpy.empty_like(x_in); y_out[:] = x_in
-        else:
-            results = [0,0]
-            eqnstr = "All missing, did nothing"
-            y_out = numpy.empty_like(y_in); y_out[:] = y_in
-        return y_out,eqnstr,results
-    # check there is more than the minimum number of points
-    if nx>=min_points:
-        if thru0:
-            resols = sm.OLS(y,x).fit()
-            y_out = resols.params[0]*x_in
-            eqnstr = 'y = %.3fx'%(resols.params[0])
-            results = [resols.params[0],0]
-        else:
-            resols = sm.OLS(y,sm.add_constant(x,prepend=False)).fit()
-            if resols.params.shape[0]==2:
-                y_out = resols.params[0]*x_in+resols.params[1]
-                eqnstr = 'y = %.3fx + %.3f'%(resols.params[0],resols.params[1])
-                results = [resols.params[0],resols.params[1]]
-            else:
-                #log.error("qcts.getolscorrecteddata: OLS did not give a solution")
-                if fit.lower()=="replace":
-                    results = [1,0]
-                    eqnstr = "OLS error, data replaced"
-                    y_out = numpy.empty_like(x_in); y_out[:] = x_in
-                else:
                     results = [0,0]
-                    eqnstr = "OLS error, did nothing"
-                    y_out = numpy.empty_like(y_in); y_out[:] = y_in
-    else:
-        if fit.lower()=="replace":
-            results = [1,0]
-            eqnstr = "Too few points, data replaced"
-            y_out = numpy.empty_like(x_in); y_out[:] = x_in
+                    eqnstr = "OLS error, replaced"
+                    y_out = numpy.copy(x_in)
         else:
             results = [0,0]
-            eqnstr = "Too few points, did nothing"
-            y_out = numpy.empty_like(y_in); y_out[:] = y_in
+            eqnstr = "Too few points, replaced"
+            y_out = numpy.copy(x_in)
     return y_out,eqnstr,results
+    ## check the input arrays contain something
+    #if nx==0:
+        ##log.warning('qcts.getolscorrecteddata: either x or y all masked')
+        #if fit.lower()=="replace":
+            #results = [1,0]
+            #eqnstr = "All missing, replaced"
+            #y_out = numpy.empty_like(x_in); y_out[:] = x_in
+        #else:
+            #results = [0,0]
+            #eqnstr = "All missing, did nothing"
+            #y_out = numpy.empty_like(y_in); y_out[:] = y_in
+        #return y_out,eqnstr,results
+    ## check there is more than the minimum number of points
+    #if nx>=min_points:
+        #if thru0:
+            #resols = sm.OLS(y,x).fit()
+            #y_out = resols.params[0]*x_in
+            #eqnstr = 'y = %.3fx'%(resols.params[0])
+            #results = [resols.params[0],0]
+        #else:
+            #resols = sm.OLS(y,sm.add_constant(x,prepend=False)).fit()
+            #if resols.params.shape[0]==2:
+                #y_out = resols.params[0]*x_in+resols.params[1]
+                #eqnstr = 'y = %.3fx + %.3f'%(resols.params[0],resols.params[1])
+                #results = [resols.params[0],resols.params[1]]
+            #else:
+                ##log.error("qcts.getolscorrecteddata: OLS did not give a solution")
+                #if fit.lower()=="replace":
+                    #results = [1,0]
+                    #eqnstr = "OLS error, data replaced"
+                    #y_out = numpy.empty_like(x_in); y_out[:] = x_in
+                #else:
+                    #results = [0,0]
+                    #eqnstr = "OLS error, did nothing"
+                    #y_out = numpy.empty_like(y_in); y_out[:] = y_in
+    #else:
+        #if fit.lower()=="replace":
+            #results = [1,0]
+            #eqnstr = "Too few points, data replaced"
+            #y_out = numpy.empty_like(x_in); y_out[:] = x_in
+        #else:
+            #results = [0,0]
+            #eqnstr = "Too few points, did nothing"
+            #y_out = numpy.empty_like(y_in); y_out[:] = y_in
+    #return y_out,eqnstr,results
 
 def gfalternate_getdataas2d(ldt,odt,data,inds,alternate_info):
     si_wholedays = odt.index(ldt[inds["si"]])
