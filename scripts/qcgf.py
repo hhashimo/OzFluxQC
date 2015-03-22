@@ -250,43 +250,54 @@ def gfAlternate_createdict(cf,ds,series,ds_alt):
         log.error("gfAlternate_createdict: Series "+series+" not found in control file, skipping ...")
         return
     # create the alternate directory in the data structure
-    if "alternate" not in dir(ds): ds.alternate = {}
-    # create the dictionary keys for this series
-    ds.alternate[series] = {}
-    # site name
-    ds.alternate[series]["site_name"] = ds.globalattributes["site_name"]
-    # source of the alternate data
-    ds.alternate[series]["source"] = cf[section][series]["GapFillFromAlternate"]["source"]
-    # alternate data file name
-    ds.alternate[series]["file_name"] = cf[section][series]["GapFillFromAlternate"]["file_name"]
-    # if the file has not already been read, do it now
-    if ds.alternate[series]["file_name"] not in ds_alt:
-        ds_alt[ds.alternate[series]["file_name"]] = qcio.nc_read_series(ds.alternate[series]["file_name"])
-    # get the type of fit
-    ds.alternate[series]["fit"] = "OLS"
-    if "fit" in cf[section][series]["GapFillFromAlternate"]:
-        if cf[section][series]["GapFillFromAlternate"]["fit"].lower() in ["ols","replace"]:
-            ds.alternate[series]["fit"] = cf[section][series]["GapFillFromAlternate"]["fit"]
-        else:
-            log.info("gfAlternate: unrecognised fit option for series "+series)
-    # alternate data variable name if different from name used in control file
-    if "alternate_name" in cf[section][series]["GapFillFromAlternate"]:
-        ds.alternate[series]["alternate_name"] = cf[section][series]["GapFillFromAlternate"]["alternate_name"]
-    else:
-        ds.alternate[series]["alternate_name"] = series
+    if "alternate" not in dir(ds):
+        ds.alternate = {}
     # name of alternate output series in ds
-    ds.alternate[series]["output"] = cf[section][series]["GapFillFromAlternate"]["output"]
-    # results of best fit for plotting later on
-    ds.alternate[series]["results"] = {"startdate":[],"enddate":[],"No. points":[],"r":[],
-                                    "Bias":[],"RMSE":[],"Frac Bias":[],"NMSE":[],
-                                    "Avg (tower)":[],"Avg (alternate)":[],
-                                    "Var (tower)":[],"Var (alternate)":[],"Var ratio":[],
-                                    "Lag (uncorrected)":[],"Lag (corrected)":[],
-                                    "m_ols":[],"b_ols":[]}
-    # create an empty series in ds if the alternate output series doesn't exist yet
-    if ds.alternate[series]["output"] not in ds.series.keys():
-        data,flag,attr = qcutils.MakeEmptySeries(ds,ds.alternate[series]["output"])
-        qcutils.CreateSeries(ds,ds.alternate[series]["output"],data,Flag=flag,Attr=attr)
+    output_list = cf[section][series]["GapFillFromAlternate"].keys()
+    # loop over the outputs listed in the control file
+    for output in output_list:
+        # create the dictionary keys for this output
+        ds.alternate[output] = {}
+        ds.alternate[output]["label_tower"] = series
+        # source name
+        ds.alternate[output]["source"] = cf[section][series]["GapFillFromAlternate"][output]["source"]
+        # site name
+        ds.alternate[output]["site_name"] = ds.globalattributes["site_name"]
+        # alternate data file name
+        ds.alternate[output]["file_name"] = cf[section][series]["GapFillFromAlternate"][output]["file_name"]
+        # if the file has not already been read, do it now
+        if ds.alternate[output]["file_name"] not in ds_alt:
+            ds_alt[ds.alternate[output]["file_name"]] = qcio.nc_read_series(ds.alternate[output]["file_name"])
+        # get the type of fit
+        ds.alternate[output]["fit"] = "OLS"
+        if "fit" in cf[section][series]["GapFillFromAlternate"][output]:
+            if cf[section][series]["GapFillFromAlternate"][output]["fit"].lower() in ["ols","replace"]:
+                ds.alternate[output]["fit"] = cf[section][series]["GapFillFromAlternate"][output]["fit"]
+            else:
+                log.info("gfAlternate: unrecognised fit option for series "+output)
+        # correct for lag?
+        ds.alternate[output]["lag"] = "yes"
+        if "lag" in cf[section][series]["GapFillFromAlternate"][output]:
+            if cf[section][series]["GapFillFromAlternate"][output]["lag"].lower() in ["no","false"]:
+                ds.alternate[output]["lag"] = "no"
+            else:
+                log.info("gfAlternate: unrecognised lag option for series "+output)
+        # alternate data variable name if different from name used in control file
+        if "alternate_name" in cf[section][series]["GapFillFromAlternate"][output]:
+            ds.alternate[output]["alternate_name"] = cf[section][series]["GapFillFromAlternate"][output]["alternate_name"]
+        else:
+            ds.alternate[output]["alternate_name"] = series
+        # results of best fit for plotting later on
+        ds.alternate[output]["results"] = {"startdate":[],"enddate":[],"No. points":[],"r":[],
+                                           "Bias":[],"RMSE":[],"Frac Bias":[],"NMSE":[],
+                                           "Avg (tower)":[],"Avg (alternate)":[],
+                                           "Var (tower)":[],"Var (alternate)":[],"Var ratio":[],
+                                           "Lag (uncorrected)":[],"Lag (corrected)":[],
+                                           "m_ols":[],"b_ols":[]}
+        # create an empty series in ds if the alternate output series doesn't exist yet
+        if output not in ds.series.keys():
+            data,flag,attr = qcutils.MakeEmptySeries(ds,output)
+            qcutils.CreateSeries(ds,output,data,Flag=flag,Attr=attr)
 
 def gfClimatology_createdict(cf,ds,series):
     """ Creates a dictionary in ds to hold information about the climatological data used
@@ -496,7 +507,8 @@ def gfalternate_progress(alt_gui,text):
 
 def gfalternate_done(ds,alt_gui):
     # plot the summary statistics if required
-    if alt_gui.peropt.get()==1: gfalternate_plotsummary(ds)
+    #if alt_gui.peropt.get()==1: gfalternate_plotsummary(ds)
+    gfalternate_plotsummary(ds)
     # destroy the alternate GUI
     alt_gui.destroy()
     # write Excel spreadsheet with fit statistics
@@ -504,9 +516,10 @@ def gfalternate_done(ds,alt_gui):
 
 def gfalternate_plotsummary(ds):
     """ Plot single pages of summary results for groups of variables. """
-    # get a list of variables for which alternate data was available
-    label_list = ds.alternate.keys()
-    if len(ds.alternate[label_list[0]]["results"]["startdate"])==0:
+    # get a list of variables for which alternate data is available
+    output_list = ds.alternate.keys()
+    series_list = [ds.alternate[item]["label_tower"] for item in ds.alternate.keys()]
+    if len(ds.alternate[output_list[0]]["results"]["startdate"])==0:
         log.info("gfalternate: no summary data to plot")
         return
     # get the Excel datemode, needed to convert the Excel datetime to Python datetimes
@@ -518,12 +531,12 @@ def gfalternate_plotsummary(ds):
     # start datetimes of the periods compared first
     basedate = datetime.datetime(1899, 12, 30)
     dt_start = []
-    for xldt in ds.alternate[label_list[0]]["results"]["startdate"]:
+    for xldt in ds.alternate[output_list[0]]["results"]["startdate"]:
         dt_start.append(basedate+datetime.timedelta(days=xldt+1462*datemode))
     startdate = min(dt_start)
     # and then the end datetimes
     dt_end = []
-    for xldt in ds.alternate[label_list[0]]["results"]["enddate"]:
+    for xldt in ds.alternate[output_list[0]]["results"]["enddate"]:
         dt_end.append(basedate+datetime.timedelta(days=xldt+1462*datemode))
     enddate = max(dt_end)
     # get the major tick locator and label format
@@ -548,21 +561,22 @@ def gfalternate_plotsummary(ds):
         # initialise a string to take the concatenated variable names, used in the name of the hard-copy of the plot
         figlab = ""
         # now loop over the variables in the group list
-        for col,label in enumerate(var_list):
-            if label not in ds.alternate.keys():
-                log.error("Series "+label+" requested for summary plot is not available")
+        for col,output in enumerate(var_list):
+            if output not in output_list:
+                log.error("Series "+output+" requested for summary plot is not available")
                 continue
-            source = ds.alternate[label]["source"]
+            source = ds.alternate[output]["source"]
             # append the variable name to the variable name string
-            figlab = figlab+label
+            figlab = figlab+output
             # and loop over rows in plot
             for row,rlabel,ylabel in zip(range(len(result_list)),result_list,ylabel_list):
                 # if this is the first row, add the column title
-                if row==0: axs[row,col].set_title(label+" ("+source+")")
+                #if row==0: axs[row,col].set_title(output+" ("+source+")")
+                if row==0: axs[row,col].set_title(output)
                 # if this is the left-most column, add the Y axis labels
                 if col==0: axs[row,col].set_ylabel(ylabel,visible=True)
                 # get the results to be plotted
-                result = numpy.ma.masked_equal(ds.alternate[label]["results"][rlabel],float(c.missing_value))
+                result = numpy.ma.masked_equal(ds.alternate[output]["results"][rlabel],float(c.missing_value))
                 if numpy.ma.count(result)==0: result = numpy.ma.ones(len(dt_start),dtype=numpy.float32)*float(c.large_value)
                 # put the data into the right order to be plotted
                 dt,data = gfalternate_plotsummary_getdata(dt_start,dt_end,result)
@@ -608,7 +622,8 @@ def gfalternate_run(ds_tower,ds_alt,alt_gui,alternate_info):
     alternate_info["maxlags"] = int(float(12)*alternate_info["nperhr"]+0.5)
     alternate_info["tower"] = {}
     alternate_info["alternate"] = {}
-    log.info(" Gap filling "+str(ds_tower.alternate.keys())+" using alternate data")
+    series_list = [ds_tower.alternate[item]["label_tower"] for item in ds_tower.alternate.keys()]
+    log.info(" Gap filling "+str(series_list)+" using alternate data")
     if alt_gui.peropt.get()==1:
         gfalternate_progress(alt_gui,"Starting manual run ...")
         # get the start and end datetimes entered in the alternate GUI
@@ -636,7 +651,7 @@ def gfalternate_run(ds_tower,ds_alt,alt_gui,alternate_info):
             alternate_info["startdate"] = startdate.strftime("%Y-%m-%d")
             alternate_info["enddate"] = enddate.strftime("%Y-%m-%d")
         # plot the summary statistics
-        gfalternate_plotsummary(ds_tower)
+        #gfalternate_plotsummary(ds_tower)
         gfalternate_progress(alt_gui,"Finished auto (monthly) run ...")
     elif alt_gui.peropt.get()==3:
         gfalternate_progress(alt_gui,"Starting auto (days) run ...")
@@ -657,7 +672,7 @@ def gfalternate_run(ds_tower,ds_alt,alt_gui,alternate_info):
             alternate_info["startdate"] = startdate.strftime("%Y-%m-%d")
             alternate_info["enddate"] = enddate.strftime("%Y-%m-%d")
         # plot the summary statistics
-        gfalternate_plotsummary(ds_tower)
+        #gfalternate_plotsummary(ds_tower)
         gfalternate_progress(alt_gui,"Finished auto (days) run ...")
     elif alt_gui.peropt.get()==4:
         pass
@@ -736,28 +751,13 @@ def gfalternate_getalternatevarlist(ds_alternate,label):
         print "gfalternate_getalternatevarlist: series "+label+" not in alternate data file"
     return alternate_var_list
 
-def gfalternate_getlagcorrecteddata(ds_tower,ds_alternate,label_tower,label_alternate,ai):
-    results = ds_tower.alternate[label_tower]["results"]
-    # local pointers to the start and end indices
-    si_tower = ai["tower"]["exact"]["si"]
-    ei_tower = ai["tower"]["exact"]["ei"]
-    si_alternate = ai["alternate"]["exact"]["si"]
-    ei_alternate = ai["alternate"]["exact"]["ei"]
-    # get the data
-    data_tower,f,a = qcutils.GetSeriesasMA(ds_tower,label_tower,si=si_tower,ei=ei_tower)
-    data_alternate,f,a = qcutils.GetSeriesasMA(ds_alternate,label_alternate,si=si_alternate,ei=ei_alternate)
-    lags,corr = qcts.get_laggedcorrelation(data_tower,data_alternate,maxlags=ai["maxlags"],minpoints=ai["min_points"])
-    nLags = numpy.argmax(corr)-ai["maxlags"]
-    si_alternate_lagcorr = si_alternate - nLags
-    ei_alternate_lagcorr = ei_alternate - nLags
-    results["Lag (uncorrected)"].append(numpy.float64(nLags*ai["time_step"]))
-    data_alternate_lagcorr,f,a = qcutils.GetSeriesasMA(ds_alternate,label_alternate,si=si_alternate_lagcorr,ei=ei_alternate_lagcorr,mode="pad")
-    #data_alternate_lagcorr,f,a = qcutils.GetSeriesasMA(ds_alternate,label_alternate,si=si_alternate_lagcorr,ei=ei_alternate_lagcorr)
-    # get the lagged correlations
-    lags,corr = qcts.get_laggedcorrelation(data_tower,data_alternate_lagcorr,maxlags=ai["maxlags"])
-    nLags = numpy.argmax(corr)-ai["maxlags"]
-    results["Lag (corrected)"].append(numpy.float64(nLags*ai["time_step"]))
-    return data_alternate_lagcorr,f,a
+def gfalternate_getlag(data_alternate,data_tower,ai):
+    if ai["lag"].lower()=="yes":
+        lags,corr = qcts.get_laggedcorrelation(data_tower,data_alternate,maxlags=ai["maxlags"],minpoints=ai["min_points"])
+        nLags = numpy.argmax(corr)-ai["maxlags"]
+    else:
+        nLags = 0
+    return nLags
 
 def gfalternate_getolscorrecteddata(x_in,y_in,fit,min_points,thru0=False):
     """
@@ -791,7 +791,7 @@ def gfalternate_getolscorrecteddata(x_in,y_in,fit,min_points,thru0=False):
     if fit.lower()=="replace":
         results = [1,0]
         eqnstr = "No OLS, replaced"
-        y_out = numpy.copy(x_in)
+        y_out = numpy.empty_like(y_in); y_out[:] = x_in
     else:
         if nx>=min_points:
             if thru0:
@@ -808,57 +808,12 @@ def gfalternate_getolscorrecteddata(x_in,y_in,fit,min_points,thru0=False):
                 else:
                     results = [0,0]
                     eqnstr = "OLS error, replaced"
-                    y_out = numpy.copy(x_in)
+                    y_out = numpy.empty_like(y_in); y_out[:] = x_in
         else:
             results = [0,0]
             eqnstr = "Too few points, replaced"
-            y_out = numpy.copy(x_in)
+            y_out = numpy.empty_like(y_in); y_out[:] = x_in
     return y_out,eqnstr,results
-    ## check the input arrays contain something
-    #if nx==0:
-        ##log.warning('qcts.getolscorrecteddata: either x or y all masked')
-        #if fit.lower()=="replace":
-            #results = [1,0]
-            #eqnstr = "All missing, replaced"
-            #y_out = numpy.empty_like(x_in); y_out[:] = x_in
-        #else:
-            #results = [0,0]
-            #eqnstr = "All missing, did nothing"
-            #y_out = numpy.empty_like(y_in); y_out[:] = y_in
-        #return y_out,eqnstr,results
-    ## check there is more than the minimum number of points
-    #if nx>=min_points:
-        #if thru0:
-            #resols = sm.OLS(y,x).fit()
-            #y_out = resols.params[0]*x_in
-            #eqnstr = 'y = %.3fx'%(resols.params[0])
-            #results = [resols.params[0],0]
-        #else:
-            #resols = sm.OLS(y,sm.add_constant(x,prepend=False)).fit()
-            #if resols.params.shape[0]==2:
-                #y_out = resols.params[0]*x_in+resols.params[1]
-                #eqnstr = 'y = %.3fx + %.3f'%(resols.params[0],resols.params[1])
-                #results = [resols.params[0],resols.params[1]]
-            #else:
-                ##log.error("qcts.getolscorrecteddata: OLS did not give a solution")
-                #if fit.lower()=="replace":
-                    #results = [1,0]
-                    #eqnstr = "OLS error, data replaced"
-                    #y_out = numpy.empty_like(x_in); y_out[:] = x_in
-                #else:
-                    #results = [0,0]
-                    #eqnstr = "OLS error, did nothing"
-                    #y_out = numpy.empty_like(y_in); y_out[:] = y_in
-    #else:
-        #if fit.lower()=="replace":
-            #results = [1,0]
-            #eqnstr = "Too few points, data replaced"
-            #y_out = numpy.empty_like(x_in); y_out[:] = x_in
-        #else:
-            #results = [0,0]
-            #eqnstr = "Too few points, did nothing"
-            #y_out = numpy.empty_like(y_in); y_out[:] = y_in
-    #return y_out,eqnstr,results
 
 def gfalternate_getdataas2d(ldt,odt,data,inds,alternate_info):
     si_wholedays = odt.index(ldt[inds["si"]])
@@ -889,10 +844,11 @@ def gfalternate_main(ds_tower,ds_alt,alternate_info):
     xldt_tower = ds_tower.series["xlDateTime"]["Data"]
     # now loop over the variables to be gap filled using the alternate data
     fig_num = 0
-    for label_tower in ds_tower.alternate.keys():
-        output = ds_tower.alternate[label_tower]["output"]
+    for output in ds_tower.alternate.keys():
+        label_tower = ds_tower.alternate[output]["label_tower"]
+        results = ds_tower.alternate[output]["results"]
         # get a local pointer to the alternate data structure
-        ds_alternate = ds_alt[ds_tower.alternate[label_tower]["file_name"]]
+        ds_alternate = ds_alt[ds_tower.alternate[output]["file_name"]]
         ldt_alternate = ds_alternate.series["DateTime"]["Data"]
         # get the indices of the start and end datetimes
         tower_exact,alternate_exact = gfalternate_getdateindices(ldt_tower,ldt_alternate,alternate_info,"exact","exact")
@@ -909,16 +865,17 @@ def gfalternate_main(ds_tower,ds_alt,alternate_info):
         data_tower_filled = numpy.ma.copy(data_tower)
         units_tower = attr["units"]
         # skip tower variable if there are not enough points
-        if numpy.ma.count(data_tower)<alternate_info["min_points"] and ds_tower.alternate[label_tower]["fit"]!="replace":
+        if numpy.ma.count(data_tower)<alternate_info["min_points"] and ds_tower.alternate[output]["fit"]!="replace":
             continue
         # save the start and end datetimes for later output
-        ds_tower.alternate[label_tower]["results"]["startdate"].append(xldt_tower[tower_exact["si"]])
-        ds_tower.alternate[label_tower]["results"]["enddate"].append(xldt_tower[tower_exact["ei"]])
+        results["startdate"].append(xldt_tower[tower_exact["si"]])
+        results["enddate"].append(xldt_tower[tower_exact["ei"]])
         # put the source for this series in alternate_info for use in plotting
-        alternate_info["source"] = ds_tower.alternate[label_tower]["source"]
-        alternate_info["fit"] = ds_tower.alternate[label_tower]["fit"]
+        alternate_info["source"] = ds_tower.alternate[output]["source"]
+        alternate_info["fit"] = ds_tower.alternate[output]["fit"]
+        alternate_info["lag"] = ds_tower.alternate[output]["lag"]
         # get a list of alternate variables for this tower variable
-        alternate_name = ds_tower.alternate[label_tower]["alternate_name"]
+        alternate_name = ds_tower.alternate[output]["alternate_name"]
         alternate_var_list = gfalternate_getalternatevarlist(ds_alternate,alternate_name)
         # get the alternate series that has the highest correlation with the tower data
         alternate_var_list = gfalternate_getalternatevaratmaxr(alternate_var_list,data_tower,ds_alternate,alternate_info)
@@ -943,8 +900,14 @@ def gfalternate_main(ds_tower,ds_alt,alternate_info):
             # if this variable has a bom_id attribute, put it in alternate_info
             if "bom_id" in attr.keys(): alternate_info["bom_id"] = attr["bom_id"]
             # correct for lag in the alternate data if required
-            data_alternate_lagcorr,flag,attr = gfalternate_getlagcorrecteddata(ds_tower,ds_alternate,label_tower,
-                                                                               label_alternate,alternate_info)
+            nLags = gfalternate_getlag(data_alternate, data_tower, alternate_info)
+            results["Lag (uncorrected)"].append(numpy.float64(nLags*alternate_info["time_step"]))
+            si_alternate_lagcorr = alternate_info["alternate"]["exact"]["si"] - nLags
+            ei_alternate_lagcorr = alternate_info["alternate"]["exact"]["ei"] - nLags
+            data_alternate_lagcorr,f,a = qcutils.GetSeriesasMA(ds_alternate,label_alternate,si=si_alternate_lagcorr,ei=ei_alternate_lagcorr,mode="pad")
+            # get the lagged correlations
+            nLags = gfalternate_getlag(data_alternate_lagcorr, data_tower, alternate_info)
+            results["Lag (corrected)"].append(numpy.float64(nLags*alternate_info["time_step"]))
             # best fit to tower using Ordinary Least Squares
             data_alternate_lagolscorr,eqn,res = gfalternate_getolscorrecteddata(data_alternate_lagcorr,data_tower,
                                                                                 alternate_info["fit"],alternate_info["min_points"],
@@ -968,8 +931,8 @@ def gfalternate_main(ds_tower,ds_alt,alternate_info):
             data_plot["data_alternate_lagolscorr_dailyavg"] = numpy.ma.average(data_alternate_lagolscorr_2d,axis=1)
             data_plot["data_alternate_lagolscorr_hourlyavg"] = numpy.ma.average(data_alternate_lagolscorr_2d,axis=0)
             # get the comparison statistics
-            gfalternate_getstatistics(ds_tower.alternate[label_tower]["results"],data_tower,data_alternate,alternate_info)
-            data_plot["results"] = ds_tower.alternate[label_tower]["results"]
+            gfalternate_getstatistics(results,data_tower,data_alternate,alternate_info)
+            data_plot["results"] = results
             # plot the data for this period
             pd = gfalternate_initplot()
             gfalternate_plotdetailed(fig_num,label_tower,data_plot,alternate_info,pd)
