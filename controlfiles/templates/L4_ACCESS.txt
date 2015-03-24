@@ -6,7 +6,7 @@
 [Output]
     # uncomment the xl and nc lists to output specific variables
     #xl = "['Ah','Cc','Fa','Fc','Fe','Fg','Fh','Fld','Flu','Fm','Fn','Fsd','Fsu','ps','RH','Sws','Ta','Ts','ustar','Ws','Wd']"
-    nc = "['Ah','Cc','eta','Fa','Fc','Fc_storage','Fe','Fg','Fh','Fld','Flu','Fm','Fn','Fsd','Fsu','Precip','ps','q','RH','Sws','SHD','Ta','theta','Ts','ustar','Ws','Wd']"
+    #nc = "['Ah','Cc','eta','Fa','Fc','Fc_storage','Fe','Fg','Fh','Fld','Flu','Fm','Fn','Fsd','Fsu','Precip','ps','q','RH','Sws','SHD','Ta','theta','Ts','ustar','Ws','Wd']"
 
 [Options]
     UseExistingOutFile = No
@@ -15,9 +15,9 @@
     [[Ah]]
     # gap filling can be done on Ah, RH or q
         [[[GapFillFromAlternate]]]
-            source = "ACCESS"
-            file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_ACCESS.nc
-            output = "Ah_acc"
+            [[[[Ah_acc]]]]
+                source = "ACCESS"
+                file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_ACCESS.nc
         [[[GapFillFromClimatology]]]
             file_name = ../Sites/<site_name>/Data/Processed/<year>/<site_name>_<year>_L3_Climatology.xls
             method = "interpolated daily"
@@ -33,9 +33,9 @@
             Source     = "['Cc','Cc_cli']"
     [[Fa]]
         [[[GapFillFromAlternate]]]
-            source = "ACCESS"
-            file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_ACCESS.nc
-            output = "Fa_acc"
+            [[[[Fa_acc]]]]
+                source = "ACCESS"
+                file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_ACCESS.nc
         [[[GapFillFromClimatology]]]
             file_name = ../Sites/<site_name>/Data/Processed/<year>/<site_name>_<year>_L3_Climatology.xls
             method = "interpolated daily"
@@ -44,9 +44,9 @@
             Source     = "['Fa','Fa_acc','Fa_cli']"
     [[Fg]]
         [[[GapFillFromAlternate]]]
-            source = "ACCESS"
-            file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_ACCESS.nc
-            output = "Fg_acc"
+            [[[[Fg_acc]]]]
+                source = "ACCESS"
+                file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_ACCESS.nc
         [[[GapFillFromClimatology]]]
             file_name = ../Sites/<site_name>/Data/Processed/<year>/<site_name>_<year>_L3_Climatology.xls
             method = "interpolated daily"
@@ -55,9 +55,9 @@
             Source     = "['Fg','Fg_acc','Fg_cli']"
     [[Fld]]
         [[[GapFillFromAlternate]]]
-            source = "ACCESS"
-            file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_ACCESS.nc
-            output = "Fld_acc"
+            [[[[Fld_acc]]]]
+                source = "ACCESS"
+                file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_ACCESS.nc
         [[[GapFillFromClimatology]]]
             file_name = ../Sites/<site_name>/Data/Processed/<year>/<site_name>_<year>_L3_Climatology.xls
             method = "interpolated daily"
@@ -66,9 +66,9 @@
             Source     = "['Fld','Fld_acc','Fld_cli']"
     [[Flu]]
         [[[GapFillFromAlternate]]]
-            source = "ACCESS"
-            file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_ACCESS.nc
-            output = "Flu_acc"
+            [[[[Flu_acc]]]]
+                source = "ACCESS"
+                file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_ACCESS.nc
         [[[GapFillFromClimatology]]]
             file_name = ../Sites/<site_name>/Data/Processed/<year>/<site_name>_<year>_L3_Climatology.xls
             method = "interpolated daily"
@@ -77,9 +77,9 @@
             Source     = "['Flu','Flu_acc','Flu_cli']"
     [[Fn]]
         [[[GapFillFromAlternate]]]
-            source = "ACCESS"
-            file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_ACCESS.nc
-            output = "Fn_acc"
+            [[[[Fn_acc]]]]
+                source = "ACCESS"
+                file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_ACCESS.nc
         [[[GapFillFromClimatology]]]
             file_name = ../Sites/<site_name>/Data/Processed/<year>/<site_name>_<year>_L3_Climatology.xls
             method = "interpolated daily"
@@ -88,9 +88,9 @@
             Source     = "['Fn','Fn_acc','Fn_cli']"
     [[Fsd]]
         [[[GapFillFromAlternate]]]
-            source = "ACCESS"
-            file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_ACCESS.nc
-            output = "Fsd_acc"
+            [[[[Fsd_acc]]]]
+                source = "ACCESS"
+                file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_ACCESS.nc
         [[[GapFillFromClimatology]]]
             file_name = ../Sites/<site_name>/Data/Processed/<year>/<site_name>_<year>_L3_Climatology.xls
             method = "interpolated daily"
@@ -99,9 +99,9 @@
             Source     = "['Fsd','Fsd_acc','Fsd_cli']"
     [[Fsu]]
         [[[GapFillFromAlternate]]]
-            source = "ACCESS"
-            file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_ACCESS.nc
-            output = "Fsu_acc"
+            [[[[Fsu_acc]]]]
+                source = "ACCESS"
+                file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_ACCESS.nc
         [[[GapFillFromClimatology]]]
             file_name = ../Sites/<site_name>/Data/Processed/<year>/<site_name>_<year>_L3_Climatology.xls
             method = "interpolated daily"
@@ -110,9 +110,9 @@
             Source     = "['Fsu','Fsu_acc','Fsu_cli']"
     [[ps]]
         [[[GapFillFromAlternate]]]
-            source = "ACCESS"
-            file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_ACCESS.nc
-            output = "ps_acc"
+            [[[[ps_acc]]]]
+                source = "ACCESS"
+                file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_ACCESS.nc
         [[[GapFillFromClimatology]]]
             file_name = ../Sites/<site_name>/Data/Processed/<year>/<site_name>_<year>_L3_Climatology.xls
             method = "interpolated daily"
@@ -121,17 +121,18 @@
             Source     = "['ps','ps_acc','ps_cli']"
     [[Sws]]
         [[[GapFillFromAlternate]]]
-            source = "BIOS2"
-            file_name = ../Sites/<site_name>/Data/BIOS2/<site_name>_BIOS2.nc
-            fit = "replace"
-            output = "Sws_bios"
+            [[[[Sws_acc]]]]
+                source = "ACCESS"
+                file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_ACCESS.nc
+                fit = "replace"
+                lag = "no"
         [[[MergeSeries]]]
-            Source     = "['Sws','Sws_bios']"
+            Source     = "['Sws','Sws_acc']"
     [[Ta]]
         [[[GapFillFromAlternate]]]
-            source = "ACCESS"
-            file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_ACCESS.nc
-            output = "Ta_acc"
+            [[[[Ta_acc]]]]
+                source = "ACCESS"
+                file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_ACCESS.nc
         [[[GapFillFromClimatology]]]
             file_name = ../Sites/<site_name>/Data/Processed/<year>/<site_name>_<year>_L3_Climatology.xls
             method = "interpolated daily"
@@ -140,9 +141,9 @@
             Source     = "['Ta','Ta_acc','Ta_cli']"
     [[Ts]]
         [[[GapFillFromAlternate]]]
-            source = "ACCESS"
-            file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_ACCESS.nc
-            output = "Ts_acc"
+            [[[[Ts_acc]]]]
+                source = "ACCESS"
+                file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_ACCESS.nc
         [[[GapFillFromClimatology]]]
             file_name = ../Sites/<site_name>/Data/Processed/<year>/<site_name>_<year>_L3_Climatology.xls
             method = "interpolated daily"
@@ -151,23 +152,37 @@
             Source     = "['Ts','Ts_acc','Ts_cli']"
     [[Ws]]
         [[[GapFillFromAlternate]]]
-            source = "ACCESS"
-            file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_ACCESS.nc
-            output = "Ws_acc"
+            [[[[Ws_acc]]]]
+                source = "ACCESS"
+                file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_ACCESS.nc
         [[[GapFillFromClimatology]]]
             file_name = ../Sites/<site_name>/Data/Processed/<year>/<site_name>_<year>_L3_Climatology.xls
             method = "interpolated daily"
             output = "Ws_cli"
         [[[MergeSeries]]]
             Source     = "['Ws','Ws_acc','Ws_cli']"
+    [[Wd]]
+        [[[GapFillFromAlternate]]]
+            [[[[Wd_acc]]]]
+                source = "ACCESS"
+                file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_ACCESS.nc
+                fit = "replace"
+                lag = "no"
+        [[[GapFillFromClimatology]]]
+            file_name = ../Sites/<site_name>/Data/Processed/<year>/<site_name>_<year>_L3_Climatology.xls
+            method = "interpolated daily"
+            output = "Wd_cli"
+        [[[MergeSeries]]]
+            Source     = "['Wd','Wd_acc','Wd_cli']"
     [[Precip]]
         [[[GapFillFromAlternate]]]
-            source = "BIOS2"
-            file_name = ../Sites/<site_name>/Data/BIOS2/<site_name>_BIOS2.nc
-            fit = "replace"
-            output = "Precip_bios"
+            [[[[Precip_acc]]]]
+                source = "ACCESS"
+                file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_ACCESS.nc
+                fit = "replace"
+                lag = "no"
         [[[MergeSeries]]]
-            Source     = "['Precip','Precip_bios']"
+            Source     = "['Precip','Precip_acc']"
         [[[RangeCheck]]]
             Lower      = "[0]*12"
             Upper      = "[50]*12"
@@ -182,20 +197,14 @@
     [[3]]
         Title = "Soil temperature, water content and heat flux"
         Variables = "['Precip','Sws','Ts','Fg']"
-    [[4]]
-        Title = "Fa gap filling"
-        Variables = "['Fa','Fa_cli','Fa_acc']"
-    [[5]]
-        Title = "Fg gap filling"
-        Variables = "['Fg','Fg_cli','Fg_acc','dTs','Ts']"
 
 [Alternate_Summary]
     [[1]]
         Title = "Radiation"
-        Variables = "['Fsd','Fld','Fn','Fa']"
+        Variables = "['Fsd_acc','Fld_acc','Fn_acc','Fa_acc']"
     [[2]]
         Title = "Meteorology"
-        Variables = "['Ta','Ah','Ws','ps']"
+        Variables = "['Ta_acc','Ah_acc','Ws_acc','ps_acc']"
     [[3]]
         Title = "Soil"
-        Variables = "['Ts','Sws','Fg','Precip']"
+        Variables = "['Ts_acc','Sws_acc','Fg_acc','Precip_acc']"
