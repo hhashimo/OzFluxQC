@@ -480,11 +480,11 @@ def GapFillFromAlternate(ds4,ds_alt):
     alt_gui.pointsentry.grid(row=nrow,column=4,columnspan=1,sticky="W")
     # seventh row
     nrow = nrow + 1
-    alt_gui.minptsLabel = Tkinter.Label(alt_gui,text="Min points")
+    alt_gui.minptsLabel = Tkinter.Label(alt_gui,text="Min points (%)")
     alt_gui.minptsLabel.grid(row=nrow,column=0,columnspan=1,sticky="E")
     alt_gui.minpts = Tkinter.Entry(alt_gui,width=5)
     alt_gui.minpts.grid(row=nrow,column=1,columnspan=1,sticky="W")
-    alt_gui.minpts.insert(0,"100")
+    alt_gui.minpts.insert(0,"25")
     alt_gui.owopt = Tkinter.IntVar()
     alt_gui.owopt.set(1)
     alt_gui.overwrite = Tkinter.Checkbutton(alt_gui, text="Overwrite", variable=alt_gui.owopt)
@@ -621,7 +621,7 @@ def gfalternate_run(ds_tower,ds_alt,alt_gui,alternate_info):
     alternate_info["peropt"] = alt_gui.peropt.get()
     alternate_info["overwrite"] = True
     if alt_gui.owopt.get()==0: alternate_info["overwrite"] = False
-    alternate_info["min_points"] = int(alt_gui.minpts.get())
+    alternate_info["min_percent"] = int(alt_gui.minpts.get())
     alternate_info["site_name"] = ds_tower.globalattributes["site_name"]
     alternate_info["time_step"] = int(ds_tower.globalattributes["time_step"])
     alternate_info["nperhr"] = int(float(60)/alternate_info["time_step"]+0.5)
@@ -820,7 +820,8 @@ def gfalternate_getolscorrecteddata(x_in,y_in,alternate_info):
         results["fit"] = numpy.ma.copy(x_in)
         return results
     # attempt an OLS fit
-    if nx>=alternate_info["min_points"]:
+    min_points = int(nx*alternate_info["min_percent"]/100)
+    if nx>=min_points:
         if alternate_info["thru0"].lower()=="yes":
             resols = sm.OLS(y,x).fit()
             results["fit"] = resols.params[0]*x_in
@@ -962,10 +963,13 @@ def gfalternate_main(ds_tower,ds_alt,alternate_info):
         odt_alternate = ldt_alternate[alternate_exact["si"]:alternate_exact["ei"]+1]
         # get the tower data
         data_tower,flag,attr = qcutils.GetSeriesasMA(ds_tower,label_tower,si=tower_exact["si"],ei=tower_exact["ei"])
+        alternate_info["min_points"] = int(len(data_tower)*alternate_info["min_percent"]/100)
         # get a copy of the tower data so we can track which gaps have been filled
         data_tower_filled = numpy.ma.copy(data_tower)
         # skip tower variable if there are not enough points
         if numpy.ma.count(data_tower)<alternate_info["min_points"] and ds_tower.alternate[output]["fit_type"]!="replace":
+            msg = " Less than "+str(alternate_info["min_percent"])+" % data in tower series "+label_tower+", skipping ..."
+            log.info(msg)
             continue
         # save the start and end datetimes for later output
         ds_tower.alternate[output]["results"]["startdate"].append(xldt_tower[tower_exact["si"]])
@@ -983,6 +987,7 @@ def gfalternate_main(ds_tower,ds_alt,alternate_info):
         # get the alternate series that has the highest correlation with the tower data
         alternate_var_list = gfalternate_getalternatevaratmaxr(alternate_var_list,data_tower,ds_alternate,alternate_info)
         # loop over alternate variables
+        if alternate_info["source"].lower()=="access": alternate_var_list = alternate_var_list[0:1]
         for label_alternate in alternate_var_list:
             # get the raw alternate data
             data_alternate,flag,attr = qcutils.GetSeriesasMA(ds_alternate,label_alternate,
@@ -996,7 +1001,6 @@ def gfalternate_main(ds_tower,ds_alt,alternate_info):
             ind_alternate = numpy.ma.where(numpy.ma.getmaskarray(data_alternate)==False)[0]
             # boolean array with True where an element of ind_tower appears in ind_alternate
             ind_both = numpy.ma.in1d(ind_tower,ind_alternate)
-            # skip this alternate variable if there is no good alternate data where there are gaps in the tower data
             if not numpy.ma.any(ind_both): continue
             # clear any existing bom_id in the alternate_info dictionary
             alternate_info.pop("bom_id",None)
