@@ -54,6 +54,22 @@ def cfoptionskeylogical(cf,Key='',default=False):
         returnValue = default
     return returnValue
 
+#def CheckQCFlags(ds):
+    #"""
+    #Purpose:
+     #Make sure that all values of -9999 in a data series have a non-zero QC flag value.
+    #Usage:
+     #qcutils.CheckQCFlags(ds)
+    #Author: PRI
+    #Date: August 2014
+    #"""
+    #for ThisOne in ds.series.keys():
+        #data = numpy.ma.masked_values(ds.series[ThisOne]["Data"],-9999)
+        #flag = numpy.ma.masked_equal(ds.series[ThisOne]["Flag"],0)
+        #mask = data.mask&flag.mask
+        #index = numpy.ma.where(mask==True)[0]
+        #ds.series[ThisOne]["Flag"][index] = numpy.int32(8)
+
 def CheckQCFlags(ds):
     """
     Purpose:
@@ -65,11 +81,11 @@ def CheckQCFlags(ds):
     """
     for ThisOne in ds.series.keys():
         data = numpy.ma.masked_values(ds.series[ThisOne]["Data"],-9999)
-        flag = numpy.ma.masked_equal(ds.series[ThisOne]["Flag"],0)
+        flag = numpy.ma.masked_equal(numpy.mod(ds.series[ThisOne]["Flag"],10),0)
         mask = data.mask&flag.mask
         index = numpy.ma.where(mask==True)[0]
         ds.series[ThisOne]["Flag"][index] = numpy.int32(8)
-
+    
 def CheckTimeStep(ds):
     """
     Purpose:
@@ -936,6 +952,33 @@ def get_datetimefromymdhms(ds):
     ds.series['DateTime']['Attr'] = {}
     ds.series['DateTime']['Attr']['long_name'] = 'Date-time object'
     ds.series['DateTime']['Attr']['units'] = 'None'
+
+def get_missingingapfilledseries(ds):
+    """
+    Purpose:
+     Check series in data structure and print a message to the screen if missing points are found.
+    Usage:
+     gfalternate_checkformissing(ds,series_list=series_list)
+      where ds is a data structure
+            series_list is a list of series to check
+    Author: PRI
+    Date: March 2015
+    """
+    # get a local pointer to the datetime
+    ldt = ds.series["DateTime"]["Data"]
+    # get the list of series to be checked
+    series_list = [ds.alternate[item]["label_tower"] for item in ds.alternate.keys()]
+    # loop over the series to be checked
+    for series in series_list:
+        if series not in ds.series.keys(): continue
+        data,flag,attr = GetSeriesasMA(ds,series)
+        idx = numpy.ma.where(data.mask==True)[0]
+        if len(idx)!=0:
+            msg = " Missing points ("+str(len(idx))+") found in "+series
+            log.error(msg)
+            ldt_missing = [ldt[i] for i in idx]
+            msg = " The first 10 missing data is at datetimes "+str(ldt_missing[0:9])
+            log.error(msg)
 
 def get_nrecs(ds):
     if 'nc_nrecs' in ds.globalattributes.keys():

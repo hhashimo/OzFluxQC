@@ -9,6 +9,8 @@
         AltVarName = "Flu"
     [[Fn]]
         AltVarName = "Fn"
+    [[Fa]]
+        AltVarName = "Fa"
     [[ps]]
         AltVarName = "ps"
     [[Ta]]

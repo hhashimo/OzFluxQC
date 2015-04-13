@@ -251,9 +251,17 @@ def CalculateAvailableEnergy(ds,Fa_out='Fa',Fn_in='Fn',Fg_in='Fg'):
     log.info(' Calculating available energy from Fn and Fg')
     Fn,f,a = qcutils.GetSeriesasMA(ds,Fn_in)
     Fg,f,a = qcutils.GetSeriesasMA(ds,Fg_in)
-    Fa = Fn - Fg
-    attr = qcutils.MakeAttributeDictionary(long_name='Available energy using '+Fn_in+','+Fg_in,units='W/m2')
-    qcutils.CreateSeries(ds,Fa_out,Fa,FList=[Fn_in,Fg_in],Attr=attr)
+    Fa_calc = Fn - Fg
+    if Fa_out not in ds.series.keys():
+        attr = qcutils.MakeAttributeDictionary(long_name='Available energy using '+Fn_in+','+Fg_in,units='W/m2')
+        qcutils.CreateSeries(ds,Fa_out,Fa_calc,FList=[Fn_in,Fg_in],Attr=attr)
+    else:
+        Fa_exist,flag,attr = qcutils.GetSeriesasMA(ds,Fa_out)
+        idx = numpy.ma.where((numpy.ma.getmaskarray(Fa_exist)==True)&(numpy.ma.getmaskarray(Fa_calc)==False))[0]
+        if len(idx)!=0:
+            Fa_exist[idx] = Fa_calc[idx]
+            flag[idx] = numpy.int32(20)
+        qcutils.CreateSeries(ds,Fa_out,Fa_exist,Flag=flag,Attr=attr)
 
 def CalculateFluxes(cf,ds,Ta_name='Ta',ps_name='ps',Ah_name='Ah',wT_in='wT',wA_in='wA',wC_in='wC',uw_in='uw',vw_in='vw',Fhv_out='Fhv',Fe_out='Fe',Fc_out='Fc',Fm_out='Fm',ustar_out='ustar'):
     """
@@ -647,14 +655,18 @@ def CalculateNetRadiation(cf,ds,Fn_out='Fn',Fsd_in='Fsd',Fsu_in='Fsu',Fld_in='Fl
         Fsu,f,a = qcutils.GetSeriesasMA(ds,Fsu_in)
         Fld,f,a = qcutils.GetSeriesasMA(ds,Fld_in)
         Flu,f,a = qcutils.GetSeriesasMA(ds,Flu_in)
-        Fn = (Fsd - Fsu) + (Fld - Flu)
-        attr = qcutils.MakeAttributeDictionary(long_name='Calculated net radiation using '+Fsd_in+','+Fsu_in+','+Fld_in+','+Flu_in,
-                             standard_name='surface_net_downwawrd_radiative_flux',units='W/m2')
-        qcutils.CreateSeries(ds,Fn_out,Fn,FList=[Fsd_in,Fsu_in,Fld_in,Flu_in],Attr=attr)
-        if "Variables" in cf:
-            if Fn_out in cf["Variables"]:
-                if "Linear" in cf["Variables"][Fn_out]:
-                    ApplyLinear(cf,ds,Fn_out)
+        Fn_calc = (Fsd - Fsu) + (Fld - Flu)
+        if Fn_out not in ds.series.keys():
+            attr = qcutils.MakeAttributeDictionary(long_name='Calculated net radiation using '+Fsd_in+','+Fsu_in+','+Fld_in+','+Flu_in,
+                                 standard_name='surface_net_downwawrd_radiative_flux',units='W/m2')
+            qcutils.CreateSeries(ds,Fn_out,Fn,FList=[Fsd_in,Fsu_in,Fld_in,Flu_in],Attr=attr)
+        else:
+            Fn_exist,flag,attr = qcutils.GetSeriesasMA(ds,Fn_out)
+            idx = numpy.ma.where((numpy.ma.getmaskarray(Fn_exist)==True)&(numpy.ma.getmaskarray(Fn_calc)==False))[0]
+            if len(idx)!=0:
+                Fn_exist[idx] = Fn_calc[idx]
+                flag[idx] = numpy.int32(20)
+            qcutils.CreateSeries(ds,Fn_out,Fn_exist,Flag=flag,Attr=attr)
     else:
         nRecs = int(ds.globalattributes['nc_nrecs'])
         Fn = numpy.array([c.missing_value]*nRecs,dtype=numpy.float64)
@@ -1676,51 +1688,6 @@ def InvertSign(ds,ThisOne):
     index = numpy.where(abs(ds.series[ThisOne]['Data']-float(c.missing_value))>c.eps)[0]
     ds.series[ThisOne]['Data'][index] = float(-1)*ds.series[ThisOne]['Data'][index]
 
-#def InterpolateOverMissing(cf,ds,series='',maxlen=1000):
-#def InterpolateOverMissing(ds,series='',maxlen=1000):
-    #if series not in ds.series.keys():
-        #log.error("InterpolateOverMissing: series "+series+" not found in data structure")
-        #return
-    ##section = qcutils.get_cfsection(cf,series=series,mode='quiet')
-    ##if len(section)==0: return
-    #DateNum = date2num(ds.series['DateTime']['Data'])
-    #iog = numpy.where(ds.series[series]['Data']!=float(c.missing_value))[0]            # index of good values
-    #if len(iog)<2:
-        #log.info(' InterpolateOverMissing: Less than 2 good points available for series '+str(series))
-        #return
-    #f = interpolate.interp1d(DateNum[iog],ds.series[series]['Data'][iog])    # linear interpolation function
-    #iom = numpy.where((ds.series[series]['Data']==float(c.missing_value))&             # index of missing values
-                      #(DateNum>=DateNum[iog[0]])&                          # that occur between the first
-                      #(DateNum<=DateNum[iog[-1]]))[0]                      # and last dates used to define f
-    ## Now we step through the indices of the missing values and discard
-    ## contiguous blocks longer than maxlen.
-    ## !!! The following code is klunky and could be re-written to be
-    ## !!! neater and faster.
-    ## First, define 2 temporary arrays used and initialise 2 counters.
-    #tmp1 = numpy.zeros(len(iom),int)
-    #tmp2 = numpy.zeros(len(iom),int)
-    #k=0
-    #n=0
-    ## step through the array of idices for missing values
-    #for i in range(len(iom)-1):
-        #dn = iom[i+1]-iom[i]        # change in index number from one element of iom to the next
-        #if dn==1:                   # if the change is 1 then we are still in a contiguous block
-            #tmp1[n] = iom[i]        # save the index into a temporary array
-            #n = n + 1               # increment the contiguous block length counter
-        #elif dn>1:                  # if the change is greater than 1 then we have come to the end of a contiguous block
-            #if n<maxlen:            # if the contiguous block length is less then maxlen
-                #tmp1[n]=iom[i]      # save the last index of the contiguous block
-                #tmp2[k:k+n+1] = tmp1[0:n+1]   # concatenate the indices for this block to any previous block with length less than maxlen
-                #k=k+n+1             # update the pointer to the concatenating array
-            #n=0                     # reset the contiguous block length counter
-    #if k>0:                         # do the interpolation only if 1 gap is less than maxlen
-        #tmp2[k] = iom[-1]               # just accept the last missing value index regardless
-        #iom_new = tmp2[:k+1]            # the array of missing data indices with contiguous block lengths less than maxlen
-        #ds.series[series]['Data'][iom_new] = f(DateNum[iom_new]).astype(numpy.float32)        # fill missing values with linear interpolations
-        #ds.series[series]['Flag'][iom_new] = numpy.int32(50)
-    #if 'InterpolateOverMissing' not in ds.globalattributes['Functions']:
-        #ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', InterpolateOverMissing'
-
 def InterpolateOverMissing(ds,series='',maxlen=1000):
     """
     Purpose:
@@ -1754,10 +1721,16 @@ def InterpolateOverMissing(ds,series='',maxlen=1000):
         log.info(' InterpolateOverMissing: Less than 2 good points available for series '+str(series))
         return
     # linear interpolation function
-    f = interpolate.interp1d(DateNum[iog],data_org[iog],bounds_error=False,fill_value=float(-9999))
+    f = interpolate.interp1d(DateNum[iog],data_org[iog],bounds_error=False,fill_value=float(c.missing_value))
     # interpolate over the whole time series
     data_int = f(DateNum).astype(numpy.float32)
-    flag_int = numpy.ones(nRecs,dtype=numpy.int32)*float(50)
+    # copy the original flag
+    flag_int = numpy.copy(flag_org)
+    # index of interpolates that are not equal to the missing value
+    index = numpy.where(abs(data_int-float(c.missing_value))>c.eps)[0]
+    # set the flag for these points
+    if len(index)!=0:
+        flag_int[index] = numpy.int32(50)
     # restore the original good data
     data_int[iog] = data_org[iog]
     flag_int[iog] = flag_org[iog]
@@ -1940,9 +1913,9 @@ def MergeSeriesUsingDict(ds,merge_order=""):
         for label in tmplist:
             if label in ds.series.keys():
                 SeriesNameString = SeriesNameString+', '+label
-                index = numpy.where(numpy.mod(flag,10)==0)            # find the elements with flag = 0, 10, 20 etc
-                flag[index] = 0                                       # set them all to 0
-                index = numpy.where(flag!=0)                          # index of flag values other than 0,10,20,30 ...
+                index = numpy.where(numpy.mod(flag,10)==0)[0]         # find the elements with flag = 0, 10, 20 etc
+                flag[index] = 0                                        # set them all to 0
+                index = numpy.where(flag!=0)[0]                        # index of flag values other than 0,10,20,30 ...
                 data[index] = ds.series[label]['Data'][index].copy()  # replace bad primary with good secondary
                 flag[index] = ds.series[label]['Flag'][index].copy()
             else:
