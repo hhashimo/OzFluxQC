@@ -589,7 +589,7 @@ def GetcbTicksFromCF(cf,ThisOne):
         print 'GetcbTicksFromCF: '+str(ThisOne)+' not in control file'
     return Ticks
 
-def GetRangesFromCF(cf,ThisOne):
+def GetRangesFromCF(cf,ThisOne,mode="verbose"):
     '''
     Get lower and upper range limits from the control file.
     '''
@@ -597,15 +597,21 @@ def GetRangesFromCF(cf,ThisOne):
         if 'Lower' in cf['Variables'][ThisOne].keys():
             lower = float(cf['Variables'][ThisOne]['Lower'])
         else:
-            print 'GetRangesFromCF: Lower key not in control file for '+str(ThisOne)
+            if mode.lower()!="quiet":
+                msg = "GetRangesFromCF: Lower key not in control file for "+str(ThisOne)
+                log.info(msg)
             lower = None
         if 'Upper' in cf['Variables'][ThisOne].keys():
             upper = float(cf['Variables'][ThisOne]['Upper'])
         else:
-            print 'GetRangesFromCF: Upper key not in control file for '+str(ThisOne)
+            if mode.lower()!="quiet":
+                msg = "GetRangesFromCF: Upper key not in control file for "+str(ThisOne)
+                log.info(msg)
             upper = None
     else:
-        print 'GetRangesFromCF: '+str(ThisOne)+' not in control file'
+        if mode.lower()!="quiet":
+            msg = "GetRangesFromCF: "+str(ThisOne)+" not in control file"
+            log.info(msg)
         lower, upper = None
     return lower, upper
 

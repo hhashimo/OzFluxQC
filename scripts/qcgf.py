@@ -49,33 +49,27 @@ def GapFillFromClimatology(ds):
     the climatology.py script.
     '''
     if "climatology" not in dir(ds): return
-    # get the list of climatology data files and take out the duplicates
-    climatology_file_list = list(set([ds.climatology[x]["file_name"] for x in ds.climatology.keys()]))
-    # more than 1 climatology data file not supported at present
-    if len(climatology_file_list)>1: raise NotImplementedError
-    # get the name of the climatology file
-    cli_filename = climatology_file_list[0]
-    # return to calling routine if the file doesn't exist
-    if not os.path.exists(cli_filename):
-        log.error(" GapFillFromClimatology: Climatology file "+cli_filename+" doesn't exist")
-        return
-    # open the climatology file
-    cli_xlbook = xlrd.open_workbook(cli_filename)
     # loop over the series to be gap filled using climatology
-    for label in ds.climatology.keys():
+    cli_xlbooks = {}
+    for output in ds.climatology.keys():
         # check to see if there are any gaps in "series"
         #index = numpy.where(abs(ds.series[label]['Data']-float(c.missing_value))<c.eps)[0]
         #if len(index)==0: continue                      # no gaps found in "series"
-        # local pointers to output name and method
-        output = ds.climatology[label]["output"]
-        method = ds.climatology[label]["method"]
+        cli_filename = ds.climatology[output]["file_name"]
+        if not os.path.exists(cli_filename):
+            log.error(" GapFillFromClimatology: Climatology file "+cli_filename+" doesn't exist")
+            continue
+        if cli_filename not in cli_xlbooks: cli_xlbooks[cli_filename] = xlrd.open_workbook(cli_filename)
+        # local pointers to the series name and climatology method
+        label = ds.climatology[output]["label_tower"]
+        method = ds.climatology[output]["method"]
         # do the gap filling
         log.info(" Gap filling "+label+" using climatology")
         # choose the gap filling method
         if method=="monthly":
-            gfClimatology_monthly(ds,label,output,cli_xlbook)
+            gfClimatology_monthly(ds,label,output,cli_xlbooks)
         elif method=="interpolated daily":
-            gfClimatology_interpolateddaily(ds,label,cli_xlbook)
+            gfClimatology_interpolateddaily(ds,label,output,cli_xlbooks)
         else:
             log.error(" GapFillFromClimatology: unrecognised method option for "+label)
             continue
@@ -98,13 +92,13 @@ def gfClimatology_monthly(ds,series,output,xlbook):
     ds.series[output]['Data'][index] = val1d[index]
     ds.series[output]['Flag'][index] = numpy.int32(40)
     
-def gfClimatology_interpolateddaily(ds,series,xlbook):
+def gfClimatology_interpolateddaily(ds,series,output,xlbooks):
     # gap fill from interpolated 30 minute data
+    xlfilename = ds.climatology[output]["file_name"]
     ts = ds.globalattributes["time_step"]
     ldt = ds.series["DateTime"]["Data"]
-    output = ds.climatology[series]["output"]
-    thissheet = xlbook.sheet_by_name(series+'i(day)')
-    datemode = xlbook.datemode
+    thissheet = xlbooks[xlfilename].sheet_by_name(series+'i(day)')
+    datemode = xlbooks[xlfilename].datemode
     basedate = datetime.datetime(1899, 12, 30)
     nts = thissheet.ncols - 1
     ndays = thissheet.nrows - 2
@@ -247,11 +241,10 @@ def gfalternate_createdict(cf,ds,series,ds_alt):
     section = qcutils.get_cfsection(cf,series=series,mode="quiet")
     # return without doing anything if the series isn't in a control file section
     if len(section)==0:
-        log.error("gfalternate_createdict: Series "+series+" not found in control file, skipping ...")
+        log.error("GapFillFromAlternate: Series "+series+" not found in control file, skipping ...")
         return
     # create the alternate directory in the data structure
-    if "alternate" not in dir(ds):
-        ds.alternate = {}
+    if "alternate" not in dir(ds): ds.alternate = {}
     # name of alternate output series in ds
     output_list = cf[section][series]["GapFillFromAlternate"].keys()
     # loop over the outputs listed in the control file
@@ -317,25 +310,32 @@ def gfClimatology_createdict(cf,ds,series):
         return
     # create the climatology directory in the data structure
     if "climatology" not in dir(ds): ds.climatology = {}
-    # create the dictionary keys for this series
-    ds.climatology[series] = {}
-    # site name
-    ds.climatology[series]["site_name"] = ds.globalattributes["site_name"]
-    # Climatology file name
-    ds.climatology[series]["file_name"] = cf[section][series]["GapFillFromClimatology"]["file_name"]
-    # climatology variable name if different from name used in control file
-    if "climatology_name" in cf[section][series]["GapFillFromClimatology"]:
-        ds.climatology[series]["climatology_name"] = cf[section][series]["GapFillFromClimatology"]["climatology_name"]
-    else:
-        ds.climatology[series]["climatology_name"] = series
-    # name of climatology output series in ds
-    ds.climatology[series]["output"] = cf[section][series]["GapFillFromClimatology"]["output"]
-    # climatology gap filling method
-    if "method" not in cf[section][series]["GapFillFromClimatology"].keys():
-        # default if "method" missing is "interpolated_daily"
-        ds.climatology[series]["method"] = "interpolated_daily"
-    else:
-        ds.climatology[series]["method"] = cf[section][series]["GapFillFromClimatology"]["method"]
+    # name of alternate output series in ds
+    output_list = cf[section][series]["GapFillFromClimatology"].keys()
+    # loop over the outputs listed in the control file
+    for output in output_list:
+        # create the dictionary keys for this output
+        ds.climatology[output] = {}
+        ds.climatology[output]["label_tower"] = series
+        # site name
+        ds.climatology[output]["site_name"] = ds.globalattributes["site_name"]
+        # Climatology file name
+        ds.climatology[output]["file_name"] = cf[section][series]["GapFillFromClimatology"][output]["file_name"]
+        # climatology variable name if different from name used in control file
+        if "climatology_name" in cf[section][series]["GapFillFromClimatology"][output]:
+            ds.climatology[output]["climatology_name"] = cf[section][series]["GapFillFromClimatology"][output]["climatology_name"]
+        else:
+            ds.climatology[output]["climatology_name"] = series
+        # climatology gap filling method
+        if "method" not in cf[section][series]["GapFillFromClimatology"][output].keys():
+            # default if "method" missing is "interpolated_daily"
+            ds.climatology[output]["method"] = "interpolated_daily"
+        else:
+            ds.climatology[output]["method"] = cf[section][series]["GapFillFromClimatology"][output]["method"]
+        # create an empty series in ds if the climatology output series doesn't exist yet
+        if output not in ds.series.keys():
+            data,flag,attr = qcutils.MakeEmptySeries(ds,output)
+            qcutils.CreateSeries(ds,output,data,Flag=flag,Attr=attr)
 
 def gfMergeSeries_createdict(cf,ds,series):
     """ Creates a dictionary in ds to hold information about the merging of gap filled
@@ -406,10 +406,6 @@ def GapFillParseControlFile(cf,ds,series,ds_alt):
     if "GapFillFromClimatology" in cf[section][series].keys():
         # create the climatology dictionary in the data structure
         gfClimatology_createdict(cf,ds,series)
-        # create an empty series in ds if the climatology output series doesn't exist yet
-        if ds.climatology[series]["output"] not in ds.series.keys():
-            data,flag,attr = qcutils.MakeEmptySeries(ds,ds.climatology[series]["output"])
-            qcutils.CreateSeries(ds,ds.climatology[series]["output"],data,Flag=flag,Attr=attr)
     if "MergeSeries" in cf[section][series].keys():
         # create the merge series dictionary in the data structure
         gfMergeSeries_createdict(cf,ds,series)

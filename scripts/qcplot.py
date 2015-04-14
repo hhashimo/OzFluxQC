@@ -101,92 +101,129 @@ def get_yaxislimitsfromcf(cf,nFig,maxkey,minkey,nSer,YArray):
         YAxMin = numpy.ma.minimum(YArray)                            # Y axis minima not given, use auto
     return YAxMax,YAxMin
 
+def pltfingerprint_createdict(cf,ds):
+    fp_info = {}
+    fp_info["general"] = {}
+    fp_info["variables"] = {}
+    # parse the control file to get the information for the fingerprint plot
+    for var in cf["Variables"]:
+        # create the dictionary for this variable
+        fp_info["variables"][var] = {}
+        # get the input filename
+        if "in_filename" in cf["Variables"][var]:
+            fp_info["variables"][var]["in_filename"] = cf["Variables"][var]["in_filename"]
+        else:
+            fp_info["variables"][var]["in_filename"] = qcio.get_infilenamefromcf(cf)
+        # get the variable name
+        if "nc_varname" in cf["Variables"][var]:
+            fp_info["variables"][var]["nc_varname"] = cf["Variables"][var]["nc_varname"]
+        else:
+            fp_info["variables"][var]["nc_varname"] = str(var)
+        # get the upper and lower range limits
+        if "Lower" in cf["Variables"][var]:
+            fp_info["variables"][var]["Lower"] = cf["Variables"][var]["Lower"]
+        else:
+            fp_info["variables"][var]["Lower"] = float(-1)*c.large_value
+        if "Upper" in cf["Variables"][var]:
+            fp_info["variables"][var]["Upper"] = cf["Variables"][var]["Upper"]
+        else:
+            fp_info["variables"][var]["Upper"] = c.large_value
+    # get the start and end datetimes for all files and find the overlap period
+    var_list = fp_info["variables"].keys()
+    ds_0 = ds[fp_info["variables"][var_list[0]]["in_filename"]]
+    fp_info["variables"][var_list[0]]["start_date"] = ds_0.series["DateTime"]["Data"][0]
+    fp_info["variables"][var_list[0]]["end_date"] = ds_0.series["DateTime"]["Data"][-1]
+    fp_info["general"]["overlap_start"] = fp_info["variables"][var_list[0]]["start_date"]
+    fp_info["general"]["overlap_end"] = fp_info["variables"][var_list[0]]["end_date"]
+    fp_info["variables"][var_list[0]]["nc_nrecs"] = ds_0.globalattributes["nc_nrecs"]
+    fp_info["variables"][var_list[0]]["site_name"] = ds_0.globalattributes["site_name"]
+    fp_info["variables"][var_list[0]]["nc_level"] = str(ds_0.globalattributes["nc_level"])
+    fp_info["variables"][var_list[0]]["time_step"] = int(ds_0.globalattributes["time_step"])
+    if len(var_list)>1:
+        for var in var_list[1:]:
+            ds_n = ds[fp_info["variables"][var]["in_filename"]]
+            fp_info["variables"][var]["start_date"] = ds_n.series["DateTime"]["Data"][0]
+            fp_info["variables"][var]["end_date"] = ds_n.series["DateTime"]["Data"][-1]
+            fp_info["variables"][var]["nc_nrecs"] = ds_n.globalattributes["nc_nrecs"]
+            fp_info["variables"][var]["site_name"] = ds_n.globalattributes["site_name"]
+            fp_info["variables"][var]["nc_level"] = str(ds_n.globalattributes["nc_level"])
+            fp_info["variables"][var]["time_step"] = int(ds_n.globalattributes["time_step"])
+            # get the start and end datetimes where the files overlap
+            fp_info["general"]["overlap_start"] = max([fp_info["general"]["overlap_start"],fp_info["variables"][var]["start_date"]])
+            fp_info["general"]["overlap_end"] = min([fp_info["general"]["overlap_end"],fp_info["variables"][var]["end_date"]])
+    return fp_info
+
+def pltfingerprint_readncfiles(cf):
+    ds = {}
+    if "Files" in cf:
+        infilename = qcio.get_infilenamefromcf(cf)
+        ds[infilename] = qcio.nc_read_series(infilename)
+    for var in cf["Variables"].keys():
+        if "in_filename" in cf["Variables"][var]:
+            if cf["Variables"][var]["in_filename"] not in ds:
+                infilename = cf["Variables"][var]["in_filename"]
+                ds[cf["Variables"][var]["in_filename"]] = qcio.nc_read_series(infilename)
+    return ds
+
 def plot_fingerprint(cf):
     """ Do a fingerprint plot"""
-    infilename = qcio.get_infilenamefromcf(cf)
-    # read the netCDF file and return the data structure "ds"
-    ds = qcio.nc_read_series(infilename)
-    if len(ds.series.keys())==0:
-        log.error("netCDF file "+infilename+" not found")
-        return
-    # make sure the specific humidity deficit (SHD) is in the data structure
-    if "SHD" not in ds.series.keys():
-        Ah,f,a = qcutils.GetSeriesasMA(ds,"Ah")
-        Ta,f,a = qcutils.GetSeriesasMA(ds,"Ta")
-        ps,f,a = qcutils.GetSeriesasMA(ds,"ps")
-        e = mf.vapourpressure(Ah,Ta)                  # vapour pressure from absolute humidity and temperature
-        esat = mf.es(Ta)                              # saturation vapour pressure
-        mr = mf.mixingratio(ps,e)                     # mixing ratio
-        mrsat = mf.mixingratio(ps,esat)               # saturation mixing ratio
-        q = mf.specifichumidity(mr)                   # specific humidity from mixing ratio
-        qsat = mf.specifichumidity(mrsat)             # saturation specific humidity from saturation mixing ratio
-        SHD = qsat - q                                # specific humidity deficit
-        attr = qcutils.MakeAttributeDictionary(long_name='Specific humidity deficit',units='kg/kg')
-        qcutils.CreateSeries(ds,'SHD',SHD,FList=["Ta","Ah","ps"],Attr=attr)
-    # get some useful things
-    ts = int(ds.globalattributes["time_step"])
-    site_name = str(ds.globalattributes['site_name'])
-    level = str(ds.globalattributes['nc_level'])
-    nRecs = int(ds.globalattributes['nc_nrecs'])
-    # check for time gaps in the file
-    if qcutils.CheckTimeStep(ds):
-        qcutils.FixTimeStep(ds)
-        # update the Excel datetime from the Python datetime
-        qcutils.get_xldatefromdatetime(ds)
-        # update the Year, Month, Day etc from the Python datetime
-        qcutils.get_ymdhmsfromdatetime(ds)        
-    # title string for plots
-    TitleStr = site_name+' '+level
-    # number of records per hour and number per day
-    nPerHr = int(float(60)/ts+0.5)
-    nPerDay = int(float(24)*nPerHr+0.5)
-    # get the datetime series
-    DateTime = ds.series['DateTime']['Data']
-    StartDate = str(ds.series['DateTime']['Data'][0])
-    EndDate = str(ds.series['DateTime']['Data'][-1])
-    # find the start index of the first whole day (time=00:30)
-    si = qcutils.GetDateIndex(DateTime,StartDate,ts=ts,default=0,match='startnextday')
-    # find the end index of the last whole day (time=00:00)
-    ei = qcutils.GetDateIndex(DateTime,EndDate,ts=ts,default=-1,match='endpreviousday')
-    # truncate the datetie series to whole days
-    DateTime = DateTime[si:ei+1]
-    sd = datetime.datetime.toordinal(DateTime[0])
-    ed = datetime.datetime.toordinal(DateTime[-1])
-    TitleStr = TitleStr+' from '+str(DateTime[0])+' to '+str(DateTime[-1])
-    nDays = len(DateTime)/nPerDay
-    # do the plots
+    # read the input files
+    ds = pltfingerprint_readncfiles(cf)
+    # create a dictionary to hold the fingerprint plot information
+    fp_info = pltfingerprint_createdict(cf,ds)
+    overlap_start = fp_info["general"]["overlap_start"]
+    overlap_end = fp_info["general"]["overlap_end"]
+    # get a list of site names and remove duplicates
+    var_list = fp_info["variables"].keys()
+    site_name_list = [fp_info["variables"][var]["site_name"] for var in var_list]
+    site_name_list = list(set(site_name_list))
+    site_name = ','.join(str(x) for x in site_name_list)
+    # do the same for processing levels
+    level_list = [fp_info["variables"][var]["nc_level"] for var in var_list]
+    level_list = list(set(level_list))
+    level = ','.join(str(x) for x in level_list)
+    title_str = site_name+' '+level
+    title_str = title_str+' from '+str(overlap_start)+' to '+str(overlap_end)
+    # loop over plots
     plt.ion()
-    for nFig in cf['Plots'].keys():
-        n = 0
+    for nFig in cf["Plots"].keys():
         fig = plt.figure(nFig,figsize=[15,10])
         fig.canvas.set_window_title(cf["Plots"][str(nFig)]["Title"])
-        plt.figtext(0.5,0.95,TitleStr,horizontalalignment='center')
-        SeriesList = qcutils.GetPlotVariableNamesFromCF(cf,nFig)
-        nPlots = len(SeriesList)
-        for ThisOne in SeriesList:
-            n += 1
-            VarName = qcutils.GetAltNameFromCF(cf,ThisOne)
-            #ticks = qcutils.GetcbTicksFromCF(cf,ThisOne)
-            data,flag,attr = qcutils.GetSeriesasMA(ds,VarName,si=si,ei=ei)
-            lower, upper = qcutils.GetRangesFromCF(cf,ThisOne)
-            data = qcck.cliptorange(data, lower, upper)
+        plt.figtext(0.5,0.95,title_str,horizontalalignment='center')
+        fig_var_list = qcutils.GetPlotVariableNamesFromCF(cf,nFig)
+        nPlots = len(fig_var_list)
+        for n,var in enumerate(fig_var_list):
+            nc_varname = fp_info["variables"][var]["nc_varname"]
+            infilename = fp_info["variables"][var]["in_filename"]
+            ldt = ds[infilename].series["DateTime"]["Data"]
+            ts = fp_info["variables"][var]["time_step"]
+            si = qcutils.GetDateIndex(ldt,str(overlap_start),ts=ts,default=0,match='startnextday')
+            ei = qcutils.GetDateIndex(ldt,str(overlap_end),ts=ts,default=-1,match='endpreviousday')
+            ldt = ldt[si:ei+1]
+            nPerHr = int(float(60)/ts+0.5)
+            nPerDay = int(float(24)*nPerHr+0.5)
+            nDays = len(ldt)/nPerDay
+            sd = datetime.datetime.toordinal(ldt[0])
+            ed = datetime.datetime.toordinal(ldt[-1])
+            data,flag,attr = qcutils.GetSeriesasMA(ds[infilename],nc_varname,si=si,ei=ei)
+            data = qcck.cliptorange(data,fp_info["variables"][var]["Lower"],fp_info["variables"][var]["Upper"])
             data_daily = data.reshape(nDays,nPerDay)
-            units = str(ds.series[VarName]['Attr']['units'])
-            label = VarName + ' (' + units + ')'
+            units = str(ds[infilename].series[nc_varname]['Attr']['units'])
+            label = var + ' (' + units + ')'
             loc,fmt = get_ticks(datetime.datetime.fromordinal(sd),datetime.datetime.fromordinal(ed))
-            if n==1:
-                ax = plt.subplot(1,nPlots,n)
+            if n==0:
+                ax = plt.subplot(1,nPlots,n+1)
             else:
-                ax = plt.subplot(1,nPlots,n,sharey=ax)
+                ax = plt.subplot(1,nPlots,n+1,sharey=ax)
             plt.imshow(data_daily,extent=[0,24,sd,ed],aspect='auto',origin='lower')
             ax.yaxis.set_major_locator(loc)
             ax.yaxis.set_major_formatter(fmt)
-            #plt.colorbar(orientation='horizontal',fraction=0.02,pad=0.075,ticks=ticks)
             cb = plt.colorbar(orientation='horizontal',fraction=0.02,pad=0.075)
+            print var,numpy.min(data),numpy.max(data)
             cb.set_ticks(numpy.linspace(numpy.min(data),numpy.max(data),4))
             plt.xticks([0,6,12,18,24])
             plt.xlabel(label)
-            if n!= 1: plt.setp(ax.get_yticklabels(), visible=False)
+            if n!= 0: plt.setp(ax.get_yticklabels(), visible=False)
         pngname = 'plots/'+site_name.replace(' ','')+'_'+level+'_'
         pngname = pngname+qcutils.GetPlotTitleFromCF(cf,nFig).replace(' ','_')+'.png'
         fig.savefig(pngname,format='png')
