@@ -844,7 +844,7 @@ def ncsplit_run(split_gui):
 
 def nc_read_series(ncFullName):
     ''' Read a netCDF file and put the data and meta-data into a DataStructure'''
-    log.info(' Reading netCDF file '+ncFullName)
+    log.info(" Reading netCDF file ")
     netCDF4.default_encoding = 'latin-1'
     ds = DataStructure()
     # check to see if the requested file exists, return empty ds if it doesn't

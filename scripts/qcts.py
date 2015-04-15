@@ -395,40 +395,48 @@ def CalculateHumidities(ds):
             RelativeHumidityFromq(ds)
 
 def CalculateHumiditiesAfterGapFill(ds):
+    """
+    Purpose:
+     Check to see which humidity quantities (Ah, RH or q) have been gap filled
+     and, if necessary, calculate the other humidity quantities from the gap
+     filled one.
+    Usage:
+     qcts.CalculateHumiditiesAfterGapFill(ds)
+     where ds is a data structure
+    Author: PRI
+    Date: April 2015
+    """
+    # create an empty list
+    alt_list = []
+    # check to see if there was any gap filling using data from alternate sources
     if "alternate" in dir(ds):
-        if "Ah" not in ds.access.keys():
-            if "q" in ds.access.keys():
-                AbsoluteHumidityFromq(ds)    # q has been gap filled but not Ah so calculate Ah from q
-            elif "RH" in ds.access.keys():
-                AbsoluteHumidityFromRH(ds)   # RH has been gap filled but not Ah so calculate Ah from RH
-        if "q" not in ds.access.keys():
-            if "Ah" in ds.access.keys():
-                SpecificHumidityFromAh(ds)
-            elif "RH" in ds.access.keys():
-                SpecificHumidityFromRH(ds)
-        if "RH" not in ds.access.keys():
-            if "Ah" in ds.access.keys():
-                RelativeHumidityFromAh(ds)
-            elif "q" in ds.access.keys():
-                RelativeHumidityFromq(ds)
-        del ds.access
+        # if so, get a list of the quantities gap filled from alternate sources
+        alt_list = list(set([ds.alternate[item]["label_tower"] for item in ds.alternate.keys()]))
+    # create an empty list
+    cli_list = []
+    # check to see if there was any gap filling from climatology
     if "climatology" in dir(ds):
-        if "Ah" not in ds.climatology.keys():
-            if "q" in ds.climatology.keys():
-                AbsoluteHumidityFromq(ds)    # q has been gap filled but not Ah so calculate Ah from q
-            elif "RH" in ds.climatology.keys():
-                AbsoluteHumidityFromRH(ds)   # RH has been gap filled but not Ah so calculate Ah from RH
-        if "q" not in ds.climatology.keys():
-            if "Ah" in ds.climatology.keys():
-                SpecificHumidityFromAh(ds)
-            elif "RH" in ds.climatology.keys():
-                SpecificHumidityFromRH(ds)
-        if "RH" not in ds.climatology.keys():
-            if "Ah" in ds.climatology.keys():
-                RelativeHumidityFromAh(ds)
-            elif "q" in ds.climatology.keys():
-                RelativeHumidityFromq(ds)
-        del ds.climatology
+        # if so, get a list of the quantities gap filled using climatology
+        cli_list = list(set([ds.climatology[item]["label_tower"] for item in ds.climatology.keys()]))
+    # one list to rule them, one list to bind them ...
+    gf_list = list(set(alt_list+cli_list))
+    # clear out if there was no gap filling
+    if len(gf_list)==0: return
+    # check to see if absolute humidity (Ah) was gap filled ...
+    if "Ah" in gf_list:
+        if "q" not in gf_list: SpecificHumidityFromAh(ds)
+        if "RH" not in gf_list: RelativeHumidityFromAh(ds)
+    # ... or was relative humidity (RH) gap filled ...
+    elif "RH" in gf_list:
+        if "Ah" not in gf_list: AbsoluteHumidityFromRH(ds)
+        if "q" not in gf_list: SpecificHumidityFromRH(ds)
+    # ... or was specific humidity (q) gap filled ...
+    elif "q" in gf_list:
+        if "Ah" not in gf_list: AbsoluteHumidityFromq(ds)
+        if "RH" not in gf_list: RelativeHumidityFromq(ds)
+    else:
+        msg = "No humidities were gap filled!"
+        log.warning(msg)
 
 def AbsoluteHumidityFromRH(ds):
     """ Calculate absolute humidity from relative humidity. """

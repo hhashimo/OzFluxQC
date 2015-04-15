@@ -111,21 +111,21 @@ def pltfingerprint_createdict(cf,ds):
         fp_info["variables"][var] = {}
         # get the input filename
         if "in_filename" in cf["Variables"][var]:
-            fp_info["variables"][var]["in_filename"] = cf["Variables"][var]["in_filename"]
+            fp_info["variables"][var]["in_filename"] = str(cf["Variables"][var]["in_filename"])
         else:
             fp_info["variables"][var]["in_filename"] = qcio.get_infilenamefromcf(cf)
         # get the variable name
         if "nc_varname" in cf["Variables"][var]:
-            fp_info["variables"][var]["nc_varname"] = cf["Variables"][var]["nc_varname"]
+            fp_info["variables"][var]["nc_varname"] = str(cf["Variables"][var]["nc_varname"])
         else:
             fp_info["variables"][var]["nc_varname"] = str(var)
         # get the upper and lower range limits
         if "Lower" in cf["Variables"][var]:
-            fp_info["variables"][var]["Lower"] = cf["Variables"][var]["Lower"]
+            fp_info["variables"][var]["Lower"] = float(cf["Variables"][var]["Lower"])
         else:
             fp_info["variables"][var]["Lower"] = float(-1)*c.large_value
         if "Upper" in cf["Variables"][var]:
-            fp_info["variables"][var]["Upper"] = cf["Variables"][var]["Upper"]
+            fp_info["variables"][var]["Upper"] = float(cf["Variables"][var]["Upper"])
         else:
             fp_info["variables"][var]["Upper"] = c.large_value
     # get the start and end datetimes for all files and find the overlap period
@@ -135,8 +135,8 @@ def pltfingerprint_createdict(cf,ds):
     fp_info["variables"][var_list[0]]["end_date"] = ds_0.series["DateTime"]["Data"][-1]
     fp_info["general"]["overlap_start"] = fp_info["variables"][var_list[0]]["start_date"]
     fp_info["general"]["overlap_end"] = fp_info["variables"][var_list[0]]["end_date"]
-    fp_info["variables"][var_list[0]]["nc_nrecs"] = ds_0.globalattributes["nc_nrecs"]
-    fp_info["variables"][var_list[0]]["site_name"] = ds_0.globalattributes["site_name"]
+    fp_info["variables"][var_list[0]]["nc_nrecs"] = int(ds_0.globalattributes["nc_nrecs"])
+    fp_info["variables"][var_list[0]]["site_name"] = str(ds_0.globalattributes["site_name"])
     fp_info["variables"][var_list[0]]["nc_level"] = str(ds_0.globalattributes["nc_level"])
     fp_info["variables"][var_list[0]]["time_step"] = int(ds_0.globalattributes["time_step"])
     if len(var_list)>1:
@@ -144,8 +144,8 @@ def pltfingerprint_createdict(cf,ds):
             ds_n = ds[fp_info["variables"][var]["in_filename"]]
             fp_info["variables"][var]["start_date"] = ds_n.series["DateTime"]["Data"][0]
             fp_info["variables"][var]["end_date"] = ds_n.series["DateTime"]["Data"][-1]
-            fp_info["variables"][var]["nc_nrecs"] = ds_n.globalattributes["nc_nrecs"]
-            fp_info["variables"][var]["site_name"] = ds_n.globalattributes["site_name"]
+            fp_info["variables"][var]["nc_nrecs"] = int(ds_n.globalattributes["nc_nrecs"])
+            fp_info["variables"][var]["site_name"] = str(ds_n.globalattributes["site_name"])
             fp_info["variables"][var]["nc_level"] = str(ds_n.globalattributes["nc_level"])
             fp_info["variables"][var]["time_step"] = int(ds_n.globalattributes["time_step"])
             # get the start and end datetimes where the files overlap
@@ -219,7 +219,6 @@ def plot_fingerprint(cf):
             ax.yaxis.set_major_locator(loc)
             ax.yaxis.set_major_formatter(fmt)
             cb = plt.colorbar(orientation='horizontal',fraction=0.02,pad=0.075)
-            print var,numpy.min(data),numpy.max(data)
             cb.set_ticks(numpy.linspace(numpy.min(data),numpy.max(data),4))
             plt.xticks([0,6,12,18,24])
             plt.xlabel(label)
