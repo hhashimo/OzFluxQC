@@ -218,13 +218,13 @@ class qcgui(tk.Tk):
         """
             Close plot windows
             """
-        import matplotlib
         self.do_progress(text='Closing plot windows ...')             # tell the user what we're doing
         log.info(' Closing plot windows ...')
-        fig_numbers = [n.num for n in matplotlib._pylab_helpers.Gcf.get_all_fig_managers()]
-        #log.info('  Closing plot windows: '+str(fig_numbers))
-        for n in fig_numbers:
-            matplotlib.pyplot.close(n)
+        matplotlib.pyplot.close('all')
+        #fig_numbers = [n.num for n in matplotlib._pylab_helpers.Gcf.get_all_fig_managers()]
+        ##log.info('  Closing plot windows: '+str(fig_numbers))
+        #for n in fig_numbers:
+            #matplotlib.pyplot.close(n)
         self.do_progress(text='Waiting for input ...')             # tell the user what we're doing
         log.info(' Waiting for input ...')
 
@@ -784,7 +784,6 @@ class qcgui(tk.Tk):
         """
             Close plot windows and quit QC Data GUI
             """
-        import matplotlib
         self.do_progress(text='Closing plot windows ...')             # tell the user what we're doing
         log.info(' Closing plot windows ...')
         matplotlib.pyplot.close('all')

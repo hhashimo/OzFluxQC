@@ -1132,7 +1132,10 @@ def gfalternate_plotdetailed(nfig,label,data_plot,alternate_info,pd):
     source = alternate_info["source"]
     if "bom_id" in alternate_info.keys(): source = source+" ("+str(alternate_info["bom_id"])+")"
     # turn on interactive plotting
-    if alternate_info["show_plots"]: plt.ion()
+    if alternate_info["show_plots"]:
+        plt.ion()
+    else:
+        plt.ioff()
     # create the figure canvas
     fig = plt.figure(nfig,figsize=(13,9))
     fig.canvas.set_window_title(label)
@@ -1219,9 +1222,11 @@ def gfalternate_plotdetailed(nfig,label,data_plot,alternate_info,pd):
     figname = figname+"_"+sdt+"_"+edt+'.png'
     fig.savefig(figname,format='png')
     # draw the plot on the screen
-    if alternate_info["show_plots"]: plt.draw()
-    # turn off interactive plotting
-    if alternate_info["show_plots"]: plt.ioff()
+    if alternate_info["show_plots"]:
+        plt.draw()
+        plt.ioff()
+    else:
+        plt.ion()
 
 def GapFillUsingSOLO(dsa,dsb):
     '''
@@ -1241,7 +1246,9 @@ def GapFillUsingSOLO(dsa,dsb):
     startdate = ldt[0]
     enddate = ldt[-1]
     solo_info = {"file_startdate":startdate.strftime("%Y-%m-%d %H:%M"),
-                 "file_enddate":enddate.strftime("%Y-%m-%d %H:%M")}
+                 "file_enddate":enddate.strftime("%Y-%m-%d %H:%M"),
+                 "startdate":startdate.strftime("%Y-%m-%d"),
+                 "enddate":enddate.strftime("%Y-%m-%d")}
     # set up the GUI
     solo_gui = Tkinter.Toplevel()
     solo_gui.wm_title("SOLO GUI (Fluxes)")
@@ -1371,7 +1378,7 @@ def gfSOLO_getserieslist(cf):
             if "GapFillUsingSOLO" in cf["Fluxes"][series]: series_list.append(series)
     return series_list
 
-def gfSOLO_main(dsa,dsb,solo_gui,solo_info):
+def gfSOLO_main(dsa,dsb,solo_info):
     '''
     This is the main routine for running SOLO, an artifical neural network for gap filling fluxes.
     '''
@@ -1432,13 +1439,17 @@ def gfSOLO_main(dsa,dsb,solo_gui,solo_info):
                 dsb.solo[series]["results"][item].append(float(c.missing_value))
             continue
         drivers = dsb.solo[series]["drivers"]
+        if str(solo_info["nodes"]).lower()=="auto":
+            solo_info["nodes_target"] = len(drivers)+1
+        else:
+            solo_info["nodes_target"] = int(solo_info["nodes"])
         output = dsb.solo[series]["output"]
         # set the number of nodes for the inf files
-        nodesAuto = gfSOLO_setnodesEntry(solo_gui,drivers)
+        #nodesAuto = gfSOLO_setnodesEntry(solo_gui,drivers)
         # write the inf files for sofm, solo and seqsolo
-        gfSOLO_writeinffiles(solo_gui)
+        gfSOLO_writeinffiles(solo_info)
         # run SOFM
-        result = gfSOLO_runsofm(dsa,dsb,solo_gui,drivers,series,nRecs,si=si,ei=ei)
+        result = gfSOLO_runsofm(dsa,dsb,drivers,series,nRecs,si=si,ei=ei)
         if result!=1: return
         # run SOLO
         result = gfSOLO_runsolo(dsa,dsb,drivers,series,nRecs,si=si,ei=ei)
@@ -1451,9 +1462,9 @@ def gfSOLO_main(dsa,dsb,solo_gui,solo_info):
         title = site_name+' : Comparison of tower and SOLO data for '+series
         pd = gfSOLO_initplot(site_name=site_name,label=series,fig_num=fig_num,title=title,
                              nDrivers=len(drivers))
-        gfSOLO_plot(pd,dsa,dsb,drivers,series,output,solo_gui,si=si,ei=ei)
+        gfSOLO_plot(pd,dsa,dsb,drivers,series,output,solo_info,si=si,ei=ei)
         # reset the nodesEntry in the solo_gui
-        if nodesAuto: gfSOLO_resetnodesEntry(solo_gui)
+        #if nodesAuto: gfSOLO_resetnodesEntry(solo_gui)
     if 'GapFillUsingSOLO' not in dsb.globalattributes['Functions']:
         dsb.globalattributes['Functions'] = dsb.globalattributes['Functions']+', GapFillUsingSOLO'
 
@@ -1478,11 +1489,11 @@ def gfSOLO_resetnodesEntry(solo_gui):
     solo_gui.nodesEntry.delete(0,Tkinter.END)
     solo_gui.nodesEntry.insert(0,"Auto")
 
-def gfSOLO_writeinffiles(solo_gui):
+def gfSOLO_writeinffiles(solo_info):
     # sofm inf file
     f = open('solo/inf/sofm.inf','w')
-    f.write(str(solo_gui.nodesEntry.get())+'\n')
-    f.write(str(solo_gui.trainingEntry.get())+'\n')
+    f.write(str(solo_info["nodes_target"])+'\n')
+    f.write(str(solo_info["training"])+'\n')
     f.write(str(20)+'\n')
     f.write(str(0.01)+'\n')
     f.write(str(1234)+'\n')
@@ -1507,8 +1518,8 @@ def gfSOLO_writeinffiles(solo_gui):
     f.close()
     # solo inf file
     f = open('solo/inf/solo.inf','w')
-    f.write(str(solo_gui.nodesEntry.get())+'\n')
-    f.write(str(solo_gui.factorEntry.get())+'\n')
+    f.write(str(solo_info["nodes_target"])+'\n')
+    f.write(str(solo_info["factor"])+'\n')
     f.write('solo/output/sofm_4.out'+'\n')
     f.write('solo/input/solo_input.csv'+'\n')
     f.write('training'+'\n')
@@ -1537,10 +1548,10 @@ def gfSOLO_writeinffiles(solo_gui):
     f.close()
     # seqsolo inf file
     f = open('solo/inf/seqsolo.inf','w')
-    f.write(str(solo_gui.nodesEntry.get())+'\n')
+    f.write(str(solo_info["nodes_target"])+'\n')
     f.write(str(0)+'\n')
-    f.write(str(solo_gui.learningrateEntry.get())+'\n')
-    f.write(str(solo_gui.iterationsEntry.get())+'\n')
+    f.write(str(solo_info["learningrate"])+'\n')
+    f.write(str(solo_info["iterations"])+'\n')
     f.write('solo/output/sofm_4.out'+'\n')
     f.write('solo/input/seqsolo_input.csv'+'\n')
     f.write('simulation'+'\n')
@@ -1573,24 +1584,10 @@ def gfSOLO_writeinffiles(solo_gui):
     f.write('Line 22: missing data value, default value is c.missing_value.0\n')
     f.close()
 
-def gfSOLO_runsofm(dsa,dsb,solo_gui,driverlist,targetlabel,nRecs,si=0,ei=-1):
+def gfSOLO_runsofm(dsa,dsb,driverlist,targetlabel,nRecs,si=0,ei=-1):
     '''
     Run sofm, the pre-processor for SOLO.
     '''
-    # check to see if we need to run sofm again
-    # construct the sofm output file name
-    ldt = dsb.series['DateTime']['Data']
-    sofmoutname=dsb.globalattributes['site_name'].replace(' ','')     # site name
-    for x in driverlist: sofmoutname = sofmoutname + x                # drivers
-    sofmoutname = sofmoutname + ldt[si].strftime('%Y%m%d%H%M')        # start datetime
-    sofmoutname = sofmoutname + ldt[ei].strftime('%Y%m%d%H%M')        # end datetime
-    sofmoutname = sofmoutname + str(solo_gui.nodesEntry.get())        # nodes
-    sofmoutname = sofmoutname + str(solo_gui.trainingEntry.get())     # sofm training iterations
-    sofmoutname = sofmoutname + str(solo_gui.factorEntry.get())       # Nda factor
-    sofmoutname = sofmoutname + str(solo_gui.learningrateEntry.get()) # learning rate
-    sofmoutname = sofmoutname + str(solo_gui.iterationsEntry.get())   # seqsolo training iterations
-    sofmoutname = sofmoutname + '.out'
-    sofminfname = sofmoutname + '.inf'
     # get the number of drivers
     ndrivers = len(driverlist)
     # add an extra column for the target data
@@ -1621,7 +1618,6 @@ def gfSOLO_runsofm(dsa,dsb,solo_gui,driverlist,targetlabel,nRecs,si=0,ei=-1):
     # if the output file from a previous run exists, delete it
     if os.path.exists('solo/output/sofm_4.out'): os.remove('solo/output/sofm_4.out')
     # now run SOFM
-    #log.info(' GapFillUsingSOLO: running SOFM')
     sofmlogfile = open('solo/log/sofm.log','wb')
     if platform.system()=="Windows":
         subprocess.call(['./solo/bin/sofm.exe','solo/inf/sofm.inf'],stdout=sofmlogfile)
@@ -1630,30 +1626,10 @@ def gfSOLO_runsofm(dsa,dsb,solo_gui,driverlist,targetlabel,nRecs,si=0,ei=-1):
     sofmlogfile.close()
     # check to see if the sofm output file exists, this is used to indicate that sofm ran correctly
     if os.path.exists('solo/output/sofm_4.out'):
-        # write out the details of this run
-        #gfSOLO_savethissofmrun(sofmoutname,sofminfname)
         return 1
     else:
         log.error(' gfSOLO_runsofm: SOFM did not run correctly, check the SOLO GUI and the log files')
         return 0
-
-def gfSOLO_savethissofmrun(sofmoutname,sofminfname):
-    '''
-    Writes the output file from sofm to the archive directory so that it is
-    available for future runs if needed.
-    The sofm output file "sofm_4.out" is saved to the "solo/archive" directory
-    so that it can be re-used in a later run.  The file is saved using a new
-    file name that is constructed as follows:
-     <site_name><target><driverlist><start_datetime><end_datetime>
-    Running sofm is slow.  Saving the putput files can speed up the process
-    of gap filling using sofm/solo.
-    '''
-    try:
-        os.makedirs('solo/archive')
-    except OSError:
-        if not os.path.isdir('solo/archive'): raise
-    shutil.copy2('solo/output/sofm_4.out','solo/archive/'+sofmoutname)
-    shutil.copy2('solo/inf/sofm.inf','solo/archive/'+sofminfname)
 
 def gfSOLO_runsolo(dsa,dsb,driverlist,targetlabel,nRecs,si=0,ei=-1):
     '''
@@ -1713,6 +1689,11 @@ def gfSOLO_run(dsa,dsb,solo_gui,solo_info):
     solo_info["show_plots"] = True
     if solo_gui.pltopt.get()==0: solo_info["show_plots"] = False
     solo_info["min_percent"] = int(solo_gui.minptsEntry.get())
+    solo_info["nodes"] = str(solo_gui.nodesEntry.get())
+    solo_info["training"] = str(solo_gui.trainingEntry.get())
+    solo_info["factor"] = str(solo_gui.factorEntry.get())
+    solo_info["learningrate"] = str(solo_gui.learningrateEntry.get())
+    solo_info["iterations"] = str(solo_gui.iterationsEntry.get())
     solo_info["site_name"] = dsb.globalattributes["site_name"]
     solo_info["time_step"] = int(dsb.globalattributes["time_step"])
     solo_info["nperhr"] = int(float(60)/solo_info["time_step"]+0.5)
@@ -1724,17 +1705,15 @@ def gfSOLO_run(dsa,dsb,solo_gui,solo_info):
     if solo_gui.peropt.get()==1:
         gfSOLO_progress(solo_gui,"Starting manual run ...")
         # get the start and end datetimes entered in the SOLO GUI
-        solo_info["startdate"] = solo_gui.startEntry.get()
-        if len(solo_info["startdate"])==0: solo_info["startdate"] = solo_info["file_startdate"]
-        solo_info["enddate"] = solo_gui.endEntry.get()
-        if len(solo_info["enddate"])==0: solo_info["enddate"] = solo_info["file_enddate"]
-        gfSOLO_main(dsa,dsb,solo_gui,solo_info)
+        if len(solo_gui.startEntry.get())!=0: solo_info["startdate"] = solo_gui.startEntry.get()
+        if len(solo_gui.endEntry.get())!=0: solo_info["enddate"] = solo_gui.endEntry.get()
+        gfSOLO_main(dsa,dsb,solo_info)
         gfSOLO_progress(solo_gui,"Finished manual run ...")
+        log.info(" GapFillUsingSOLO: Finished manual run ...")
     elif solo_gui.peropt.get()==2:
         gfSOLO_progress(solo_gui,"Starting auto (monthly) run ...")
         # get the start datetime entered in the SOLO GUI
-        solo_info["startdate"] = solo_gui.startEntry.get()
-        if len(solo_info["startdate"])==0: solo_info["startdate"] = solo_info["file_startdate"]
+        if len(solo_gui.startEntry.get())!=0: solo_info["startdate"] = solo_gui.startEntry.get()
         startdate = dateutil.parser.parse(solo_info["startdate"])
         file_startdate = dateutil.parser.parse(solo_info["file_startdate"])
         file_enddate = dateutil.parser.parse(solo_info["file_enddate"])
@@ -1742,7 +1721,7 @@ def gfSOLO_run(dsa,dsb,solo_gui,solo_info):
         enddate = min([file_enddate,enddate])
         solo_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d")
         while startdate<file_enddate:
-            gfSOLO_main(dsa,dsb,solo_gui,solo_info)
+            gfSOLO_main(dsa,dsb,solo_info)
             startdate = enddate
             enddate = startdate+dateutil.relativedelta.relativedelta(months=1)
             solo_info["startdate"] = startdate.strftime("%Y-%m-%d")
@@ -1750,11 +1729,11 @@ def gfSOLO_run(dsa,dsb,solo_gui,solo_info):
         # plot the summary statistics
         gfSOLO_plotsummary(dsb)
         gfSOLO_progress(solo_gui,"Finished auto (monthly) run ...")
+        log.info(" GapFillUsingSOLO: Finished auto (monthly) run ...")
     elif solo_gui.peropt.get()==3:
         gfSOLO_progress(solo_gui,"Starting auto (days) run ...")
         # get the start datetime entered in the SOLO GUI
-        solo_info["startdate"] = solo_gui.startEntry.get()
-        if len(solo_info["startdate"])==0: solo_info["startdate"] = solo_info["file_startdate"]
+        if len(solo_gui.startEntry.get())!=0: solo_info["startdate"] = solo_gui.startEntry.get()
         startdate = dateutil.parser.parse(solo_info["startdate"])
         file_startdate = dateutil.parser.parse(solo_info["file_startdate"])
         file_enddate = dateutil.parser.parse(solo_info["file_enddate"])
@@ -1763,7 +1742,7 @@ def gfSOLO_run(dsa,dsb,solo_gui,solo_info):
         enddate = min([file_enddate,enddate])
         solo_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d")
         while startdate<file_enddate:
-            gfSOLO_main(dsa,dsb,solo_gui,solo_info)
+            gfSOLO_main(dsa,dsb,solo_info)
             startdate = enddate
             enddate = startdate+dateutil.relativedelta.relativedelta(days=nDays)
             solo_info["startdate"] = startdate.strftime("%Y-%m-%d")
@@ -1771,6 +1750,7 @@ def gfSOLO_run(dsa,dsb,solo_gui,solo_info):
         # plot the summary statistics
         gfSOLO_plotsummary(dsb)
         gfSOLO_progress(solo_gui,"Finished auto (days) run ...")
+        log.info(" GapFillUsingSOLO: Finished auto (days) run ...")
     elif solo_gui.peropt.get()==4:
         pass
 
@@ -1857,7 +1837,7 @@ def gfSOLO_initplot(**kwargs):
     pd["ts_height"] = (1.0 - pd["margin_top"] - pd["ts_bottom"])/float(pd["nDrivers"]+1)
     return pd
 
-def gfSOLO_plot(pd,dsa,dsb,driverlist,targetlabel,outputlabel,solo_gui,si=0,ei=-1):
+def gfSOLO_plot(pd,dsa,dsb,driverlist,targetlabel,outputlabel,solo_info,si=0,ei=-1):
     """ Plot the results of the SOLO run. """
     # get the time step
     ts = int(dsb.globalattributes['time_step'])
@@ -1868,7 +1848,10 @@ def gfSOLO_plot(pd,dsa,dsb,driverlist,targetlabel,outputlabel,solo_gui,si=0,ei=-
     obs,f,a = qcutils.GetSeriesasMA(dsa,targetlabel,si=si,ei=ei)
     mod,f,a = qcutils.GetSeriesasMA(dsb,outputlabel,si=si,ei=ei)
     # make the figure
-    plt.ion()
+    if solo_info["show_plots"]:
+        plt.ion()
+    else:
+        plt.ioff()
     fig = plt.figure(pd["fig_num"],figsize=(13,9))
     fig.clf()
     fig.canvas.set_window_title(targetlabel)
@@ -1920,15 +1903,15 @@ def gfSOLO_plot(pd,dsa,dsb,driverlist,targetlabel,outputlabel,solo_gui,si=0,ei=-
     plt.figtext(0.75,0.225,str(numpoints))
     dsb.solo[targetlabel]["results"]["No. points"].append(numpoints)
     plt.figtext(0.65,0.200,'Nodes')
-    plt.figtext(0.75,0.200,str(solo_gui.nodesEntry.get()))
+    plt.figtext(0.75,0.200,str(solo_info["nodes_target"]))
     plt.figtext(0.65,0.175,'Training')
-    plt.figtext(0.75,0.175,str(solo_gui.trainingEntry.get()))
+    plt.figtext(0.75,0.175,str(solo_info["training"]))
     plt.figtext(0.65,0.150,'Nda factor')
-    plt.figtext(0.75,0.150,str(solo_gui.factorEntry.get()))
+    plt.figtext(0.75,0.150,str(solo_info["factor"]))
     plt.figtext(0.65,0.125,'Learning rate')
-    plt.figtext(0.75,0.125,str(solo_gui.learningrateEntry.get()))
+    plt.figtext(0.75,0.125,str(solo_info["learningrate"]))
     plt.figtext(0.65,0.100,'Iterations')
-    plt.figtext(0.75,0.100,str(solo_gui.iterationsEntry.get()))
+    plt.figtext(0.75,0.100,str(solo_info["iterations"]))
     plt.figtext(0.815,0.225,'No. filled')
     plt.figtext(0.915,0.225,str(numfilled))
     plt.figtext(0.815,0.200,'Slope')
@@ -1975,10 +1958,11 @@ def gfSOLO_plot(pd,dsa,dsb,driverlist,targetlabel,outputlabel,solo_gui,si=0,ei=-
     figname = "plots/"+pd["site_name"].replace(" ","")+"_SOLO_"+pd["label"]
     figname = figname+"_"+sdt+"_"+edt+'.png'
     fig.savefig(figname,format='png')
-    # draw the plot on the screen
-    plt.draw()
-    # turn off interactive plotting
-    plt.ioff()
+    if solo_info["show_plots"]:
+        plt.draw()
+        plt.ioff()
+    else:
+        plt.ion()
 
 def gfSOLO_plotsummary(ds):
     """ Plot single pages of summary results for groups of variables. """
