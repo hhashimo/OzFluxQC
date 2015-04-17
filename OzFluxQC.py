@@ -445,16 +445,20 @@ class qcgui(tk.Tk):
         sitename = self.ds3.globalattributes['site_name']
         self.do_progress(text='Doing L4 gap filling drivers: '+sitename+' ...')
         self.ds4 = qcls.l4qc(self.cf,self.ds3)
-        self.do_progress(text='Finished L4: '+sitename)
-        log.info(' Finished L4: '+sitename)
-        self.do_progress(text='Saving L4 gap filled data ...')           # put up the progress message
-        outfilename = qcio.get_outfilenamefromcf(self.cf)
-        if len(outfilename)==0: self.do_progress(text='An error occurred, check the console ...'); return
-        ncFile = qcio.nc_open_write(outfilename)
-        outputlist = qcio.get_outputlistfromcf(self.cf,'nc')
-        qcio.nc_write_series(ncFile,self.ds4,outputlist=outputlist)             # save the L4 data
-        self.do_progress(text='Finished saving L4 gap filled data')      # tell the user we are done
-        log.info(' Finished saving L4 gap filled data')
+        if self.ds4.returncodes["alternate"]=="quit" or self.ds4.returncodes["solo"]=="quit":
+            self.do_progress(text='Quitting L4: '+sitename)
+            log.info(' Quitting L4: '+sitename)
+        else:
+            self.do_progress(text='Finished L4: '+sitename)
+            log.info(' Finished L4: '+sitename)
+            self.do_progress(text='Saving L4 gap filled data ...')         # put up the progress message
+            outfilename = qcio.get_outfilenamefromcf(self.cf)
+            if len(outfilename)==0: self.do_progress(text='An error occurred, check the console ...'); return
+            ncFile = qcio.nc_open_write(outfilename)
+            outputlist = qcio.get_outputlistfromcf(self.cf,'nc')
+            qcio.nc_write_series(ncFile,self.ds4,outputlist=outputlist)    # save the L4 data
+            self.do_progress(text='Finished saving L4 gap filled data')    # tell the user we are done
+            log.info(' Finished saving L4 gap filled data')
 
     def do_l5qc(self):
         """
@@ -473,16 +477,20 @@ class qcgui(tk.Tk):
         sitename = self.ds4.globalattributes['site_name']
         self.do_progress(text='Doing L5 gap filling fluxes: '+sitename+' ...')
         self.ds5 = qcls.l5qc(self.cf,self.ds4)
-        self.do_progress(text='Finished L5: '+sitename)
-        log.info(' Finished L5: '+sitename)
-        self.do_progress(text='Saving L5 gap filled data ...')           # put up the progress message
-        outfilename = qcio.get_outfilenamefromcf(self.cf)
-        if len(outfilename)==0: self.do_progress(text='An error occurred, check the console ...'); return
-        ncFile = qcio.nc_open_write(outfilename)
-        outputlist = qcio.get_outputlistfromcf(self.cf,'nc')
-        qcio.nc_write_series(ncFile,self.ds5,outputlist=outputlist)             # save the L5 data
-        self.do_progress(text='Finished saving L5 gap filled data')      # tell the user we are done
-        log.info(' Finished saving L5 gap filled data')
+        if self.ds5.returncodes["solo"]=="quit":
+            self.do_progress(text='Quitting L5: '+sitename)
+            log.info(' Quitting L5: '+sitename)
+        else:
+            self.do_progress(text='Finished L5: '+sitename)
+            log.info(' Finished L5: '+sitename)
+            self.do_progress(text='Saving L5 gap filled data ...')           # put up the progress message
+            outfilename = qcio.get_outfilenamefromcf(self.cf)
+            if len(outfilename)==0: self.do_progress(text='An error occurred, check the console ...'); return
+            ncFile = qcio.nc_open_write(outfilename)
+            outputlist = qcio.get_outputlistfromcf(self.cf,'nc')
+            qcio.nc_write_series(ncFile,self.ds5,outputlist=outputlist)             # save the L5 data
+            self.do_progress(text='Finished saving L5 gap filled data')      # tell the user we are done
+            log.info(' Finished saving L5 gap filled data')
 
     def do_l6qc(self):
         """

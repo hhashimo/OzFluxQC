@@ -114,8 +114,6 @@ def CheckTimeStep(ds):
     if len(index)!=0:
         has_gaps = True
         log.warning(" CheckTimeStep: "+str(len(index))+" problems found with the time stamp")
-    else:
-        log.info(" CheckTimeStep: no problems found with time stamp")
     return has_gaps
 
 def contiguous_regions(condition):
@@ -972,10 +970,24 @@ def get_missingingapfilledseries(ds):
     """
     # get a local pointer to the datetime
     ldt = ds.series["DateTime"]["Data"]
-    # get the list of series to be checked
-    series_list = [ds.alternate[item]["label_tower"] for item in ds.alternate.keys()]
+    # create an empty list
+    alt_list = []
+    # check to see if there was any gap filling using data from alternate sources
+    if "alternate" in dir(ds):
+        # if so, get a list of the quantities gap filled from alternate sources
+        alt_list = list(set([ds.alternate[item]["label_tower"] for item in ds.alternate.keys()]))
+    # create an empty list
+    cli_list = []
+    # check to see if there was any gap filling from climatology
+    if "climatology" in dir(ds):
+        # if so, get a list of the quantities gap filled using climatology
+        cli_list = list(set([ds.climatology[item]["label_tower"] for item in ds.climatology.keys()]))
+    # one list to rule them, one list to bind them ...
+    gf_list = list(set(alt_list+cli_list))
+    # clear out if there was no gap filling
+    if len(gf_list)==0: return
     # loop over the series to be checked
-    for series in series_list:
+    for series in gf_list:
         if series not in ds.series.keys(): continue
         data,flag,attr = GetSeriesasMA(ds,series)
         idx = numpy.ma.where(data.mask==True)[0]

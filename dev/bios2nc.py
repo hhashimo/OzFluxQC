@@ -48,6 +48,7 @@ for site in site_list:
     time_units = getattr(bios_ncfile.variables["time"],"units")
     qcutils.get_datetimefromnctime(ds_30,time,time_units)
     qcutils.round_datetime(ds_30,mode="nearest_timestep")
+    if qcutils.CheckTimeStep(ds_30): qcutils.FixTimeStep(ds_30)
     ldt_30 = ds_30.series["DateTime"]["Data"]
     si = qcutils.GetDateIndex(ldt_30,start_date,default=0,ts=ts,match="startnexthour")
     ei = qcutils.GetDateIndex(ldt_30,end_date,default=len(ldt_30),ts=ts,match="endprevioushour")

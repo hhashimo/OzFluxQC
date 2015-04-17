@@ -667,7 +667,7 @@ def CalculateNetRadiation(cf,ds,Fn_out='Fn',Fsd_in='Fsd',Fsu_in='Fsu',Fld_in='Fl
         if Fn_out not in ds.series.keys():
             attr = qcutils.MakeAttributeDictionary(long_name='Calculated net radiation using '+Fsd_in+','+Fsu_in+','+Fld_in+','+Flu_in,
                                  standard_name='surface_net_downwawrd_radiative_flux',units='W/m2')
-            qcutils.CreateSeries(ds,Fn_out,Fn,FList=[Fsd_in,Fsu_in,Fld_in,Flu_in],Attr=attr)
+            qcutils.CreateSeries(ds,Fn_out,Fn_calc,FList=[Fsd_in,Fsu_in,Fld_in,Flu_in],Attr=attr)
         else:
             Fn_exist,flag,attr = qcutils.GetSeriesasMA(ds,Fn_out)
             idx = numpy.ma.where((numpy.ma.getmaskarray(Fn_exist)==True)&(numpy.ma.getmaskarray(Fn_calc)==False))[0]
@@ -1234,16 +1234,31 @@ def do_functions(cf,ds):
         UxUx = Ux_Sd*Ux_Sd
         attr = qcutils.MakeAttributeDictionary(long_name='Longitudinal velocity component from CSAT, variance',units='(m/s)2')
         qcutils.CreateSeries(ds,'UxUx',UxUx,Flag=flag,Attr=attr)
+    if 'UxUx' in ds.series.keys() and 'Ux_Sd' not in ds.series.keys():
+        UxUx,flag,attr = qcutils.GetSeriesasMA(ds,'UxUx')
+        Ux_Sd = numpy.ma.sqrt(UxUx)
+        attr = qcutils.MakeAttributeDictionary(long_name='Longitudinal velocity component from CSAT, standard deviation',units='m/s')
+        qcutils.CreateSeries(ds,'Ux_Sd',Ux_Sd,Flag=flag,Attr=attr)
     if 'Uy_Sd' in ds.series.keys() and 'UyUy' not in ds.series.keys():
         Uy_Sd,flag,attr = qcutils.GetSeriesasMA(ds,'Uy_Sd')
         UyUy = Uy_Sd*Uy_Sd
         attr = qcutils.MakeAttributeDictionary(long_name='Lateral velocity component from CSAT, variance',units='(m/s)2')
         qcutils.CreateSeries(ds,'UyUy',UyUy,Flag=flag,Attr=attr)
+    if 'UyUy' in ds.series.keys() and 'Uy_Sd' not in ds.series.keys():
+        UyUy,flag,attr = qcutils.GetSeriesasMA(ds,'UyUy')
+        Uy_Sd = numpy.ma.sqrt(UyUy)
+        attr = qcutils.MakeAttributeDictionary(long_name='Lateral velocity component from CSAT, standard deviation',units='m/s')
+        qcutils.CreateSeries(ds,'Uy_Sd',Uy_Sd,Flag=flag,Attr=attr)
     if 'Uz_Sd' in ds.series.keys() and 'UzUz' not in ds.series.keys():
         Uz_Sd,flag,attr = qcutils.GetSeriesasMA(ds,'Uz_Sd')
         UzUz = Uz_Sd*Uz_Sd
         attr = qcutils.MakeAttributeDictionary(long_name='Vertical velocity component from CSAT, variance',units='(m/s)2')
         qcutils.CreateSeries(ds,'UzUz',UzUz,Flag=flag,Attr=attr)
+    if 'UzUz' in ds.series.keys() and 'Uz_Sd' not in ds.series.keys():
+        UzUz,flag,attr = qcutils.GetSeriesasMA(ds,'UzUz')
+        Uz_Sd = numpy.ma.sqrt(UzUz)
+        attr = qcutils.MakeAttributeDictionary(long_name='Vertical velocity component from CSAT, standard deviation',units='m/s')
+        qcutils.CreateSeries(ds,'Uz_Sd',Uz_Sd,Flag=flag,Attr=attr)
 
 def do_solo(cf,ds4,Fc_in='Fc',Fe_in='Fe',Fh_in='Fh',Fc_out='Fc',Fe_out='Fe',Fh_out='Fh'):
     ''' duplicate gapfilled fluxes for graphing comparison'''

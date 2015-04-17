@@ -71,7 +71,7 @@ def write_data_1columnpermonth(xlSheet, data, ts, format_string=''):
             xlSheet.write(j+2,xlCol,data[j,m-1],d_xf)
         xlCol = xlCol + 1
 
-def write_data_1columnpertimestep(xlSheet, data, ts, year=None, format_string=''):
+def write_data_1columnpertimestep(xlSheet, data, ts, startdate=None, format_string=''):
     tmp = data.copy()
     if numpy.ma.isMA(tmp): tmp = numpy.ma.filled(tmp,float(c.missing_value))
     xlCol = 0
@@ -79,13 +79,13 @@ def write_data_1columnpertimestep(xlSheet, data, ts, year=None, format_string=''
     xlSheet.write(1,xlCol,'Day')
     nrows = numpy.shape(tmp)[0]
     ncols = numpy.shape(tmp)[1]
-    if year is None:
+    if startdate is None:
         for j in range(nrows+1):
             xlSheet.write(j+2,xlCol,j)
     else:
         d_xf = xlwt.easyxf(num_format_str='dd/mm/yyyy')
         for j in range(nrows):
-            d = datetime.datetime(year, 1, 1) + datetime.timedelta(days=j)
+            d = startdate + datetime.timedelta(days=j)
             xlSheet.write(j+2,xlCol,d,d_xf)
     xlCol = xlCol + 1
     if len(format_string)!=0:
@@ -203,6 +203,8 @@ def climatology(cf):
     # find the end index of the last whole day (time=00:00)
     ei = qcutils.GetDateIndex(DateTime,EndDate,ts=ts,default=-1,match='endpreviousday')
     DateTime = DateTime[si:ei+1]
+    StartDate = str(DateTime[0])
+    EndDate = str(DateTime[-1])
     #print time.strftime('%X')+' Start date; '+str(DateTime[0])+' End date; '+str(DateTime[-1])
     Hdh = Hdh[si:ei+1]
     Month = Month[si:ei+1]
@@ -225,10 +227,10 @@ def climatology(cf):
             data_daily = data.reshape(nDays,ntsInDay)
             year = DateTime[0].year
             xlSheet = xlFile.add_sheet(ThisOne+'(day)')
-            write_data_1columnpertimestep(xlSheet, data_daily, ts, year=year, format_string=fmt_str)
+            write_data_1columnpertimestep(xlSheet, data_daily, ts, startdate=DateTime[0], format_string=fmt_str)
             data_daily_i = do_2dinterpolation(data_daily)
             xlSheet = xlFile.add_sheet(ThisOne+'i(day)')
-            write_data_1columnpertimestep(xlSheet, data_daily_i, ts, year=year, format_string=fmt_str)
+            write_data_1columnpertimestep(xlSheet, data_daily_i, ts, startdate=DateTime[0], format_string=fmt_str)
         elif ThisOne=="EF":
             log.info("Doing evaporative fraction")
             EF = numpy.ma.zeros([48,12]) + float(c.missing_value)
@@ -259,10 +261,10 @@ def climatology(cf):
             EF_daily = EF.reshape(nDays,ntsInDay)
             year = DateTime[0].year
             xlSheet = xlFile.add_sheet('EF(day)')
-            write_data_1columnpertimestep(xlSheet, EF_daily, ts, year=year, format_string='0.00')
+            write_data_1columnpertimestep(xlSheet, EF_daily, ts, startdate=DateTime[0], format_string='0.00')
             EFi = do_2dinterpolation(EF_daily)
             xlSheet = xlFile.add_sheet('EFi(day)')
-            write_data_1columnpertimestep(xlSheet, EFi, ts, year=year, format_string='0.00')
+            write_data_1columnpertimestep(xlSheet, EFi, ts, startdate=DateTime[0], format_string='0.00')
         elif ThisOne=="BR":
             log.info("Doing Bowen ratio")
             BR = numpy.ma.zeros([48,12]) + float(c.missing_value)
@@ -292,10 +294,10 @@ def climatology(cf):
             BR_daily = BR.reshape(nDays,ntsInDay)
             year = DateTime[0].year
             xlSheet = xlFile.add_sheet('BR(day)')
-            write_data_1columnpertimestep(xlSheet, BR_daily, ts, year=year, format_string='0.00')
+            write_data_1columnpertimestep(xlSheet, BR_daily, ts, startdate=DateTime[0], format_string='0.00')
             BRi = do_2dinterpolation(BR_daily)
             xlSheet = xlFile.add_sheet('BRi(day)')
-            write_data_1columnpertimestep(xlSheet, BRi, ts, year=year, format_string='0.00')
+            write_data_1columnpertimestep(xlSheet, BRi, ts, startdate=DateTime[0], format_string='0.00')
         elif ThisOne=="WUE":
             log.info("Doing ecosystem WUE")
             WUE = numpy.ma.zeros([48,12]) + float(c.missing_value)
@@ -325,10 +327,10 @@ def climatology(cf):
             WUE_daily = WUE.reshape(nDays,ntsInDay)
             year = DateTime[0].year
             xlSheet = xlFile.add_sheet('WUE(day)')
-            write_data_1columnpertimestep(xlSheet, WUE_daily, ts, year=year, format_string='0.00000')
+            write_data_1columnpertimestep(xlSheet, WUE_daily, ts, startdate=DateTime[0], format_string='0.00000')
             WUEi = do_2dinterpolation(WUE_daily)
             xlSheet = xlFile.add_sheet('WUEi(day)')
-            write_data_1columnpertimestep(xlSheet, WUEi, ts, year=year, format_string='0.00000')
+            write_data_1columnpertimestep(xlSheet, WUEi, ts, startdate=DateTime[0], format_string='0.00000')
         else:
             log.error("qcclim.climatology: requested variable "+ThisOne+" not in data structure")
             continue

@@ -29,11 +29,9 @@ class DataStructure(object):
         self.series = {}
         self.globalattributes = {}
         self.globalattributes["Functions"] = ""
-        self.dimensions = {}
         self.mergeserieslist = []
         self.averageserieslist = []
-        self.soloserieslist = []
-        self.climatologyserieslist = []
+        self.returncodes = {}
 
 def convert_v27tov28():
     """ Convert V2.7 (1D) netCDF files to V2.8 (3D). """
@@ -844,7 +842,7 @@ def ncsplit_run(split_gui):
 
 def nc_read_series(ncFullName):
     ''' Read a netCDF file and put the data and meta-data into a DataStructure'''
-    log.info(" Reading netCDF file ")
+    log.info(" Reading netCDF file "+ntpath.split(ncFullName)[1])
     netCDF4.default_encoding = 'latin-1'
     ds = DataStructure()
     # check to see if the requested file exists, return empty ds if it doesn't

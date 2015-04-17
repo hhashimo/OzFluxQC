@@ -113,8 +113,6 @@ def l3qc(cf,ds2):
     ds3.globalattributes['Functions'] = ''
     # put the control file name into the global attributes
     ds3.globalattributes['controlfile_name'] = cf['controlfile_name']
-    # check to see if the user wants to gap fill anything
-    qcgf.GapFill_L2(cf,ds2,ds3)
     # correct measured soil water content using empirical relationship to collected samples
     qcts.CorrectSWC(cf,ds3)
     # apply linear corrections to the data
@@ -238,8 +236,10 @@ def l4qc(cf,ds3):
     # *** start of the section that does the gap filling of the drivers ***
     # do the gap filling using the ACCESS output
     qcgf.GapFillFromAlternate(ds4,ds_alt)
+    if ds4.returncodes["alternate"]=="quit": return ds4
     # gap fill using SOLO
     qcgf.GapFillUsingSOLO(ds3,ds4)
+    if ds4.returncodes["solo"]=="quit": return ds4
     # gap fill using climatology
     qcgf.GapFillFromClimatology(ds4)
     # merge the first group of gap filled drivers into a single series
@@ -287,6 +287,7 @@ def l5qc(cf,ds4):
     # *** start of the section that does the gap filling of the fluxes ***
     # do the gap filling using SOLO
     qcgf.GapFillUsingSOLO(ds4,ds5)
+    if ds5.returncodes["solo"]=="quit": return ds5
     ## gap fill using marginal distribution sampling
     #qcgf.GapFillFluxUsingMDS(cf,ds5)
     ## gap fill using ratios

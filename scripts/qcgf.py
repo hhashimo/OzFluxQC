@@ -26,23 +26,6 @@ import xlrd
 
 log = logging.getLogger('qc.gf')
 
-def GapFill_L2(cf,ds2,ds3):
-    for series in ds3.series.keys():
-        section = qcutils.get_cfsection(cf,series=series,mode='quiet')
-        if len(section)==0: continue
-        for gftype in cf[section][series].keys():
-            if gftype=="GapFillFromAlternate":
-                log.error("GapFill_L2: Gap filling from alternate data source not implemented yet")
-                pass
-            if gftype=="GapFillFromClimatology":
-                gfClimatology_oneseries(cf,ds3,series)
-            if gftype=="GapFillUsingSOLO":
-                GapFillUsingSOLO_namecollector(cf,ds3,series=series)
-    if len(ds3.soloserieslist)!=0:
-        GapFillUsingSOLO(ds2,ds3)
-        for series in ds3.soloserieslist:
-            qcts.MergeSeries(cf,ds3,series,[0,10,20,30,40,50])
-
 def GapFillFromClimatology(ds):
     '''
     Gap fill missing data using data from the climatology spreadsheet produced by
@@ -111,7 +94,7 @@ def gfClimatology_interpolateddaily(ds,series,output,xlbooks):
     # loop over the rows (days) of data
     for xlRow in range(ndays):
         # get the Excel datetime value
-        xldatenumber = thissheet.cell_value(xlRow+2,0)
+        xldatenumber = int(thissheet.cell_value(xlRow+2,0))
         # convert this to a Python Datetime
         xldatetime = basedate+datetime.timedelta(days=xldatenumber+1462*datemode)
         # fill the climatology datetime array
@@ -420,6 +403,8 @@ def GapFillFromAlternate(ds4,ds_alt):
     the GUI when we are done.  On exit, the OzFluxQC main GUI continues
     and eventually writes the gap filled data to file.
     '''
+    # set the default return code
+    ds4.returncodes["alternate"] = "normal"
     if "alternate" not in dir(ds4): return
     # get a local pointer to the tower datetime series
     ldt_tower = ds4.series["DateTime"]["Data"]
@@ -461,36 +446,39 @@ def GapFillFromAlternate(ds4,ds_alt):
     alt_gui.peropt = Tkinter.IntVar()
     alt_gui.peropt.set(1)
     alt_gui.manualperiod = Tkinter.Radiobutton(alt_gui,text="Manual",variable=alt_gui.peropt,value=1)
-    alt_gui.manualperiod.grid(row=nrow,column=0,columnspan=3,sticky="W")
-    alt_gui.doallplots = Tkinter.Radiobutton(alt_gui,text="Monthly",variable=alt_gui.peropt,value=2)
-    alt_gui.doallplots.grid(row=nrow,column=3,columnspan=3,sticky="W")
+    alt_gui.manualperiod.grid(row=nrow,column=0,columnspan=1,sticky="W")
+    alt_gui.minptsLabel = Tkinter.Label(alt_gui,text="Min. pts (%)")
+    alt_gui.minptsLabel.grid(row=nrow,column=1,columnspan=2,sticky="E")
+    alt_gui.minptsEntry = Tkinter.Entry(alt_gui,width=5)
+    alt_gui.minptsEntry.grid(row=nrow,column=3,columnspan=2,sticky="W")
+    alt_gui.minptsEntry.insert(0,"25")
     # sixth row
     nrow = nrow + 1
-    alt_gui.daysperiod = Tkinter.Radiobutton(alt_gui,text="No. days",variable=alt_gui.peropt,value=3)
-    alt_gui.daysperiod.grid(row=nrow,column=0,sticky="W")
-    alt_gui.daysentry = Tkinter.Entry(alt_gui,width=5)
-    alt_gui.daysentry.grid(row=nrow,column=1,columnspan=1,sticky="W")
-    alt_gui.pointsperiod = Tkinter.Radiobutton(alt_gui,text="No. pts",variable=alt_gui.peropt,value=4)
-    alt_gui.pointsperiod.grid(row=nrow,column=3,sticky="W")
-    alt_gui.pointsentry = Tkinter.Entry(alt_gui,width=5)
-    alt_gui.pointsentry.grid(row=nrow,column=4,columnspan=1,sticky="W")
+    alt_gui.automonthly = Tkinter.Radiobutton(alt_gui,text="Monthly",variable=alt_gui.peropt,value=2)
+    alt_gui.automonthly.grid(row=nrow,column=0,columnspan=1,sticky="W")
+    alt_gui.daysLabel = Tkinter.Radiobutton(alt_gui,text="No. days",variable=alt_gui.peropt,value=3)
+    alt_gui.daysLabel.grid(row=nrow,column=1,columnspan=2,sticky="W")
+    alt_gui.daysEntry = Tkinter.Entry(alt_gui,width=5)
+    alt_gui.daysEntry.grid(row=nrow,column=3,columnspan=2,sticky="W")
+    alt_gui.daysEntry.insert(0,"120")
     # seventh row
     nrow = nrow + 1
-    alt_gui.minptsLabel = Tkinter.Label(alt_gui,text="Min points (%)")
-    alt_gui.minptsLabel.grid(row=nrow,column=0,columnspan=1,sticky="E")
-    alt_gui.minpts = Tkinter.Entry(alt_gui,width=5)
-    alt_gui.minpts.grid(row=nrow,column=1,columnspan=1,sticky="W")
-    alt_gui.minpts.insert(0,"25")
+    alt_gui.pltopt = Tkinter.IntVar()
+    alt_gui.pltopt.set(1)
+    alt_gui.showplots = Tkinter.Checkbutton(alt_gui, text="Show plots", variable=alt_gui.pltopt)
+    alt_gui.showplots.grid(row=nrow,column=0,columnspan=3,sticky="w")
     alt_gui.owopt = Tkinter.IntVar()
     alt_gui.owopt.set(1)
     alt_gui.overwrite = Tkinter.Checkbutton(alt_gui, text="Overwrite", variable=alt_gui.owopt)
-    alt_gui.overwrite.grid(row=nrow,column=3,columnspan=2,sticky="w")
+    alt_gui.overwrite.grid(row=nrow,column=3,columnspan=3,sticky="w")
     # eighth row
     nrow = nrow + 1
-    alt_gui.acceptButton = Tkinter.Button(alt_gui,text="Done",command=lambda:gfalternate_done(ds4,alt_gui))
-    alt_gui.acceptButton.grid(row=nrow,column=0,columnspan=3)
+    alt_gui.doneButton = Tkinter.Button(alt_gui,text="Done",command=lambda:gfalternate_done(ds4,alt_gui))
+    alt_gui.doneButton.grid(row=nrow,column=0,columnspan=2)
     alt_gui.runButton = Tkinter.Button(alt_gui,text="Run",command=lambda:gfalternate_run(ds4,ds_alt,alt_gui,alternate_info))
-    alt_gui.runButton.grid(row=nrow,column=3,columnspan=3)
+    alt_gui.runButton.grid(row=nrow,column=2,columnspan=2)
+    alt_gui.quitButton = Tkinter.Button(alt_gui,text="Quit",command=lambda:gfalternate_quit(ds4,alt_gui))
+    alt_gui.quitButton.grid(row=nrow,column=4,columnspan=2)
     # ninth row
     nrow = nrow + 1
     alt_gui.progress_row = nrow
@@ -509,13 +497,20 @@ def gfalternate_progress(alt_gui,text):
     alt_gui.update()
 
 def gfalternate_done(ds,alt_gui):
-    # plot the summary statistics if required
-    #if alt_gui.peropt.get()==1: gfalternate_plotsummary(ds)
+    # plot the summary statistics
     gfalternate_plotsummary(ds)
     # destroy the alternate GUI
     alt_gui.destroy()
     # write Excel spreadsheet with fit statistics
     qcio.xl_write_AlternateStats(ds)
+    # put the return code into ds.alternate
+    ds.returncodes["alternate"] = "normal"
+
+def gfalternate_quit(ds,alt_gui):
+    # destroy the alternate GUI
+    alt_gui.destroy()
+    # put the return code into ds.alternate
+    ds.returncodes["alternate"] = "quit"
 
 def gfalternate_plotsummary(ds):
     """ Plot single pages of summary results for groups of variables. """
@@ -617,7 +612,9 @@ def gfalternate_run(ds_tower,ds_alt,alt_gui,alternate_info):
     alternate_info["peropt"] = alt_gui.peropt.get()
     alternate_info["overwrite"] = True
     if alt_gui.owopt.get()==0: alternate_info["overwrite"] = False
-    alternate_info["min_percent"] = int(alt_gui.minpts.get())
+    alternate_info["show_plots"] = True
+    if alt_gui.pltopt.get()==0: alternate_info["show_plots"] = False
+    alternate_info["min_percent"] = int(alt_gui.minptsEntry.get())
     alternate_info["site_name"] = ds_tower.globalattributes["site_name"]
     alternate_info["time_step"] = int(ds_tower.globalattributes["time_step"])
     alternate_info["nperhr"] = int(float(60)/alternate_info["time_step"]+0.5)
@@ -627,7 +624,7 @@ def gfalternate_run(ds_tower,ds_alt,alt_gui,alternate_info):
     alternate_info["alternate"] = {}
     series_list = [ds_tower.alternate[item]["label_tower"] for item in ds_tower.alternate.keys()]
     alternate_info["series_list"] = series_list
-    log.info(" Gap filling "+str(series_list)+" using alternate data")
+    log.info(" Gap filling "+str(list(set(series_list)))+" using alternate data")
     if alt_gui.peropt.get()==1:
         gfalternate_progress(alt_gui,"Starting manual run ...")
         # get the start and end datetimes entered in the alternate GUI
@@ -654,8 +651,6 @@ def gfalternate_run(ds_tower,ds_alt,alt_gui,alternate_info):
             enddate = startdate+dateutil.relativedelta.relativedelta(months=1)
             alternate_info["startdate"] = startdate.strftime("%Y-%m-%d")
             alternate_info["enddate"] = enddate.strftime("%Y-%m-%d")
-        # plot the summary statistics
-        #gfalternate_plotsummary(ds_tower)
         gfalternate_progress(alt_gui,"Finished auto (monthly) run ...")
     elif alt_gui.peropt.get()==3:
         gfalternate_progress(alt_gui,"Starting auto (days) run ...")
@@ -665,7 +660,7 @@ def gfalternate_run(ds_tower,ds_alt,alt_gui,alternate_info):
         startdate = dateutil.parser.parse(alternate_info["startdate"])
         overlap_startdate = dateutil.parser.parse(alternate_info["overlap_startdate"])
         overlap_enddate = dateutil.parser.parse(alternate_info["overlap_enddate"])
-        nDays = int(alt_gui.daysentry.get())
+        nDays = int(alt_gui.daysEntry.get())
         enddate = startdate+dateutil.relativedelta.relativedelta(days=nDays)
         enddate = min([overlap_enddate,enddate])
         alternate_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d")
@@ -675,11 +670,9 @@ def gfalternate_run(ds_tower,ds_alt,alt_gui,alternate_info):
             enddate = startdate+dateutil.relativedelta.relativedelta(days=nDays)
             alternate_info["startdate"] = startdate.strftime("%Y-%m-%d")
             alternate_info["enddate"] = enddate.strftime("%Y-%m-%d")
-        # plot the summary statistics
-        #gfalternate_plotsummary(ds_tower)
         gfalternate_progress(alt_gui,"Finished auto (days) run ...")
-    elif alt_gui.peropt.get()==4:
-        pass
+    else:
+        log.error("GapFillFromAlternate: unrecognised period option")
 
 def gfalternate_getdateindices(ldt_tower,ldt_alternate,alternate_info,si_match,ei_match):
    #gfalternate_getdateindices(ldt_tower,ldt_alternate,alternate_info,"exact","exact")
@@ -1139,7 +1132,7 @@ def gfalternate_plotdetailed(nfig,label,data_plot,alternate_info,pd):
     source = alternate_info["source"]
     if "bom_id" in alternate_info.keys(): source = source+" ("+str(alternate_info["bom_id"])+")"
     # turn on interactive plotting
-    plt.ion()
+    if alternate_info["show_plots"]: plt.ion()
     # create the figure canvas
     fig = plt.figure(nfig,figsize=(13,9))
     fig.canvas.set_window_title(label)
@@ -1226,9 +1219,9 @@ def gfalternate_plotdetailed(nfig,label,data_plot,alternate_info,pd):
     figname = figname+"_"+sdt+"_"+edt+'.png'
     fig.savefig(figname,format='png')
     # draw the plot on the screen
-    plt.draw()
+    if alternate_info["show_plots"]: plt.draw()
     # turn off interactive plotting
-    plt.ioff()
+    if alternate_info["show_plots"]: plt.ioff()
 
 def GapFillUsingSOLO(dsa,dsb):
     '''
@@ -1240,6 +1233,8 @@ def GapFillUsingSOLO(dsa,dsb):
     when we are done.  On exit, the OzFluxQC main GUI continues and eventually
     writes the gap filled data to file.
     '''
+    # set the default return code
+    dsb.returncodes["solo"] = "normal"
     if "solo" not in dir(dsb): return
     # local pointer to the datetime series
     ldt = dsb.series["DateTime"]["Data"]
@@ -1309,36 +1304,39 @@ def GapFillUsingSOLO(dsa,dsb):
     solo_gui.peropt = Tkinter.IntVar()
     solo_gui.peropt.set(1)
     solo_gui.manualperiod = Tkinter.Radiobutton(solo_gui,text="Manual",variable=solo_gui.peropt,value=1)
-    solo_gui.manualperiod.grid(row=nrow,column=0,columnspan=3,sticky="W")
-    solo_gui.automonthly = Tkinter.Radiobutton(solo_gui,text="Monthly",variable=solo_gui.peropt,value=2)
-    solo_gui.automonthly.grid(row=nrow,column=3,columnspan=3,sticky="W")
+    solo_gui.manualperiod.grid(row=nrow,column=0,columnspan=1,sticky="W")
+    solo_gui.minptsLabel = Tkinter.Label(solo_gui,text="Min. pts (%)")
+    solo_gui.minptsLabel.grid(row=nrow,column=1,columnspan=2,sticky="E")
+    solo_gui.minptsEntry = Tkinter.Entry(solo_gui,width=5)
+    solo_gui.minptsEntry.grid(row=nrow,column=3,columnspan=2,sticky="W")
+    solo_gui.minptsEntry.insert(0,"50")
     # eigth row
     nrow = nrow + 1
-    solo_gui.daysperiod = Tkinter.Radiobutton(solo_gui,text="No. days",variable=solo_gui.peropt,value=3)
-    solo_gui.daysperiod.grid(row=nrow,column=0,sticky="W")
-    solo_gui.daysentry = Tkinter.Entry(solo_gui,width=5)
-    solo_gui.daysentry.grid(row=nrow,column=1,columnspan=1,sticky="W")
-    solo_gui.pointsperiod = Tkinter.Radiobutton(solo_gui,text="No. pts",variable=solo_gui.peropt,value=4)
-    solo_gui.pointsperiod.grid(row=nrow,column=3,sticky="W")
-    solo_gui.pointsentry = Tkinter.Entry(solo_gui,width=5)
-    solo_gui.pointsentry.grid(row=nrow,column=4,columnspan=1,sticky="W")
+    solo_gui.automonthly = Tkinter.Radiobutton(solo_gui,text="Monthly",variable=solo_gui.peropt,value=2)
+    solo_gui.automonthly.grid(row=nrow,column=0,columnspan=1,sticky="W")
+    solo_gui.daysLabel = Tkinter.Radiobutton(solo_gui,text="No. days",variable=solo_gui.peropt,value=3)
+    solo_gui.daysLabel.grid(row=nrow,column=1,columnspan=2,sticky="E")
+    solo_gui.daysEntry = Tkinter.Entry(solo_gui,width=5)
+    solo_gui.daysEntry.grid(row=nrow,column=3,columnspan=2,sticky="W")
+    solo_gui.daysEntry.insert(0,"120")
     # ninth row
     nrow = nrow + 1
-    solo_gui.minptsLabel = Tkinter.Label(solo_gui,text="Min points")
-    solo_gui.minptsLabel.grid(row=nrow,column=0,columnspan=1,sticky="E")
-    solo_gui.minpts = Tkinter.Entry(solo_gui,width=5)
-    solo_gui.minpts.grid(row=nrow,column=1,columnspan=1,sticky="W")
-    solo_gui.minpts.insert(0,"200")
+    solo_gui.pltopt = Tkinter.IntVar()
+    solo_gui.pltopt.set(1)
+    solo_gui.showplots = Tkinter.Checkbutton(solo_gui, text="Show plots", variable=solo_gui.pltopt)
+    solo_gui.showplots.grid(row=nrow,column=0,columnspan=3,sticky="w")
     solo_gui.owopt = Tkinter.IntVar()
     solo_gui.owopt.set(1)
     solo_gui.overwrite = Tkinter.Checkbutton(solo_gui, text="Overwrite", variable=solo_gui.owopt)
-    solo_gui.overwrite.grid(row=nrow,column=3,columnspan=2,sticky="w")
+    solo_gui.overwrite.grid(row=nrow,column=3,columnspan=3,sticky="w")
     # tenth row
     nrow = nrow + 1
     solo_gui.doneButton = Tkinter.Button (solo_gui, text="Done",command=lambda:gfSOLO_done(dsb,solo_gui))
-    solo_gui.doneButton.grid(row=nrow,column=0,columnspan=3)
+    solo_gui.doneButton.grid(row=nrow,column=0,columnspan=2)
     solo_gui.runButton = Tkinter.Button (solo_gui, text="Run",command=lambda:gfSOLO_run(dsa,dsb,solo_gui,solo_info))
-    solo_gui.runButton.grid(row=nrow,column=3,columnspan=3)
+    solo_gui.runButton.grid(row=nrow,column=2,columnspan=2)
+    solo_gui.quitButton = Tkinter.Button (solo_gui, text="Quit",command=lambda:gfSOLO_quit(dsb,solo_gui))
+    solo_gui.quitButton.grid(row=nrow,column=4,columnspan=2)
     # eleventh row
     nrow = nrow + 1
     solo_gui.progress_row = nrow
@@ -1355,8 +1353,14 @@ def gfSOLO_done(ds,solo_gui):
     # write Excel spreadsheet with fit statistics
     qcio.xl_write_SOLOStats(ds)
     # remove the solo dictionary from the data structure
-    del ds.solo
+    ds.returncodes["solo"] = "normal"
 
+def gfSOLO_quit(ds,solo_gui):
+    # destroy the GUI
+    solo_gui.destroy()
+    # put the return code in ds.returncodes
+    ds.returncodes["solo"] = "quit"
+    
 def gfSOLO_getserieslist(cf):
     series_list = []
     if "Drivers" in cf.keys():
@@ -1407,6 +1411,7 @@ def gfSOLO_main(dsa,dsb,solo_gui,solo_info):
     else:
         nRecs = ei - si + 1
     # loop over the series to be gap filled using solo
+    solo_info["min_points"] = int(nRecs*solo_info["min_percent"]/100)
     # close any open plot windows
     if len(plt.get_fignums())!=0:
         for i in plt.get_fignums(): plt.close(i)
@@ -1703,7 +1708,11 @@ def gfSOLO_runsolo(dsa,dsb,driverlist,targetlabel,nRecs,si=0,ei=-1):
 def gfSOLO_run(dsa,dsb,solo_gui,solo_info):
     # populate the solo_info dictionary with things that will be useful
     solo_info["peropt"] = solo_gui.peropt.get()
-    solo_info["min_points"] = int(solo_gui.minpts.get())
+    solo_info["overwrite"] = True
+    if solo_gui.owopt.get()==0: solo_info["overwrite"] = False
+    solo_info["show_plots"] = True
+    if solo_gui.pltopt.get()==0: solo_info["show_plots"] = False
+    solo_info["min_percent"] = int(solo_gui.minptsEntry.get())
     solo_info["site_name"] = dsb.globalattributes["site_name"]
     solo_info["time_step"] = int(dsb.globalattributes["time_step"])
     solo_info["nperhr"] = int(float(60)/solo_info["time_step"]+0.5)
