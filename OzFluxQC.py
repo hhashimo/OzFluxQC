@@ -291,9 +291,12 @@ class qcgui(tk.Tk):
             """
         self.do_progress(text='Load L2 Control File ...')
         self.cf = qcio.load_controlfile(path='controlfiles')
-        if len(self.cf)==0: self.do_progress(text='Waiting for input ...'); return
+        if len(self.cf)==0:
+            log.info( " L2: no control file chosen")
+            self.do_progress(text='Waiting for input ...')
+            return
         infilename = qcio.get_infilenamefromcf(self.cf)
-        if len(infilename)==0: self.do_progress(text='An error occurred, check the console ...'); return
+        if not qcutils.file_exists(infilename): self.do_progress(text='An error occurred, check the console ...'); return
         self.do_progress(text='Doing L2 QC ...')
         self.ds1 = qcio.nc_read_series(infilename)
         if len(self.ds1.series.keys())==0: self.do_progress(text='An error occurred, check the console ...'); del self.ds1; return
@@ -381,9 +384,12 @@ class qcgui(tk.Tk):
                     Variable lists for plot generation
             """
         self.cf = qcio.load_controlfile(path='controlfiles')
-        if len(self.cf)==0: self.do_progress(text='Waiting for input ...'); return
+        if len(self.cf)==0:
+            log.info( " L3: no control file chosen")            
+            self.do_progress(text='Waiting for input ...')
+            return
         infilename = qcio.get_infilenamefromcf(self.cf)
-        if len(infilename)==0: self.do_progress(text='An error occurred, check the console ...'); return
+        if not qcutils.file_exists(infilename): self.do_progress(text='An error occurred, check the console ...'); return
         self.ds2 = qcio.nc_read_series(infilename)
         if len(self.ds2.series.keys())==0: self.do_progress(text='An error occurred, check the console ...'); del self.ds2; return
         self.update_startenddate(str(self.ds2.series['DateTime']['Data'][0]),
@@ -638,7 +644,7 @@ class qcgui(tk.Tk):
             self.cf = qcio.load_controlfile(path='controlfiles')
             if len(self.cf)==0: self.do_progress(text='Waiting for input ...'); return
             l1filename = qcio.get_infilenamefromcf(self.cf)
-            if len(l1filename)==0: return
+            if not qcutils.file_exists(l1filename): self.do_progress(text='An error occurred, check the console ...'); return
             self.ds1 = qcio.nc_read_series(l1filename)
             if len(self.ds1.series.keys())==0: self.do_progress(text='An error occurred, check the console ...'); del self.ds1; return
             l2filename = qcio.get_outfilenamefromcf(self.cf)
@@ -720,7 +726,7 @@ class qcgui(tk.Tk):
                 self.do_progress(text='Waiting for input ...')
                 return
             l3filename = qcio.get_infilenamefromcf(self.cf)
-            if len(l3filename)==0: self.do_progress(text='An error occurred, check the console ...'); return
+            if not qcutils.file_exists(l3filename): self.do_progress(text='An error occurred, check the console ...'); return
             self.ds3 = qcio.nc_read_series(l3filename)
             if len(self.ds3.series.keys())==0: self.do_progress(text='An error occurred, check the console ...'); del self.ds3; return
             l4filename = qcio.get_outfilenamefromcf(self.cf)
