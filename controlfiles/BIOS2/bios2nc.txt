@@ -3,6 +3,14 @@
     end_date = "2014-03-01 00:00"
 
 [Sites]
+    [[AdelaideRiver]]
+        in_filepath = ../../BIOS2/2014/
+        in_filename = Adelaide_River.nc
+        out_filepath = ../../Sites/AdelaideRiver/Data/BIOS2/
+        out_filename = AdelaideRiver_BIOS2.nc
+        average = No
+        site_name = "AdelaideRiver"
+        site_timezone = Australia/Darwin
     [[AliceSpringsMulga]]
         in_filepath = ../../BIOS2/2014/
         in_filename = Alice_Springs.nc
@@ -35,14 +43,6 @@
         average = No
         site_name = "CapeTribulation"
         site_timezone = Australia/Brisbane
-    [[Daintree]]
-        in_filepath = ../../BIOS2/2014/
-        in_filename = Daintree.nc
-        out_filepath = ../../Sites/Daintree/Data/BIOS2/
-        out_filename = Daintree_BIOS2.nc
-        average = No
-        site_name = "Daintree"
-        site_timezone = Australia/Brisbane
     [[DalyPasture]]
         in_filepath = ../../BIOS2/2014/
         in_filename = Daly_River_Pasture.nc
@@ -50,14 +50,6 @@
         out_filename = DalyPasture_BIOS2.nc
         average = No
         site_name = "DalyPasture"
-        site_timezone = Australia/Darwin
-    [[DalyUncleared]]
-        in_filepath = ../../BIOS2/2014/
-        in_filename = Daly_River_Uncleared.nc
-        out_filepath = ../../Sites/DalyUncleared/Data/BIOS2/
-        out_filename = DalyUncleared_BIOS2.nc
-        average = No
-        site_name = "DalyUncleared"
         site_timezone = Australia/Darwin
     [[Dargo]]
         in_filepath = ../../BIOS2/2014/
