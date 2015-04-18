@@ -498,7 +498,7 @@ def gfalternate_progress(alt_gui,text):
 
 def gfalternate_done(ds,alt_gui):
     # plot the summary statistics
-    gfalternate_plotsummary(ds)
+    #gfalternate_plotsummary(ds)
     # destroy the alternate GUI
     alt_gui.destroy()
     # write Excel spreadsheet with fit statistics
@@ -1737,7 +1737,7 @@ def gfSOLO_run(dsa,dsb,solo_gui,solo_info):
         startdate = dateutil.parser.parse(solo_info["startdate"])
         file_startdate = dateutil.parser.parse(solo_info["file_startdate"])
         file_enddate = dateutil.parser.parse(solo_info["file_enddate"])
-        nDays = int(solo_gui.daysentry.get())
+        nDays = int(solo_gui.daysEntry.get())
         enddate = startdate+dateutil.relativedelta.relativedelta(days=nDays)
         enddate = min([file_enddate,enddate])
         solo_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d")

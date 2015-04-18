@@ -7,10 +7,6 @@
         nc_varname = "Ta"
         Lower = -10
         Upper = 50
-    [[SHD]]
-        nc_varname = "SHD"
-        Lower = 0
-        Upper = 8
     [[Fa]]
         nc_varname = "Fa"
         Lower = -200
@@ -87,7 +83,7 @@
 [Plots]
     [[1]]
         Title = "Composite fingerprint"
-        Variables = "['Fsd','Ta','SHD','Fe','Fc']"
+        Variables = "['Fsd','Ta','H2O','Fe','Fc']"
     [[2]]
         Title = "Radiation fingerprint"
         Variables = "['Fsd','Fsu','Fld','Flu','Fn']"

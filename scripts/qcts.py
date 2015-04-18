@@ -1946,6 +1946,9 @@ def MergeSeriesUsingDict(ds,merge_order=""):
                 SeriesNameString = SeriesNameString+', '+label
                 index = numpy.where(numpy.mod(flag,10)==0)[0]         # find the elements with flag = 0, 10, 20 etc
                 flag[index] = 0                                        # set them all to 0
+                if label=="Fg":
+                    index = numpy.where(flag==22)[0]
+                    if len(index)!=0: flag[index] = 0
                 index = numpy.where(flag!=0)[0]                        # index of flag values other than 0,10,20,30 ...
                 data[index] = ds.series[label]['Data'][index].copy()  # replace bad primary with good secondary
                 flag[index] = ds.series[label]['Flag'][index].copy()
