@@ -1378,6 +1378,51 @@ def gfSOLO_getserieslist(cf):
             if "GapFillUsingSOLO" in cf["Fluxes"][series]: series_list.append(series)
     return series_list
 
+def gfSOLO_plotcoveragelines(dsa,dsb):
+    ldt = dsb.series["DateTime"]["Data"]
+    Fha,f,a=qcutils.GetSeriesasMA(dsa,"Fh")
+    Fea,f,a=qcutils.GetSeriesasMA(dsa,"Fe")
+    Fca,f,a=qcutils.GetSeriesasMA(dsa,"Fc")
+    ustara,f,a=qcutils.GetSeriesasMA(dsa,"ustar")
+    Fhb,f,a=qcutils.GetSeriesasMA(dsb,"Fh_SOLO")
+    Feb,f,a=qcutils.GetSeriesasMA(dsb,"Fe_SOLO")
+    Fcb,f,a=qcutils.GetSeriesasMA(dsb,"Fc_SOLO")
+    ustarb,f,a=qcutils.GetSeriesasMA(dsb,"ustar_SOLO")
+    Fha_ind = numpy.ma.ones(len(Fha))-0.5
+    Fha_ind = numpy.ma.masked_where(numpy.ma.getmaskarray(Fha)==True,Fha_ind)
+    Fea_ind = numpy.ma.ones(len(Fea))*float(2)-0.5
+    Fea_ind = numpy.ma.masked_where(numpy.ma.getmaskarray(Fea)==True,Fea_ind)
+    Fca_ind = numpy.ma.ones(len(Fca))*float(3)-0.5
+    Fca_ind = numpy.ma.masked_where(numpy.ma.getmaskarray(Fca)==True,Fca_ind)
+    ustara_ind = numpy.ma.ones(len(ustara))*float(4)-0.5
+    ustara_ind = numpy.ma.masked_where(numpy.ma.getmaskarray(ustara)==True,ustara_ind)
+    Fhb_ind = numpy.ma.ones(len(Fhb))
+    Fhb_ind = numpy.ma.masked_where(numpy.ma.getmaskarray(Fhb)==True,Fhb_ind)
+    Feb_ind = numpy.ma.ones(len(Feb))*float(2)
+    Feb_ind = numpy.ma.masked_where(numpy.ma.getmaskarray(Feb)==True,Feb_ind)
+    Fcb_ind = numpy.ma.ones(len(Fcb))*float(3)
+    Fcb_ind = numpy.ma.masked_where(numpy.ma.getmaskarray(Fcb)==True,Fcb_ind)
+    ustarb_ind = numpy.ma.ones(len(ustarb))*float(4)
+    ustarb_ind = numpy.ma.masked_where(numpy.ma.getmaskarray(ustarb)==True,ustarb_ind)
+    plt.ion()
+    if plt.fignum_exists(0):
+        fig=plt.figure(0)
+        plt.cla()
+    else:
+        fig=plt.figure(0,figsize=(15,3))
+    plt.ylim([0,5])
+    plt.plot(ldt,Fha_ind,linewidth=1)
+    plt.plot(ldt,Fea_ind,linewidth=1)
+    plt.plot(ldt,Fca_ind,linewidth=1)
+    plt.plot(ldt,ustara_ind,linewidth=1)
+    plt.plot(ldt,Fhb_ind,linewidth=3)
+    plt.plot(ldt,Feb_ind,linewidth=3)
+    plt.plot(ldt,Fcb_ind,linewidth=3)
+    plt.plot(ldt,ustarb_ind,linewidth=3)
+    fig.tight_layout()
+    plt.draw()
+    plt.ioff()
+
 def gfSOLO_main(dsa,dsb,solo_info):
     '''
     This is the main routine for running SOLO, an artifical neural network for gap filling fluxes.
@@ -1421,7 +1466,8 @@ def gfSOLO_main(dsa,dsb,solo_info):
     solo_info["min_points"] = int(nRecs*solo_info["min_percent"]/100)
     # close any open plot windows
     if len(plt.get_fignums())!=0:
-        for i in plt.get_fignums(): plt.close(i)
+        for i in plt.get_fignums():
+            if i!=0: plt.close(i)
     fig_num = 0
     for series in solo_series:
         # clean up the target series if required
@@ -1708,6 +1754,7 @@ def gfSOLO_run(dsa,dsb,solo_gui,solo_info):
         if len(solo_gui.startEntry.get())!=0: solo_info["startdate"] = solo_gui.startEntry.get()
         if len(solo_gui.endEntry.get())!=0: solo_info["enddate"] = solo_gui.endEntry.get()
         gfSOLO_main(dsa,dsb,solo_info)
+        gfSOLO_plotcoveragelines(dsa,dsb)
         gfSOLO_progress(solo_gui,"Finished manual run ...")
         log.info(" GapFillUsingSOLO: Finished manual run ...")
     elif solo_gui.peropt.get()==2:
@@ -1722,6 +1769,7 @@ def gfSOLO_run(dsa,dsb,solo_gui,solo_info):
         solo_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d")
         while startdate<file_enddate:
             gfSOLO_main(dsa,dsb,solo_info)
+            gfSOLO_plotcoveragelines(dsa,dsb)
             startdate = enddate
             enddate = startdate+dateutil.relativedelta.relativedelta(months=1)
             solo_info["startdate"] = startdate.strftime("%Y-%m-%d")
@@ -1743,6 +1791,7 @@ def gfSOLO_run(dsa,dsb,solo_gui,solo_info):
         solo_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d")
         while startdate<file_enddate:
             gfSOLO_main(dsa,dsb,solo_info)
+            gfSOLO_plotcoveragelines(dsa,dsb)
             startdate = enddate
             enddate = startdate+dateutil.relativedelta.relativedelta(days=nDays)
             solo_info["startdate"] = startdate.strftime("%Y-%m-%d")
