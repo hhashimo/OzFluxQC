@@ -994,9 +994,9 @@ def get_missingingapfilledseries(ds):
         if len(idx)!=0:
             msg = " Missing points ("+str(len(idx))+") found in "+series
             log.error(msg)
-            ldt_missing = [ldt[i] for i in idx]
-            msg = " The first 10 missing data is at datetimes "+str(ldt_missing[0:9])
-            log.error(msg)
+            #ldt_missing = [ldt[i] for i in idx]
+            #msg = " The first 10 missing data is at datetimes "+str(ldt_missing[0:9])
+            #log.error(msg)
 
 def get_nrecs(ds):
     if 'nc_nrecs' in ds.globalattributes.keys():

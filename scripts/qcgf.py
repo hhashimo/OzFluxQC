@@ -356,20 +356,27 @@ def gfSOLO_createdict(cf,ds,series):
         return
     # create the solo directory in the data structure
     if "solo" not in dir(ds): ds.solo = {}
-    # create the dictionary keys for this series
-    ds.solo[series] = {}
-    # site name
-    ds.solo[series]["site_name"] = ds.globalattributes["site_name"]
-    # list of drivers
-    ds.solo[series]["drivers"] = ast.literal_eval(cf[section][series]["GapFillUsingSOLO"]["drivers"])
     # name of SOLO output series in ds
-    ds.solo[series]["output"] = cf[section][series]["GapFillUsingSOLO"]["output"]
-    # results of best fit for plotting later on
-    ds.solo[series]["results"] = {"startdate":[],"enddate":[],"No. points":[],"r":[],
-                                  "Bias":[],"RMSE":[],"Frac Bias":[],"NMSE":[],
-                                  "Avg (obs)":[],"Avg (SOLO)":[],
-                                  "Var (obs)":[],"Var (SOLO)":[],"Var ratio":[],
-                                  "m_ols":[],"b_ols":[]}
+    output_list = cf[section][series]["GapFillUsingSOLO"].keys()
+    # loop over the outputs listed in the control file
+    for output in output_list:
+        # create the dictionary keys for this series
+        ds.solo[output] = {}
+        ds.solo[output]["label_tower"] = series
+        # site name
+        ds.solo[output]["site_name"] = ds.globalattributes["site_name"]
+        # list of drivers
+        ds.solo[output]["drivers"] = ast.literal_eval(cf[section][series]["GapFillUsingSOLO"][output]["drivers"])
+        # results of best fit for plotting later on
+        ds.solo[output]["results"] = {"startdate":[],"enddate":[],"No. points":[],"r":[],
+                                      "Bias":[],"RMSE":[],"Frac Bias":[],"NMSE":[],
+                                      "Avg (obs)":[],"Avg (SOLO)":[],
+                                      "Var (obs)":[],"Var (SOLO)":[],"Var ratio":[],
+                                      "m_ols":[],"b_ols":[]}
+        # create an empty series in ds if the SOLO output series doesn't exist yet
+        if output not in ds.series.keys():
+            data,flag,attr = qcutils.MakeEmptySeries(ds,output)
+            qcutils.CreateSeries(ds,output,data,Flag=flag,Attr=attr)
 
 def GapFillParseControlFile(cf,ds,series,ds_alt):
     # find the section containing the series
@@ -382,10 +389,6 @@ def GapFillParseControlFile(cf,ds,series,ds_alt):
     if "GapFillUsingSOLO" in cf[section][series].keys():
         # create the SOLO dictionary in ds
         gfSOLO_createdict(cf,ds,series)
-        # create an empty series in ds if the SOLO output series doesn't exist yet
-        if ds.solo[series]["output"] not in ds.series.keys():
-            data,flag,attr = qcutils.MakeEmptySeries(ds,ds.solo[series]["output"])
-            qcutils.CreateSeries(ds,ds.solo[series]["output"],data,Flag=flag,Attr=attr)
     if "GapFillFromClimatology" in cf[section][series].keys():
         # create the climatology dictionary in the data structure
         gfClimatology_createdict(cf,ds,series)
@@ -1312,20 +1315,26 @@ def GapFillUsingSOLO(dsa,dsb):
     solo_gui.peropt.set(1)
     solo_gui.manualperiod = Tkinter.Radiobutton(solo_gui,text="Manual",variable=solo_gui.peropt,value=1)
     solo_gui.manualperiod.grid(row=nrow,column=0,columnspan=1,sticky="W")
+    #solo_gui.manualperiod = Tkinter.Radiobutton(solo_gui,text="Auto",variable=solo_gui.peropt,value=4)
+    #solo_gui.manualperiod.grid(row=nrow,column=1,columnspan=1,sticky="W")
     solo_gui.minptsLabel = Tkinter.Label(solo_gui,text="Min. pts (%)")
-    solo_gui.minptsLabel.grid(row=nrow,column=1,columnspan=2,sticky="E")
+    solo_gui.minptsLabel.grid(row=nrow,column=3,columnspan=1,sticky="E")
     solo_gui.minptsEntry = Tkinter.Entry(solo_gui,width=5)
-    solo_gui.minptsEntry.grid(row=nrow,column=3,columnspan=2,sticky="W")
+    solo_gui.minptsEntry.grid(row=nrow,column=4,columnspan=1,sticky="W")
     solo_gui.minptsEntry.insert(0,"50")
     # eigth row
     nrow = nrow + 1
     solo_gui.automonthly = Tkinter.Radiobutton(solo_gui,text="Monthly",variable=solo_gui.peropt,value=2)
     solo_gui.automonthly.grid(row=nrow,column=0,columnspan=1,sticky="W")
-    solo_gui.daysLabel = Tkinter.Radiobutton(solo_gui,text="No. days",variable=solo_gui.peropt,value=3)
-    solo_gui.daysLabel.grid(row=nrow,column=1,columnspan=2,sticky="E")
-    solo_gui.daysEntry = Tkinter.Entry(solo_gui,width=5)
-    solo_gui.daysEntry.grid(row=nrow,column=3,columnspan=2,sticky="W")
-    solo_gui.daysEntry.insert(0,"120")
+    solo_gui.daysLabel = Tkinter.Radiobutton(solo_gui,text="Days",variable=solo_gui.peropt,value=3)
+    solo_gui.daysLabel.grid(row=nrow,column=1,columnspan=1,sticky="W")
+    solo_gui.daysEntry = Tkinter.Entry(solo_gui,width=3)
+    solo_gui.daysEntry.grid(row=nrow,column=2,columnspan=1,sticky="W")
+    solo_gui.daysEntry.insert(0,"90")
+    solo_gui.autocompleteopt = Tkinter.IntVar()
+    solo_gui.autocompleteopt.set(1)
+    solo_gui.autocomplete = Tkinter.Checkbutton(solo_gui, text="Auto complete", variable=solo_gui.autocompleteopt)
+    solo_gui.autocomplete.grid(row=nrow,column=3,columnspan=3,sticky="w")
     # ninth row
     nrow = nrow + 1
     solo_gui.pltopt = Tkinter.IntVar()
@@ -1333,7 +1342,7 @@ def GapFillUsingSOLO(dsa,dsb):
     solo_gui.showplots = Tkinter.Checkbutton(solo_gui, text="Show plots", variable=solo_gui.pltopt)
     solo_gui.showplots.grid(row=nrow,column=0,columnspan=3,sticky="w")
     solo_gui.owopt = Tkinter.IntVar()
-    solo_gui.owopt.set(1)
+    solo_gui.owopt.set(0)
     solo_gui.overwrite = Tkinter.Checkbutton(solo_gui, text="Overwrite", variable=solo_gui.owopt)
     solo_gui.overwrite.grid(row=nrow,column=3,columnspan=3,sticky="w")
     # tenth row
@@ -1378,48 +1387,31 @@ def gfSOLO_getserieslist(cf):
             if "GapFillUsingSOLO" in cf["Fluxes"][series]: series_list.append(series)
     return series_list
 
-def gfSOLO_plotcoveragelines(dsa,dsb):
+def gfSOLO_plotcoveragelines(dsa,dsb,solo_info):
     ldt = dsb.series["DateTime"]["Data"]
-    Fha,f,a=qcutils.GetSeriesasMA(dsa,"Fh")
-    Fea,f,a=qcutils.GetSeriesasMA(dsa,"Fe")
-    Fca,f,a=qcutils.GetSeriesasMA(dsa,"Fc")
-    ustara,f,a=qcutils.GetSeriesasMA(dsa,"ustar")
-    Fhb,f,a=qcutils.GetSeriesasMA(dsb,"Fh_SOLO")
-    Feb,f,a=qcutils.GetSeriesasMA(dsb,"Fe_SOLO")
-    Fcb,f,a=qcutils.GetSeriesasMA(dsb,"Fc_SOLO")
-    ustarb,f,a=qcutils.GetSeriesasMA(dsb,"ustar_SOLO")
-    Fha_ind = numpy.ma.ones(len(Fha))-0.5
-    Fha_ind = numpy.ma.masked_where(numpy.ma.getmaskarray(Fha)==True,Fha_ind)
-    Fea_ind = numpy.ma.ones(len(Fea))*float(2)-0.5
-    Fea_ind = numpy.ma.masked_where(numpy.ma.getmaskarray(Fea)==True,Fea_ind)
-    Fca_ind = numpy.ma.ones(len(Fca))*float(3)-0.5
-    Fca_ind = numpy.ma.masked_where(numpy.ma.getmaskarray(Fca)==True,Fca_ind)
-    ustara_ind = numpy.ma.ones(len(ustara))*float(4)-0.5
-    ustara_ind = numpy.ma.masked_where(numpy.ma.getmaskarray(ustara)==True,ustara_ind)
-    Fhb_ind = numpy.ma.ones(len(Fhb))
-    Fhb_ind = numpy.ma.masked_where(numpy.ma.getmaskarray(Fhb)==True,Fhb_ind)
-    Feb_ind = numpy.ma.ones(len(Feb))*float(2)
-    Feb_ind = numpy.ma.masked_where(numpy.ma.getmaskarray(Feb)==True,Feb_ind)
-    Fcb_ind = numpy.ma.ones(len(Fcb))*float(3)
-    Fcb_ind = numpy.ma.masked_where(numpy.ma.getmaskarray(Fcb)==True,Fcb_ind)
-    ustarb_ind = numpy.ma.ones(len(ustarb))*float(4)
-    ustarb_ind = numpy.ma.masked_where(numpy.ma.getmaskarray(ustarb)==True,ustarb_ind)
+    output_list = dsb.solo.keys()
+    series_list = [dsb.solo[item]["label_tower"] for item in output_list]
+    color_list = ["blue","red","green","cyan","magenta","yellow","black","brown"]
     plt.ion()
     if plt.fignum_exists(0):
         fig=plt.figure(0)
         plt.cla()
     else:
-        fig=plt.figure(0,figsize=(15,3))
-    plt.ylim([0,5])
-    plt.plot(ldt,Fha_ind,linewidth=1)
-    plt.plot(ldt,Fea_ind,linewidth=1)
-    plt.plot(ldt,Fca_ind,linewidth=1)
-    plt.plot(ldt,ustara_ind,linewidth=1)
-    plt.plot(ldt,Fhb_ind,linewidth=3)
-    plt.plot(ldt,Feb_ind,linewidth=3)
-    plt.plot(ldt,Fcb_ind,linewidth=3)
-    plt.plot(ldt,ustarb_ind,linewidth=3)
+        fig=plt.figure(0,figsize=(15,1.5))
+    fig.canvas.set_window_title("Coverage")
+    plt.ylim([0,len(output_list)+1])
+    for output,series,n in zip(output_list,series_list,range(1,len(output_list)+1)):
+        data_output,f,a = qcutils.GetSeriesasMA(dsb,output)
+        data_series,f,a = qcutils.GetSeriesasMA(dsb,series)
+        ind_series = numpy.ma.ones(len(data_series))*float(n)
+        ind_series = numpy.ma.masked_where(numpy.ma.getmaskarray(data_series)==True,ind_series)
+        ind_output = numpy.ma.ones(len(data_output))*float(n)
+        ind_output = numpy.ma.masked_where(numpy.ma.getmaskarray(data_output)==True,ind_output)
+        plt.plot(ldt,ind_series,color=color_list[numpy.mod(n,8)],linewidth=1)
+        plt.plot(ldt,ind_output,color=color_list[numpy.mod(n,8)],linewidth=4)
+        plt.figtext(0.05,n/len(output_list),series,color=color_list[numpy.mod(n,8)])
     fig.tight_layout()
+    fig.canvas.manager.window.attributes('-topmost', 1)
     plt.draw()
     plt.ioff()
 
@@ -1436,14 +1428,6 @@ def gfSOLO_main(dsa,dsb,solo_info):
     cf = qcio.get_controlfilecontents(cfname,mode="quiet")
     # put the control file object in the solo_info dictionary
     dsb.cf = cf.copy()
-    # get the list of series to gap fill using SOLO
-    solo_series = gfSOLO_getserieslist(cf)
-    for series in solo_series:
-        section = qcutils.get_cfsection(cf,series=series,mode="quiet")
-        if len(section)==0: continue
-        if series not in dsb.series.keys(): continue
-        dsb.solo[series]["drivers"] = ast.literal_eval(cf[section][series]["GapFillUsingSOLO"]["drivers"])
-        dsb.solo[series]["output"] = cf[section][series]["GapFillUsingSOLO"]["output"]
     # get some useful things
     site_name = dsa.globalattributes["site_name"]
     # get the time step and a local pointer to the datetime series
@@ -1469,27 +1453,28 @@ def gfSOLO_main(dsa,dsb,solo_info):
         for i in plt.get_fignums():
             if i!=0: plt.close(i)
     fig_num = 0
-    for series in solo_series:
+    for output in dsb.solo.keys():
         # clean up the target series if required
+        series = dsb.solo[output]["label_tower"]
         qcck.do_qcchecks_oneseries(dsb.cf,dsa,series=series)
-        dsb.solo[series]["results"]["startdate"].append(xldt[si])
-        dsb.solo[series]["results"]["enddate"].append(xldt[ei])
+        dsb.solo[output]["results"]["startdate"].append(xldt[si])
+        dsb.solo[output]["results"]["enddate"].append(xldt[ei])
         d,f,a = qcutils.GetSeriesasMA(dsb,series,si=si,ei=ei)
         if numpy.ma.count(d)<solo_info["min_points"]:
             log.error("gfSOLO: Less than "+str(solo_info["min_points"])+" points available for series "+series+" ...")
-            dsb.solo[series]["results"]["No. points"].append(float(0))
-            results_list = dsb.solo[series]["results"].keys()
+            dsb.solo[output]["results"]["No. points"].append(float(0))
+            results_list = dsb.solo[output]["results"].keys()
             for item in ["startdate","enddate","No. points"]:
                 if item in results_list: results_list.remove(item)
             for item in results_list:
-                dsb.solo[series]["results"][item].append(float(c.missing_value))
+                dsb.solo[output]["results"][item].append(float(c.missing_value))
             continue
-        drivers = dsb.solo[series]["drivers"]
+        drivers = dsb.solo[output]["drivers"]
         if str(solo_info["nodes"]).lower()=="auto":
             solo_info["nodes_target"] = len(drivers)+1
         else:
             solo_info["nodes_target"] = int(solo_info["nodes"])
-        output = dsb.solo[series]["output"]
+        #output = dsb.solo[series]["output"]
         # set the number of nodes for the inf files
         #nodesAuto = gfSOLO_setnodesEntry(solo_gui,drivers)
         # write the inf files for sofm, solo and seqsolo
@@ -1734,6 +1719,8 @@ def gfSOLO_run(dsa,dsb,solo_gui,solo_info):
     if solo_gui.owopt.get()==0: solo_info["overwrite"] = False
     solo_info["show_plots"] = True
     if solo_gui.pltopt.get()==0: solo_info["show_plots"] = False
+    solo_info["auto_complete"] = True
+    if solo_gui.autocompleteopt.get()==0: solo_info["auto_complete"] = False
     solo_info["min_percent"] = int(solo_gui.minptsEntry.get())
     solo_info["nodes"] = str(solo_gui.nodesEntry.get())
     solo_info["training"] = str(solo_gui.trainingEntry.get())
@@ -1745,16 +1732,18 @@ def gfSOLO_run(dsa,dsb,solo_gui,solo_info):
     solo_info["nperhr"] = int(float(60)/solo_info["time_step"]+0.5)
     solo_info["nperday"] = int(float(24)*solo_info["nperhr"]+0.5)
     solo_info["maxlags"] = int(float(12)*solo_info["nperhr"]+0.5)
+    solo_info["series"] = dsb.solo.keys()
     solo_info["tower"] = {}
     solo_info["alternate"] = {}
-    log.info(" Gap filling "+str(dsb.solo.keys())+" using SOLO")
+    series_list = [dsb.solo[item]["label_tower"] for item in dsb.solo.keys()]
+    log.info(" Gap filling "+str(series_list)+" using SOLO")
     if solo_gui.peropt.get()==1:
         gfSOLO_progress(solo_gui,"Starting manual run ...")
         # get the start and end datetimes entered in the SOLO GUI
         if len(solo_gui.startEntry.get())!=0: solo_info["startdate"] = solo_gui.startEntry.get()
         if len(solo_gui.endEntry.get())!=0: solo_info["enddate"] = solo_gui.endEntry.get()
         gfSOLO_main(dsa,dsb,solo_info)
-        gfSOLO_plotcoveragelines(dsa,dsb)
+        gfSOLO_plotcoveragelines(dsa,dsb,solo_info)
         gfSOLO_progress(solo_gui,"Finished manual run ...")
         log.info(" GapFillUsingSOLO: Finished manual run ...")
     elif solo_gui.peropt.get()==2:
@@ -1769,11 +1758,13 @@ def gfSOLO_run(dsa,dsb,solo_gui,solo_info):
         solo_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d")
         while startdate<file_enddate:
             gfSOLO_main(dsa,dsb,solo_info)
-            gfSOLO_plotcoveragelines(dsa,dsb)
+            gfSOLO_plotcoveragelines(dsa,dsb,solo_info)
             startdate = enddate
             enddate = startdate+dateutil.relativedelta.relativedelta(months=1)
             solo_info["startdate"] = startdate.strftime("%Y-%m-%d")
             solo_info["enddate"] = enddate.strftime("%Y-%m-%d")
+        # now fill any remaining gaps
+        gfSOLO_autocomplete(dsa,dsb,solo_info)
         # plot the summary statistics
         gfSOLO_plotsummary(dsb)
         gfSOLO_progress(solo_gui,"Finished auto (monthly) run ...")
@@ -1791,17 +1782,49 @@ def gfSOLO_run(dsa,dsb,solo_gui,solo_info):
         solo_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d")
         while startdate<file_enddate:
             gfSOLO_main(dsa,dsb,solo_info)
-            gfSOLO_plotcoveragelines(dsa,dsb)
+            gfSOLO_plotcoveragelines(dsa,dsb,solo_info)
             startdate = enddate
             enddate = startdate+dateutil.relativedelta.relativedelta(days=nDays)
             solo_info["startdate"] = startdate.strftime("%Y-%m-%d")
             solo_info["enddate"] = enddate.strftime("%Y-%m-%d")
+        # now fill any remaining gaps
+        gfSOLO_autocomplete(dsa,dsb,solo_info)
         # plot the summary statistics
         gfSOLO_plotsummary(dsb)
         gfSOLO_progress(solo_gui,"Finished auto (days) run ...")
         log.info(" GapFillUsingSOLO: Finished auto (days) run ...")
     elif solo_gui.peropt.get()==4:
         pass
+
+def gfSOLO_autocomplete(dsa,dsb,solo_info):
+    if not solo_info["auto_complete"]: return
+    ldt = dsb.series["DateTime"]["Data"]
+    nRecs = len(ldt)
+    for output in dsb.solo.keys():
+        #print " gfSOLO_autostartend: doing ",series
+        series = dsb.solo[output]["label_tower"]
+        data_solo,flag,attr = qcutils.GetSeriesasMA(dsb,output)
+        if numpy.ma.count(data_solo)==0: continue
+        mask_solo = numpy.ma.getmaskarray(data_solo)
+        gapstartend = qcutils.contiguous_regions(mask_solo)
+        #print " gfSOLO_autostartend: number of gaps is ",gapstartend.shape[0]
+        data_obs,flag,attr = qcutils.GetSeriesasMA(dsa,series)
+        for si_gap,ei_gap in gapstartend:
+            min_points = int((ei_gap-si_gap)/2)
+            num_good_points = numpy.ma.count(data_obs[si_gap:ei_gap])
+            while num_good_points<min_points:
+                si_gap = max(0,si_gap - 48)
+                ei_gap = min(nRecs,ei_gap + 48)
+                if si_gap==0 and ei_gap==nRecs:
+                    print "Bugger, gone as far as we can go"
+                    break
+                min_points = int((ei_gap-si_gap)/2)
+                num_good_points = numpy.ma.count(data_obs[si_gap:ei_gap])
+            solo_info["startdate"] = ldt[si_gap].strftime("%Y-%m-%d")
+            solo_info["enddate"] = ldt[ei_gap].strftime("%Y-%m-%d")
+            #print " gfSOLO_autostartend: doing "+solo_info["startdate"]+" to "+solo_info["enddate"]
+            gfSOLO_main(dsa,dsb,solo_info)
+            gfSOLO_plotcoveragelines(dsa,dsb,solo_info)
 
 def gfSOLO_runseqsolo(dsa,dsb,driverlist,targetlabel,outputlabel,nRecs,si=0,ei=-1):
     '''
@@ -1946,42 +1969,46 @@ def gfSOLO_plot(pd,dsa,dsb,driverlist,targetlabel,outputlabel,solo_info,si=0,ei=
     numfilled = numpy.ma.count(mod)-numpy.ma.count(obs)
     diff = mod - obs
     bias = numpy.ma.average(diff)
-    dsb.solo[targetlabel]["results"]["Bias"].append(bias)
+    dsb.solo[outputlabel]["results"]["Bias"].append(bias)
     rmse = numpy.ma.sqrt(numpy.ma.mean((obs-mod)*(obs-mod)))
     plt.figtext(0.65,0.225,'No. points')
     plt.figtext(0.75,0.225,str(numpoints))
-    dsb.solo[targetlabel]["results"]["No. points"].append(numpoints)
-    plt.figtext(0.65,0.200,'Nodes')
-    plt.figtext(0.75,0.200,str(solo_info["nodes_target"]))
-    plt.figtext(0.65,0.175,'Training')
-    plt.figtext(0.75,0.175,str(solo_info["training"]))
-    plt.figtext(0.65,0.150,'Nda factor')
-    plt.figtext(0.75,0.150,str(solo_info["factor"]))
-    plt.figtext(0.65,0.125,'Learning rate')
-    plt.figtext(0.75,0.125,str(solo_info["learningrate"]))
-    plt.figtext(0.65,0.100,'Iterations')
-    plt.figtext(0.75,0.100,str(solo_info["iterations"]))
-    plt.figtext(0.815,0.225,'No. filled')
-    plt.figtext(0.915,0.225,str(numfilled))
-    plt.figtext(0.815,0.200,'Slope')
-    plt.figtext(0.915,0.200,str(qcutils.round2sig(coefs[0],sig=4)))
-    dsb.solo[targetlabel]["results"]["m_ols"].append(coefs[0])
-    plt.figtext(0.815,0.175,'Offset')
-    plt.figtext(0.915,0.175,str(qcutils.round2sig(coefs[1],sig=4)))
-    dsb.solo[targetlabel]["results"]["b_ols"].append(coefs[1])
-    plt.figtext(0.815,0.150,'r')
-    plt.figtext(0.915,0.150,str(qcutils.round2sig(r[0][1],sig=4)))
-    dsb.solo[targetlabel]["results"]["r"].append(r[0][1])
-    plt.figtext(0.815,0.125,'RMSE')
-    plt.figtext(0.915,0.125,str(qcutils.round2sig(rmse,sig=4)))
-    dsb.solo[targetlabel]["results"]["RMSE"].append(rmse)
+    dsb.solo[outputlabel]["results"]["No. points"].append(numpoints)
+    plt.figtext(0.65,0.200,'No. filled')
+    plt.figtext(0.75,0.200,str(numfilled))
+    plt.figtext(0.65,0.175,'Nodes')
+    plt.figtext(0.75,0.175,str(solo_info["nodes_target"]))
+    plt.figtext(0.65,0.150,'Training')
+    plt.figtext(0.75,0.150,str(solo_info["training"]))
+    plt.figtext(0.65,0.125,'Nda factor')
+    plt.figtext(0.75,0.125,str(solo_info["factor"]))
+    plt.figtext(0.65,0.100,'Learning rate')
+    plt.figtext(0.75,0.100,str(solo_info["learningrate"]))
+    plt.figtext(0.65,0.075,'Iterations')
+    plt.figtext(0.75,0.075,str(solo_info["iterations"]))
+    plt.figtext(0.815,0.225,'Slope')
+    plt.figtext(0.915,0.225,str(qcutils.round2sig(coefs[0],sig=4)))
+    dsb.solo[outputlabel]["results"]["m_ols"].append(coefs[0])
+    plt.figtext(0.815,0.200,'Offset')
+    plt.figtext(0.915,0.200,str(qcutils.round2sig(coefs[1],sig=4)))
+    dsb.solo[outputlabel]["results"]["b_ols"].append(coefs[1])
+    plt.figtext(0.815,0.175,'r')
+    plt.figtext(0.915,0.175,str(qcutils.round2sig(r[0][1],sig=4)))
+    dsb.solo[outputlabel]["results"]["r"].append(r[0][1])
+    plt.figtext(0.815,0.150,'RMSE')
+    plt.figtext(0.915,0.150,str(qcutils.round2sig(rmse,sig=4)))
+    dsb.solo[outputlabel]["results"]["RMSE"].append(rmse)
     var_obs = numpy.ma.var(obs)
-    dsb.solo[targetlabel]["results"]["Var (obs)"].append(var_obs)
+    plt.figtext(0.815,0.125,'Var (obs)')
+    plt.figtext(0.915,0.125,'%.4g'%(var_obs))
+    dsb.solo[outputlabel]["results"]["Var (obs)"].append(var_obs)
     var_mod = numpy.ma.var(mod)
-    dsb.solo[targetlabel]["results"]["Var (SOLO)"].append(var_mod)
-    dsb.solo[targetlabel]["results"]["Var ratio"].append(var_obs/var_mod)
-    dsb.solo[targetlabel]["results"]["Avg (obs)"].append(numpy.ma.average(obs))
-    dsb.solo[targetlabel]["results"]["Avg (SOLO)"].append(numpy.ma.average(mod))    
+    plt.figtext(0.815,0.100,'Var (SOLO)')
+    plt.figtext(0.915,0.100,'%.4g'%(var_mod))
+    dsb.solo[outputlabel]["results"]["Var (SOLO)"].append(var_mod)
+    dsb.solo[outputlabel]["results"]["Var ratio"].append(var_obs/var_mod)
+    dsb.solo[outputlabel]["results"]["Avg (obs)"].append(numpy.ma.average(obs))
+    dsb.solo[outputlabel]["results"]["Avg (SOLO)"].append(numpy.ma.average(mod))
     # time series of drivers and target
     ts_axes = []
     rect = [pd["margin_left"],pd["ts_bottom"],pd["ts_width"],pd["ts_height"]]

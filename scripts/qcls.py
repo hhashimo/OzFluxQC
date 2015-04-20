@@ -278,6 +278,10 @@ def l5qc(cf,ds4):
     ds5.cf = cf
     # create a dictionary to hold the gap filling data
     ds_alt = {}
+    # check to see if we have any imports
+    qcgf.ImportSeries(cf,ds5)
+    # re-apply the quality control checks (range, diurnal and rules)
+    qcck.do_qcchecks(cf,ds5)
     # now do the flux gap filling methods
     for ThisOne in cf["Fluxes"].keys():
         # interpolate over any gaps up to 1 hour in length

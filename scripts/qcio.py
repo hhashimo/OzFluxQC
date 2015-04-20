@@ -81,7 +81,7 @@ def copy_datastructure(cf,ds_in):
     # if the L4 file does exist ...
     if os.path.exists(ct_filename):
         # check to see if the user wants to use it
-        if cf['Options']['UseExistingOutFile']!='Yes':
+        if get_keyvaluefromcf(cf,["Options"],"UseExistingOutFile",default="No")!='Yes':
             # if the user doesn't want to use the existing L4 data then create
             # the L4 data structure as a copy of the L3 data structure
             ds_out = copy.deepcopy(ds_in)
@@ -458,7 +458,7 @@ def get_outfilenamefromcf(cf):
     name = get_keyvaluefromcf(cf,["Files"],"out_filename",default="")
     return str(path)+str(name)
 
-def get_keyvaluefromcf(cf,sections,key,default=None):
+def get_keyvaluefromcf(cf,sections,key,default=None,mode="quiet"):
     """
     Purpose:
      General return a keyword value from a control file.
@@ -476,7 +476,9 @@ def get_keyvaluefromcf(cf,sections,key,default=None):
     Author: PRI
     Date: February 2015
     """
-    if len(sections)<1: log.info(" get_keyvaluefromsections: no sections specified")
+    if len(sections)<1:
+        msg = " get_keyvaluefromsections: no sections specified"
+        if mode.lower()!="quiet": log.info(msg)
     if sections[0] in cf:
         section = cf[sections[0]]
         if len(sections)>1:
@@ -484,15 +486,18 @@ def get_keyvaluefromcf(cf,sections,key,default=None):
                 if item in section:
                     section = section[item]
                 else:
-                    log.info(" get_keyvaluefromcf: Sub section "+item+" not found in control file, used default ("+str(default)+")")
+                    msg = " get_keyvaluefromcf: Sub section "+item+" not found in control file, used default ("+str(default)+")"
+                    if mode.lower()!="quiet": log.info(msg)
                     value = default
         if key in section:
             value = section[key]
         else:
-            log.info(" get_keyvaluefromcf: Key "+key+" not found in section, used default ("+str(default)+")")
+            msg = " get_keyvaluefromcf: Key "+key+" not found in section, used default ("+str(default)+")"
+            if mode.lower()!="quiet": log.info(msg)
             value = default
     else:
-        log.error(" get_keyvaluefromcf: Section "+sections[0]+" not found in control file, used default ("+str(default)+")")
+        msg = " get_keyvaluefromcf: Section "+sections[0]+" not found in control file, used default ("+str(default)+")"
+        if mode.lower()!="quiet": log.error(msg)
         value = default
     return value
 
