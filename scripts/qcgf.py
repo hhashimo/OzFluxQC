@@ -12,6 +12,7 @@ import matplotlib.dates as mdt
 import matplotlib.pyplot as plt
 import os
 import platform
+import pylab
 import qcck
 import qcio
 import qcts
@@ -1390,14 +1391,18 @@ def gfSOLO_getserieslist(cf):
 def gfSOLO_plotcoveragelines(dsa,dsb,solo_info):
     ldt = dsb.series["DateTime"]["Data"]
     output_list = dsb.solo.keys()
+    series_list = [dsb.solo[item]["label_tower"] for item in dsb.solo.keys()]
+    ylabel_list = [""]+series_list+[""]
     series_list = [dsb.solo[item]["label_tower"] for item in output_list]
-    color_list = ["blue","red","green","cyan","magenta","yellow","black","brown"]
+    color_list = ["blue","red","green","yellow","magenta","black","cyan","brown"]
+    xsize = 15.0
+    ysize = len(output_list)*0.3
     plt.ion()
     if plt.fignum_exists(0):
         fig=plt.figure(0)
         plt.cla()
     else:
-        fig=plt.figure(0,figsize=(15,1.5))
+        fig=plt.figure(0,figsize=(xsize,ysize))
     fig.canvas.set_window_title("Coverage")
     plt.ylim([0,len(output_list)+1])
     for output,series,n in zip(output_list,series_list,range(1,len(output_list)+1)):
@@ -1409,16 +1414,18 @@ def gfSOLO_plotcoveragelines(dsa,dsb,solo_info):
         ind_output = numpy.ma.masked_where(numpy.ma.getmaskarray(data_output)==True,ind_output)
         plt.plot(ldt,ind_series,color=color_list[numpy.mod(n,8)],linewidth=1)
         plt.plot(ldt,ind_output,color=color_list[numpy.mod(n,8)],linewidth=4)
-        plt.figtext(0.05,n/len(output_list),series,color=color_list[numpy.mod(n,8)])
+    ylabel_posn = range(0,len(output_list)+2)
+    pylab.yticks(ylabel_posn,ylabel_list)
     fig.tight_layout()
     fig.canvas.manager.window.attributes('-topmost', 1)
     plt.draw()
     plt.ioff()
 
-def gfSOLO_main(dsa,dsb,solo_info):
+def gfSOLO_main(dsa,dsb,solo_info,output_list=[]):
     '''
     This is the main routine for running SOLO, an artifical neural network for gap filling fluxes.
     '''
+    if len(output_list)==0: output_list = dsb.solo.keys()
     startdate = solo_info["startdate"]
     enddate = solo_info["enddate"]
     log.info(" Gap filling using SOLO: "+startdate+" to "+enddate)
@@ -1453,7 +1460,7 @@ def gfSOLO_main(dsa,dsb,solo_info):
         for i in plt.get_fignums():
             if i!=0: plt.close(i)
     fig_num = 0
-    for output in dsb.solo.keys():
+    for output in output_list:
         # clean up the target series if required
         series = dsb.solo[output]["label_tower"]
         qcck.do_qcchecks_oneseries(dsb.cf,dsa,series=series)
@@ -1801,13 +1808,12 @@ def gfSOLO_autocomplete(dsa,dsb,solo_info):
     ldt = dsb.series["DateTime"]["Data"]
     nRecs = len(ldt)
     for output in dsb.solo.keys():
-        #print " gfSOLO_autostartend: doing ",series
+        not_enough_points = False
         series = dsb.solo[output]["label_tower"]
         data_solo,flag,attr = qcutils.GetSeriesasMA(dsb,output)
         if numpy.ma.count(data_solo)==0: continue
         mask_solo = numpy.ma.getmaskarray(data_solo)
         gapstartend = qcutils.contiguous_regions(mask_solo)
-        #print " gfSOLO_autostartend: number of gaps is ",gapstartend.shape[0]
         data_obs,flag,attr = qcutils.GetSeriesasMA(dsa,series)
         for si_gap,ei_gap in gapstartend:
             min_points = int((ei_gap-si_gap)/2)
@@ -1816,14 +1822,16 @@ def gfSOLO_autocomplete(dsa,dsb,solo_info):
                 si_gap = max(0,si_gap - 48)
                 ei_gap = min(nRecs,ei_gap + 48)
                 if si_gap==0 and ei_gap==nRecs:
-                    print "Bugger, gone as far as we can go"
-                    break
+                    msg = " Unable to find enough good points in series "+series
+                    log.error(msg)
+                    not_enough_points = True
+                if not_enough_points: break
                 min_points = int((ei_gap-si_gap)/2)
                 num_good_points = numpy.ma.count(data_obs[si_gap:ei_gap])
+            if not_enough_points: break
             solo_info["startdate"] = ldt[si_gap].strftime("%Y-%m-%d")
             solo_info["enddate"] = ldt[ei_gap].strftime("%Y-%m-%d")
-            #print " gfSOLO_autostartend: doing "+solo_info["startdate"]+" to "+solo_info["enddate"]
-            gfSOLO_main(dsa,dsb,solo_info)
+            gfSOLO_main(dsa,dsb,solo_info,output_list=[output])
             gfSOLO_plotcoveragelines(dsa,dsb,solo_info)
 
 def gfSOLO_runseqsolo(dsa,dsb,driverlist,targetlabel,outputlabel,nRecs,si=0,ei=-1):
