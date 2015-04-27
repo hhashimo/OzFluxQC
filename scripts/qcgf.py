@@ -676,6 +676,7 @@ def gfalternate_run(ds_tower,ds_alt,alt_gui,alternate_info):
         alternate_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d")
         while startdate<overlap_enddate:
             gfalternate_main(ds_tower,ds_alt,alternate_info)
+            gfalternate_plotcoveragelines(ds_tower)
             startdate = enddate
             enddate = startdate+dateutil.relativedelta.relativedelta(days=nDays)
             alternate_info["startdate"] = startdate.strftime("%Y-%m-%d")
@@ -860,7 +861,6 @@ def gfalternate_getoutputstatistics(data_dict,stats_dict,alternate_info):
     label_composite = alternate_info["label_composite"]
     output_list = list(data_dict[label_tower]["output_list"])
     if label_tower in output_list: output_list.remove(label_tower)
-    print " in getoutputstatistics ",output_list
     for label in output_list:
         # OLS slope and offset
         x_in = numpy.ma.copy(data_dict[label]["fitcorr"])
@@ -1082,15 +1082,21 @@ def gfalternate_gotdataforgaps(data_composite,data_alternate,label_alternate,mod
     return return_code
 
 def gfalternate_loadoutputdata(ds_tower,data_dict,alternate_info):
+    label_tower = alternate_info["label_tower"]
     label_output = alternate_info["label_output"]
     label_composite = alternate_info["label_composite"]
     label_alternate = alternate_info["label_alternate"]
+    data_tower = data_dict[label_tower]["data"]
+    if numpy.ma.count(data_tower)<alternate_info["min_points"] and alternate_info["fit_type"]!="replace": return
     si = alternate_info["tower"]["si"]
     ei = alternate_info["tower"]["ei"]
     ind = numpy.ma.where((numpy.ma.getmaskarray(data_dict[label_output]["data"])==True)&
                          (numpy.ma.getmaskarray(data_dict[label_output][label_alternate]["data"])==False))[0]
     data_dict[label_output]["data"][ind] = data_dict[label_output][label_alternate]["data"][ind]
     data_dict[label_output]["fitcorr"][ind] = data_dict[label_output][label_alternate]["fitcorr"][ind]
+    print alternate_info["startdate"],alternate_info["enddate"]
+    print label_tower,label_output,label_composite,label_alternate
+    print len(data_dict[label_composite]["data"]),len(data_dict[label_output][label_alternate]["data"])
     ind = numpy.ma.where((numpy.ma.getmaskarray(data_dict[label_composite]["data"])==True)&
                          (numpy.ma.getmaskarray(data_dict[label_output][label_alternate]["data"])==False))[0]
     data_dict[label_composite]["data"][ind] = data_dict[label_output][label_alternate]["data"][ind]
@@ -1107,7 +1113,6 @@ def gfalternate_getdielaverage(data_dict,alternate_info):
     label_tower = alternate_info["label_tower"]
     output_list = list(data_dict[label_tower]["output_list"])
     diel_avg = {}
-    print " in getdielaverage: ",output_list
     for label_output in output_list:
         diel_avg[label_output] = {}
         if "data" in data_dict[label_output].keys():
@@ -1149,10 +1154,15 @@ def gfalternate_main(ds_tower,ds_alt,alternate_info):
         alternate_info["label_tower"] = label_tower
         label_composite = label_tower+"_composite"
         alternate_info["label_composite"] = label_composite
-        # check to see if we have any gaps to fill
+        # read the tower data and check for gaps
         data_tower,flag_tower,attr_tower = qcutils.GetSeriesasMA(ds_tower,label_tower,si=si_tower,ei=ei_tower)
         alternate_info["min_points"] = int(len(data_tower)*alternate_info["min_percent"]/100)
-        if not gfalternate_gotgaps(data_tower,label_tower,mode="verbose"): continue
+        # check to see if we have any gaps to fill
+        if not gfalternate_gotgaps(data_tower,label_tower,mode="quiet"):
+            # if there are no gaps, fill the composite series with tower data so coverage lines will plot
+            ds_tower.series[label_composite]["Data"][si_tower:ei_tower+1] = numpy.ma.filled(data_tower,c.missing_value)
+            ds_tower.series[label_composite]["Flag"][si_tower:ei_tower+1] = flag_tower
+            continue
         # initialise a dictionary to hold the data
         data_dict = {}
         stats_dict = {}
@@ -1161,7 +1171,6 @@ def gfalternate_main(ds_tower,ds_alt,alternate_info):
         # get a list of the output names for this tower series
         label_output_list = gfalternate_getlabeloutputlist(ds_tower,label_tower)
         # loop over the outputs for this tower series
-        print " before loop ",label_output_list
         for label_output in label_output_list:
             alternate_info["label_output"] = label_output
             # update the alternate_info dictionary
@@ -1178,7 +1187,7 @@ def gfalternate_main(ds_tower,ds_alt,alternate_info):
             si = alternate_info["tower"]["si"]; ei = alternate_info["tower"]["ei"]
             data_dict["DateTime"] = {"data":ldt_tower[si:ei+1]}
             data_tower,flag_tower,attr_tower = qcutils.GetSeriesasMA(ds_tower,label_tower,si=si,ei=ei)
-            if not gfalternate_gotminpoints(data_tower,alternate_info,label_tower,mode="verbose"): pass
+            if not gfalternate_gotminpoints(data_tower,alternate_info,label_tower,mode="quiet"): pass
             # looks like we have enough to continue so load the dictionaries
             stats_dict[label_output] = {"startdate":alternate_info["startdate"],"enddate":alternate_info["enddate"]}
             stats_dict[label_composite] = {"startdate":alternate_info["startdate"],"enddate":alternate_info["enddate"]}
@@ -1267,6 +1276,9 @@ def gfalternate_plotcomposite(nfig,data_dict,stats_dict,diel_avg,alternate_info,
     label_tower = alternate_info["label_tower"]
     label_composite = alternate_info["label_composite"]
     time_step = alternate_info["time_step"]
+    points_test = numpy.ma.count(data_dict[label_tower]["data"])<alternate_info["min_points"]
+    fit_test = alternate_info["fit_type"]!="replace"
+    if points_test and fit_test: return
     # turn on interactive plotting
     if alternate_info["show_plots"]:
         plt.ion()
@@ -1350,7 +1362,7 @@ def gfalternate_plotcoveragelines(ds_tower):
     ylabel_list = [""]+series_list+[""]
     color_list = ["blue","red","green","yellow","magenta","black","cyan","brown"]
     xsize = 15.0
-    ysize = len(series_list)*0.3
+    ysize = len(series_list)*0.2
     plt.ion()
     if plt.fignum_exists(0):
         fig=plt.figure(0)
