@@ -1510,7 +1510,7 @@ def get_averages(Data):
             Av = c.missing_value
     return Num, Av
 
-def get_laggedcorrelation(x_in,y_in,maxlags=10,minpoints=2):
+def get_laggedcorrelation(x_in,y_in,maxlags,minpoints):
     """
     Calculate the lagged cross-correlation between 2 1D arrays.
     Taken from the matplotlib.pyplot.xcorr source code.
