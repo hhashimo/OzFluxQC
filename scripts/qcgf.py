@@ -326,7 +326,9 @@ def GapFillFromAlternate(ds4,ds_alt):
     enddate = ldt_tower[-1]
     # create the alternate_info dictionary, this will hold much useful information
     alternate_info = {"overlap_startdate":startdate.strftime("%Y-%m-%d %H:%M"),
-                      "overlap_enddate":enddate.strftime("%Y-%m-%d %H:%M")}
+                      "overlap_enddate":enddate.strftime("%Y-%m-%d %H:%M"),
+                      "startdate":startdate.strftime("%Y-%m-%d"),
+                      "enddate":enddate.strftime("%Y-%m-%d")}
     # make the GUI
     alt_gui = Tkinter.Toplevel()
     alt_gui.wm_title("Gap fill using alternate data")
@@ -371,10 +373,14 @@ def GapFillFromAlternate(ds4,ds_alt):
     alt_gui.automonthly = Tkinter.Radiobutton(alt_gui,text="Monthly",variable=alt_gui.peropt,value=2)
     alt_gui.automonthly.grid(row=nrow,column=0,columnspan=1,sticky="W")
     alt_gui.daysLabel = Tkinter.Radiobutton(alt_gui,text="No. days",variable=alt_gui.peropt,value=3)
-    alt_gui.daysLabel.grid(row=nrow,column=1,columnspan=2,sticky="W")
-    alt_gui.daysEntry = Tkinter.Entry(alt_gui,width=5)
-    alt_gui.daysEntry.grid(row=nrow,column=3,columnspan=2,sticky="W")
+    alt_gui.daysLabel.grid(row=nrow,column=1,columnspan=1,sticky="W")
+    alt_gui.daysEntry = Tkinter.Entry(alt_gui,width=3)
+    alt_gui.daysEntry.grid(row=nrow,column=2,columnspan=1,sticky="W")
     alt_gui.daysEntry.insert(0,"90")
+    alt_gui.autocompleteopt = Tkinter.IntVar()
+    alt_gui.autocompleteopt.set(1)
+    alt_gui.autocomplete = Tkinter.Checkbutton(alt_gui, text="Auto complete", variable=alt_gui.autocompleteopt)
+    alt_gui.autocomplete.grid(row=nrow,column=3,columnspan=3,sticky="W")
     # seventh row
     nrow = nrow + 1
     alt_gui.pltopt = Tkinter.IntVar()
@@ -494,7 +500,7 @@ def gfalternate_done(ds,alt_gui):
     # destroy the alternate GUI
     alt_gui.destroy()
     # write Excel spreadsheet with fit statistics
-    qcio.xl_write_AlternateStats(ds)
+    #qcio.xl_write_AlternateStats(ds)
     # put the return code into ds.alternate
     ds.returncodes["alternate"] = "normal"
 
@@ -567,6 +573,51 @@ def gfalternate_getalternatevarlist(ds_alternate,label):
         log.error("gfalternate_getalternatevarlist: series "+label+" not in alternate data file")
     return alternate_var_list
 
+def gfalternate_autocomplete(ds_tower,ds_alt,alternate_info):
+    if not alternate_info["auto_complete"]: return
+    ldt_tower = ds_tower.series["DateTime"]["Data"]
+    nRecs = len(ldt_tower)-1
+    label_tower_list = list(set(alternate_info["series_list"]))
+    for label_tower in label_tower_list:
+        #print "autocomplete doing "+label_tower
+        label_composite = label_tower+"_composite"
+        not_enough_points = False
+        data_composite,flag_composite,attr_composite = qcutils.GetSeriesasMA(ds_tower,label_composite)
+        data_tower,flag_tower,attr_tower = qcutils.GetSeriesasMA(ds_tower,label_tower)
+        data_merged = numpy.ma.copy(data_tower)
+        idx = numpy.where((numpy.ma.getmaskarray(data_tower)==True)&(numpy.ma.getmaskarray(data_composite)==False))[0]
+        data_merged[idx] = data_composite[idx]
+        if numpy.ma.count_masked(data_merged)==0: continue
+        mask_merged = numpy.ma.getmaskarray(data_merged)
+        gapstartend = qcutils.contiguous_regions(mask_merged)
+        print "variable "+label_tower+" has "+str(len(gapstartend))+" gaps"
+        for si_gap,ei_gap in gapstartend:
+            print "gap is ",ldt_tower[si_gap],ldt_tower[ei_gap]
+            min_points = int((ei_gap-si_gap)*alternate_info["min_percent"]/100)
+            num_good_points = numpy.ma.count(data_tower[si_gap:ei_gap])
+            #print "min_points is ",min_points," num_good_points is ",num_good_points
+            while num_good_points<min_points:
+                si_gap = max(0,si_gap - alternate_info["nperday"])
+                ei_gap = min(nRecs,ei_gap + alternate_info["nperday"])
+                if si_gap==0 and ei_gap==nRecs:
+                    msg = " Unable to find enough good points in "+label_tower
+                    log.error(msg)
+                    not_enough_points = True
+                if not_enough_points:
+                    print "didn't find enough good points 1"
+                    break
+                min_points = int((ei_gap-si_gap)*alternate_info["min_percent"]/100)
+                num_good_points = numpy.ma.count(data_tower[si_gap:ei_gap])
+                #print "min_points is ",min_points," num_good_points is ",num_good_points
+            if not_enough_points:
+                print "didn't find enough good points 2"
+                break
+            print "overlap is ",ldt_tower[si_gap],ldt_tower[ei_gap]
+            alternate_info["startdate"] = ldt_tower[si_gap].strftime("%Y-%m-%d")
+            alternate_info["enddate"] = ldt_tower[ei_gap].strftime("%Y-%m-%d")
+            gfalternate_main(ds_tower,ds_alt,alternate_info,output_list=[label_tower])
+            gfalternate_plotcoveragelines(ds_tower)
+
 def gfalternate_getdataas2d(odt,data,alternate_info):
     """
     Purpose:
@@ -605,22 +656,9 @@ def gfalternate_getdateindices(ldt_tower,ldt_alternate,alternate_info,match):
     ts = alternate_info["time_step"]
     # get the indices of the start and end datetimes in the tower and the alternate data.
     si_tower = qcutils.GetDateIndex(ldt_tower,startdate,ts=ts,match=si_match,default=0)
-    ei_tower = qcutils.GetDateIndex(ldt_tower,enddate,ts=ts,match=ei_match,default=-1)
+    ei_tower = qcutils.GetDateIndex(ldt_tower,enddate,ts=ts,match=ei_match,default=len(ldt_tower)-1)
     si_alternate = qcutils.GetDateIndex(ldt_alternate,startdate,ts=ts,match=si_match,default=0)
-    ei_alternate = qcutils.GetDateIndex(ldt_alternate,enddate,ts=ts,match=ei_match,default=-1)
-    #test_start = ldt_tower[si_tower]<ldt_alternate[ei_alternate]
-    #test_end = ldt_tower[ei_tower]>ldt_alternate[si_alternate]
-    #if test_start and test_end:
-        ## now make sure the start and end datetime match
-        #sdt = max([ldt_tower[si_tower],ldt_alternate[si_alternate]])
-        #edt = min([ldt_tower[ei_tower],ldt_alternate[ei_alternate]])
-        ## and get the start and end indices again in case they didn't
-        #si_tower = qcutils.GetDateIndex(ldt_tower,str(sdt),ts=ts,match=si_match,default=0)
-        #ei_tower = qcutils.GetDateIndex(ldt_tower,str(edt),ts=ts,match=ei_match,default=-1)
-        #si_alternate = qcutils.GetDateIndex(ldt_alternate,str(sdt),ts=ts,match=si_match,default=0)
-        #ei_alternate = qcutils.GetDateIndex(ldt_alternate,str(edt),ts=ts,match=ei_match,default=-1)
-        #if ei_tower==-1: ei_tower = len(ldt_tower)-1
-        #if ei_alternate==-1: ei_alternate = len(ldt_alternate)-1
+    ei_alternate = qcutils.GetDateIndex(ldt_alternate,enddate,ts=ts,match=ei_match,default=len(ldt_alternate)-1)
     alternate_info["tower"]["si"] = si_tower
     alternate_info["tower"]["ei"] = ei_tower
     alternate_info["alternate"]["si"] = si_alternate
@@ -861,11 +899,13 @@ def gfalternate_initplot(data_dict,alternate_info,**kwargs):
           "text_left":0.675,"num_left":0.825,"row_bottom":0.35,"row_space":0.030}
     # calculate bottom of the first time series and the height of the time series plots
     #pd["ts_bottom"] = pd["margin_bottom"]+pd["xy_height"]+pd["xyxy_space"]+pd["xy_height"]+pd["xyts_space"]
+    label_tower = alternate_info["label_tower"]
     label_composite = alternate_info["label_composite"]
-    label_list = data_dict.keys()
-    for item in [label_composite,"DateTime"]:
-        if item in label_list: label_list.remove(item)
-    nts = len(label_list)
+    
+    output_list = list(data_dict[label_tower]["output_list"])
+    for item in [label_tower,label_composite]:
+        if item in output_list: output_list.remove(item)
+    nts = len(output_list)+1
     pd["ts_bottom"] = pd["margin_bottom"]+pd["xy_height"]+pd["xyts_space"]
     pd["ts_height"] = (1.0-pd["margin_top"]-pd["ts_bottom"])/nts
     for key, value in kwargs.iteritems():
@@ -914,7 +954,7 @@ def gfalternate_matchstartendtimes(ds,ds_alternate):
     end_tower = ldt_tower[-1]
     if start_alternate<start_tower or end_alternate>end_tower:
         si_alternate = qcutils.GetDateIndex(ldt_alternate,str(start_tower),ts=ts_alternate,default=0,match="exact")
-        ei_alternate = qcutils.GetDateIndex(ldt_alternate,str(end_tower),ts=ts_alternate,default=len(ldt_alternate),match="exact")
+        ei_alternate = qcutils.GetDateIndex(ldt_alternate,str(end_tower),ts=ts_alternate,default=len(ldt_alternate)-1,match="exact")
         for ss in ds_alternate.series.keys():
             if ss in ["DateTime","DateTime_UTC"]: continue
             data,flag,attr = qcutils.GetSeriesasMA(ds_alternate,ss,si=si_alternate,ei=ei_alternate)
@@ -930,15 +970,15 @@ def gfalternate_matchstartendtimes(ds,ds_alternate):
         startend = [start_tower,end_tower]
         qcutils.FixTimeGaps(ds_alternate,startend=startend)
 
-def gfalternate_main(ds_tower,ds_alt,alternate_info):
+def gfalternate_main(ds_tower,ds_alt,alternate_info,output=[]):
     '''
     This is the main routine for using alternate data to gap fill drivers.
     '''
+    mode = "quiet"  #"verbose"
     ts = alternate_info["time_step"]
-    msg = " Gap filling using alternate data: "
-    msg = msg + alternate_info["startdate"].strftime("%Y-%m-%d")+" to "
-    msg = msg + alternate_info["enddate"].strftime("%Y-%m-%d")
-    log.info(msg)
+    startdate = alternate_info["startdate"]
+    enddate = alternate_info["enddate"]
+    log.info(" Gap filling using alternate data: "+startdate+" to "+enddate)
     # close any open plot windows
     if len(plt.get_fignums())!=0:
         for i in plt.get_fignums():
@@ -953,8 +993,8 @@ def gfalternate_main(ds_tower,ds_alt,alternate_info):
     # get local pointer to the datetime series
     ldt_tower = ds_tower.series["DateTime"]["Data"]
     attr_ldt_tower = ds_tower.series["DateTime"]["Attr"]
-    si_tower = qcutils.GetDateIndex(ldt_tower,str(alternate_info["startdate"]),ts=ts)
-    ei_tower = qcutils.GetDateIndex(ldt_tower,str(alternate_info["enddate"]),ts=ts)
+    si_tower = qcutils.GetDateIndex(ldt_tower,str(alternate_info["startdate"]),ts=ts,default=0)
+    ei_tower = qcutils.GetDateIndex(ldt_tower,str(alternate_info["enddate"]),ts=ts,default=len(ldt_tower)-1)
     # now loop over the variables to be gap filled using the alternate data
     label_tower_list = list(set(alternate_info["series_list"]))
     for fig_num,label_tower in enumerate(label_tower_list):
@@ -965,7 +1005,7 @@ def gfalternate_main(ds_tower,ds_alt,alternate_info):
         data_tower,flag_tower,attr_tower = qcutils.GetSeriesasMA(ds_tower,label_tower,si=si_tower,ei=ei_tower)
         alternate_info["min_points"] = int(len(data_tower)*alternate_info["min_percent"]/100)
         # check to see if we have any gaps to fill
-        if not gfalternate_gotgaps(data_tower,label_tower,mode="quiet"):
+        if not gfalternate_gotgaps(data_tower,label_tower,mode=mode):
             # if there are no gaps, fill the composite series with tower data so coverage lines will plot
             ds_tower.series[label_composite]["Data"][si_tower:ei_tower+1] = numpy.ma.filled(data_tower,c.missing_value)
             ds_tower.series[label_composite]["Flag"][si_tower:ei_tower+1] = flag_tower
@@ -989,12 +1029,12 @@ def gfalternate_main(ds_tower,ds_alt,alternate_info):
             # get the indices of the start and end datetimes
             gfalternate_getdateindices(ldt_tower,ldt_alternate,alternate_info,"exact")
             # check that the start and end times match
-            if not gfalternate_startendtimesmatch(ldt_tower,ldt_alternate,alternate_info,mode="quiet"): continue
+            if not gfalternate_startendtimesmatch(ldt_tower,ldt_alternate,alternate_info,mode=mode): continue
             # get the tower data, check we have enough points and if we have, update the data_dict
             si = alternate_info["tower"]["si"]; ei = alternate_info["tower"]["ei"]
             data_dict["DateTime"] = {"data":ldt_tower[si:ei+1]}
             data_tower,flag_tower,attr_tower = qcutils.GetSeriesasMA(ds_tower,label_tower,si=si,ei=ei)
-            if not gfalternate_gotminpoints(data_tower,alternate_info,label_tower,mode="quiet"): pass
+            if not gfalternate_gotminpoints(data_tower,alternate_info,label_tower,mode=mode): pass
             # looks like we have enough to continue so load the dictionaries
             stats_dict[label_output] = {"startdate":alternate_info["startdate"],"enddate":alternate_info["enddate"]}
             stats_dict[label_composite] = {"startdate":alternate_info["startdate"],"enddate":alternate_info["enddate"]}
@@ -1016,9 +1056,9 @@ def gfalternate_main(ds_tower,ds_alt,alternate_info):
                 si = alternate_info["alternate"]["si"]; ei = alternate_info["alternate"]["ei"]; mode = alternate_info["getseries_mode"]
                 data_alternate,flag_alternate,attr_alternate = qcutils.GetSeriesasMA(ds_alternate,label_alternate,si=si,ei=ei,mode=mode)
                 # skip this alternate variable if there are not enough points
-                if not gfalternate_gotminpoints(data_alternate,alternate_info,label_alternate,mode="quiet"): continue
+                if not gfalternate_gotminpoints(data_alternate,alternate_info,label_alternate,mode=mode): continue
                 if not gfalternate_gotdataforgaps(data_dict[alternate_info["label_output"]]["data"],
-                                                  data_alternate,label_alternate): continue
+                                                  data_alternate,label_alternate,mode=mode): continue
                 # this alternate series can fill gaps, let's continue
                 stats_dict[label_output][label_alternate] = {"startdate":alternate_info["startdate"],"enddate":alternate_info["enddate"]}
                 if label_output not in data_dict[label_tower]["output_list"]:
@@ -1277,6 +1317,8 @@ def gfalternate_run(ds_tower,ds_alt,alt_gui,alternate_info):
     if alt_gui.owopt.get()==0: alternate_info["overwrite"] = False
     alternate_info["show_plots"] = True
     if alt_gui.pltopt.get()==0: alternate_info["show_plots"] = False
+    alternate_info["auto_complete"] = True
+    if alt_gui.autocompleteopt.get()==0: alternate_info["auto_complete"] = False
     alternate_info["min_percent"] = int(alt_gui.minptsEntry.get())
     alternate_info["site_name"] = ds_tower.globalattributes["site_name"]
     alternate_info["time_step"] = int(ds_tower.globalattributes["time_step"])
@@ -1291,18 +1333,15 @@ def gfalternate_run(ds_tower,ds_alt,alt_gui,alternate_info):
     if alt_gui.peropt.get()==1:
         gfalternate_progress(alt_gui,"Starting manual run ...")
         # get the start and end datetimes entered in the alternate GUI
-        alternate_info["startdate"] = alt_gui.startEntry.get()
-        if len(alternate_info["startdate"])==0: alternate_info["startdate"] = alternate_info["overlap_startdate"]
-        alternate_info["enddate"] = alt_gui.endEntry.get()
-        if len(alternate_info["enddate"])==0: alternate_info["enddate"] = alternate_info["overlap_enddate"]
+        if len(alt_gui.startEntry.get())!=0: alternate_info["startdate"] = alt_gui.startEntry.get()
+        if len(alt_gui.endEntry.get())!=0: alternate_info["enddate"] = alt_gui.endEntry.get()
         gfalternate_main(ds_tower,ds_alt,alternate_info)
         gfalternate_plotcoveragelines(ds_tower)
         gfalternate_progress(alt_gui,"Finished manual run ...")
     elif alt_gui.peropt.get()==2:
         gfalternate_progress(alt_gui,"Starting auto (monthly) run ...")
         # get the start datetime entered in the alternate GUI
-        alternate_info["startdate"] = alt_gui.startEntry.get()
-        if len(alternate_info["startdate"])==0: alternate_info["startdate"] = alternate_info["overlap_startdate"]
+        if len(alt_gui.startEntry.get())!=0: alternate_info["startdate"] = alt_gui.startEntry.get()
         startdate = dateutil.parser.parse(alternate_info["startdate"])
         overlap_startdate = dateutil.parser.parse(alternate_info["overlap_startdate"])
         overlap_enddate = dateutil.parser.parse(alternate_info["overlap_enddate"])
@@ -1316,12 +1355,12 @@ def gfalternate_run(ds_tower,ds_alt,alt_gui,alternate_info):
             enddate = startdate+dateutil.relativedelta.relativedelta(months=1)
             alternate_info["startdate"] = startdate.strftime("%Y-%m-%d")
             alternate_info["enddate"] = enddate.strftime("%Y-%m-%d")
+        gfalternate_autocomplete(ds_tower,ds_alt,alternate_info)
         gfalternate_progress(alt_gui,"Finished auto (monthly) run ...")
     elif alt_gui.peropt.get()==3:
         gfalternate_progress(alt_gui,"Starting auto (days) run ...")
         # get the start datetime entered in the alternate GUI
-        alternate_info["startdate"] = alt_gui.startEntry.get()
-        if len(alternate_info["startdate"])==0: alternate_info["startdate"] = alternate_info["overlap_startdate"]
+        if len(alt_gui.startEntry.get())!=0: alternate_info["startdate"] = alt_gui.startEntry.get()
         startdate = dateutil.parser.parse(alternate_info["startdate"])
         overlap_startdate = dateutil.parser.parse(alternate_info["overlap_startdate"])
         overlap_enddate = dateutil.parser.parse(alternate_info["overlap_enddate"])
@@ -1336,6 +1375,7 @@ def gfalternate_run(ds_tower,ds_alt,alt_gui,alternate_info):
             enddate = startdate+dateutil.relativedelta.relativedelta(days=nDays)
             alternate_info["startdate"] = startdate.strftime("%Y-%m-%d")
             alternate_info["enddate"] = enddate.strftime("%Y-%m-%d")
+        gfalternate_autocomplete(ds_tower,ds_alt,alternate_info)
         gfalternate_progress(alt_gui,"Finished auto (days) run ...")
     else:
         log.error("GapFillFromAlternate: unrecognised period option")
@@ -1709,7 +1749,7 @@ def gfSOLO_main(dsa,dsb,solo_info,output_list=[]):
     xldt = dsb.series["xlDateTime"]["Data"]
     # get the start and end datetime indices
     si = qcutils.GetDateIndex(ldt,startdate,ts=ts,default=0,match="exact")
-    ei = qcutils.GetDateIndex(ldt,enddate,ts=ts,default=-1,match="exact")
+    ei = qcutils.GetDateIndex(ldt,enddate,ts=ts,default=len(ldt)-1,match="exact")
     # check the start and end indices
     if si >= ei:
         print " GapFillUsingSOLO: end datetime index ("+str(ei)+") smaller that start ("+str(si)+")"
@@ -2470,7 +2510,7 @@ def ImportSeries(cf,ds):
         ts_import = ds_import.globalattributes["time_step"]
         ldt_import = ds_import.series["DateTime"]["Data"]
         si = qcutils.GetDateIndex(ldt_import,str(start_date),ts=ts_import,default=0,match="exact")
-        ei = qcutils.GetDateIndex(ldt_import,str(end_date),ts=ts_import,default=-1,match="exact")
+        ei = qcutils.GetDateIndex(ldt_import,str(end_date),ts=ts_import,default=len(ldt_import)-1,match="exact")
         data = numpy.ma.ones(nRecs)*float(c.missing_value)
         flag = numpy.ma.ones(nRecs)
         data_import,flag_import,attr_import = qcutils.GetSeriesasMA(ds_import,var_name,si=si,ei=ei)
