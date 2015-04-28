@@ -427,7 +427,7 @@ def FixNonIntegralTimeSteps(ds):
         ds.series["DateTime"]["Data"] = ldt_rounded
     ds.globalattributes['nc_nrecs'] = len(ds.series["DateTime"]["Data"])
     
-def FixTimeGaps(ds):
+def FixTimeGaps(ds,startend=[]):
     """
     Purpose:
      Fix gaps in datetime series found by CheckTimeStep.
@@ -444,8 +444,16 @@ def FixTimeGaps(ds):
     ts = int(ds.globalattributes["time_step"])
     ldt_gaps,ldt_flag,ldt_attr = GetSeries(ds,"DateTime")
     # generate a datetime list from the start datetime to the end datetime
-    ldt_start = ldt_gaps[0]
-    ldt_end = ldt_gaps[-1]
+    if len(startend)==0:
+        ldt_start = ldt_gaps[0]
+        ldt_end = ldt_gaps[-1]
+    elif len(startend)==2:
+        ldt_start = startend[0]
+        ldt_end = startend[1]
+    else:
+        msg = " FixTimeGaps: Unrecognised option "+str(startend)+" for start and end times passed in, returning ..."
+        log.error(msg)
+        return
     ldt_nogaps = [result for result in perdelta(ldt_start,ldt_end,datetime.timedelta(minutes=ts))]
     # update the global attribute containing the number of records
     nRecs = len(ldt_nogaps)
@@ -792,7 +800,7 @@ def GetSeries(ds,ThisOne,si=0,ei=-1,mode="truncate"):
             msg = 'GetSeries: unrecognised combination of si ('+str(si)+') and ei ('+str(ei)+')'
             raise ValueError(msg)
     else:
-        raise ValueError('GetSeries: unrecognised mode option'+str(mode))
+        raise ValueError("GetSeries: unrecognised mode option "+str(mode))
     return Series,Flag,Attr
 
 def MakeEmptySeries(ds,ThisOne):
