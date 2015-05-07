@@ -79,13 +79,19 @@ def CheckQCFlags(ds):
     Author: PRI
     Date: August 2014
     """
+    # force any values of -9999 with QC flags of 0 to have a QC flag of 8
     for ThisOne in ds.series.keys():
         data = numpy.ma.masked_values(ds.series[ThisOne]["Data"],-9999)
         flag = numpy.ma.masked_equal(numpy.mod(ds.series[ThisOne]["Flag"],10),0)
         mask = data.mask&flag.mask
         index = numpy.ma.where(mask==True)[0]
         ds.series[ThisOne]["Flag"][index] = numpy.int32(8)
-    
+    # force all values != -9999 to have QC flag = 0, 10, 20 etc
+    for ThisOne in ds.series.keys():
+        index = numpy.where((abs(ds.series[ThisOne]['Data']-numpy.float64(c.missing_value))>c.eps)&
+                            (numpy.mod(ds.series[ThisOne]["Flag"],10)!=0))
+        ds.series[ThisOne]["Flag"][index] = numpy.int32(0)
+
 def CheckTimeStep(ds):
     """
     Purpose:
@@ -767,11 +773,11 @@ def GetSeries(ds,ThisOne,si=0,ei=-1,mode="truncate"):
         # make an empty series if the requested series does not exist in the data structure
         Series,Flag,Attr = MakeEmptySeries(ds,ThisOne)
     # tidy up
+    if ei==-1: ei = nRecs - 1
     if mode=="truncate":
         # truncate to the requested start and end indices
         si = max(0,si)                  # clip start index at 0
         ei = min(nRecs,ei)              # clip end index to nRecs
-        if ei==-1: ei = nRecs - 1       # trap ei = -1 values
         Series = Series[si:ei+1]        # truncate the data
         Flag = Flag[si:ei+1]            # truncate the QC flag
     elif mode=="pad":
@@ -793,12 +799,39 @@ def GetSeries(ds,ThisOne,si=0,ei=-1,mode="truncate"):
             Flag = numpy.append(Flag[si:],numpy.ones((ei-(nRecs-1)),dtype=numpy.int32))
         elif si>=0 and ei<=nRecs-1:
             # truncate at the start and end
-            if ei==-1: ei = nRecs - 1
             Series = Series[si:ei+1]
             Flag = Flag[si:ei+1]
         else:
             msg = 'GetSeries: unrecognised combination of si ('+str(si)+') and ei ('+str(ei)+')'
             raise ValueError(msg)
+    elif mode=="mirror":
+        # reflect data about end boundaries if si or ei are out of bounds
+        if si<0 and ei>nRecs-1:
+            # mirror at the start
+            Series = numpy.append(numpy.fliplr([Series[1:abs(si)+1]])[0],Series)
+            Flag = numpy.append(numpy.fliplr([Flag[1:abs(si)+1]])[0],Flag)
+            # mirror at the end
+            sim = 2*nRecs-1-ei
+            eim = nRecs-1
+            Series = numpy.append(Series,numpy.fliplr([Series[sim:eim]])[0])
+            Flag = numpy.append(Flag,numpy.fliplr([Flag[sim:eim]])[0])
+        elif si<0 and ei<=nRecs-1:
+            # mirror at start, truncate at end
+            Series = numpy.append(numpy.fliplr([Series[1:abs(si)+1]])[0],Series[:ei+1])
+            Flag = numpy.append(numpy.fliplr([Flag[1:abs(si)+1]])[0],Flag[:ei+1])
+        elif si>=0 and ei>nRecs-1:
+            # truncate at start, mirror at end
+            sim = 2*nRecs-1-ei
+            eim = nRecs-1
+            Series = numpy.append(Series[si:],numpy.fliplr([Series[sim:eim]])[0])
+            Flag = numpy.append(Flag[si:],numpy.fliplr([Flag[sim:eim]])[0])
+        elif si>=0 and ei<=nRecs-1:
+            # truncate at the start and end
+            Series = Series[si:ei+1]
+            Flag = Flag[si:ei+1]
+        else:
+            msg = 'GetSeries: unrecognised combination of si ('+str(si)+') and ei ('+str(ei)+')'
+            raise ValueError(msg)            
     else:
         raise ValueError("GetSeries: unrecognised mode option "+str(mode))
     return Series,Flag,Attr

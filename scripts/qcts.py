@@ -257,7 +257,8 @@ def CalculateAvailableEnergy(ds,Fa_out='Fa',Fn_in='Fn',Fg_in='Fg'):
         qcutils.CreateSeries(ds,Fa_out,Fa_calc,FList=[Fn_in,Fg_in],Attr=attr)
     else:
         Fa_exist,flag,attr = qcutils.GetSeriesasMA(ds,Fa_out)
-        idx = numpy.ma.where((numpy.ma.getmaskarray(Fa_exist)==True)&(numpy.ma.getmaskarray(Fa_calc)==False))[0]
+        idx = numpy.where((numpy.ma.getmaskarray(Fa_exist)==True)&(numpy.ma.getmaskarray(Fa_calc)==False))[0]
+        #idx = numpy.ma.where((numpy.ma.getmaskarray(Fa_exist)==True)&(numpy.ma.getmaskarray(Fa_calc)==False))[0]
         if len(idx)!=0:
             Fa_exist[idx] = Fa_calc[idx]
             flag[idx] = numpy.int32(20)
@@ -447,7 +448,8 @@ def AbsoluteHumidityFromRH(ds):
     Ah_new = mf.absolutehumidityfromRH(Ta,RH)
     if "Ah" in ds.series.keys():
         Ah,Ah_flag,Ah_attr = qcutils.GetSeriesasMA(ds,"Ah")
-        index = numpy.ma.where(numpy.ma.getmaskarray(Ah)==True)[0]
+        index = numpy.where(numpy.ma.getmaskarray(Ah)==True)[0]
+        #index = numpy.ma.where(numpy.ma.getmaskarray(Ah)==True)[0]
         Ah[index] = Ah_new[index]
         Ah_flag[index] = Ah_new_flag[index]
         Ah_attr["long_name"] = Ah_attr["long_name"]+", merged with Ah calculated from RH"
@@ -467,7 +469,8 @@ def AbsoluteHumidityFromq(ds):
     Ah_new = mf.absolutehumidityfromRH(Ta,RH)
     if "Ah" in ds.series.keys():
         Ah,Ah_flag,Ah_attr = qcutils.GetSeriesasMA(ds,"Ah")
-        index = numpy.ma.where(numpy.ma.getmaskarray(Ah)==True)[0]
+        index = numpy.where(numpy.ma.getmaskarray(Ah)==True)[0]
+        #index = numpy.ma.where(numpy.ma.getmaskarray(Ah)==True)[0]
         Ah[index] = Ah_new[index]
         Ah_flag[index] = Ah_new_flag[index]
         Ah_attr["long_name"] = Ah_attr["long_name"]+", merged with Ah calculated from q"
@@ -486,7 +489,8 @@ def RelativeHumidityFromq(ds):
     RH_new = mf.RHfromspecifichumidity(q,Ta,ps)
     if "RH" in ds.series.keys():
         RH,RH_flag,RH_attr = qcutils.GetSeriesasMA(ds,"RH")
-        index = numpy.ma.where(numpy.ma.getmaskarray(RH)==True)[0]
+        index = numpy.where(numpy.ma.getmaskarray(RH)==True)[0]
+        #index = numpy.ma.where(numpy.ma.getmaskarray(RH)==True)[0]
         RH[index] = RH_new[index]
         RH_flag[index] = RH_new_flag[index]
         RH_attr["long_name"] = RH_attr["long_name"]+", merged with RH calculated from q"
@@ -504,7 +508,8 @@ def RelativeHumidityFromAh(ds):
     RH_new = mf.RHfromabsolutehumidity(Ah,Ta)     # relative humidity in units of percent
     if "RH" in ds.series.keys():
         RH,RH_flag,RH_attr = qcutils.GetSeriesasMA(ds,"RH")
-        index = numpy.ma.where(numpy.ma.getmaskarray(RH)==True)[0]
+        index = numpy.where(numpy.ma.getmaskarray(RH)==True)[0]
+        #index = numpy.ma.where(numpy.ma.getmaskarray(RH)==True)[0]
         RH[index] = RH_new[index]
         RH_flag[index] = RH_new_flag[index]
         RH_attr["long_name"] = RH_attr["long_name"]+", merged with RH calculated from Ah"
@@ -524,7 +529,8 @@ def SpecificHumidityFromAh(ds):
     q_new = mf.specifichumidityfromRH(RH, Ta, ps)
     if "q" in ds.series.keys():
         q,q_flag,q_attr = qcutils.GetSeriesasMA(ds,"q")
-        index = numpy.ma.where(numpy.ma.getmaskarray(q)==True)[0]
+        index = numpy.where(numpy.ma.getmaskarray(q)==True)[0]
+        #index = numpy.ma.where(numpy.ma.getmaskarray(q)==True)[0]
         q[index] = q_new[index]
         q_flag[index] = q_new_flag[index]
         q_attr["long_name"] = q_attr["long_name"]+", merged with q calculated from Ah"
@@ -543,7 +549,8 @@ def SpecificHumidityFromRH(ds):
     q_new = mf.specifichumidityfromRH(RH,Ta,ps)   # specific humidity in units of kg/kg
     if "q" in ds.series.keys():
         q,q_flag,q_attr = qcutils.GetSeriesasMA(ds,"q")
-        index = numpy.ma.where(numpy.ma.getmaskarray(q)==True)[0]
+        index = numpy.where(numpy.ma.getmaskarray(q)==True)[0]
+        #index = numpy.ma.where(numpy.ma.getmaskarray(q)==True)[0]
         q[index] = q_new[index]
         q_flag[index] = q_new_flag[index]
         q_attr["long_name"] = q_attr["long_name"]+", merged with q calculated from RH"
@@ -670,7 +677,8 @@ def CalculateNetRadiation(cf,ds,Fn_out='Fn',Fsd_in='Fsd',Fsu_in='Fsu',Fld_in='Fl
             qcutils.CreateSeries(ds,Fn_out,Fn_calc,FList=[Fsd_in,Fsu_in,Fld_in,Flu_in],Attr=attr)
         else:
             Fn_exist,flag,attr = qcutils.GetSeriesasMA(ds,Fn_out)
-            idx = numpy.ma.where((numpy.ma.getmaskarray(Fn_exist)==True)&(numpy.ma.getmaskarray(Fn_calc)==False))[0]
+            idx = numpy.where((numpy.ma.getmaskarray(Fn_exist)==True)&(numpy.ma.getmaskarray(Fn_calc)==False))[0]
+            #idx = numpy.ma.where((numpy.ma.getmaskarray(Fn_exist)==True)&(numpy.ma.getmaskarray(Fn_calc)==False))[0]
             if len(idx)!=0:
                 Fn_exist[idx] = Fn_calc[idx]
                 flag[idx] = numpy.int32(20)
@@ -873,7 +881,8 @@ def CorrectFcForStorage(cf,ds,Fc_out='Fc',Fc_in='Fc',Fc_storage_in='Fc_storage')
     log.info(' Applying storage correction to Fc')
     Fc = Fc_raw + Fc_storage
     if qcutils.cfoptionskeylogical(cf,Key='RelaxFcStorage'):
-        idx=numpy.ma.where(numpy.ma.getmaskarray(Fc)==True)[0]
+        idx=numpy.where(numpy.ma.getmaskarray(Fc)==True)[0]
+        #idx=numpy.ma.where(numpy.ma.getmaskarray(Fc)==True)[0]
         Fc[idx]=Fc_raw[idx]
         log.info(' Replaced corrected Fc with '+str(len(idx))+' raw values')
     long_name = Fc_attr['long_name'] + ', corrected for storage using supplied storage term'
@@ -954,7 +963,8 @@ def CorrectFgForStorage(cf,ds,Fg_out='Fg',Fg_in='Fg',Ts_in='Ts',Sws_in='Sws'):
     dTs[1:] = numpy.ma.diff(Ts)
     # write the temperature difference into the data structure so we can use its flag later
     dTs_flag = numpy.zeros(nRecs,dtype=numpy.int32)
-    index = numpy.ma.where(numpy.ma.getmaskarray(dTs)==True)[0]
+    index = numpy.where(numpy.ma.getmaskarray(dTs)==True)[0]
+    #index = numpy.ma.where(numpy.ma.getmaskarray(dTs)==True)[0]
     dTs_flag[index] = numpy.int32(1)
     attr = qcutils.MakeAttributeDictionary(long_name='Change in soil temperature',units='C')
     qcutils.CreateSeries(ds,"dTs",dTs,Flag=dTs_flag,Attr=attr)
@@ -982,7 +992,8 @@ def CorrectFgForStorage(cf,ds,Fg_out='Fg',Fg_in='Fg',Ts_in='Ts',Sws_in='Sws'):
         qcutils.CreateSeries(ds,Fg_out,Fg_out_data,Flag=Fg_out_flag,Attr=attr)
     else:
         Fg_exist,flag,attr = qcutils.GetSeriesasMA(ds,Fg_out)
-        idx = numpy.ma.where((numpy.ma.getmaskarray(Fg_exist)==True)&(numpy.ma.getmaskarray(Fg_out_data)==False))[0]
+        idx = numpy.where((numpy.ma.getmaskarray(Fg_exist)==True)&(numpy.ma.getmaskarray(Fg_out_data)==False))[0]
+        #idx = numpy.ma.where((numpy.ma.getmaskarray(Fg_exist)==True)&(numpy.ma.getmaskarray(Fg_out_data)==False))[0]
         if len(idx)!=0:
             Fg_exist[idx] = Fg_out_data[idx]
             flag[idx] = numpy.int32(20)
@@ -1510,34 +1521,24 @@ def get_averages(Data):
             Av = c.missing_value
     return Num, Av
 
-def get_laggedcorrelation(x_in,y_in,maxlags,minpoints):
+def get_laggedcorrelation(x_in,y_in,maxlags):
     """
     Calculate the lagged cross-correlation between 2 1D arrays.
     Taken from the matplotlib.pyplot.xcorr source code.
     PRI added handling of masked arrays.
     """
-    if numpy.ma.isMA(x_in)!=numpy.ma.isMA(y_in):
-        raise ValueError('qcts.get_laggedcorrelation: one of x or y is a masked array, the other is not')
     lags = numpy.arange(-maxlags,maxlags+1)
-    if numpy.ma.isMA(x_in) and numpy.ma.isMA(y_in):
-        mask = numpy.ma.mask_or(x_in.mask,y_in.mask)
-        x = numpy.ma.array(x_in,mask=mask)
-        y = numpy.ma.array(y_in,mask=mask)
-        if numpy.ma.count(x)<minpoints:
-            #log.error('qcts.get_laggedcorrelation: x or y all masked')
-            corr = numpy.zeros(len(lags))
-            return lags,corr
-        x = numpy.ma.compressed(x)
-        y = numpy.ma.compressed(y)
-    nx = len(x)
-    if nx!=len(y):
-        raise ValueError('qcts.get_laggedcorrelation: x and y must be equal length')
+    mask = numpy.ma.mask_or(x_in.mask,y_in.mask,copy=True,shrink=False)
+    x = numpy.ma.array(x_in,mask=mask,copy=True)
+    y = numpy.ma.array(y_in,mask=mask,copy=True)
+    x = numpy.ma.compressed(x)
+    y = numpy.ma.compressed(y)
     corr = numpy.correlate(x, y, mode=2)
     corr/= numpy.sqrt(numpy.dot(x,x) * numpy.dot(y,y))
-    if maxlags is None: maxlags = nx - 1
-    if maxlags >= nx or maxlags < 1:
-        raise ValueError('qcts.get_laggedcorrelation: maglags must be None or strictly positive < %d'%nx)
-    corr = corr[nx-1-maxlags:nx+maxlags]
+    if maxlags is None: maxlags = len(x) - 1
+    if maxlags >= len(x) or maxlags < 1:
+        raise ValueError('qcts.get_laggedcorrelation: maxlags must be None or strictly positive < %d'%len(x))
+    corr = corr[len(x)-1-maxlags:len(x)+maxlags]
     return lags,corr
 
 def get_minmax(Data):
@@ -2045,8 +2046,10 @@ def ReplaceRotatedCovariance(cf,ds,rot_cov_label,non_cov_label):
     log.info(' Replacing missing '+rot_cov_label+' when '+non_cov_label+' is good')
     cr_data,cr_flag,cr_attr = qcutils.GetSeriesasMA(ds,rot_cov_label)
     cn_data,cn_flag,cn_attr = qcutils.GetSeriesasMA(ds,non_cov_label)
-    index = numpy.ma.where((numpy.ma.getmaskarray(cr_data)==True)&
+    index = numpy.where((numpy.ma.getmaskarray(cr_data)==True)&
                            (numpy.ma.getmaskarray(cn_data)==False))[0]
+    #index = numpy.ma.where((numpy.ma.getmaskarray(cr_data)==True)&
+                           #(numpy.ma.getmaskarray(cn_data)==False))[0]
     if len(index)!=0:
         ds.series[rot_cov_label]['Data'][index] = cn_data[index]
         ds.series[rot_cov_label]['Flag'][index] = numpy.int32(20)

@@ -43,7 +43,8 @@ def CalculateNEE(cf,ds):
     Fsd,Fsd_flag,Fsd_attr = qcutils.GetSeriesasMA(ds,"Fsd")
     if "Fsd_syn" in ds.series.keys():
         Fsd_syn,flag,attr = qcutils.GetSeriesasMA(ds,"Fsd_syn")
-        index = numpy.ma.where(numpy.ma.getmaskarray(Fsd)==True)[0]
+        index = numpy.where(numpy.ma.getmaskarray(Fsd)==True)[0]
+        #index = numpy.ma.where(numpy.ma.getmaskarray(Fsd)==True)[0]
         Fsd[index] = Fsd_syn[index]
     ustar,ustar_flag,ustar_attr = qcutils.GetSeriesasMA(ds,"ustar")
     for label in ds.nee.keys():
@@ -415,13 +416,15 @@ def GetFreFromFc(cf,ds):
     Fsd,flag,attr = qcutils.GetSeriesasMA(ds,"Fsd")
     if "Fsd_syn" in ds.series.keys():
         Fsd_syn,flag,attr = qcutils.GetSeriesasMA(ds,"Fsd_syn")
-        index = numpy.ma.where(numpy.ma.getmaskarray(Fsd)==True)[0]
+        index = numpy.where(numpy.ma.getmaskarray(Fsd)==True)[0]
+        #index = numpy.ma.where(numpy.ma.getmaskarray(Fsd)==True)[0]
         Fsd[index] = Fsd_syn[index]
     ustar,flag,attr = qcutils.GetSeriesasMA(ds,"ustar")
     Fc,Fc_flag,Fc_attr = qcutils.GetSeriesasMA(ds,"Fc")
     # check for any missing data
     for item,label in zip([Fsd,ustar,Fc],["Fsd","ustar","Fc"]):
-        index = numpy.ma.where(numpy.ma.getmaskarray(Fsd)==True)[0]
+        index = numpy.where(numpy.ma.getmaskarray(Fsd)==True)[0]
+        #index = numpy.ma.where(numpy.ma.getmaskarray(Fsd)==True)[0]
         if len(index)!=0:
             log.error(" GetFreFromFc: missing data in series "+label)
             raise Exception("GetFreFromFc: missing data in series "+label)
@@ -445,7 +448,8 @@ def GetFreFromFc(cf,ds):
         # filter out the low ustar conditions
         Fre2[si:ei] = numpy.ma.masked_where(ustar[si:ei]<ustar_threshold,Fre1[si:ei])
         # set the QC flag
-        index = numpy.ma.where(numpy.ma.getmaskarray(Fre2[si:ei])==True)[0]
+        index = numpy.where(numpy.ma.getmaskarray(Fre2[si:ei])==True)[0]
+        #index = numpy.ma.where(numpy.ma.getmaskarray(Fre2[si:ei])==True)[0]
         Fre_flag[si:ei][index] = numpy.int32(9)
     # put the nocturnal, filtered Fc data into the data structure
     qcutils.CreateSeries(ds,"Fre",Fre2,Flag=Fre_flag,Attr=attr)
@@ -490,7 +494,8 @@ def PartitionNEE(cf,ds):
     Fsd,Fsd_flag,Fsd_attr = qcutils.GetSeriesasMA(ds,"Fsd")
     if "Fsd_syn" in ds.series.keys():
         Fsd_syn,flag,attr = qcutils.GetSeriesasMA(ds,"Fsd_syn")
-        index = numpy.ma.where(numpy.ma.getmaskarray(Fsd)==True)[0]
+        index = numpy.where(numpy.ma.getmaskarray(Fsd)==True)[0]
+        #index = numpy.ma.where(numpy.ma.getmaskarray(Fsd)==True)[0]
         Fsd[index] = Fsd_syn[index]
     # calculate GPP from NEE and Fre
     for label in ds.gpp.keys():
@@ -756,7 +761,8 @@ def rpFFNET_plot(pd,ds,series,driverlist,targetlabel,outputlabel,rpFFNET_info,si
     Hr2,Av2,Sd2,Mx2,Mn2 = rp_getdiurnalstats(Hdh,mod,ts)
     ax1.plot(Hr2,Av2,'r-',label="FFNET(all)")
     if numpy.ma.count_masked(obs)!=0:
-        index = numpy.ma.where(numpy.ma.getmaskarray(obs)==False)[0]
+        index = numpy.where(numpy.ma.getmaskarray(obs)==False)[0]
+        #index = numpy.ma.where(numpy.ma.getmaskarray(obs)==False)[0]
         # get the diurnal stats of FFNET predictions when observations are present
         Hr3,Av3,Sd3,Mx3,Mn3=rp_getdiurnalstats(Hdh[index],mod_mor[index],ts)
         ax1.plot(Hr3,Av3,'g-',label="FFNET(obs)")
@@ -1182,7 +1188,8 @@ def rpSOLO_plot(pd,ds,series,driverlist,targetlabel,outputlabel,rpSOLO_gui,si=0,
     Hr2,Av2,Sd2,Mx2,Mn2 = rp_getdiurnalstats(Hdh,mod,ts)
     ax1.plot(Hr2,Av2,'r-',label="SOLO(all)")
     if numpy.ma.count_masked(obs)!=0:
-        index = numpy.ma.where(numpy.ma.getmaskarray(obs)==False)[0]
+        index = numpy.where(numpy.ma.getmaskarray(obs)==False)[0]
+        #index = numpy.ma.where(numpy.ma.getmaskarray(obs)==False)[0]
         # get the diurnal stats of SOLO predictions when observations are present
         Hr3,Av3,Sd3,Mx3,Mn3=rp_getdiurnalstats(Hdh[index],mod_mor[index],ts)
         ax1.plot(Hr3,Av3,'g-',label="SOLO(obs)")

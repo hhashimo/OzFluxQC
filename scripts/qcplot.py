@@ -399,7 +399,8 @@ def plot_quickcheck(cf):
     Fsd,flag,attr = qcutils.GetSeriesasMA(ds,qcutils.GetAltName(cf,ds,'Fsd'),si=si,ei=ei)
     if 'Fsd_syn' in ds.series.keys():
         Fsd_syn,flag,attr = qcutils.GetSeriesasMA(ds,'Fsd_syn',si=si,ei=ei)
-        index = numpy.ma.where(numpy.ma.getmaskarray(Fsd)==True)[0]
+        index = numpy.where(numpy.ma.getmaskarray(Fsd)==True)[0]
+        #index = numpy.ma.where(numpy.ma.getmaskarray(Fsd)==True)[0]
         Fsd[index] = Fsd_syn[index]
     night_mask = (Fsd<10)
     day_mask = (Fsd>=10)
@@ -532,7 +533,8 @@ def plot_quickcheck(cf):
     SEB_day_num = numpy.ma.count(Fh_day,axis=1)       # get the SEB ratio
     SEB_day_avg = (Fe_day_avg+Fh_day_avg)/Fa_day_avg
     SEB_day_avg = numpy.ma.masked_where(SEB_day_num<=5,SEB_day_avg)
-    index = numpy.ma.where(numpy.ma.getmaskarray(SEB_day_avg)==True)[0]
+    index = numpy.where(numpy.ma.getmaskarray(SEB_day_avg)==True)[0]
+    #index = numpy.ma.where(numpy.ma.getmaskarray(SEB_day_avg)==True)[0]
     SEB_day_num[index] = 0
     
     # get the EF
@@ -547,7 +549,8 @@ def plot_quickcheck(cf):
     EF_day_num = numpy.ma.count(Fe_day,axis=1)        # get the number of values in the daily average
     EF_day_avg = Fe_day_avg/Fa_day_avg                # get the EF ratio
     EF_day_avg = numpy.ma.masked_where(EF_day_num<=5,EF_day_avg)
-    index = numpy.ma.where(numpy.ma.getmaskarray(EF_day_avg)==True)[0]
+    index = numpy.where(numpy.ma.getmaskarray(EF_day_avg)==True)[0]
+    #index = numpy.ma.where(numpy.ma.getmaskarray(EF_day_avg)==True)[0]
     EF_day_num[index] = 0
     
     # get the BR
@@ -562,7 +565,8 @@ def plot_quickcheck(cf):
     BR_day_num = numpy.ma.count(Fh_day,axis=1)        # get the number of values in the daily average
     BR_day_avg = Fh_day_avg/Fe_day_avg                # get the BR ratio
     BR_day_avg = numpy.ma.masked_where(BR_day_num<=5,BR_day_avg)
-    index = numpy.ma.where(numpy.ma.getmaskarray(BR_day_avg)==True)[0]
+    index = numpy.where(numpy.ma.getmaskarray(BR_day_avg)==True)[0]
+    #index = numpy.ma.where(numpy.ma.getmaskarray(BR_day_avg)==True)[0]
     BR_day_num[index] = 0
     
     # get the Wue
@@ -577,7 +581,8 @@ def plot_quickcheck(cf):
     WUE_day_num = numpy.ma.count(Fc_day,axis=1)       # get the number of values in the daily average
     WUE_day_avg = Fc_day_avg/Fe_day_avg
     WUE_day_avg = numpy.ma.masked_where(WUE_day_num<=5,WUE_day_avg)
-    index = numpy.ma.where(numpy.ma.getmaskarray(WUE_day_avg)==True)[0]
+    index = numpy.where(numpy.ma.getmaskarray(WUE_day_avg)==True)[0]
+    #index = numpy.ma.where(numpy.ma.getmaskarray(WUE_day_avg)==True)[0]
     WUE_day_num[index] = 0
     # get the soil moisture
     Sws_daily_avg = numpy.ma.average(Sws_daily,axis=1)

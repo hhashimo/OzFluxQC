@@ -1,5 +1,7 @@
 version_name = "OzFluxQC"
-version_number = "V2.8.7"
+version_number = "V2.9.0"
+# V2.9.0   - major re-write of gap filling routines to simplify workflow
+#            - will document later
 # V2.8.7   - fixed several bugs in the gap filling routine and improved
 #            the gap filling workflow, implemented ability to split a
 #            netCDF file at specified dates

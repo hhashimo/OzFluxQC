@@ -969,7 +969,7 @@ def df_droprecords(df,qc_list=[0,10]):
     df=df[data_list]
     # return the data frame
     return df
-    
+
 def nc_read_var(ncFile,ThisOne):
     """ Reads a variable from a netCDF file and returns the data, the QC flag and the variable
         attribute dictionary.
