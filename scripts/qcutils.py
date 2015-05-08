@@ -822,7 +822,7 @@ def GetSeries(ds,ThisOne,si=0,ei=-1,mode="truncate"):
         elif si>=0 and ei>nRecs-1:
             # truncate at start, mirror at end
             sim = 2*nRecs-1-ei
-            eim = nRecs-1
+            eim = nRecs
             Series = numpy.append(Series[si:],numpy.fliplr([Series[sim:eim]])[0])
             Flag = numpy.append(Flag[si:],numpy.fliplr([Flag[sim:eim]])[0])
         elif si>=0 and ei<=nRecs-1:
