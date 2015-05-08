@@ -1331,7 +1331,7 @@ def xl_write_series(ds, xlfullname, outputlist=None):
     xlfile = xlwt.Workbook(encoding="latin-1")
     # set the datemode
     if "xl_datemode" not in ds.globalattributes:
-        if platform.system()=="Darwin":
+        if platform.system()=="darwin":
             ds.globalattributes["xl_datemode"] = 0
         else:
             ds.globalattributes["xl_datemode"] = 1
@@ -1444,7 +1444,7 @@ def xlsx_write_series(ds, xlsxfullname, outputlist=None):
     # open the Excel file
     log.info(' Opening and writing Excel file '+xlsxfullname)
     if "xl_datemode" not in ds.globalattributes:
-        if platform.system()=="Darwin":
+        if platform.system()=="darwin":
             ds.globalattributes["xl_datemode"] = 0
         else:
             ds.globalattributes["xl_datemode"] = 1
