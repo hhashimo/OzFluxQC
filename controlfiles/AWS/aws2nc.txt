@@ -89,13 +89,13 @@
         out_filename = HowardSprings_AWS.nc
         site_name = "HowardSprings"
         site_timezone = Australia/Darwin
-    [[Jaxa]]
-        in_filepath = ../../AWS/30MinuteMeteorology/
-        out_filepath = ../../Sites/Jaxa/Data/AWS/
-        out_filename = Jaxa_AWS.nc
-        average = No
-        site_name = "Yanco_Jaxa"
-        site_timezone = Australia/Sydney
+#    [[Jaxa]]
+#        in_filepath = ../../AWS/30MinuteMeteorology/
+#        out_filepath = ../../Sites/Jaxa/Data/AWS/
+#        out_filename = Jaxa_AWS.nc
+#        average = No
+#        site_name = "Yanco_Jaxa"
+#        site_timezone = Australia/Sydney
     [[Nimmo]]
         in_filepath = ../../AWS/30MinuteMeteorology/
         out_filepath = ../../Sites/Nimmo/Data/AWS/
