@@ -3,7 +3,8 @@ import calendar
 import constants as c
 import datetime
 import logging
-from matplotlib.mlab import griddata
+#from matplotlib.mlab import griddata
+from scipy.interpolate import griddata
 import matplotlib.pyplot as plt
 import numpy
 import time
@@ -16,6 +17,41 @@ import xlwt
 
 log = logging.getLogger('qc.clim')
 
+#def do_2dinterpolation(array_2d):
+    #"""
+    #Takes a 2d array as input and;
+     #1) tiles this into a 3 x 3 space (9 repeats of the original 2d array in 3 columns and 3 rows)
+     #2) removes the missing data (c.missing_value) from the tiled array
+     #3) does a bi-linear interpolation to replace the the missing data
+     #4) returns the central tile
+     #The effect is to replace missing data in the original 2d array with data from a bi-linear
+     #interpolation, the tiling repeats the original array along its boundaries to avoid problems
+     #at the array edges.
+     #PRI's original version
+    #"""
+    #WasMA = False
+    #if numpy.ma.isMA(array_2d):
+        #WasMA = True
+        #array_2d = numpy.ma.filled(array_2d,float(c.missing_value))
+    ## tile the 2d array into a 3 by 3 array
+    #array_2d_3x3=numpy.tile(array_2d,(3,3))
+    ## get the dimensions of the tiled array
+    #nmn=numpy.shape(array_2d_3x3)[1]
+    #mni=numpy.arange(0,nmn)
+    #nhr=numpy.shape(array_2d_3x3)[0]
+    #hri=numpy.arange(0,nhr)
+    #mn,hr=numpy.meshgrid(mni,hri)
+    #array_2d_3x3_1d=numpy.reshape(array_2d_3x3,numpy.shape(array_2d_3x3)[0]*numpy.shape(array_2d_3x3)[1])
+    #mn_1d=numpy.reshape(mn,numpy.shape(mn)[0]*numpy.shape(mn)[1])
+    #hr_1d=numpy.reshape(hr,numpy.shape(hr)[0]*numpy.shape(hr)[1])
+    #index=numpy.where(array_2d_3x3_1d!=c.missing_value)
+    #array_2d_3x3i=griddata(mn_1d[index],hr_1d[index],array_2d_3x3_1d[index],mni,hri,interp="linear")
+    #array_2di=array_2d_3x3i[nhr/3:2*nhr/3,nmn/3:2*nmn/3]
+    ##array_2di=numpy.ma.filled(array_2d_3x3i[nhr/3:2*nhr/3,nmn/3:2*nmn/3],0)
+    #if WasMA:
+        #array_2di = numpy.ma.masked_where(abs(array_2di-numpy.float64(c.missing_value))<c.eps,array_2di)
+        #array_2d = numpy.ma.masked_where(abs(array_2d-numpy.float64(c.missing_value))<c.eps,array_2d)
+    #return array_2di
 def do_2dinterpolation(array_2d):
     """
     Takes a 2d array as input and;
@@ -26,30 +62,50 @@ def do_2dinterpolation(array_2d):
      The effect is to replace missing data in the original 2d array with data from a bi-linear
      interpolation, the tiling repeats the original array along its boundaries to avoid problems
      at the array edges.
+     Ian McHugh's cleaned up version (avoids error messages from matplotlib version of griddata).
+     Checked by comparing the Fci(day) values from the original code and from this version.  The
+     values were the same so this version pushed to GitHub on 11/5/2015.
     """
+    
     WasMA = False
     if numpy.ma.isMA(array_2d):
         WasMA = True
-        array_2d = numpy.ma.filled(array_2d,float(c.missing_value))
-    # tile the 2d array into a 3 by 3 array
-    array_2d_3x3=numpy.tile(array_2d,(3,3))
-    # get the dimensions of the tiled array
-    nmn=numpy.shape(array_2d_3x3)[1]
-    mni=numpy.arange(0,nmn)
-    nhr=numpy.shape(array_2d_3x3)[0]
-    hri=numpy.arange(0,nhr)
-    mn,hr=numpy.meshgrid(mni,hri)
-    array_2d_3x3_1d=numpy.reshape(array_2d_3x3,numpy.shape(array_2d_3x3)[0]*numpy.shape(array_2d_3x3)[1])
-    mn_1d=numpy.reshape(mn,numpy.shape(mn)[0]*numpy.shape(mn)[1])
-    hr_1d=numpy.reshape(hr,numpy.shape(hr)[0]*numpy.shape(hr)[1])
-    index=numpy.where(array_2d_3x3_1d!=c.missing_value)
-    array_2d_3x3i=griddata(mn_1d[index],hr_1d[index],array_2d_3x3_1d[index],mni,hri,interp="linear")
-    array_2di=array_2d_3x3i[nhr/3:2*nhr/3,nmn/3:2*nmn/3]
-    #array_2di=numpy.ma.filled(array_2d_3x3i[nhr/3:2*nhr/3,nmn/3:2*nmn/3],0)
+        array_2d = numpy.ma.filled(array_2d, float(c.missing_value))
+    
+    # Tile the 2d array into a 3 by 3 array
+    data_2d_tiled = numpy.tile(array_2d,(3,3))
+    
+    # Get the dimensions of the tiled array and create coordinates and grid
+    num_x = numpy.shape(data_2d_tiled)[1]
+    array_x = numpy.arange(0, num_x)
+    num_y = numpy.shape(data_2d_tiled)[0]
+    array_y = numpy.arange(0, num_y)
+    coords_x, coords_y = numpy.meshgrid(array_x, array_y)
+    
+    # Make a flat array of the tiled data
+    data_1d = data_2d_tiled.flatten()
+    
+    # Make a 2d array of the coordinates
+    data_coords = numpy.column_stack([coords_x.flatten(), 
+                                   coords_y.flatten()])
+    
+    # Define an index that will return all valid data for the array
+    index = numpy.where(data_1d!= c.missing_value)    
+    
+    # Do the interpolation
+    grid_z = griddata(data_coords[index], data_1d[index], 
+                      (coords_x, coords_y), method = 'linear')
+    
+    # Retrieve the central tile
+    array_2d_filled = grid_z[num_y / 3: num_y / 3 * 2, num_x / 3: num_x / 3 * 2]
+    
+    # Check something...
     if WasMA:
-        array_2di = numpy.ma.masked_where(abs(array_2di-numpy.float64(c.missing_value))<c.eps,array_2di)
-        array_2d = numpy.ma.masked_where(abs(array_2d-numpy.float64(c.missing_value))<c.eps,array_2d)
-    return array_2di
+        array_2d_filled = numpy.ma.masked_where(abs(array_2d_filled - numpy.float64(c.missing_value)) < c.eps, array_2d_filled)
+        array_2d = numpy.ma.masked_where(abs(array_2d - numpy.float64(c.missing_value)) < c.eps, array_2d)
+    
+    # Return the filled array
+    return array_2d_filled   
 
 def write_data_1columnpermonth(xlSheet, data, ts, format_string=''):
     xlCol = 0
