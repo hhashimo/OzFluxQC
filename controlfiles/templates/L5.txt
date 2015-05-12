@@ -1,45 +1,39 @@
 [Files]
-    file_path = ../Sites/<site_name>/Data/Processed/<year>/
+    file_path = ../Sites/<site_name>/Data/Processed/all/
     in_filename = <site_name>_<year>_L4.nc
     out_filename = <site_name>_<year>_L5.nc
 
 [Output]
     # uncomment the xl and nc lists to output specific variables
     #xl = "['Ah','Cc','Fa','Fc','Fe','Fg','Fh','Fld','Flu','Fm','Fn','Fsd','Fsu','ps','RH','Sws','Ta','Ts','ustar','Ws','Wd']"
-    nc = "['Ah','Cc','eta','Fa','Fc','Fc_storage','Fe','Fg','Fh','Fld','Flu','Fm','Fn','Fsd','Fsu','Precip','ps','q','RH','Sws','SHD','Ta','theta','Ts','ustar','Ws','Wd']"
-
-[Options]
-    UseExistingOutFile = No
+    #nc = "['Ah','Cc','Fa','Fc','Fc_storage','Fe','Fg','Fh','Fld','Flu','Fm','Fn','Fsd','Fsu','Precip','ps','q','RH','SHD','Sws','Ta','Ts','ustar','VPD','Ws','Wd']"
 
 [Fluxes]
     [[ustar]]
         [[[GapFillUsingSOLO]]]
-            drivers = "['Ws','Fn','Ta','q']"
-            output = 'ustar_SOLO'
+            [[[[ustar_SOLO]]]]
+                drivers = "['Ws','Fn','Ta','q']"
         [[[MergeSeries]]]
             Source     = "['ustar','ustar_SOLO']"
     [[Fe]]
         [[[GapFillUsingSOLO]]]
-            drivers = "['Fa','SHD','Ta','Ws']"                  #minimalist
-           #drivers = "['Fn','Fg','q','SHD','Ta','Ts']"         #James'
-           #drivers = "['Fsd','SHD','Ts','Sws','Ws','EVI']"     #Jason
-            output = 'Fe_SOLO'
+            [[[[Fe_SOLO]]]]
+                drivers = "['Fa','SHD','Ta','Ws']"                  #minimalist
+               #drivers = "['Fn','Fg','q','SHD','Ta','Ts']"         #James
         [[[MergeSeries]]]
             Source     = "['Fe','Fe_SOLO']"
     [[Fh]]
         [[[GapFillUsingSOLO]]]
-            drivers = "['Fa','Ta','Ws']"                        #minimalist
-           #drivers = "['Fn','Fg','q','SHD','Ta','Ts']"         #James'
-           #drivers = "['Fsd','SHD','Ts','Sws','Ws','EVI']"     #Jason
-            output = 'Fh_SOLO'
+            [[[[Fh_SOLO]]]]
+                drivers = "['Fa','Ta','Ws']"                        #minimalist
+               #drivers = "['Fn','Fg','q','SHD','Ta','Ts']"         #James
         [[[MergeSeries]]]
             Source     = "['Fh','Fh_SOLO']"
     [[Fc]]
         [[[GapFillUsingSOLO]]]
-            drivers = "['Fsd','q','Ta','Ts']"                   #minimalist
-           #drivers = "['Fn','Fg','q','SHD','Ta','Ts']"         #James'
-           #drivers = "['Fsd','SHD','Ts','Sws','Ws','EVI']"     #Jason
-            output = 'Fc_SOLO'
+            [[[[Fc_SOLO]]]]
+                drivers = "['Fsd','SHD','Ts']"                      #minimalist
+               #drivers = "['Fn','Fg','q','SHD','Ta','Ts']"         #James
         [[[MergeSeries]]]
             Source     = "['Fc','Fc_SOLO']"
 
@@ -63,4 +57,4 @@
 [SOLO_Summary]
     [[1]]
         Title = "Fluxes"
-        Variables = "['ustar','Fh','Fe','Fc']"
+        Variables = "['ustar_SOLO','Fh_SOLO','Fe_SOLO','Fc_SOLO']"

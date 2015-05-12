@@ -21,19 +21,10 @@
     [[Fre_SOLO]]
         [[[FreUsingSOLO]]]
             target ="Fre"
-           #drivers = "['Ts','Sws','Ta','EVI']"  #Jason
             drivers = "['Ts','Sws']"             #minimal
             output = "Fre_SOLO_all"
         [[[MergeSeries]]]
             Source = "['Fre','Fre_SOLO_all']"
-    [[Fre_FFNET]]
-        [[[FreUsingFFNET]]]
-            target ="Fre"
-           #drivers = "['Ts','Sws','Ta','EVI']"  #Jason
-            drivers = "['Ts','Sws']"
-            output = "Fre_FFNET_all"
-        [[[MergeSeries]]]
-            Source = "['Fre','Fre_FFNET_all']"
     [[Fre_LT]]
         [[[FreUsingLloydTaylor]]]
             target ="Fre"
@@ -53,14 +44,8 @@
     [[NEE_SOLO]]
         Fc  = "Fc"
         Fre = "Fre_SOLO"
-    [[NEE_FFNET]]
-        Fc  = "Fc"
-        Fre = "Fre_FFNET"
 
 [GPP]
     [[GPP_SOLO]]
         NEE = "NEE_SOLO"
         Fre = "Fre_SOLO"
-    [[GPP_FFNET]]
-        NEE = "NEE_FFNET"
-        Fre = "Fre_FFNET"
