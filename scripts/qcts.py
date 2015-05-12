@@ -1937,7 +1937,8 @@ def MergeSeriesUsingDict(ds,merge_order=""):
             log.error('  MergeSeries: primary input series '+srclist[0]+' not found')
             continue
         data = ds.series[srclist[0]]['Data'].copy()
-        flag = ds.series[srclist[0]]['Flag'].copy()
+        flag1 = ds.series[srclist[0]]['Flag'].copy()
+        flag2 = ds.series[srclist[0]]['Flag'].copy()
         attr = ds.series[srclist[0]]['Attr'].copy()
         SeriesNameString = srclist[0]
         tmplist = list(srclist)
@@ -1945,18 +1946,18 @@ def MergeSeriesUsingDict(ds,merge_order=""):
         for label in tmplist:
             if label in ds.series.keys():
                 SeriesNameString = SeriesNameString+', '+label
-                index = numpy.where(numpy.mod(flag,10)==0)[0]         # find the elements with flag = 0, 10, 20 etc
-                flag[index] = 0                                        # set them all to 0
+                index = numpy.where(numpy.mod(flag1,10)==0)[0]         # find the elements with flag = 0, 10, 20 etc
+                flag2[index] = 0                                        # set them all to 0
                 if label=="Fg":
-                    index = numpy.where(flag==22)[0]
-                    if len(index)!=0: flag[index] = 0
-                index = numpy.where(flag!=0)[0]                        # index of flag values other than 0,10,20,30 ...
+                    index = numpy.where(flag2==22)[0]
+                    if len(index)!=0: flag2[index] = 0
+                index = numpy.where(flag2!=0)[0]                        # index of flag values other than 0,10,20,30 ...
                 data[index] = ds.series[label]['Data'][index].copy()  # replace bad primary with good secondary
-                flag[index] = ds.series[label]['Flag'][index].copy()
+                flag1[index] = ds.series[label]['Flag'][index].copy()
             else:
                 log.error(" MergeSeries: secondary input series "+label+" not found")
         attr["long_name"] = attr["long_name"]+", merged from " + SeriesNameString
-        qcutils.CreateSeries(ds,target,data,Flag=flag,Attr=attr)
+        qcutils.CreateSeries(ds,target,data,Flag=flag1,Attr=attr)
     del ds.merge[merge_order]
 
 def MergeHumidities(cf,ds):
