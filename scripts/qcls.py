@@ -336,7 +336,7 @@ def l6qc(cf,ds5):
     # calculate NEE from Fc and Fre
     qcrp.CalculateNEE(cf,ds6)
     # calculate NEP from NEE
-    #qcrp.CalculateNEP(cf,ds6)
+    qcrp.CalculateNEP(cf,ds6)
     # partition NEE into GPP and Reco
     qcrp.PartitionNEE(cf,ds6)
     # write the percentage of good data as a variable attribute

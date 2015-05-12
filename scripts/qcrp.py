@@ -69,6 +69,26 @@ def CalculateNEE(cf,ds):
         attr["comment1"] = "Fsd threshold used was "+str(Fsd_threshold)
     del ds.nee
 
+def CalculateNEP(cf,ds):
+    """
+    Purpose:
+     Calculate NEP from NEE
+    Usage:
+     qcrp.CalculateNEP(cf,ds)
+      where cf is a conbtrol file object
+            ds is a data structure
+    Side effects:
+     Series to hold the NEP data are created in ds.
+    Author: PRI
+    Date: May 2015
+    """
+    for nee_name in cf["NEE"].keys():
+        nep_name = nee_name.replace("NEE","NEP")
+        nee,flag,attr = qcutils.GetSeriesasMA(ds,nee_name)
+        nep = float(-1)*nee
+        attr["long_name"] = "Net Ecosystem Productivity calculated as -1*NEE"
+        qcutils.CreateSeries(ds,nep_name,nep,Flag=flag,Attr=attr)
+
 def FreUsingFFNET(cf,ds):
     """
     Purpose:
@@ -505,7 +525,10 @@ def PartitionNEE(cf,ds):
         NEE,NEE_flag,NEE_attr = qcutils.GetSeriesasMA(ds,NEE_label)
         Fre,Fre_flag,Fre_attr = qcutils.GetSeriesasMA(ds,Fre_label)
         # calculate GPP
-        GPP = NEE - Fre
+        # here we use the conventions from Chapin et al (2006)
+        #  NEP = -1*NEE
+        #  GPP = NEP + Reco ==> GPP = -1*NEE + Reco
+        GPP = float(-1)*NEE + Fre
         # put the day time data into the GPP series
         index = numpy.ma.where(Fsd>=Fsd_threshold)[0]
         ds.series[output_label]["Data"][index] = GPP[index]
@@ -517,7 +540,7 @@ def PartitionNEE(cf,ds):
         # copy the attributes
         attr = ds.series[output_label]["Attr"]
         attr["units"] = NEE_attr["units"]
-        attr["long_name"] = "Gross Primary Productivity calculated from "+NEE_label+" (NEE) "
+        attr["long_name"] = "Gross Primary Productivity calculated from "+NEE_label+" as -NEE+Fre "
         attr["long_name"] = attr["long_name"]+" and "+Fre_label+" (Fre)"
 
 def rp_getdiurnalstats(DecHour,Data,dt):

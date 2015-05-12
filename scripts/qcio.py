@@ -1,4 +1,5 @@
 from configobj import ConfigObj
+from collections import OrderedDict
 import ast
 import cfg
 import copy
@@ -207,6 +208,184 @@ def read_eddypro_full(csvname):
     ds.series['Fc']['Flag'] = numpy.array(Fc_flag_list,dtype=numpy.int32)
     ds.globalattributes["nc_nrecs"] = nRecs
     return ds
+
+def smap_datetodatadictionary(ds,data_dict,nperday,ndays,si,ei):
+    ldt = ds.series["DateTime"]["Data"][si:ei+1]
+    # do the months
+    month_1d,f,a = qcutils.GetSeries(ds,"Month",si=si,ei=ei)
+    data_dict["Mo"] = {}
+    data_dict["Mo"]["data"] = numpy.reshape(month_1d,[ndays,nperday])[:,0]
+    data_dict["Mo"]["fmt"] = "0"
+    # do the days
+    data_dict["Day"] = {}
+    day_1d,f,a = qcutils.GetSeries(ds,"Day",si=si,ei=ei)
+    data_dict["Day"]["data"] = numpy.reshape(day_1d,[ndays,nperday])[:,0]
+    data_dict["Day"]["fmt"] = "0"
+    # day of the year
+    data_dict["DOY"] = {}
+    doy_1d = numpy.array([item.timetuple().tm_yday for item in ldt])
+    data_dict["DOY"]["data"] = numpy.reshape(doy_1d,[ndays,nperday])[:,0]
+    data_dict["DOY"]["fmt"] = "0"
+
+def smap_docarbonfluxes(cf,ds,smap_label,si,ei):
+    ncname = cf["Variables"][smap_label]["ncname"]
+    data,flag,attr = qcutils.GetSeriesasMA(ds,ncname,si=si,ei=ei)
+    data = data*12.01*1800/1E6
+    data = numpy.ma.filled(data,float(-9999))
+    return data,flag
+
+def smap_donetshortwave(ds,smap_label,si,ei):
+    ts = int(ds.globalattributes["time_step"])
+    # do the net shortwave radiation
+    Fsd,Fsd_flag,a = qcutils.GetSeriesasMA(ds,"Fsd",si=si,ei=ei)
+    Fsu,Fsu_flag,a = qcutils.GetSeriesasMA(ds,"Fsu",si=si,ei=ei)
+    # get the net shortwave radiation and convert to MJ/m2/day at the same time
+    Fnsw = ((Fsd - Fsu)*ts*60)/1E6
+    # now get the QC flag
+    Fnsw_flag = Fsd_flag+Fsu_flag
+    Fnsw = numpy.ma.filled(Fnsw,float(-9999))
+    return Fnsw,Fnsw_flag
+
+def smap_dopressure(ds,smap_label,si,ei):
+    ps,ps_flag,attr = qcutils.GetSeriesasMA(ds,"ps",si=si,ei=ei)
+    ps = ps/float(1000)
+    ps = numpy.ma.filled(ps,float(-9999))
+    return ps,ps_flag
+
+def smap_doshortwave(ds,smap_label,si,ei):
+    ts = int(ds.globalattributes["time_step"])
+    Fsd,Fsd_flag,a = qcutils.GetSeriesasMA(ds,"Fsd",si=si,ei=ei)
+    Fsd = (Fsd*ts*60)/1E6
+    Fsd = numpy.ma.filled(Fsd,float(-9999))
+    return Fsd,Fsd_flag
+
+def smap_parseformat(fmt):
+    if "." in fmt:
+        numdec = len(fmt) - (fmt.index(".") + 1)
+        strfmt = "{0:."+str(numdec)+"f}"
+    else:
+        strfmt = "{0:d}"
+    return strfmt
+
+def smap_qclabel(smap_label):
+    if "_f" in smap_label:
+        smap_qc_label=smap_label.replace("_f","_qc")
+    else:
+        smap_qc_label=smap_label+"_qc"
+    return smap_qc_label
+
+def smap_updatedatadictionary(cfvars,data_dict,data,flag,smap_label,nperday,ndays):
+    data_dict[smap_label] = {}
+    if cfvars[smap_label]["daily"].lower()=="sum":
+        data_dict[smap_label]["data"] = numpy.ma.sum(numpy.ma.reshape(data,[ndays,nperday]),axis=1)
+    elif cfvars[smap_label]["daily"].lower()=="average":
+        data_dict[smap_label]["data"] = numpy.ma.average(numpy.ma.reshape(data,[ndays,nperday]),axis=1)
+    elif cfvars[smap_label]["daily"].lower()=="skip":
+        data_dict[smap_label]["data"] = numpy.reshape(data,[ndays,nperday])[:,0]
+    else:
+        print "smap_updatedatadictionary: unrecognised option for daily ("+str(cfvars[smap_label]["daily"])+")"
+    data_dict[smap_label]["fmt"] = cfvars[smap_label]["format"]
+    if cfvars[smap_label]["genqc"]=="True":
+        smap_qc_label = smap_qclabel(smap_label)
+        data_dict[smap_qc_label] = {}
+        index_0 = numpy.where(flag==0)[0]
+        index_not0 = numpy.where(flag>0)[0]
+        flag[index_0] = numpy.int32(1)
+        flag[index_not0] = numpy.int32(0)
+        data_dict[smap_qc_label]["data"] = numpy.ma.sum(numpy.ma.reshape(flag,[ndays,nperday]),axis=1)/float(nperday)
+        data_dict[smap_qc_label]["fmt"] = "0.00"
+
+def smap_write_csv(cf):
+    cfvars = cf["Variables"]
+    smap_list = cfvars.keys()
+    ncFileName = get_infilenamefromcf(cf)
+    csvFileName_base = get_outfilenamefromcf(cf)    
+    # read the netCDF file
+    ds = nc_read_series(ncFileName)
+    ts = int(ds.globalattributes["time_step"])
+    nRecs = int(ds.globalattributes["nc_nrecs"])
+    nperhr = int(float(60)/ts+0.5)
+    nperday = int(float(24)*nperhr+0.5)
+    dt = ds.series["DateTime"]["Data"]
+    # get a list of years in the data file
+    year_list = range(dt[0].year,dt[-1].year+1)
+    years = numpy.array([item.year for item in dt])
+    # loop over years in the data file
+    data_dict = OrderedDict()
+    for year in year_list:
+        csvFileName = csvFileName_base+"_"+str(year)+"_SMAP.csv"
+        # open the csv file
+        csvfile = open(csvFileName,'wb')
+        # write the header lines
+        writer = smap_writeheaders(cf,csvfile)
+        # get the start and end datetime
+        year_index = numpy.where(years==year)[0]
+        # add the last record from this year
+        year_index = numpy.append(year_index,year_index[-1]+1)
+        sdate = dt[max([0,year_index[0]])]
+        edate = dt[min([year_index[-1],nRecs-1])]
+        si = qcutils.GetDateIndex(dt,str(sdate),ts=ts,default=0,match="startnextday")
+        ei = qcutils.GetDateIndex(dt,str(edate),ts=ts,default=nRecs-1,match="endpreviousday")
+        data_dict["DateTime"] = dt[si:ei+1]
+        log.info(" Writing "+str(data_dict["DateTime"][0])+" to "+ str(data_dict["DateTime"][-1]))
+        ndays = len(data_dict["DateTime"])/nperday
+        # put the month, day and DOY into the data dictionary
+        smap_datetodatadictionary(ds,data_dict,nperday,ndays,si,ei)
+        # first column in SMAP csv file will be the SMAP ID number
+        smap_id = numpy.array([cf["General"]["SMAP_ID"]]*ndays)
+        # loop over the data required, massage units if necessary and put the data into a dictionary for later use
+        smap_list = ["Rn_f","Rs_f","PAR_f","Ta","VPD","Ts_f","PREC","SWC","NEE","GPP","Reco","PRESS","SNOWD"]
+        for smap_label in smap_list:
+            if smap_label in ["Mo","Day","DOY"]: continue
+            if smap_label=="Rn_f":
+                data,flag = smap_donetshortwave(ds,smap_label,si,ei)
+            elif smap_label=="Rs_f":
+                data,flag = smap_doshortwave(ds,smap_label,si,ei)
+            elif smap_label=="PAR_f" or smap_label=="SNOWD":
+                data = numpy.array([-9999]*len(data_dict["DateTime"]))
+                flag = numpy.array([1]*len(data_dict["DateTime"]))
+                cfvars[smap_label]["daily"] = "skip"
+            elif smap_label=="PRESS":
+                data,flag = smap_dopressure(ds,smap_label,si,ei)
+            elif smap_label in ["GPP","NEE","Reco"]:
+                data,flag = smap_docarbonfluxes(cf,ds,smap_label,si,ei)
+            else:
+                data,flag,attr = qcutils.GetSeries(ds,cfvars[smap_label]["ncname"],si=si,ei=ei)
+            smap_updatedatadictionary(cfvars,data_dict,data,flag,smap_label,nperday,ndays)
+        # now loop over the days and write the data out
+        for i in range(ndays):
+            data_list = []
+            data_list.append(smap_id[i])
+            for smap_label in data_dict.keys():
+                if smap_label=="DateTime": continue
+                strfmt = smap_parseformat(data_dict[smap_label]["fmt"])
+                if "d" in strfmt:
+                    data_list.append(strfmt.format(int(round(data_dict[smap_label]["data"][i]))))
+                else:
+                    data_list.append(strfmt.format(data_dict[smap_label]["data"][i]))
+            writer.writerow(data_list)
+        csvfile.close()
+
+def smap_writeheaders(cf,csvfile):
+    writer = csv.writer(csvfile)
+    # write the header lines to the csv file
+    series_list = cf["Variables"].keys()
+    for item in cf["General"]:
+        if item in ["SMAP_ID"]: continue
+        writer.writerow([item,str(cf['General'][item])])
+    # write the units and variable name header lines to the csv file
+    units_list = ["-","-","-","-"]
+    row_list = ['ID','Mo','Day','DOY']
+    for smap_label in series_list:
+        row_list.append(smap_label)
+        units_list.append(cf["Variables"][smap_label]["units"])
+        if cf["Variables"][smap_label]["genqc"]=="True":
+            smap_qc_label = smap_qclabel(smap_label)
+            row_list.append(smap_qc_label)
+            units_list.append("-")
+    writer.writerow(units_list)
+    writer.writerow(row_list)
+    return writer
 
 def xl2nc(cf,InLevel):
     # get the data series from the Excel file

@@ -126,6 +126,7 @@ class qcgui(tk.Tk):
         fileconvertmenu = tk.Menu(menubar,tearoff=0)
         fileconvertmenu.add_command(label="V2.7 to V2.8",command=self.do_v27tov28)
         fileconvertmenu.add_command(label="nc to FluxNet",command=self.do_nc2fn)
+        fileconvertmenu.add_command(label="nc to SMAP",command=self.do_nc2smap)
         fileconvertmenu.add_command(label="nc to xls",command=self.do_nc2xls)
         fileconvertmenu.add_command(label="xls to nc",command=self.option_not_implemented)
         filemenu.add_cascade(label="Convert",menu=fileconvertmenu)
@@ -170,10 +171,6 @@ class qcgui(tk.Tk):
         ustarmenu.add_command(label="Reichstein",command=self.option_not_implemented)
         ustarmenu.add_command(label="Change Point Detection",command=self.do_cpd)
         utilsmenu.add_cascade(label="u* threshold",menu=ustarmenu)
-        respirationmenu = tk.Menu(menubar,tearoff=0)
-        respirationmenu.add_command(label="Lloyd-Taylor",command=self.option_not_implemented)
-        respirationmenu.add_command(label="Lasslop et al",command=self.option_not_implemented)
-        utilsmenu.add_cascade(label="Respiration",menu=respirationmenu)
         menubar.add_cascade(label="Utilities",menu=utilsmenu)
         # and the "Help" menu
         helpmenu = tk.Menu(menubar,tearoff=0)
@@ -533,6 +530,16 @@ class qcgui(tk.Tk):
         if len(self.cf)==0: self.do_progress(text='Waiting for input ...'); return
         self.do_progress(text='Converting nc to FluxNet CSV ...')
         qcio.fn_write_csv(self.cf)
+        log.info(' Finished conversion')
+        self.do_progress(text='Finished conversion')
+
+    def do_nc2smap(self):
+        """ Calls qcio.smap_write_csv. """
+        self.do_progress(text='Load control file ...')
+        self.cf = qcio.load_controlfile(path='controlfiles')
+        if len(self.cf)==0: self.do_progress(text='Waiting for input ...'); return
+        self.do_progress(text='Converting nc to SMAP CSV ...')
+        qcio.smap_write_csv(self.cf)
         log.info(' Finished conversion')
         self.do_progress(text='Finished conversion')
 
