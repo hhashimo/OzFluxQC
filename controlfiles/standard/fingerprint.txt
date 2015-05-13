@@ -77,7 +77,7 @@
         Upper = 20
     [[ps]]
         nc_varname = "ps"
-        Lower = 90
+        Lower = 80
         Upper = 105
 
 [Plots]

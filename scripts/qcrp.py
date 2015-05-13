@@ -534,6 +534,7 @@ def PartitionNEE(cf,ds):
         ds.series[output_label]["Data"][index] = GPP[index]
         ds.series[output_label]["Flag"][index] = NEE_flag[index]
         # put the night time Fre into the NEE series
+        # This force nocturnal GPP to be 0!  Not sure this is the right thing to do.
         index = numpy.ma.where(Fsd<Fsd_threshold)[0]
         ds.series[output_label]["Data"][index] = numpy.float64(0)
         ds.series[output_label]["Flag"][index] = numpy.int32(1)
