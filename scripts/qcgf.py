@@ -216,7 +216,16 @@ def gfClimatology_createdict(cf,ds,series):
         # site name
         ds.climatology[output]["site_name"] = ds.globalattributes["site_name"]
         # Climatology file name
-        ds.climatology[output]["file_name"] = cf[section][series]["GapFillFromClimatology"][output]["file_name"]
+        file_list = cf["Files"].keys()
+        lower_file_list = [item.lower() for item in file_list]
+        # first, look in the [Files] section for a generic file name
+        if "climatology" in lower_file_list:
+            # found a generic file name
+            i = lower_file_list.index("climatology")
+            ds.climatology[output]["file_name"] = cf["Files"][file_list[i]]
+        else:
+            # no generic file name found, look for a file name in the variable section
+            ds.climatology[output]["file_name"] = cf[section][series]["GapFillFromClimatology"][output]["file_name"]
         # climatology variable name if different from name used in control file
         if "climatology_name" in cf[section][series]["GapFillFromClimatology"][output]:
             ds.climatology[output]["climatology_name"] = cf[section][series]["GapFillFromClimatology"][output]["climatology_name"]
@@ -389,9 +398,9 @@ def GapFillFromAlternate(ds4,ds_alt):
     alt_gui.showplots = Tkinter.Checkbutton(alt_gui, text="Show plots", variable=alt_gui.pltopt)
     alt_gui.showplots.grid(row=nrow,column=0,columnspan=3,sticky="w")
     alt_gui.owopt = Tkinter.IntVar()
-    alt_gui.owopt.set(1)
-    #alt_gui.overwrite = Tkinter.Checkbutton(alt_gui, text="Overwrite", variable=alt_gui.owopt)
-    #alt_gui.overwrite.grid(row=nrow,column=3,columnspan=3,sticky="w")
+    alt_gui.owopt.set(0)
+    alt_gui.overwrite = Tkinter.Checkbutton(alt_gui, text="Overwrite", variable=alt_gui.owopt)
+    alt_gui.overwrite.grid(row=nrow,column=3,columnspan=3,sticky="w")
     # eighth row
     nrow = nrow + 1
     alt_gui.doneButton = Tkinter.Button(alt_gui,text="Done",command=lambda:gfalternate_done(ds4,alt_gui))
@@ -712,7 +721,16 @@ def gfalternate_createdict(cf,ds,series,ds_alt):
         # site name
         ds.alternate[output]["site_name"] = ds.globalattributes["site_name"]
         # alternate data file name
-        ds.alternate[output]["file_name"] = cf[section][series]["GapFillFromAlternate"][output]["file_name"]
+        # first, look in the [Files] section for a generic file name
+        file_list = cf["Files"].keys()
+        lower_file_list = [item.lower() for item in file_list]
+        if ds.alternate[output]["source"].lower() in lower_file_list:
+            # found a generic file name
+            i = lower_file_list.index(ds.alternate[output]["source"].lower())
+            ds.alternate[output]["file_name"] = cf["Files"][file_list[i]]
+        else:
+            # no generic file name found, look for a file name in the variable section
+            ds.alternate[output]["file_name"] = cf[section][series]["GapFillFromAlternate"][output]["file_name"]
         # if the file has not already been read, do it now
         if ds.alternate[output]["file_name"] not in ds_alt:
             ds_alternate = qcio.nc_read_series(ds.alternate[output]["file_name"])
@@ -1212,24 +1230,42 @@ def gfalternate_loadoutputdata(ds_tower,data_dict,alternate_info):
     ts = alternate_info["time_step"]
     si = qcutils.GetDateIndex(ldt_tower,alternate_info["startdate"],ts=ts)
     ei = qcutils.GetDateIndex(ldt_tower,alternate_info["enddate"],ts=ts)
-    ind1 = numpy.where((numpy.ma.getmaskarray(data_dict[label_output]["data"])==True)&
-                         (numpy.ma.getmaskarray(data_dict[label_output][label_alternate]["data"])==False))[0]
+    if alternate_info["overwrite"]:
+        ind1 = numpy.where(numpy.ma.getmaskarray(data_dict[label_output][label_alternate]["data"])==False)[0]
+    else:
+        ind1 = numpy.where((numpy.ma.getmaskarray(data_dict[label_output]["data"])==True)&
+                           (numpy.ma.getmaskarray(data_dict[label_output][label_alternate]["data"])==False))[0]
     data_dict[label_output]["data"][ind1] = data_dict[label_output][label_alternate]["data"][ind1]
-    ind2 = numpy.where((numpy.ma.getmaskarray(data_dict[label_output]["fitcorr"])==True)&
-                         (numpy.ma.getmaskarray(data_dict[label_output][label_alternate]["fitcorr"])==False))[0]
+    if alternate_info["overwrite"]:
+        ind2 = numpy.where(numpy.ma.getmaskarray(data_dict[label_output][label_alternate]["fitcorr"])==False)[0]
+    else:
+        ind2 = numpy.where((numpy.ma.getmaskarray(data_dict[label_output]["fitcorr"])==True)&
+                           (numpy.ma.getmaskarray(data_dict[label_output][label_alternate]["fitcorr"])==False))[0]
     data_dict[label_output]["fitcorr"][ind2] = data_dict[label_output][label_alternate]["fitcorr"][ind2]
-    ind3 = numpy.where((numpy.ma.getmaskarray(data_dict[label_composite]["data"])==True)&
-                         (numpy.ma.getmaskarray(data_dict[label_output][label_alternate]["data"])==False))[0]
+    if alternate_info["overwrite"]:
+        ind3 = numpy.where(numpy.ma.getmaskarray(data_dict[label_output][label_alternate]["data"])==False)[0]
+    else:
+        ind3 = numpy.where((numpy.ma.getmaskarray(data_dict[label_composite]["data"])==True)&
+                           (numpy.ma.getmaskarray(data_dict[label_output][label_alternate]["data"])==False))[0]
     data_dict[label_composite]["data"][ind3] = data_dict[label_output][label_alternate]["data"][ind3]
-    ind4 = numpy.where((numpy.ma.getmaskarray(data_dict[label_composite]["fitcorr"])==True)&
-                         (numpy.ma.getmaskarray(data_dict[label_output][label_alternate]["fitcorr"])==False))[0]
+    if alternate_info["overwrite"]:
+        ind4 = numpy.where(numpy.ma.getmaskarray(data_dict[label_output][label_alternate]["fitcorr"])==False)[0]
+    else:
+        ind4 = numpy.where((numpy.ma.getmaskarray(data_dict[label_composite]["fitcorr"])==True)&
+                           (numpy.ma.getmaskarray(data_dict[label_output][label_alternate]["fitcorr"])==False))[0]
     data_dict[label_composite]["fitcorr"][ind4] = data_dict[label_output][label_alternate]["fitcorr"][ind4]
-    ind5 = numpy.where((abs(ds_tower.series[label_composite]["Data"][si:ei+1]-float(c.missing_value))<c.eps)&
-                         (numpy.ma.getmaskarray(data_dict[label_output][label_alternate]["fitcorr"])==False))[0]
+    if alternate_info["overwrite"]:
+        ind5 = numpy.where(numpy.ma.getmaskarray(data_dict[label_output][label_alternate]["fitcorr"])==False)[0]
+    else:
+        ind5 = numpy.where((abs(ds_tower.series[label_composite]["Data"][si:ei+1]-float(c.missing_value))<c.eps)&
+                           (numpy.ma.getmaskarray(data_dict[label_output][label_alternate]["fitcorr"])==False))[0]
     ds_tower.series[label_composite]["Data"][si:ei+1][ind5] = numpy.ma.filled(data_dict[label_output][label_alternate]["fitcorr"][ind5],c.missing_value)
     ds_tower.series[label_composite]["Flag"][si:ei+1][ind5] = numpy.int32(20)
-    ind6 = numpy.where((abs(ds_tower.series[label_output]["Data"][si:ei+1]-float(c.missing_value))<c.eps)&
-                      (numpy.ma.getmaskarray(data_dict[label_output][label_alternate]["fitcorr"])==False))[0]
+    if alternate_info["overwrite"]:
+        ind6 = numpy.where(numpy.ma.getmaskarray(data_dict[label_output][label_alternate]["fitcorr"])==False)[0]
+    else:
+        ind6 = numpy.where((abs(ds_tower.series[label_output]["Data"][si:ei+1]-float(c.missing_value))<c.eps)&
+                           (numpy.ma.getmaskarray(data_dict[label_output][label_alternate]["fitcorr"])==False))[0]
     ds_tower.series[label_output]["Data"][si:ei+1][ind6] = numpy.ma.filled(data_dict[label_output][label_alternate]["fitcorr"][ind6],c.missing_value)
     ds_tower.series[label_output]["Flag"][si:ei+1][ind6] = numpy.int32(20)
 
