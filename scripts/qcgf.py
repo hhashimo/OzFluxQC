@@ -1810,7 +1810,16 @@ def gfalternate_updatedict(cf,ds_tower,ds_alt):
             # site name
             ds_tower.alternate[output]["site_name"] = ds_tower.globalattributes["site_name"]
             # alternate data file name
-            ds_tower.alternate[output]["file_name"] = cf[section][series]["GapFillFromAlternate"][output]["file_name"]
+            # first, look in the [Files] section for a generic file name
+            file_list = cf["Files"].keys()
+            lower_file_list = [item.lower() for item in file_list]
+            if ds_tower.alternate[output]["source"].lower() in lower_file_list:
+                # found a generic file name
+                i = lower_file_list.index(ds_tower.alternate[output]["source"].lower())
+                ds_tower.alternate[output]["file_name"] = cf["Files"][file_list[i]]
+            else:
+                # no generic file name found, look for a file name in the variable section
+                ds_tower.alternate[output]["file_name"] = cf[section][series]["GapFillFromAlternate"][output]["file_name"]
             # if the file has not already been read, do it now
             if ds_tower.alternate[output]["file_name"] not in ds_alt:
                 ds_alt[ds_tower.alternate[output]["file_name"]] = qcio.nc_read_series(ds_tower.alternate[output]["file_name"])

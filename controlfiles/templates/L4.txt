@@ -2,6 +2,10 @@
     file_path = ../Sites/<site_name>/Data/Processed/all/
     in_filename = <site_name>_<year>_L3.nc
     out_filename = <site_name>_<year>_L4.nc
+    aws = ../Sites/<site_name>/Data/AWS/<site_name>_AWS.nc
+    access = ../Sites/<site_name>/Data/ACCESS/<site_name>_ACCESS.nc
+    bios2 = ../Sites/<site_name>/Data/BIOS2/<site_name>_BIOS2.nc
+    climatology = ../Sites/<site_name>/Data/Processed/all/<site_name>_<year>_L3_Climatology.xls
 
 [Output]
     # uncomment the xl and nc lists to output specific variables
@@ -16,23 +20,18 @@
         [[[GapFillFromAlternate]]]
             [[[[Ah_aws]]]]
                 source = "AWS"
-                file_name = ../Sites/<site_name>/Data/AWS/<site_name>_AWS.nc
             [[[[Ah_access]]]]
                 source = "ACCESS"
-                file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_ACCESS.nc
             [[[[Ah_bios]]]]
                 source = "BIOS2"
-                file_name = ../Sites/<site_name>/Data/BIOS2/<site_name>_BIOS2.nc
         [[[GapFillFromClimatology]]]
             [[[[Ah_cli]]]]
-                file_name = ../Sites/<site_name>/Data/Processed/all/<site_name>_<year>_L3_Climatology.xls
                 method = "interpolated daily"
         [[[MergeSeries]]]
             Source     = "['Ah','Ah_aws','Ah_access','Ah_bios','Ah_cli']"
     [[Cc]]
         [[[GapFillFromClimatology]]]
             [[[[Cc_cli]]]]
-                file_name = ../Sites/<site_name>/Data/Processed/all/<site_name>_<year>_L3_Climatology.xls
                 method = "interpolated daily"
         [[[MergeSeries]]]
             Source     = "['Cc','Cc_cli']"
@@ -40,13 +39,10 @@
         [[[GapFillFromAlternate]]]
             [[[[Fa_access]]]]
                 source = "ACCESS"
-                file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_ACCESS.nc
             [[[[Fa_bios]]]]
                 source = "BIOS2"
-                file_name = ../Sites/<site_name>/Data/BIOS2/<site_name>_BIOS2.nc
         [[[GapFillFromClimatology]]]
             [[[[Fa_cli]]]]
-                file_name = ../Sites/<site_name>/Data/Processed/all/<site_name>_<year>_L3_Climatology.xls
                 method = "interpolated daily"
         [[[MergeSeries]]]
             Source     = "['Fa','Fa_access','Fa_bios','Fa_cli']"
@@ -54,7 +50,6 @@
         [[[GapFillFromAlternate]]]
             [[[[Fg_access]]]]
                 source = "ACCESS"
-                file_name = ../Sites/<site_name>/Data/ACCESS/<site_name>_ACCESS.nc
             [[[[Fg_bios]]]]
                 source = "BIOS2"
                 file_name = ../Sites/<site_name>/Data/BIOS2/<site_name>_BIOS2.nc
