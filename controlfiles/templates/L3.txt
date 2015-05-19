@@ -103,9 +103,6 @@
 #        YRMax     = "[1200 , 300 , 600 , 600 ,   600 ]"
 #
 [General]
-    # set the width and height of the plot windows in inches
-    PlotWidth = 10.7         # plot width for time series plots
-    PlotHeight = 8           # plot height for time series plots
     zms = <height>           # Li-7500 height above surface (m) used to calculate Fc storage
 
 [Files]

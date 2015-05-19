@@ -1611,7 +1611,7 @@ def xl_write_series(ds, xlfullname, outputlist=None):
                 xlFlagSheet.write(j+3,xlcol,int(ds.series[ThisOne]['Flag'][j]),d_xf)
         # increment the column pointer
         xlcol = xlcol + 1
-    
+    print xlfullname
     xlfile.save(xlfullname)
 
 def xlsx_write_series(ds, xlsxfullname, outputlist=None):

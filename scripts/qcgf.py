@@ -461,6 +461,11 @@ def gfalternate_autocomplete(ds_tower,ds_alt,alternate_info,mode="verbose"):
         data_tower,flag_tower,attr_tower = qcutils.GetSeriesasMA(ds_tower,label_tower,si=si_tower,ei=ei_tower)
         mask_composite = numpy.ma.getmaskarray(data_composite)
         gapstartend = qcutils.contiguous_regions(mask_composite)
+        if len(gapstartend)==0:
+            if mode.lower()!="quiet":
+                msg = " autocomplete: composite "+label_composite+" has no gaps to fill, skipping ..."
+                log.info(msg)
+            continue
         # now check all of the alternate data sources to see if they have anything to contribute
         gotdataforgap = [False]*len(gapstartend)
         label_output_list = gfalternate_getlabeloutputlist(ds_tower,label_tower)
@@ -476,14 +481,18 @@ def gfalternate_autocomplete(ds_tower,ds_alt,alternate_info,mode="verbose"):
                 data_alt,flag_alt,attr_alt = qcutils.GetSeriesasMA(ds_alternate,label_alternate,si=si_alternate,ei=ei_alternate)
                 data_all[label_alternate] = data_alt
                 for n,gap in enumerate(gapstartend):
-                    min_points = int(((gap[1]-gap[0])+1)*alternate_info["min_percent"]/100)
-                    if numpy.ma.count(data_alt[gap[0]:gap[1]])>=min_points: gotdataforgap[n] = True
+                    min_points = max([int(((gap[1]-gap[0])+1)*alternate_info["min_percent"]/100),3*alternate_info["nperhr"]])
+                    if numpy.ma.count(data_alt[gap[0]:gap[1]])>=min_points:
+                        if mode.lower()!="quiet":
+                            msg = " autocomplete: "+label_tower,ldt_tower[gap[0]],ldt_tower[gap[1]]," got data to fill gap"
+                            log.info(msg)
+                        gotdataforgap[n] = True
+                    if numpy.ma.count_masked(data_tower[gap[0]:gap[1]])==0:
+                        if mode.lower()!="quiet":
+                            msg = " autocomplete: "+label_tower,ldt_tower[gap[0]],ldt_tower[gap[1]]," no gap to fill"
+                            log.info(msg)
+                        gotdataforgap[n] = False
         # finished checking all alternate data sources for data to fill remaining gaps
-        if len(gapstartend)==0:
-            if mode.lower()!="quiet":
-                msg = " autocomplete: composite "+label_composite+" has no data to fill gaps, skipping ..."
-                log.info(msg)
-            continue
         if mode.lower()!="quiet": log.info(" autocomplete: variable "+label_tower+" has "+str(len(gapstartend))+" gaps")
         log.info(" Auto-complete gap filling for "+label_tower+" ("+str(gotdataforgap.count(True))+" gaps)")
         for n,gap in enumerate(gapstartend):
@@ -502,7 +511,7 @@ def gfalternate_autocomplete(ds_tower,ds_alt,alternate_info,mode="verbose"):
             if mode.lower()!="quiet":
                 msg = " autocomplete: gap is "+gap_startdate+" to "+gap_enddate
                 log.info(msg)
-            min_points = int(((gap[1]-gap[0])+1)*alternate_info["min_percent"]/100)
+            min_points = max([int(((gap[1]-gap[0])+1)*alternate_info["min_percent"]/100),3*alternate_info["nperhr"]])
             num_good_points = 0
             num_points_list = data_all.keys()
             for label in data_all.keys():
@@ -523,7 +532,7 @@ def gfalternate_autocomplete(ds_tower,ds_alt,alternate_info,mode="verbose"):
                     alternate_info["autoforce"] = True
                     not_enough_points = True
                 if not_enough_points: break
-                min_points = int(((gap[1]-gap[0])+1)*alternate_info["min_percent"]/100)
+                min_points = max([int(((gap[1]-gap[0])+1)*alternate_info["min_percent"]/100),3*alternate_info["nperhr"]])
                 for label in num_points_list:
                     ngpts = gfalternate_getnumgoodpoints(data_tower[gap[0]:gap[1]+1],data_all[label][gap[0]:gap[1]+1])
                     if ngpts>num_good_points:
@@ -542,6 +551,11 @@ def gfalternate_autocomplete(ds_tower,ds_alt,alternate_info,mode="verbose"):
 
 def gfalternate_autocomplete_rewrite(ds_tower,ds_alt,alternate_info,mode="verbose"):
     """
+    *** Work in progress ***
+    This is intended to be the rewrite of gfalternate_autocomplete.
+    Remaining changes to be made:
+     - gap filling code inserted
+     - make this routine indepedent of gfalternate_main
     Purpose:
      Gap fill using alternate data with gaps identified automatically.
     Usage:
@@ -584,85 +598,47 @@ def gfalternate_autocomplete_rewrite(ds_tower,ds_alt,alternate_info,mode="verbos
         data_tower,flag_tower,attr_tower = qcutils.GetSeriesasMA(ds_tower,label_tower,si=si_tower,ei=ei_tower)
         mask_composite = numpy.ma.getmaskarray(data_composite)
         gapstartend = qcutils.contiguous_regions(mask_composite)
-        # now check all of the alternate data sources to see if they have anything to contribute
-        gotdataforgap = [False]*len(gapstartend)
-        label_output_list = gfalternate_getlabeloutputlist(ds_tower,label_tower)
-        for label_output in label_output_list:
-            alt_filename = ds_tower.alternate[label_output]["file_name"]
-            ds_alternate = ds_alt[alt_filename]
-            dt_alternate = ds_alternate.series["DateTime"]["Data"]
-            si_alternate = qcutils.GetDateIndex(dt_alternate,alternate_info["gui_startdate"],ts=ts,default=0)
-            ei_alternate = qcutils.GetDateIndex(dt_alternate,alternate_info["gui_enddate"],ts=ts,default=nRecs-1)
-            alt_series_list = [item for item in ds_alternate.series.keys() if "_QCFlag" not in item]
-            alt_series_list = [item for item in alt_series_list if label_tower in item]
-            for label_alternate in alt_series_list:
-                data_alt,flag_alt,attr_alt = qcutils.GetSeriesasMA(ds_alternate,label_alternate,si=si_alternate,ei=ei_alternate)
-                data_all[label_alternate] = data_alt
-                for n,gap in enumerate(gapstartend):
-                    min_points = int(((gap[1]-gap[0])+1)*alternate_info["min_percent"]/100)
-                    if numpy.ma.count(data_alt[gap[0]:gap[1]])>=min_points: gotdataforgap[n] = True
-        # finished checking all alternate data sources for data to fill remaining gaps
-        if len(gapstartend)==0:
-            if mode.lower()!="quiet":
-                msg = " autocomplete: composite "+label_composite+" has no data to fill gaps, skipping ..."
-                log.info(msg)
-            continue
-        if mode.lower()!="quiet": log.info(" autocomplete: variable "+label_tower+" has "+str(len(gapstartend))+" gaps")
-        log.info(" Auto-complete gap filling for "+label_tower+" ("+str(gotdataforgap.count(True))+" gaps)")
-        for n,gap in enumerate(gapstartend):
-            alternate_info["autoforce"] = False
-            if not gotdataforgap[n]:
-                if mode.lower()!="quiet":
-                    gap_startdate = ldt_tower[gap[0]].strftime("%Y-%m-%d %H:%M")
-                    gap_enddate = ldt_tower[gap[1]].strftime("%Y-%m-%d %H:%M")
-                    msg = " autocomplete: no alternate data for "+gap_startdate+" to "+gap_enddate
-                    log.info(msg)
+        for gap in gapstartend:
+            # skip this if there are no gaps in the tower data
+            if numpy.ma.count_masked(data_tower[gap[0]:gap[1]])==0:
+                print label_tower,ldt_tower[gap[0]],ldt_tower[gap[1]]," no gaps to fill"
                 continue
-            si = max([0,gap[0]])
-            ei = min([len(ldt_tower)-1,gap[1]])
-            gap_startdate = ldt_tower[si].strftime("%Y-%m-%d %H:%M")
-            gap_enddate = ldt_tower[ei].strftime("%Y-%m-%d %H:%M")
-            if mode.lower()!="quiet":
-                msg = " autocomplete: gap is "+gap_startdate+" to "+gap_enddate
-                log.info(msg)
-            min_points = int(((gap[1]-gap[0])+1)*alternate_info["min_percent"]/100)
-            num_good_points = 0
-            num_points_list = data_all.keys()
-            for label in data_all.keys():
-                if numpy.ma.count(data_all[label][gap[0]:gap[1]])<min_points:
-                    num_points_list.remove(label)
-                    continue
-                ngpts = gfalternate_getnumgoodpoints(data_tower[gap[0]:gap[1]],data_all[label][gap[0]:gap[1]])
-                num_good_points = max([num_good_points,ngpts])
-            while num_good_points<min_points:
-                gap[0] = max(0,gap[0] - alternate_info["nperday"])
-                gap[1] = min(nRecs_gui-1,gap[1] + alternate_info["nperday"])
-                if gap[0]==0 and gap[1]==nRecs_gui-1:
-                    msg = " Unable to find enough good points in data set for "+label_tower
-                    log.error(msg)
-                    msg = " Replacing missing tower data with unmodified alternate data"
-                    log.error(msg)
-                    gap[0] = 0; gap[1] = -1
-                    alternate_info["autoforce"] = True
-                    not_enough_points = True
-                if not_enough_points: break
-                min_points = int(((gap[1]-gap[0])+1)*alternate_info["min_percent"]/100)
-                for label in num_points_list:
-                    ngpts = gfalternate_getnumgoodpoints(data_tower[gap[0]:gap[1]+1],data_all[label][gap[0]:gap[1]+1])
-                    if ngpts>num_good_points:
-                        num_good_points = ngpts
-                        label_alternate_list = [label]
-            gapfillperiod_startdate = ldt_tower[gap[0]].strftime("%Y-%m-%d %H:%M")
-            gapfillperiod_enddate = ldt_tower[gap[1]].strftime("%Y-%m-%d %H:%M")
-            if mode.lower()!="quiet":
-                msg = " autocomplete: gap fill period is "+gapfillperiod_startdate+" to "+gapfillperiod_enddate
-                log.info(msg)
-            alternate_info["startdate"] = ldt_tower[gap[0]].strftime("%Y-%m-%d %H:%M")
-            alternate_info["enddate"] = ldt_tower[gap[1]].strftime("%Y-%m-%d %H:%M")
-            gfalternate_main(ds_tower,ds_alt,alternate_info,label_tower_list=[label_tower])
-            gfalternate_plotcoveragelines(ds_tower)
-            if not_enough_points: break
-
+            min_points = int((gap[1]-gap[0])*alternate_info["min_percent"]/100)
+            # clamp min_points to 3 hours or longer
+            min_points = max([3*alternate_info["nperhr"],min_points])
+            label_output_list = gfalternate_getlabeloutputlist(ds_tower,label_tower)
+            for label_output in label_output_list:
+                alt_filename = ds_tower.alternate[label_output]["file_name"]
+                ds_alternate = ds_alt[alt_filename]
+                dt_alternate = ds_alternate.series["DateTime"]["Data"]
+                si_alternate = qcutils.GetDateIndex(dt_alternate,alternate_info["gui_startdate"],ts=ts,default=0)
+                ei_alternate = qcutils.GetDateIndex(dt_alternate,alternate_info["gui_enddate"],ts=ts,default=nRecs-1)
+                # the list of alternate variables should be in descending order of correlation
+                alt_series_list = [item for item in ds_alternate.series.keys() if label_tower in item]
+                num_good_points = 0
+                for label_alternate in alt_series_list:
+                    data_alt,flag_alt,attr_alt = qcutils.GetSeriesasMA(ds_alternate,label_alternate,si=si_alternate,ei=ei_alternate)
+                    data_all[label_alternate] = data_alt
+                    ngpts = gfalternate_getnumgoodpoints(data_tower[gap[0]:gap[1]],data_alt[gap[0]:gap[1]])
+                    num_good_points = max([num_good_points,ngpts])
+                    print label_tower,label_output,label_alternate,min_points,num_good_points
+                    while num_good_points<min_points:
+                        gap[0] = max(0,gap[0] - alternate_info["nperday"])
+                        gap[1] = min(nRecs_gui-1,gap[1] + alternate_info["nperday"])
+                        if gap[0]==0 and gap[1]==nRecs_gui-1:
+                            msg = " Unable to find enough good points in data set for "+label_tower
+                            log.error(msg)
+                            msg = " Replacing missing tower data with unmodified alternate data"
+                            log.error(msg)
+                            gap[0] = 0; gap[1] = -1
+                            alternate_info["autoforce"] = True
+                            not_enough_points = True
+                        if not_enough_points: break
+                        ngpts = gfalternate_getnumgoodpoints(data_tower[gap[0]:gap[1]],data_alt[gap[0]:gap[1]])
+                        num_good_points = max([num_good_points,ngpts])
+                        print label_tower,label_output,label_alternate,num_good_points,min_points,gap[0],gap[1]
+                    print "I would gap fill ",label_tower," here from ",ldt_tower[gap[0]],ldt_tower[gap[1]]
+                    
 def gfalternate_createdataandstatsdict(ldt_tower,data_tower,attr_tower,alternate_info):
     """
     Purpose:
