@@ -775,6 +775,11 @@ def CoordRotation2D(cf,ds):
         wC = UzC       # unrotated  wC covariance
         uw = UxUz      # unrotated  uw covariance
         vw = UyUz      # unrotated  vw covariance
+        uv = UxUy      # unrotated  uv covariance
+        # unrotated variances
+        uu = UxUx      # unrotated  u variance
+        vv = UyUy      # unrotated  v variance
+        ww = UzUz      # unrotated  w variance
     # store the rotated quantities in the nc object
     # default behaviour of CreateSeries is to use the maximum value of the QC flag for any series specified in FList
     attr = qcutils.MakeAttributeDictionary(long_name='Horizontal rotation angle',units='deg')
