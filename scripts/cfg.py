@@ -1,5 +1,13 @@
 version_name = "OzFluxQC"
-version_number = "V2.9.0"
+version_number = "V2.9.1"
+# V2.9.1   - hopefully completed the major re-write of the gap filling
+#            routines for L4 and L5
+#            - much testing and tweaking of gfalternate_autocomplete
+#              to get it to run, the logic is rather tortuous at present
+#              and needs a re-working, there is a gfalternate_autocomplete_rewrite
+#              routine, just needs completion
+#            - updated QCCPD code with Ian McHugh's latest version and added
+#              code to trap empty results data frame before plotting histograms
 # V2.9.0   - major re-write of gap filling routines to simplify workflow
 #            - will document later
 # V2.8.7   - fixed several bugs in the gap filling routine and improved
