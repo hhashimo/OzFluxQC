@@ -52,12 +52,14 @@
 #                               multiple ranges can be specified on separate lines but the
 #                               lines must be numbered sequentially from 0 (eg 0, 1, 2, etc)
 #                 NOTE: The date range and hours to be rejected are specified as:
-#                        eg "['2010-04-22 00:00','2010-07-26 23:30',['09:30','10:00','10:30']]"
+#        [[[ExcludeHours]]]
+#            0 = "['2010-04-22 00:00','2010-07-26 23:30',['09:30','10:00','10:30']]"
 #                Linear       - apply a linear correction to the data within a date range,
 #                               multiple ranges can be specified on separate lines but the
 #                               lines must be numbered sequentially from 0 (eg 0, 1, 2, etc)
 #                 NOTE: The date range, slope and offset are specified as:
-#                        eg "['2010-01-01 00:00','2011-01-01 00:00',1.0,0.0]"
+#        [[[Linear]]]
+#            0 = "['2010-01-01 00:00','2011-01-01 00:00',1.0,0.0]"
 #                Correction   - apply an offset to a wind direction measurement to correct for alignment
 #                               multiple ranges can be specified on separate lines but the
 #                               lines must be numbered sequentially from 0 (eg 0, 1, 2, etc)

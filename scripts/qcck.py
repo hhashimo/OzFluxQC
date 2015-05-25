@@ -90,24 +90,24 @@ def do_7500check(cf,ds):
        LI75Lisat.  Additional checks are done for AGC_7500 (the LI-7500 AGC value),
        Ah_7500_Sd (standard deviation of absolute humidity) and Cc_7500_Sd (standard
        deviation of CO2 concentration).'''
+    if "Diag_7500" not in ds.series.keys():
+        msg = " Diag_7500 not found in data, skipping 7500 checks ..."
+        log.warning(msg)
+        return
     log.info(' Doing the 7500 check')
     LI75List = ['Ah_7500_Av','Cc_7500_Av','AhAh','CcCc','UzA','UxA','UyA','UzC','UxC','UyC']
-    if 'Diag_7500' not in cf['Variables'].keys():
-        ds.series[unicode('Diag_7500')] = {}
-        nRecs = numpy.size(ds.series['xlDateTime']['Data'])
-        ds.series['Diag_7500']['Flag'] = numpy.zeros(nRecs,dtype=numpy.int32)
-        for ThisOne in ['Ah_7500_Av','Cc_7500_Av']:
-            if ThisOne in ds.series.keys():
-                index = numpy.where(ds.series[ThisOne]['Flag']!=0)[0]
-                log.info(' do_7500check: ', ThisOne, ' rejected ',len(index))
-                ds.series['Diag_7500']['Flag'] = ds.series['Diag_7500']['Flag'] + ds.series[ThisOne]['Flag']
     index = numpy.where(ds.series['Diag_7500']['Flag']!=0)
     log.info('  7500Check: Diag_7500 ' + str(numpy.size(index)))
-    for ThisOne in ['AGC_7500','Ah_7500_Sd','Cc_7500_Sd','AhAh','CcCc']:
-        if ThisOne in ds.series.keys():
-            index = numpy.where(ds.series[ThisOne]['Flag']!=0)
-            log.info('  7500Check: ' + ThisOne + ' ' + str(numpy.size(index)))
-            ds.series['Diag_7500']['Flag'] = ds.series['Diag_7500']['Flag'] + ds.series[ThisOne]['Flag']
+    LI75_dependents = []
+    for item in ['AGC_7500','Ah_7500_Sd','Cc_7500_Sd','AhAh','CcCc']:
+        if item in ds.series.keys(): LI75_dependents.append(item)
+    if "Ah_7500_Sd" and "AhAh" in LI75_dependents: LI75_dependents.remove("AhAh")
+    if "Cc_7500_Sd" and "CcCc" in LI75_dependents: LI75_dependents.remove("CcCc")
+    for item in LI75_dependents:
+        if item in ds.series.keys():
+            index = numpy.where(ds.series[item]['Flag']!=0)
+            log.info('  7500Check: '+item+' rejected '+str(numpy.size(index)))+' points'
+            ds.series['Diag_7500']['Flag'] = ds.series['Diag_7500']['Flag'] + ds.series[item]['Flag']
     index = numpy.where((ds.series['Diag_7500']['Flag']!=0))
     log.info('  7500Check: Total ' + str(numpy.size(index)))
     for ThisOne in LI75List:
@@ -144,26 +144,21 @@ def do_CSATcheck(cf,ds):
        flag is non-zero.  If the Diag_CSAT flag is not present in the data structure passed
        to this routine, it is constructed from the QC flags of the series specified in
        CSATList.'''
+    if "Diag_CSAT" not in ds.series.keys():
+        msg = " Diag_CSAT not found in data, skipping CSAT checks ..."
+        log.warning(msg)
+        return
     log.info(' Doing the CSAT check')
-    if 'Wd_CSAT_Compass' in ds.series.keys():
-        Wd = 'Wd_CSAT_Compass'
-    else:
-        Wd = 'Wd_CSAT'
-    CSATList = ['Ux','Uy','Uz','Ws_CSAT',Wd,'Tv_CSAT',
+    CSAT_all = ['Ux','Uy','Uz',
+                'Ws_CSAT','Wd_CSAT','Wd_CSAT_Compass','Tv_CSAT',
                 'UzT','UxT','UyT','UzA','UxA','UyA','UzC','UxC','UyC',
-                'UxUz','UyUz','UxUy','UxUx','UyUy']
-    if 'Diag_CSAT' not in cf['Variables'].keys():
-        ds.series['Diag_CSAT']= {}
-        nRecs = numpy.size(ds.series['xlDateTime']['Data'])
-        ds.series['Diag_CSAT']['Flag'] = numpy.zeros(nRecs,dtype=numpy.int32)
-        for ThisOne in ['Ux','Uy','Uz','Tv_CSAT']:
-            if ThisOne in ds.series.keys():
-                index = numpy.where(ds.series[ThisOne]['Flag']!=0)[0]
-                log.info(' do_CSATcheck: ', ThisOne, ' rejected ',len(index))
-                ds.series['Diag_CSAT']['Flag'] = ds.series['Diag_CSAT']['Flag'] + ds.series[ThisOne]['Flag']
+                'UxUz','UyUz','UxUy','UxUx','UyUy','UzUz']
+    CSAT_list = []
+    for item in CSAT_all:
+        if item in ds.series.keys(): CSAT_list.append(item)
     index = numpy.where(ds.series['Diag_CSAT']['Flag']!=0)
     log.info('  CSATCheck: Diag_CSAT ' + str(numpy.size(index)))
-    for ThisOne in CSATList:
+    for ThisOne in CSAT_list:
         if ThisOne in ds.series.keys():
             ds.series[ThisOne]['Data'][index] = numpy.float64(c.missing_value)
             ds.series[ThisOne]['Flag'][index] = numpy.int32(3)

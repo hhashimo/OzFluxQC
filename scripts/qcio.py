@@ -907,6 +907,12 @@ def nc_concatenate(cf):
     log.info(" Interpolating over fixed time gaps ("+str(maxlen)+" hour max)")
     for item in series_list:
         qcts.InterpolateOverMissing(ds,series=item,maxlen=maxlen)
+    # make sure we have all of the humidities
+    qcts.CalculateHumidities(ds)
+    # and make sure we have all of the meteorological variables
+    qcts.CalculateMeteorologicalVariables(ds)
+    # update the coverage statistics
+    qcutils.get_coverage_individual(ds)
     # write the netCDF file
     ncFileName = get_keyvaluefromcf(cf,["Files","Out"],"ncFileName",default="out.nc")
     log.info(' Writing data to '+ncFileName)

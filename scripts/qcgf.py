@@ -915,14 +915,14 @@ def gfalternate_getfitcorrecteddata(data_dict,stat_dict,alternate_info):
     """
     label_output = alternate_info["label_output"]
     label_alternate = alternate_info["label_alternate"]
-    if alternate_info["fit_type"].lower() not in ["ols","replace"]:
+    if alternate_info["fit_type"].lower() not in ["ols","replace","mrev"]:
         msg = " Unrecognised fit option for "+alternate_info["label_tower"]+", using OLS ..."
         log.info(msg)
         alternate_info["fit_type"] = "ols"
     if alternate_info["fit_type"].lower()=="ols":
         gfalternate_getolscorrecteddata(data_dict,stat_dict,alternate_info)
-    #if alternate_info["fit_type"].lower()=="mrev":
-        #gfalternate_getmrevcorrected(data_dict,stat_dict,alternate_info)
+    if alternate_info["fit_type"].lower()=="mrev":
+        gfalternate_getmrevcorrected(data_dict,stat_dict,alternate_info)
     if alternate_info["fit_type"].lower()=="replace":
         gfalternate_getreplacedata(data_dict,stat_dict,alternate_info)
 
@@ -993,29 +993,29 @@ def gfalternate_getlagcorrecteddata(ds_alternate, data_dict,stat_dict,alternate_
         data_dict[label_output][label_alternate]["lagcorr"] = numpy.ma.copy(data_dict[label_output][label_alternate]["data"])
         stat_dict[label_output][label_alternate]["nLags"] = int(0)
 
-#def gfalternate_getmrevcorrected(data_dict,stat_dict,alternate_info):
-    #"""
-    #Fit alternate data to tower data by replacing means and equalising variance.
-    #"""
-    #label_tower = alternate_info["label_tower"]
-    #label_alternate = alternate_info["label_alternate"]
-    ## local copies of the data
-    #data_tower = numpy.ma.copy(data_dict[label_tower]["data"])
-    #data_alternate = numpy.ma.copy(data_dict[label_alternate]["data"])
-    #data_twr_hravg = numpy.ma.copy(data_plot["tower"]["hourlyavg"])
-    #data_alt_hravg = numpy.ma.copy(data_plot["alternate"][label_alternate]["lagcorr"]["hourlyavg"])
-    ## calculate the means
-    #mean_tower = numpy.ma.mean(data_tower)
-    #mean_alternate = numpy.ma.mean(data_alternate)
-    ## calculate the variances
-    #var_twr_hravg = numpy.ma.var(data_twr_hravg)
-    #var_alt_hravg = numpy.ma.var(data_alt_hravg)
-    #var_ratio = var_twr_hravg/var_alt_hravg
-    ## correct the alternate data
-    #results["fit"] = ((data_alternate - mean_alternate)*var_ratio) + mean_tower
-    #results["eqnstr"] = "Mean replaced, equal variance"
-    #results["slope"] = float(0); results["offset"] = float(0)
-    #return results
+def gfalternate_getmrevcorrected(data_dict,stat_dict,alternate_info):
+    """
+    Fit alternate data to tower data by replacing means and equalising variance.
+    """
+    label_tower = alternate_info["label_tower"]
+    label_alternate = alternate_info["label_alternate"]
+    # local copies of the data
+    data_tower = numpy.ma.copy(data_dict[label_tower]["data"])
+    data_alternate = numpy.ma.copy(data_dict[label_alternate]["data"])
+    data_twr_hravg = numpy.ma.copy(data_plot["tower"]["hourlyavg"])
+    data_alt_hravg = numpy.ma.copy(data_plot["alternate"][label_alternate]["lagcorr"]["hourlyavg"])
+    # calculate the means
+    mean_tower = numpy.ma.mean(data_tower)
+    mean_alternate = numpy.ma.mean(data_alternate)
+    # calculate the variances
+    var_twr_hravg = numpy.ma.var(data_twr_hravg)
+    var_alt_hravg = numpy.ma.var(data_alt_hravg)
+    var_ratio = var_twr_hravg/var_alt_hravg
+    # correct the alternate data
+    results["fit"] = ((data_alternate - mean_alternate)*var_ratio) + mean_tower
+    results["eqnstr"] = "Mean replaced, equal variance"
+    results["slope"] = float(0); results["offset"] = float(0)
+    return results
 
 def gfalternate_getnumgoodpoints(data_tower,data_alternate):
     mask = numpy.ma.mask_or(data_tower.mask,data_alternate.mask,copy=True,shrink=False)

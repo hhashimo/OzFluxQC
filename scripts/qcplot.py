@@ -255,7 +255,7 @@ def plot_fluxnet(cf):
         if series not in ds.series.keys():
             log.error("Series "+series+" not found in input file, skipping ...")
             continue
-        log.info("Doing plot for "+series)
+        log.info(" Doing plot for "+series)
         data,flag,attr = qcutils.GetSeriesasMA(ds,qcutils.GetAltName(cf,ds,series))
         nFig = nFig + 1
         fig = plt.figure(nFig,figsize=(10.9,7.5))
@@ -278,8 +278,10 @@ def plottimeseries(cf,nFig,dsa,dsb,si,ei):
     Month = dsa.series['Month']['Data'][0]
     p = plot_setup(cf,nFig)
     log.info(' Plotting series: '+str(p['SeriesList']))
-    L1XArray = numpy.array(dsa.series['DateTime']['Data'][si:ei])
-    L2XArray = numpy.array(dsb.series['DateTime']['Data'][si:ei])
+    #L1XArray = numpy.array(dsa.series['DateTime']['Data'][si:ei])
+    #L2XArray = numpy.array(dsb.series['DateTime']['Data'][si:ei])
+    L1XArray = dsa.series['DateTime']['Data'][si:ei]
+    L2XArray = dsb.series['DateTime']['Data'][si:ei]
     p['XAxMin'] = min(L2XArray)
     p['XAxMax'] = max(L2XArray)
     p['loc'],p['fmt'] = get_ticks(p['XAxMin'],p['XAxMax'])
