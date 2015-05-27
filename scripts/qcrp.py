@@ -215,8 +215,48 @@ def FreUsingFFNET(cf,ds):
     rpFFNET_gui.wait_window(rpFFNET_gui)
 
 def FreUsingLasslop(cf,ds):
-    log.info('Estimating Fre using Lasslop et al is not implemented yet')
-    pass
+    log.info('Estimating Fre using Lasslop et al is not implemented yet, but we are working on it now ...')
+    # get necessary data
+    #  - PAR or Fsd
+    #    - convert Fsd to PAR
+    #    - check PAR units are umol/m2/s
+    #  - soil or air temperature
+    #
+    # get a list of years in the data set
+    #
+    # loop over entries in 
+    # loop over years to get annual E0 values
+    #  - if year has > minimum good points
+    #    - curve fit to get E0
+    #  - else
+    #    - set E0 to missing value
+    # replace any missing E0 with mean values
+    #  E0_dict = rpLL_get_annual_E0()
+    #
+    # loop through data set with window_size and window_step to get
+    # curve fit parameters phi, Aopt, k and rb
+    #  fit_dict = rpLL_get_fit_parameters()
+    #   fit_dict["middate"],fit_dict["phi"],fit_dict["Aopt"],fit_dict["k"],fit_dict["E0_short"],fit_dict["E0_long"]
+    dt = ds.series["DateTime"]["Data"]
+    radn,f,a = qcutils.GetSeariesasMA(ds,"Fsd")
+    hd_label = cf
+    hd,f,a = qcutils.GetSeriesasMA(ds,hd_label)
+    startdate = dt[0]
+    enddate = startdate + dateutil.relativedelta.relativedelta(days=window_size)
+    while startdate>dt[-1]:
+        middate = startdate+(enddate-startdate)/2
+        E0 = E0_dict[middate.year]
+        si = qcutils.GetDateIndex(dt,str(startdate),ts=ts)
+        ei = qcutils.GetDateIndex(dt,str(enddate),ts=ts)
+    # plot phi, Aopt, k and rb values
+    #  rpLL_plot_fit_parameters(fit_dict)
+    # interpolate phi, Aopt, k and rb values to daily time step
+    #  fit_dict_daily = rpLL_interpolate_fit_parameters(fit_dict)
+    # calculate Fre_LL
+    #  rpLL_calculateFre()
+    # - replicate daily values of phi, Aopt, k and rb at data time step
+    # - calculate Fre from temperature, rb and E0
+    # - put Fre in data structure
 
 def FreUsingLloydTaylor(cf,ds):
     log.info('Estimating Fre using Lloyd-Taylor is not implemented yet')
