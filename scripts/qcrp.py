@@ -9,6 +9,7 @@ import numpy
 import os
 import platform
 import qcio
+import qcts
 import qcutils
 import subprocess
 import sys
@@ -216,6 +217,7 @@ def FreUsingFFNET(cf,ds):
 
 def FreUsingLasslop(cf,ds):
     log.info('Estimating Fre using Lasslop et al is not implemented yet, but we are working on it now ...')
+    pass
     # get necessary data
     #  - PAR or Fsd
     #    - convert Fsd to PAR
@@ -237,17 +239,17 @@ def FreUsingLasslop(cf,ds):
     # curve fit parameters phi, Aopt, k and rb
     #  fit_dict = rpLL_get_fit_parameters()
     #   fit_dict["middate"],fit_dict["phi"],fit_dict["Aopt"],fit_dict["k"],fit_dict["E0_short"],fit_dict["E0_long"]
-    dt = ds.series["DateTime"]["Data"]
-    radn,f,a = qcutils.GetSeariesasMA(ds,"Fsd")
-    hd_label = cf
-    hd,f,a = qcutils.GetSeriesasMA(ds,hd_label)
-    startdate = dt[0]
-    enddate = startdate + dateutil.relativedelta.relativedelta(days=window_size)
-    while startdate>dt[-1]:
-        middate = startdate+(enddate-startdate)/2
-        E0 = E0_dict[middate.year]
-        si = qcutils.GetDateIndex(dt,str(startdate),ts=ts)
-        ei = qcutils.GetDateIndex(dt,str(enddate),ts=ts)
+    #dt = ds.series["DateTime"]["Data"]
+    #radn,f,a = qcutils.GetSeriesasMA(ds,"Fsd")
+    #hd_label = cf
+    #hd,f,a = qcutils.GetSeriesasMA(ds,hd_label)
+    #startdate = dt[0]
+    #enddate = startdate + dateutil.relativedelta.relativedelta(days=window_size)
+    #while startdate>dt[-1]:
+        #middate = startdate+(enddate-startdate)/2
+        #E0 = E0_dict[middate.year]
+        #si = qcutils.GetDateIndex(dt,str(startdate),ts=ts)
+        #ei = qcutils.GetDateIndex(dt,str(enddate),ts=ts)
     # plot phi, Aopt, k and rb values
     #  rpLL_plot_fit_parameters(fit_dict)
     # interpolate phi, Aopt, k and rb values to daily time step
@@ -451,45 +453,46 @@ def GetFreFromFc(cf,ds):
     """
     ts = int(ds.globalattributes["time_step"])
     ldt = ds.series['DateTime']['Data']
-    if "Params" not in cf.keys():
-        log.error("GetFreFromFc: no [Params] section in control file")
-        raise Exception("GetFreFromFc: no [Params] section in control file")
-    if "Fsd_threshold" not in cf["Params"]:
-        log.error("GetFreFromFc: no Fsd threshold in control file")
-        raise Exception("GetFreFromFc: no Fsd threshold in control file")
-    else:
-        Fsd_threshold = float(cf["Params"]["Fsd_threshold"])
-    ustar_threshold_list = []
-    if "ustar_threshold" in cf["Params"]:
-        ustar_threshold = float(cf["Params"]["ustar_threshold"])
-        ustar_threshold_list.append([ldt[0].strftime("%Y-%m-%d %H:%M"),
-                    ldt[-1].strftime("%Y-%m-%d %H:%M"),
-                    str(ustar_threshold)])
-    else:
-        if "ustar_threshold" in cf:
-            for n in cf["ustar_threshold"].keys():
-                ustar_threshold_list.append(ast.literal_eval(cf["ustar_threshold"][str(n)]))
+    # get the Fsd threshold
+    if "Options" in cf.keys():
+        if "Fsd_threshold" in cf["Options"].keys():
+            Fsd_threshold = float(cf["Options"]["Fsd_threshold"])
         else:
-            log.error("GetFreFromFc: no ustar threshold in control file")
-            raise Exception("GetFreFromFc: no ustar threshold in control file")
+            log.warning(" No Fsd threshold in [Options] section of control file")
+            log.warning(" ... using default value of 10 W/m2")
+            Fsd_threshold = float(10)
+    else:
+        log.warning(" No [Options] section of control file for Fsd threshold")
+        log.warning(" ... using default value of 10 W/m2")
+        Fsd_threshold = float(10)
+    # get the ustar thresholds
+    ustar_threshold_list = []
+    if "ustar_threshold" in cf.keys():
+        for n in cf["ustar_threshold"].keys():
+            ustar_threshold_list.append(ast.literal_eval(cf["ustar_threshold"][str(n)]))
+    else:
+        log.warning(" No [ustar_threshold] section in control file")
+        log.warning(" ... using default value of 0.25 m/s")
+        ustar_threshold_list.append([ldt[0].strftime("%Y-%m-%d %H:%M"),
+                                     ldt[-1].strftime("%Y-%m-%d %H:%M"),
+                                     str(0.25)])
     # get the data
     Fsd,flag,attr = qcutils.GetSeriesasMA(ds,"Fsd")
-    if "Fsd_syn" in ds.series.keys():
-        Fsd_syn,flag,attr = qcutils.GetSeriesasMA(ds,"Fsd_syn")
-        index = numpy.where(numpy.ma.getmaskarray(Fsd)==True)[0]
-        #index = numpy.ma.where(numpy.ma.getmaskarray(Fsd)==True)[0]
-        Fsd[index] = Fsd_syn[index]
+    if "Fsd_syn" not in ds.series.keys(): qcts.get_synthetic_fsd(ds)
+    Fsd_syn,flag,attr = qcutils.GetSeriesasMA(ds,"Fsd_syn")
     ustar,flag,attr = qcutils.GetSeriesasMA(ds,"ustar")
     Fc,Fc_flag,Fc_attr = qcutils.GetSeriesasMA(ds,"Fc")
     # check for any missing data
-    for item,label in zip([Fsd,ustar,Fc],["Fsd","ustar","Fc"]):
-        index = numpy.where(numpy.ma.getmaskarray(Fsd)==True)[0]
-        #index = numpy.ma.where(numpy.ma.getmaskarray(Fsd)==True)[0]
+    for item,label in zip([Fsd,Fsd_syn,ustar,Fc],["Fsd","Fsd_syn","ustar","Fc"]):
+        index = numpy.where(numpy.ma.getmaskarray(item)==True)[0]
         if len(index)!=0:
             log.error(" GetFreFromFc: missing data in series "+label)
             raise Exception("GetFreFromFc: missing data in series "+label)
     # apply the day/night filter
-    Fre1 = numpy.ma.masked_where(Fsd>Fsd_threshold,Fc,copy=True)
+    if qcutils.cfoptionskeylogical(cf,Key='UseFsdsyn_threshold',default=False):
+        Fre1 = numpy.ma.masked_where((Fsd>Fsd_threshold)|(Fsd_syn>Fsd_threshold),Fc,copy=True)
+    else:
+        Fre1 = numpy.ma.masked_where(Fsd>Fsd_threshold,Fc,copy=True)
     # get a copy of the day/night filtered data
     Fre2 = numpy.ma.array(Fre1)
     # get a copy of the Fc flag
@@ -511,6 +514,16 @@ def GetFreFromFc(cf,ds):
         index = numpy.where(numpy.ma.getmaskarray(Fre2[si:ei])==True)[0]
         #index = numpy.ma.where(numpy.ma.getmaskarray(Fre2[si:ei])==True)[0]
         Fre_flag[si:ei][index] = numpy.int32(9)
+    # apply quantile filter
+    if qcutils.cfoptionskeylogical(cf,Key='UseQuantileFilter',default=False):
+        attr["long_name"] = attr["long_name"]+", quantile filter not used"
+        qcutils.CreateSeries(ds,"Fre_nqf",Fre2,Flag=Fre_flag,Attr=attr)
+        quantile_lower = float(qcio.get_keyvaluefromcf(cf,["Options"],"QuantileValue",default="2.5"))
+        quantile_upper = float(100) - quantile_lower
+        q = numpy.percentile(numpy.ma.compressed(Fre2),[quantile_lower,quantile_upper])
+        Fre2 = numpy.ma.masked_where((Fre2<q[0])|(Fre2>q[1]),Fre2)    
+        attr["long_name"].replace(", quantile filter not used",", quantile filter used")
+        attr["Fre_quantile"] = str(quantile_lower)+","+str(quantile_upper)
     # put the nocturnal, filtered Fc data into the data structure
     qcutils.CreateSeries(ds,"Fre",Fre2,Flag=Fre_flag,Attr=attr)
     return True
@@ -549,7 +562,7 @@ def PartitionNEE(cf,ds):
     """
     if "gpp" not in dir(ds): return
     # get the Fsd thresholds
-    Fsd_threshold = float(cf['Params']['Fsd_threshold'])
+    Fsd_threshold = float(cf['Options']['Fsd_threshold'])
     # get the incoming shortwave radiation
     Fsd,Fsd_flag,Fsd_attr = qcutils.GetSeriesasMA(ds,"Fsd")
     if "Fsd_syn" in ds.series.keys():

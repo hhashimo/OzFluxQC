@@ -4,10 +4,10 @@
     out_filename = <site_name>_<start_year>_to_<end_year>_L6.nc
 
 [Options]
-    UseExistingOutFile    = No
-
-[Params]
-    Fsd_threshold   = 10     # Fsd threshold for determining day or night time
+    Fsd_threshold       = 10     # Fsd threshold for determining day or night time
+    UseFsdsyn_threshold = Yes    # Yes/No, include the synthetic Fsd series (Fsd_syn) in the day/night check
+    UseQuantileFilter   = No     # Yes/No, reject nocturnal Fc outside quantile ranges
+    QuantileValue       = 2.5    # Quantile value
 
 [ustar_threshold]
 # put a line here for each date period being used (usually one year)
