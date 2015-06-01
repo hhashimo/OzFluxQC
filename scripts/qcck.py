@@ -106,7 +106,7 @@ def do_7500check(cf,ds):
     for item in LI75_dependents:
         if item in ds.series.keys():
             index = numpy.where(ds.series[item]['Flag']!=0)
-            log.info('  7500Check: '+item+' rejected '+str(numpy.size(index)))+' points'
+            log.info('  7500Check: '+item+' rejected '+str(numpy.size(index))+' points')
             ds.series['Diag_7500']['Flag'] = ds.series['Diag_7500']['Flag'] + ds.series[item]['Flag']
     index = numpy.where((ds.series['Diag_7500']['Flag']!=0))
     log.info('  7500Check: Total ' + str(numpy.size(index)))
