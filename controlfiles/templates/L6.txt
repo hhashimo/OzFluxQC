@@ -4,8 +4,10 @@
     out_filename = <site_name>_<start_year>_to_<end_year>_L6.nc
 
 [Options]
-    Fsd_threshold       = 10     # Fsd threshold for determining day or night time
-    UseFsdsyn_threshold = Yes    # Yes/No, include the synthetic Fsd series (Fsd_syn) in the day/night check
+    DayNightFilter      = Fsd    # Fsd/sa, Fsd ==> use Fsd, sa ==> use solar altitude
+    Fsd_threshold       = 10     # Fsd threshold for determining day or night time, W/m2
+    sa_threshold        = -5     # Solar altitude threshold, degrees, -ve below horizon
+    UseFsdsyn_threshold = Yes    # Yes/No, include Fsd_syn in the day/night filter
     UseQuantileFilter   = No     # Yes/No, reject nocturnal Fc outside quantile ranges
     QuantileValue       = 2.5    # Quantile value
 
