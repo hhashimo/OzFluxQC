@@ -983,11 +983,6 @@ def ncsplit_done(split_gui):
     split_gui.destroy()
 
 def ncsplit_run(split_gui):
-    #print split_gui.inpathname
-    #print split_gui.infilename.get()
-    #print split_gui.startEntry.get()
-    #print split_gui.endEntry.get()
-    #print split_gui.outfilename.get()
     infilename = split_gui.inpathname+split_gui.infilename.get()
     outfilename = split_gui.inpathname+split_gui.outfilename.get()
     startdate = str(split_gui.startEntry.get())

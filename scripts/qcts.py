@@ -1731,6 +1731,9 @@ def get_synthetic_fsd(ds):
     attr = qcutils.MakeAttributeDictionary(long_name='Synthetic downwelling shortwave radiation',\
                                            units='W/m2',standard_name='surface_downwelling_shortwave_flux_in_air')
     qcutils.CreateSeries(ds,"Fsd_syn",Fsd_syn,Flag=flag,Attr=attr)
+    attr = qcutils.MakeAttributeDictionary(long_name='Solar altitude',\
+                                           units='deg',standard_name='not defined')
+    qcutils.CreateSeries(ds,"solar_altitude",alt_solar,Flag=flag,Attr=attr)
 
 def InvertSign(ds,ThisOne):
     log.info(' Inverting sign of '+ThisOne)

@@ -242,36 +242,34 @@ def climatology(cf):
         if "Fn" in ds.series.keys() and "Fg" in ds.series.keys():
             qcts.CalculateAvailableEnergy(ds,Fa_out='Fa',Fn_in='Fn',Fg_in='Fg')
         else:
-            log.error("Climatology: Fn or Fg not in data struicture")
+            log.error(" Climatology: Fn or Fg not in data struicture")
     # get the time step
     ts = int(ds.globalattributes['time_step'])
     # get the site name
     SiteName = ds.globalattributes['site_name']
     # get the datetime series
-    DateTime = ds.series['DateTime']['Data']
+    dt = ds.series['DateTime']['Data']
     Hdh = ds.series['Hdh']['Data']
     Month = ds.series['Month']['Data']
     # get the initial start and end dates
-    StartDate = str(DateTime[0])
-    EndDate = str(DateTime[-1])
+    StartDate = str(dt[0])
+    EndDate = str(dt[-1])
     # find the start index of the first whole day (time=00:30)
-    si = qcutils.GetDateIndex(DateTime,StartDate,ts=ts,default=0,match='startnextday')
+    si = qcutils.GetDateIndex(dt,StartDate,ts=ts,default=0,match='startnextday')
     # find the end index of the last whole day (time=00:00)
-    ei = qcutils.GetDateIndex(DateTime,EndDate,ts=ts,default=-1,match='endpreviousday')
-    DateTime = DateTime[si:ei+1]
-    StartDate = str(DateTime[0])
-    EndDate = str(DateTime[-1])
-    #print time.strftime('%X')+' Start date; '+str(DateTime[0])+' End date; '+str(DateTime[-1])
+    ei = qcutils.GetDateIndex(dt,EndDate,ts=ts,default=-1,match='endpreviousday')
+    # get local views of the datetime series
+    ldt = dt[si:ei+1]
     Hdh = Hdh[si:ei+1]
     Month = Month[si:ei+1]
-    
+    # get the number of time steps in a day and the number of days in the data
     ntsInDay = int(24.0*60.0/float(ts))
-    nDays = int(len(DateTime))/ntsInDay
+    nDays = int(len(ldt))/ntsInDay
     
     for ThisOne in cf['Variables'].keys():
         if "AltVarName" in cf['Variables'][ThisOne].keys(): ThisOne = cf['Variables'][ThisOne]["AltVarName"]
         if ThisOne in ds.series.keys():
-            log.info("Doing climatology for "+ThisOne)
+            log.info(" Doing climatology for "+ThisOne)
             data,f,a = qcutils.GetSeriesasMA(ds,ThisOne,si=si,ei=ei)
             if numpy.ma.count(data)==0:
                 log.error(" No data for "+ThisOne+", skipping ...")
@@ -280,15 +278,35 @@ def climatology(cf):
             xlSheet = xlFile.add_sheet(ThisOne)
             Av_all = do_diurnalstats(Month,Hdh,data,xlSheet,format_string=fmt_str,ts=ts)
             # now do it for each day
-            data_daily = data.reshape(nDays,ntsInDay)
-            year = DateTime[0].year
+            # we want to preserve any data that has been truncated by the use of the "startnextday"
+            # and "endpreviousday" match options used above.  Here we revisit the start and end indices
+            # and adjust these backwards and forwards respectively if data has been truncated.
+            nDays_daily = nDays
+            ei_daily = ei
+            si_daily = si
+            # is there data after the current end date?
+            if dt[-1]>ldt[-1]:
+                # if so, push the end index back by 1 day so it is included
+                ei_daily = ei + ntsInDay
+                nDays_daily = nDays_daily + 1
+                edate = ldt[-1]+datetime.timedelta(days=1)
+            # is there data before the current start date?
+            if dt[0]<ldt[0]:
+                # if so, push the start index back by 1 day so it is included
+                si_daily = si - ntsInDay
+                nDays_daily = nDays_daily + 1
+                sdate = ldt[0]-datetime.timedelta(days=1)
+            # get the data and use the "pad" option to add missing data if required to
+            # complete the extra days
+            data,f,a = qcutils.GetSeriesasMA(ds,ThisOne,si=si_daily,ei=ei_daily,mode="pad")
+            data_daily = data.reshape(nDays_daily,ntsInDay)
             xlSheet = xlFile.add_sheet(ThisOne+'(day)')
-            write_data_1columnpertimestep(xlSheet, data_daily, ts, startdate=DateTime[0], format_string=fmt_str)
+            write_data_1columnpertimestep(xlSheet, data_daily, ts, startdate=sdate, format_string=fmt_str)
             data_daily_i = do_2dinterpolation(data_daily)
             xlSheet = xlFile.add_sheet(ThisOne+'i(day)')
-            write_data_1columnpertimestep(xlSheet, data_daily_i, ts, startdate=DateTime[0], format_string=fmt_str)
+            write_data_1columnpertimestep(xlSheet, data_daily_i, ts, startdate=sdate, format_string=fmt_str)
         elif ThisOne=="EF":
-            log.info("Doing evaporative fraction")
+            log.info(" Doing evaporative fraction")
             EF = numpy.ma.zeros([48,12]) + float(c.missing_value)
             Hdh,f,a = qcutils.GetSeriesasMA(ds,'Hdh',si=si,ei=ei)
             Fa,f,a = qcutils.GetSeriesasMA(ds,'Fa',si=si,ei=ei)
@@ -315,14 +333,13 @@ def climatology(cf):
             EF = Fe/Fa
             EF = numpy.ma.filled(numpy.ma.masked_where((EF>upr)|(EF<lwr),EF),float(c.missing_value))
             EF_daily = EF.reshape(nDays,ntsInDay)
-            year = DateTime[0].year
             xlSheet = xlFile.add_sheet('EF(day)')
-            write_data_1columnpertimestep(xlSheet, EF_daily, ts, startdate=DateTime[0], format_string='0.00')
+            write_data_1columnpertimestep(xlSheet, EF_daily, ts, startdate=ldt[0], format_string='0.00')
             EFi = do_2dinterpolation(EF_daily)
             xlSheet = xlFile.add_sheet('EFi(day)')
-            write_data_1columnpertimestep(xlSheet, EFi, ts, startdate=DateTime[0], format_string='0.00')
+            write_data_1columnpertimestep(xlSheet, EFi, ts, startdate=ldt[0], format_string='0.00')
         elif ThisOne=="BR":
-            log.info("Doing Bowen ratio")
+            log.info(" Doing Bowen ratio")
             BR = numpy.ma.zeros([48,12]) + float(c.missing_value)
             Fe,f,a = qcutils.GetSeriesasMA(ds,'Fe',si=si,ei=ei)
             Fh,f,a = qcutils.GetSeriesasMA(ds,'Fh',si=si,ei=ei)
@@ -348,14 +365,13 @@ def climatology(cf):
             BR = Fh/Fe
             BR = numpy.ma.filled(numpy.ma.masked_where((BR>upr)|(BR<lwr),BR),float(c.missing_value))
             BR_daily = BR.reshape(nDays,ntsInDay)
-            year = DateTime[0].year
             xlSheet = xlFile.add_sheet('BR(day)')
-            write_data_1columnpertimestep(xlSheet, BR_daily, ts, startdate=DateTime[0], format_string='0.00')
+            write_data_1columnpertimestep(xlSheet, BR_daily, ts, startdate=ldt[0], format_string='0.00')
             BRi = do_2dinterpolation(BR_daily)
             xlSheet = xlFile.add_sheet('BRi(day)')
-            write_data_1columnpertimestep(xlSheet, BRi, ts, startdate=DateTime[0], format_string='0.00')
+            write_data_1columnpertimestep(xlSheet, BRi, ts, startdate=ldt[0], format_string='0.00')
         elif ThisOne=="WUE":
-            log.info("Doing ecosystem WUE")
+            log.info(" Doing ecosystem WUE")
             WUE = numpy.ma.zeros([48,12]) + float(c.missing_value)
             Fe,f,a = qcutils.GetSeriesasMA(ds,'Fe',si=si,ei=ei)
             Fc,f,a = qcutils.GetSeriesasMA(ds,'Fc',si=si,ei=ei)
@@ -381,16 +397,15 @@ def climatology(cf):
             WUE = Fc/Fe
             WUE = numpy.ma.filled(numpy.ma.masked_where((WUE>upr)|(WUE<lwr),WUE),float(c.missing_value))
             WUE_daily = WUE.reshape(nDays,ntsInDay)
-            year = DateTime[0].year
             xlSheet = xlFile.add_sheet('WUE(day)')
-            write_data_1columnpertimestep(xlSheet, WUE_daily, ts, startdate=DateTime[0], format_string='0.00000')
+            write_data_1columnpertimestep(xlSheet, WUE_daily, ts, startdate=ldt[0], format_string='0.00000')
             WUEi = do_2dinterpolation(WUE_daily)
             xlSheet = xlFile.add_sheet('WUEi(day)')
-            write_data_1columnpertimestep(xlSheet, WUEi, ts, startdate=DateTime[0], format_string='0.00000')
+            write_data_1columnpertimestep(xlSheet, WUEi, ts, startdate=ldt[0], format_string='0.00000')
         else:
-            log.error("qcclim.climatology: requested variable "+ThisOne+" not in data structure")
+            log.error(" qcclim.climatology: requested variable "+ThisOne+" not in data structure")
             continue
-    log.info("Saving Excel file "+xl_filename)
+    log.info(" Saving Excel file "+xl_filename)
     xlFile.save(xl_filename)
 
 def compare_eddypro():

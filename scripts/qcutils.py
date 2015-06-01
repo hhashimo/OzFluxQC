@@ -786,7 +786,7 @@ def GetSeries(ds,ThisOne,si=0,ei=-1,mode="truncate"):
         if si<0 and ei>nRecs-1:
             # pad at the start
             Series = numpy.append(float(c.missing_value)*numpy.ones(abs(si),dtype=numpy.float64),Series)
-            Flag = numpy.append(numpy.ones(*abs(si),dtype=numpy.int32),Flag)
+            Flag = numpy.append(numpy.ones(abs(si),dtype=numpy.int32),Flag)
             # pad at the end
             Series = numpy.append(Series,float(c.missing_value)*numpy.ones((ei-(nRecs-1)),dtype=numpy.float64))
             Flag = numpy.append(Flag,numpy.ones((ei-(nRecs-1)),dtype=numpy.int32))

@@ -1997,7 +1997,8 @@ def gfSOLO_autocomplete(dsa,dsb,solo_info):
         gapstartend = qcutils.contiguous_regions(mask_solo)
         data_obs,flag,attr = qcutils.GetSeriesasMA(dsa,series)
         for si_gap,ei_gap in gapstartend:
-            min_points = int((ei_gap-si_gap)/2)
+            #min_points = max([int(((gap[1]-gap[0])+1)*solo_info["min_percent"]/100),3*solo_info["nperhr"]])
+            min_points = int((ei_gap-si_gap)*solo_info["min_percent"]/100)
             num_good_points = numpy.ma.count(data_obs[si_gap:ei_gap])
             #print "before while loop ",num_good_points,min_points
             while num_good_points<min_points:
@@ -2008,7 +2009,7 @@ def gfSOLO_autocomplete(dsa,dsb,solo_info):
                     log.error(msg)
                     not_enough_points = True
                 if not_enough_points: break
-                min_points = int((ei_gap-si_gap)/2)
+                min_points = int((ei_gap-si_gap)*solo_info["min_percent"]/100)
                 num_good_points = numpy.ma.count(data_obs[si_gap:ei_gap])
             if not_enough_points: break
             si = max([0,si_gap])

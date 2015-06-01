@@ -477,9 +477,10 @@ def GetFreFromFc(cf,ds):
                                      ldt[-1].strftime("%Y-%m-%d %H:%M"),
                                      str(0.25)])
     # get the data
-    Fsd,flag,attr = qcutils.GetSeriesasMA(ds,"Fsd")
+    Fsd,Fsd_flag,Fsd_attr = qcutils.GetSeriesasMA(ds,"Fsd")
     if "Fsd_syn" not in ds.series.keys(): qcts.get_synthetic_fsd(ds)
     Fsd_syn,flag,attr = qcutils.GetSeriesasMA(ds,"Fsd_syn")
+    sa,flag,attr = qcutils.GetSeriesasMA(ds,"solar_altitude")
     ustar,flag,attr = qcutils.GetSeriesasMA(ds,"ustar")
     Fc,Fc_flag,Fc_attr = qcutils.GetSeriesasMA(ds,"Fc")
     # check for any missing data
@@ -489,20 +490,40 @@ def GetFreFromFc(cf,ds):
             log.error(" GetFreFromFc: missing data in series "+label)
             raise Exception("GetFreFromFc: missing data in series "+label)
     # apply the day/night filter
-    if qcutils.cfoptionskeylogical(cf,Key='UseFsdsyn_threshold',default=False):
-        Fre1 = numpy.ma.masked_where((Fsd>Fsd_threshold)|(Fsd_syn>Fsd_threshold),Fc,copy=True)
+    # get the day/night filter type from the control file
+    daynightfilter_type = qcio.get_keyvaluefromcf(cf,["Options"],"DayNightFilter",default="Fsd")
+    # trap any types not implemented and set to Fsd
+    if daynightfilter_type not in ["Fsd","sa"]: daynightfilter_type = "Fsd"
+    # make the attribute dictionary first so we can add the ustar thresholds to it
+    Fre_attr = qcutils.MakeAttributeDictionary(long_name='Ecosystem respiration (observed)',units=Fc_attr["units"])
+    Fsd_attr = qcutils.MakeAttributeDictionary(long_name='Incoming shortwave radiation, filtered',units="W/m2")
+    # apply the day/night filter
+    if daynightfilter_type=="Fsd":
+        # we are using Fsd and possibly Fsd_syn to define day/night
+        Fre_attr["Fsd_threshold"] = str(Fsd_threshold)
+        Fsd_attr["Fsd_threshold"] = str(Fsd_threshold)
+        if qcutils.cfoptionskeylogical(cf,Key='UseFsdsyn_threshold',default=False):
+            # we are using Fsd and Fsd_syn
+            Fre1 = numpy.ma.masked_where((Fsd>Fsd_threshold)|(Fsd_syn>Fsd_threshold),Fc,copy=True)
+            Fsd1 = numpy.ma.masked_where((Fsd>Fsd_threshold)|(Fsd_syn>Fsd_threshold),Fsd,copy=True)
+        else:
+            # we are only using Fsd
+            Fre1 = numpy.ma.masked_where(Fsd>Fsd_threshold,Fc,copy=True)
+            Fsd1 = numpy.ma.masked_where(Fsd>Fsd_threshold,Fsd,copy=True)
     else:
-        Fre1 = numpy.ma.masked_where(Fsd>Fsd_threshold,Fc,copy=True)
+        sa_threshold = int(qcio.get_keyvaluefromcf(cf,["Options"],"sa_threshold",default="-5"))
+        Fre_attr["sa_threshold"] = str(sa_threshold)
+        Fsd_attr["sa_threshold"] = str(sa_threshold)
+        Fre1 = numpy.ma.masked_where(sa>sa_threshold,Fc,copy=True)
+        Fsd1 = numpy.ma.masked_where(sa>sa_threshold,Fsd,copy=True)
     # get a copy of the day/night filtered data
     Fre2 = numpy.ma.array(Fre1)
+    Fsd2 = numpy.ma.array(Fsd1)
     # get a copy of the Fc flag
     Fre_flag = numpy.array(Fc_flag)
     # loop over the list of ustar thresholds
-    # make the attribute dictionary first so we can add the ustar thresholds to it
-    attr = qcutils.MakeAttributeDictionary(long_name='Ecosystem respiration (observed)',units=Fc_attr["units"],
-                                           Fsd_threshold=str(Fsd_threshold))
     for i,list_item in enumerate(ustar_threshold_list):
-        attr["ustar_threshold_"+str(i)] = str(list_item)
+        Fre_attr["ustar_threshold_"+str(i)] = str(list_item)
         # get the start and end datetime indices
         si = qcutils.GetDateIndex(ldt,list_item[0],ts=ts,default=0,match='exact')
         ei = qcutils.GetDateIndex(ldt,list_item[1],ts=ts,default=len(ldt),match='exact')
@@ -510,22 +531,30 @@ def GetFreFromFc(cf,ds):
         ustar_threshold = float(list_item[2])
         # filter out the low ustar conditions
         Fre2[si:ei] = numpy.ma.masked_where(ustar[si:ei]<ustar_threshold,Fre1[si:ei])
+        Fsd2[si:ei] = numpy.ma.masked_where(ustar[si:ei]<ustar_threshold,Fsd1[si:ei])
         # set the QC flag
         index = numpy.where(numpy.ma.getmaskarray(Fre2[si:ei])==True)[0]
         #index = numpy.ma.where(numpy.ma.getmaskarray(Fre2[si:ei])==True)[0]
         Fre_flag[si:ei][index] = numpy.int32(9)
+        Fsd_flag[si:ei][index] = numpy.int32(9)
     # apply quantile filter
     if qcutils.cfoptionskeylogical(cf,Key='UseQuantileFilter',default=False):
-        attr["long_name"] = attr["long_name"]+", quantile filter not used"
-        qcutils.CreateSeries(ds,"Fre_nqf",Fre2,Flag=Fre_flag,Attr=attr)
+        Fre_attr["long_name"] = Fre_attr["long_name"]+", quantile filter not used"
+        Fsd_attr["long_name"] = Fsd_attr["long_name"]+", quantile filter not used"
+        qcutils.CreateSeries(ds,"Fre_nqf",Fre2,Flag=Fre_flag,Attr=Fre_attr)
+        qcutils.CreateSeries(ds,"Fsd_nqf",Fsd2,Flag=Fsd_flag,Attr=Fsd_attr)
         quantile_lower = float(qcio.get_keyvaluefromcf(cf,["Options"],"QuantileValue",default="2.5"))
         quantile_upper = float(100) - quantile_lower
         q = numpy.percentile(numpy.ma.compressed(Fre2),[quantile_lower,quantile_upper])
-        Fre2 = numpy.ma.masked_where((Fre2<q[0])|(Fre2>q[1]),Fre2)    
-        attr["long_name"].replace(", quantile filter not used",", quantile filter used")
-        attr["Fre_quantile"] = str(quantile_lower)+","+str(quantile_upper)
+        Fre2 = numpy.ma.masked_where((Fre2<q[0])|(Fre2>q[1]),Fre2)
+        Fsd2 = numpy.ma.masked_where((Fre2<q[0])|(Fre2>q[1]),Fsd2)
+        Fre_attr["long_name"].replace(", quantile filter not used",", quantile filter used")
+        Fre_attr["Fre_quantile"] = str(quantile_lower)+","+str(quantile_upper)
+        Fsd_attr["long_name"].replace(", quantile filter not used",", quantile filter used")
+        Fsd_attr["Fre_quantile"] = str(quantile_lower)+","+str(quantile_upper)
     # put the nocturnal, filtered Fc data into the data structure
-    qcutils.CreateSeries(ds,"Fre",Fre2,Flag=Fre_flag,Attr=attr)
+    qcutils.CreateSeries(ds,"Fre",Fre2,Flag=Fre_flag,Attr=Fre_attr)
+    qcutils.CreateSeries(ds,"Fsd_filtered",Fsd2,Flag=Fsd_flag,Attr=Fsd_attr)
     return True
 
 def ParseL6ControlFile(cf,ds):
@@ -597,26 +626,46 @@ def PartitionNEE(cf,ds):
         attr["long_name"] = "Gross Primary Productivity calculated from "+NEE_label+" as -NEE+Fre "
         attr["long_name"] = attr["long_name"]+" and "+Fre_label+" (Fre)"
 
-def rp_getdiurnalstats(DecHour,Data,dt):
-    nInts = 24*int((60/dt)+0.5)
-    Hr = numpy.array([c.missing_value]*nInts,dtype=numpy.float64)
-    Av = numpy.array([c.missing_value]*nInts,dtype=numpy.float64)
-    Sd = numpy.array([c.missing_value]*nInts,dtype=numpy.float64)
-    Mx = numpy.array([c.missing_value]*nInts,dtype=numpy.float64)
-    Mn = numpy.array([c.missing_value]*nInts,dtype=numpy.float64)
-    for i in range(nInts):
-        Hr[i] = float(i)*dt/60.
-        li = numpy.where((abs(DecHour-Hr[i])<c.eps)&(abs(Data-float(c.missing_value))>c.eps))
-        if numpy.size(li)!=0:
-            Av[i] = numpy.mean(Data[li])
-            Sd[i] = numpy.std(Data[li])
-            Mx[i] = numpy.max(Data[li])
-            Mn[i] = numpy.min(Data[li])
-    Av = numpy.ma.masked_equal(Av,numpy.float64(-9999))
-    Sd = numpy.ma.masked_equal(Sd,numpy.float64(-9999))
-    Mx = numpy.ma.masked_equal(Mx,numpy.float64(-9999))
-    Mn = numpy.ma.masked_equal(Mn,numpy.float64(-9999))
-    return Hr, Av, Sd, Mx, Mn
+#def rp_getdiurnalstats(DecHour,Data,dt):
+    #nInts = 24*int((60/dt)+0.5)
+    #Hr = numpy.array([c.missing_value]*nInts,dtype=numpy.float64)
+    #Av = numpy.array([c.missing_value]*nInts,dtype=numpy.float64)
+    #Sd = numpy.array([c.missing_value]*nInts,dtype=numpy.float64)
+    #Mx = numpy.array([c.missing_value]*nInts,dtype=numpy.float64)
+    #Mn = numpy.array([c.missing_value]*nInts,dtype=numpy.float64)
+    #for i in range(nInts):
+        #Hr[i] = float(i)*dt/60.
+        #li = numpy.where((abs(DecHour-Hr[i])<c.eps)&(abs(Data-float(c.missing_value))>c.eps))
+        #if numpy.size(li)!=0:
+            #Av[i] = numpy.mean(Data[li])
+            #Sd[i] = numpy.std(Data[li])
+            #Mx[i] = numpy.max(Data[li])
+            #Mn[i] = numpy.min(Data[li])
+    #Av = numpy.ma.masked_equal(Av,numpy.float64(-9999))
+    #Sd = numpy.ma.masked_equal(Sd,numpy.float64(-9999))
+    #Mx = numpy.ma.masked_equal(Mx,numpy.float64(-9999))
+    #Mn = numpy.ma.masked_equal(Mn,numpy.float64(-9999))
+    #return Hr, Av, Sd, Mx, Mn
+
+def rp_getdiurnalstats(dt,data,info):
+    ts = info["time_step"]
+    nperday = info["nperday"]
+    si = 0
+    while abs(dt[si].hour+float(dt[si].minute)/60-float(ts)/60)>c.eps:
+        si = si + 1
+    ei = len(dt)-1
+    while abs(dt[ei].hour+float(dt[ei].minute)/60)>c.eps:
+        ei = ei - 1
+    data_wholedays = data[si:ei+1]
+    ndays = len(data_wholedays)/nperday
+    data_2d = numpy.ma.reshape(data_wholedays,[ndays,nperday])
+    diel_stats = {}
+    diel_stats["Hr"] = numpy.ma.array([i*ts/float(60) for i in range(0,nperday)])
+    diel_stats["Av"] = numpy.ma.average(data_2d,axis=0)
+    diel_stats["Sd"] = numpy.ma.std(data_2d,axis=0)
+    diel_stats["Mx"] = numpy.ma.max(data_2d,axis=0)
+    diel_stats["Mn"] = numpy.ma.min(data_2d,axis=0)
+    return diel_stats
 
 def rpFFNET_createdict(cf,ds,series):
     """ Creates a dictionary in ds to hold information about the FFNET data used
@@ -813,7 +862,8 @@ def rpFFNET_plot(pd,ds,series,driverlist,targetlabel,outputlabel,rpFFNET_info,si
     # get the time step
     ts = int(ds.globalattributes['time_step'])
     # get a local copy of the datetime series
-    xdt = numpy.array(ds.series['DateTime']['Data'][si:ei+1])
+    dt = ds.series['DateTime']['Data'][si:ei+1]
+    xdt = numpy.array(dt)
     Hdh,f,a = qcutils.GetSeriesasMA(ds,'Hdh',si=si,ei=ei)
     # get the observed and modelled values
     obs,f,a = qcutils.GetSeriesasMA(ds,targetlabel,si=si,ei=ei)
@@ -828,21 +878,14 @@ def rpFFNET_plot(pd,ds,series,driverlist,targetlabel,outputlabel,rpFFNET_info,si
     rect1 = [0.10,pd["margin_bottom"],pd["xy_width"],pd["xy_height"]]
     ax1 = plt.axes(rect1)
     # get the diurnal stats of the observations
-    mask = numpy.ma.mask_or(obs.mask,mod.mask)
-    obs_mor = numpy.ma.array(obs,mask=mask)
-    Hr1,Av1,Sd1,Mx1,Mn1 = rp_getdiurnalstats(Hdh,obs_mor,ts)
-    ax1.plot(Hr1,Av1,'b-',label="Obs")
-    # get the diurnal stats of all FFNET predictions
-    mod_mor = numpy.ma.array(mod,mask=mask)
-    #Hr2,Av2,Sd2,Mx2,Mn2 = rp_getdiurnalstats(Hdh,mod_mor,ts)
-    Hr2,Av2,Sd2,Mx2,Mn2 = rp_getdiurnalstats(Hdh,mod,ts)
-    ax1.plot(Hr2,Av2,'r-',label="FFNET(all)")
-    if numpy.ma.count_masked(obs)!=0:
-        index = numpy.where(numpy.ma.getmaskarray(obs)==False)[0]
-        #index = numpy.ma.where(numpy.ma.getmaskarray(obs)==False)[0]
-        # get the diurnal stats of FFNET predictions when observations are present
-        Hr3,Av3,Sd3,Mx3,Mn3=rp_getdiurnalstats(Hdh[index],mod_mor[index],ts)
-        ax1.plot(Hr3,Av3,'g-',label="FFNET(obs)")
+    dstats = rp_getdiurnalstats(dt,obs,rpFFNET_info)
+    ax1.plot(dstats["Hr"],dstats["Av"],'b-',label="Obs")
+    # get the diurnal stats of all SOLO predictions
+    dstats = rp_getdiurnalstats(dt,mod,rpFFNET_info)
+    ax1.plot(dstats["Hr"],dstats["Av"],'r-',label="FFNET(all)")
+    mod_mor = numpy.ma.masked_where(numpy.ma.getmaskarray(obs)==True,mod,copy=True)
+    dstats = rp_getdiurnalstats(dt,mod_mor,rpFFNET_info)
+    ax1.plot(dstats["Hr"],dstats["Av"],'g-',label="FFNET(obs)")
     plt.xlim(0,24)
     plt.xticks([0,6,12,18,24])
     ax1.set_ylabel(targetlabel)
@@ -907,7 +950,9 @@ def rpFFNET_plot(pd,ds,series,driverlist,targetlabel,outputlabel,rpFFNET_info,si
     ts_axes = []
     rect = [pd["margin_left"],pd["ts_bottom"],pd["ts_width"],pd["ts_height"]]
     ts_axes.append(plt.axes(rect))
-    ts_axes[0].plot(xdt,obs,'b.',xdt,mod,'r-')
+    #ts_axes[0].plot(xdt,obs,'b.',xdt,mod,'r-')
+    ts_axes[0].scatter(xdt,obs,c=Hdh)
+    ts_axes[0].plot(xdt,mod,'r-')
     ts_axes[0].set_xlim(xdt[0],xdt[-1])
     TextStr = targetlabel+'_obs ('+ds.series[targetlabel]['Attr']['units']+')'
     ts_axes[0].text(0.05,0.85,TextStr,color='b',horizontalalignment='left',transform=ts_axes[0].transAxes)
@@ -1229,18 +1274,19 @@ def rpSOLO_main(ds,rpSOLO_gui,rpSOLO_info):
         title = site_name+" : "+series+" estimated using SOLO"
         pd = rpSOLO_initplot(site_name=site_name,label=target,fig_num=fig_num,title=title,
                              nDrivers=len(drivers),startdate=startdate,enddate=enddate)
-        rpSOLO_plot(pd,ds,series,drivers,target,output,rpSOLO_gui,si=si,ei=ei)
+        rpSOLO_plot(pd,ds,series,drivers,target,output,rpSOLO_info,si=si,ei=ei)
         # reset the nodesEntry in the rpSOLO_gui
         if nodesAuto: rpSOLO_resetnodesEntry(rpSOLO_gui)
     if 'FreUsingSOLO' not in ds.globalattributes['Functions']:
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', FreUsingSOLO'
 
-def rpSOLO_plot(pd,ds,series,driverlist,targetlabel,outputlabel,rpSOLO_gui,si=0,ei=-1):
+def rpSOLO_plot(pd,ds,series,driverlist,targetlabel,outputlabel,rpSOLO_info,si=0,ei=-1):
     """ Plot the results of the SOLO run. """
     # get the time step
     ts = int(ds.globalattributes['time_step'])
     # get a local copy of the datetime series
-    xdt = numpy.array(ds.series['DateTime']['Data'][si:ei+1])
+    dt = ds.series['DateTime']['Data'][si:ei+1]
+    xdt = numpy.array(dt)
     Hdh,f,a = qcutils.GetSeriesasMA(ds,'Hdh',si=si,ei=ei)
     # get the observed and modelled values
     obs,f,a = qcutils.GetSeriesasMA(ds,targetlabel,si=si,ei=ei)
@@ -1257,19 +1303,14 @@ def rpSOLO_plot(pd,ds,series,driverlist,targetlabel,outputlabel,rpSOLO_gui,si=0,
     # get the diurnal stats of the observations
     mask = numpy.ma.mask_or(obs.mask,mod.mask)
     obs_mor = numpy.ma.array(obs,mask=mask)
-    Hr1,Av1,Sd1,Mx1,Mn1 = rp_getdiurnalstats(Hdh,obs_mor,ts)
-    ax1.plot(Hr1,Av1,'b-',label="Obs")
+    dstats = rp_getdiurnalstats(dt,obs_mor,rpSOLO_info)
+    ax1.plot(dstats["Hr"],dstats["Av"],'b-',label="Obs")
     # get the diurnal stats of all SOLO predictions
-    mod_mor = numpy.ma.array(mod,mask=mask)
-    #Hr2,Av2,Sd2,Mx2,Mn2 = rp_getdiurnalstats(Hdh,mod_mor,ts)
-    Hr2,Av2,Sd2,Mx2,Mn2 = rp_getdiurnalstats(Hdh,mod,ts)
-    ax1.plot(Hr2,Av2,'r-',label="SOLO(all)")
-    if numpy.ma.count_masked(obs)!=0:
-        index = numpy.where(numpy.ma.getmaskarray(obs)==False)[0]
-        #index = numpy.ma.where(numpy.ma.getmaskarray(obs)==False)[0]
-        # get the diurnal stats of SOLO predictions when observations are present
-        Hr3,Av3,Sd3,Mx3,Mn3=rp_getdiurnalstats(Hdh[index],mod_mor[index],ts)
-        ax1.plot(Hr3,Av3,'g-',label="SOLO(obs)")
+    dstats = rp_getdiurnalstats(dt,mod,rpSOLO_info)
+    ax1.plot(dstats["Hr"],dstats["Av"],'r-',label="SOLO(all)")
+    mod_mor = numpy.ma.masked_where(numpy.ma.getmaskarray(obs)==True,mod,copy=True)
+    dstats = rp_getdiurnalstats(dt,mod_mor,rpSOLO_info)
+    ax1.plot(dstats["Hr"],dstats["Av"],'g-',label="SOLO(obs)")
     plt.xlim(0,24)
     plt.xticks([0,6,12,18,24])
     ax1.set_ylabel(targetlabel)
@@ -1300,15 +1341,15 @@ def rpSOLO_plot(pd,ds,series,driverlist,targetlabel,outputlabel,rpSOLO_gui,si=0,
     plt.figtext(0.75,0.225,str(numpoints))
     ds.solo[series]["results"]["No. points"].append(numpoints)
     plt.figtext(0.65,0.200,'Nodes')
-    plt.figtext(0.75,0.200,str(rpSOLO_gui.nodesEntry.get()))
+    plt.figtext(0.75,0.200,str(rpSOLO_info["nodes"]))
     plt.figtext(0.65,0.175,'Training')
-    plt.figtext(0.75,0.175,str(rpSOLO_gui.trainingEntry.get()))
+    plt.figtext(0.75,0.175,str(rpSOLO_info["training"]))
     plt.figtext(0.65,0.150,'Nda factor')
-    plt.figtext(0.75,0.150,str(rpSOLO_gui.factorEntry.get()))
+    plt.figtext(0.75,0.150,str(rpSOLO_info["factor"]))
     plt.figtext(0.65,0.125,'Learning rate')
-    plt.figtext(0.75,0.125,str(rpSOLO_gui.learningrateEntry.get()))
+    plt.figtext(0.75,0.125,str(rpSOLO_info["learningrate"]))
     plt.figtext(0.65,0.100,'Iterations')
-    plt.figtext(0.75,0.100,str(rpSOLO_gui.iterationsEntry.get()))
+    plt.figtext(0.75,0.100,str(rpSOLO_info["iterations"]))
     plt.figtext(0.815,0.225,'No. filled')
     plt.figtext(0.915,0.225,str(numfilled))
     plt.figtext(0.815,0.200,'Slope')
@@ -1334,7 +1375,9 @@ def rpSOLO_plot(pd,ds,series,driverlist,targetlabel,outputlabel,rpSOLO_gui,si=0,
     ts_axes = []
     rect = [pd["margin_left"],pd["ts_bottom"],pd["ts_width"],pd["ts_height"]]
     ts_axes.append(plt.axes(rect))
-    ts_axes[0].plot(xdt,obs,'b.',xdt,mod,'r-')
+    #ts_axes[0].plot(xdt,obs,'b.',xdt,mod,'r-')
+    ts_axes[0].scatter(xdt,obs,c=Hdh)
+    ts_axes[0].plot(xdt,mod,'r-')
     ts_axes[0].set_xlim(xdt[0],xdt[-1])
     TextStr = targetlabel+'_obs ('+ds.series[targetlabel]['Attr']['units']+')'
     ts_axes[0].text(0.05,0.85,TextStr,color='b',horizontalalignment='left',transform=ts_axes[0].transAxes)
@@ -1375,6 +1418,11 @@ def rpSOLO_resetnodesEntry(rpSOLO_gui):
 
 def rpSOLO_run(ds,rpSOLO_gui,rpSOLO_info):
     # populate the rpSOLO_info dictionary with things that will be useful
+    rpSOLO_info["nodes"] = rpSOLO_gui.nodesEntry.get()
+    rpSOLO_info["training"] = rpSOLO_gui.trainingEntry.get()
+    rpSOLO_info["factor"] = rpSOLO_gui.factorEntry.get()
+    rpSOLO_info["learningrate"] = rpSOLO_gui.learningrateEntry.get()
+    rpSOLO_info["iterations"] = rpSOLO_gui.iterationsEntry.get()
     rpSOLO_info["peropt"] = rpSOLO_gui.peropt.get()
     rpSOLO_info["min_points"] = int(rpSOLO_gui.minpts.get())
     rpSOLO_info["site_name"] = ds.globalattributes["site_name"]
