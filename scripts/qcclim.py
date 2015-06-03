@@ -284,6 +284,8 @@ def climatology(cf):
             nDays_daily = nDays
             ei_daily = ei
             si_daily = si
+            sdate = ldt[0]
+            edate = ldt[-1]
             # is there data after the current end date?
             if dt[-1]>ldt[-1]:
                 # if so, push the end index back by 1 day so it is included

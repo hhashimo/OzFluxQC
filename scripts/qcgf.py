@@ -2118,7 +2118,8 @@ def gfSOLO_main(dsa,dsb,solo_info,output_list=[]):
     else:
         nRecs = ei - si + 1
     # loop over the series to be gap filled using solo
-    solo_info["min_points"] = int(nRecs*solo_info["min_percent"]/100)
+    #solo_info["min_points"] = int(nRecs*solo_info["min_percent"]/100)
+    solo_info["min_points"] = int((ei-si)*solo_info["min_percent"]/100)
     # close any open plot windows
     if len(plt.get_fignums())!=0:
         for i in plt.get_fignums():
@@ -2132,7 +2133,7 @@ def gfSOLO_main(dsa,dsb,solo_info,output_list=[]):
         dsb.solo[output]["results"]["enddate"].append(xldt[ei])
         d,f,a = qcutils.GetSeriesasMA(dsb,series,si=si,ei=ei)
         if numpy.ma.count(d)<solo_info["min_points"]:
-            log.error("gfSOLO: Less than "+str(solo_info["min_points"])+" points available for series "+series+" ...")
+            log.warning("gfSOLO: Less than "+str(solo_info["min_points"])+" points available for series "+series+" ...")
             dsb.solo[output]["results"]["No. points"].append(float(0))
             results_list = dsb.solo[output]["results"].keys()
             for item in ["startdate","enddate","No. points"]:
