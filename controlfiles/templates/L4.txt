@@ -8,12 +8,9 @@
     climatology = ../Sites/<site_name>/Data/Processed/all/<site_name>_<year>_L3_Climatology.xls
 
 [Output]
-    # uncomment the xl and nc lists to output specific variables
-    #xl = "['Ah','Cc','Fa','Fc','Fe','Fg','Fh','Fld','Flu','Fm','Fn','Fsd','Fsu','ps','RH','Sws','Ta','Ts','ustar','Ws','Wd']"
-    #nc = "['Ah','Cc','Fa','Fc','Fc_storage','Fe','Fg','Fh','Fld','Flu','Fm','Fn','Fsd','Fsu','Precip','ps','q','RH','Sws','SHD','Ta','Ts','ustar','VPD','Ws','Wd']"
+    nc = "['Ah','Cc','e','Fa','Fc','Fc_storage','Fe','Fg','Fh','Fld','Flu','Fm','Fn','Fsd','Fsu','Precip','ps','q','RH','Sws','SHD','Ta','Ts','ustar','VPD','Ws','Wd']"
 
 [Options]
-    UseExistingOutFile = No
 
 [Drivers]
     [[Ah]]
@@ -127,11 +124,9 @@
         [[[GapFillFromAlternate]]]
             [[[[Sws_access]]]]
                 source = "ACCESS"
-                fit = "replace"
                 lag = "no"
             [[[[Sws_bios]]]]
                 source = "BIOS2"
-                fit = "replace"
                 lag = "no"
         [[[MergeSeries]]]
             Source     = "['Sws','Sws_access','Sws_bios']"
