@@ -2129,6 +2129,7 @@ def gfSOLO_main(dsa,dsb,solo_info,output_list=[]):
         # clean up the target series if required
         series = dsb.solo[output]["label_tower"]
         qcck.do_qcchecks_oneseries(dsb.cf,dsa,series=series)
+        qcck.do_dependencycheck(dsb.cf,dsa,series=series)
         dsb.solo[output]["results"]["startdate"].append(xldt[si])
         dsb.solo[output]["results"]["enddate"].append(xldt[ei])
         d,f,a = qcutils.GetSeriesasMA(dsb,series,si=si,ei=ei)

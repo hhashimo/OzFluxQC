@@ -14,57 +14,159 @@
 #      <letter>    - the letter used to distinguish sensors at the same depth or height
 #   2) Replace the default quality control limits (eg Lower, Upper etc) with site-specific values.
 #
-# [General]   - general settings
-#    PlotWidth               = 10.7          # default plot width, inches
-#    PlotHeight              = 8             # default plot height, inches
+# DESCRIPTION OF CONTROL FILE SECTIONS
 # [Files]     - contains paths and file names
-# [Output]    - specify the variables to be written to the output file
-#               - 2 output list can be specified:
-#                 - "xl" defines which variables will be written to the Excel file output at L3
-#                 - "nc" defines which variables will be written to the netCDF file output at L3
+# [Output]    - specifies the variables to be written to the output file
+#               - 2 output lists can be specified:
+#                 - "xl" defines which variables will be written to the Excel file output
+#                 - "nc" defines which variables will be written to the netCDF file output
 #               - if no list is specified, all variables are written out
 # [Variables] - variable names and quality control keys, only those variables
 #               corrected or calculated at this level need to be specified in
 #               this control file.
 #               Valid quality control sections are:
-#                RangeCheck   - reject data less than "Lower" or greater than "Upper"
-#                DiurnalCheck - reject data outside Avg(H.h)+/-NumSd*Stdev(H.h) where
-#                                Avg(H.h) is the average of all data at time H.h and
-#                                Stdev(H.h) is the standard deviation of all data at time H.h
-#                                 eg H.h = 8.5 is 0830
-#                 NOTE: The "Lower", "Upper" and "NumSd" keywords require a value for each
-#                       month of the year (12).  This can be written in shorthand as:
-#                        eg "[100]*12" (same value for each month)
-#                       or in longhand as:
-#                        eg "[100,110,120,130,140,150,150,140,130,120,110,100]" (different each month)
-#                  [[[RangeCheck]]]
-#                      Lower      = "[-100]*12"
-#                      Upper      = "[600]*12"
-#                  [[[DiurnalCheck]]]
-#                      NumSd      = "[3]*12"
-#                ExcludeDates - reject data between specified dates, multiple date ranges can be
-#                               specified on separate lines but the lines must be numbered
-#                               sequentially from 0 (eg 0, 1, 2 etc)
-#                 NOTE: The date range is specified as:
+#                RangeCheck      - reject data outside plausible ranges
+#                DiurnalCheck    - reject data outside Avg(H.h)+/-NumSd*Stdev(H.h), see below
+#                ExcludeDates    - reject data outside specified date ranges
+#                ExcludeHours    - reject data for give hours within a date range
+#                DependencyCheck - reject data based on status of other series
+#                Linear          - apply a linear correct to a specified date range
+# [Plots]     - definition of time series plots
+#
+# DETAILED DESCRIPTION OF QUALITY CONTROL CHECKS
+# [[RangeCheck]]
+#     Purpose:
+#         Reject data less than a lower limit or greater than an upper limit
+#     Example:
+#        [[[RangeCheck]]]
+#            Lower = "[-10]*12"
+#            Upper = "[1500]*12"
+#        where;
+#            Lower - an expression that evaluates to a Python list of 12 values
+#            Upper - an expression that evaluates to a Python list of 12 values
+#     Syntax rules for "Lower" and "Upper":
+#         1) the expressions for "Lower" and "Upper" must be enclosed in double quote marks ("")
+#         2) the lower and upper limit values must be enclosed in square brackets ([])
+#         3) the expression must evaluate to 12 values for the lower or upper limit,
+#            one for each month of the year, this can be done in 2 ways;
+#            a) shorthand eg [-10]*12
+#               - repeats a value of -10 for all 12 months
+#            b) longhand eg [-10,-20,-30,-40,-50,-60,-60,-50,-40,-30,-20,-10]
+#               - allows a separate value to be specified for each month
+#
+# [[DiurnalCheck]]
+#     CAUTION:
+#         This is a powerful command.  Unsupervised application can remove a great
+#         deal of good data.  Use it sparingly when other methods for rejecting
+#         spikes don't work.
+#     Purpose:
+#         Reject data outside that falls out the range Avg(H.h)+/-NumSd*Stdev(H.h
+#         where Avg(H.h) is the average of all data at time H.h (eg 8.5 is 08:30)
+#               Stdev(H.h) is the standard deviation of all data at time H.h
+#               NumSd is the number of standard deviations either side of the mean
+#               that marks the boundary between accepted and rejected data
+#         Data values less than Avg(H.h)-NumSd*Stdev(H.h) and greater than Avg(H.h)+NumSd*Stdev(H.h)
+#         will be rejected.
+#     Example:
+#        [[[DiurnalCheck]]]
+#            NumSd = "[3]*12"
+#     where;
+#         NumSd - the number of standard deviations either side of the mean within which
+#                 data must lie to be accepted
+#     Syntax rules for "NumSd":
+#         1) the expressions for "NumSd" must be enclosed in double quote marks ("")
+#         2) the number of standard deviation values must be enclosed in square brackets ([])
+#         3) the expression must evaluate to 12 values for the number of standard deviations,
+#            one for each month of the year, this can be done in 2 ways;
+#            a) shorthand eg [5]*12
+#               - repeats a value of 5 for all 12 months
+#            b) longhand eg [5,5,5,3,3,2,2,3,3,5,5,5]
+#               - allows a separate value to be specified for each month
+#
+# [[ExcludeDates]]
+#     Purpose:
+#         Reject data between specified dates.
+#         Multiple date ranges can be specified on separate lines but the lines must be
+#         numbered sequentially from 0 (eg 0, 1, 2 etc)
+#     Example:
 #        [[[ExcludeDates]]]
 #            0 = "['2010-01-01 00:00','2010-01-01 00:00']"
-#                ExcludeHours - reject data at specified times between the specified date range,
-#                               multiple ranges can be specified on separate lines but the
-#                               lines must be numbered sequentially from 0 (eg 0, 1, 2, etc)
-#                 NOTE: The date range and hours to be rejected are specified as:
+#        where;
+#            0 - a unique key to identify each date range for which data is to be rejected
+#     Syntax rules for date range:
+#         1) each date range to be excluded must be on a separate line and must have a
+#            unique key eg 0,1,2,3 etc
+#         2) each date range must be enclosed in DOUBLE quote marks ("")
+#         3) each date range must be enclosed in square brackets ([])
+#         4) each date range must consist of a start date and an end date enclosed
+#            in SINGLE quote marks ('')
+#         5) the format for the dates is YYYY-MM-DD HH:mm where YYYY is the 4 digit year,
+#            MM is the 2 digit month, DD is the 2 digit day of the month, HH is the 2 digit
+#            hour (24 hour format) and mm is the 2 digit minute
+#
+# [[ExcludeHours]]
+#     Purpose:
+#         Reject data at specified times between the specified date range.
+#         Multiple ranges can be specified on separate lines but the lines must be numbered
+#         sequentially from 0 (eg 0, 1, 2, etc)
+#     Example:
 #        [[[ExcludeHours]]]
 #            0 = "['2010-04-22 00:00','2010-07-26 23:30',['09:30','10:00','10:30']]"
-#                Linear       - apply a linear correction to the data within a date range,
-#                               multiple ranges can be specified on separate lines but the
-#                               lines must be numbered sequentially from 0 (eg 0, 1, 2, etc)
-#                 NOTE: The date range, slope and offset are specified as:
+#     Syntax rules for date and hour range:
+#         1) each date and hour range to be excluded must be on a separate line and must have a
+#            unique key eg 0,1,2,3 etc
+#         2) each date and hour range must be enclosed in DOUBLE quote marks ("")
+#         3) each date and hour range must be enclosed in square brackets ([])
+#         4) each date and hour range must consist of;
+#            a) a start date and an end date enclosed in SINGLE quote marks ('')
+#            b) a list of hours enclosed in square brackets ([]) with each hour enclosed
+#               in SINGLE quote marks ('') and separated by commas (,)
+#         5) the format for the dates is YYYY-MM-DD HH:mm where YYYY is the 4 digit year,
+#            MM is the 2 digit month, DD is the 2 digit day of the month, HH is the 2 digit
+#            hour (24 hour format) and mm is the 2 digit minute
+#         6) the format of the times to be rejected is HH:mm where HH is the 2 digit hour
+#            (24 hour format) and mm is the 2 digit minute.
+#
+# [[Linear]]
+#     Purpose:
+#         Apply a linear correction to the data within a date range.
+#         Multiple ranges can be specified on separate lines but the lines must be numbered
+#         sequentially from 0 (eg 0, 1, 2, etc)
+#     Example:
 #        [[[Linear]]]
 #            0 = "['2010-01-01 00:00','2011-01-01 00:00',1.0,0.0]"
-#                Correction   - apply an offset to a wind direction measurement to correct for alignment
-#                               multiple ranges can be specified on separate lines but the
-#                               lines must be numbered sequentially from 0 (eg 0, 1, 2, etc)
-#                 NOTE: The date range and correction are specified as follows:
-#                        eg "['2010-1-1 00:00','2010-1-1 00:00',180]"
+#     Syntax rules for [[Linear]]:
+#         1) each linear correction must be on a separate line and must have a unique
+#            key eg 0,1,2,3, etc
+#         2) each linear correction must be enclosed in DOUBLE quote marks ("")
+#         3) each linear correction must be enclosed in square brackets ([])
+#         4) each linear correction must consist of;
+#            a) a start date and an end date enclosed in SINGLE quote marks ('')
+#            b) a value for the slope and offset, separated by commas
+#         5) the format for the dates is YYYY-MM-DD HH:mm where YYYY is the 4 digit year,
+#            MM is the 2 digit month, DD is the 2 digit day of the month, HH is the 2 digit
+#            hour (24 hour format) and mm is the 2 digit minute
+# [[Correction]]
+#     Purpose:
+#        Apply an offset to a wind direction measurement to correct for alignment.
+#        Multiple ranges can be specified on separate lines but the lines must be numbered
+#        sequentially from 0 (eg 0, 1, 2, etc)
+#     Example
+#        [[[Correction]]]
+#            0 = "['2010-01-01 00:00','2011-01-01 00:00',180]"
+#     Syntax rules for [[Correction]]:
+#         1) each wind direction correction must be on a separate line and must have a unique
+#            key eg 0,1,2,3, etc
+#         2) each wind direction correction must be enclosed in DOUBLE quote marks ("")
+#         3) each wind direction correction must be enclosed in square brackets ([])
+#         4) each wind direction correction must consist of;
+#            a) a start date and an end date enclosed in SINGLE quote marks ('')
+#            b) a value for the correction to the wind direction
+#         5) the format for the dates is YYYY-MM-DD HH:mm where YYYY is the 4 digit year,
+#            MM is the 2 digit month, DD is the 2 digit day of the month, HH is the 2 digit
+#            hour (24 hour format) and mm is the 2 digit minute
+#
+# DETAILED DESCRIPTION OF PLOTS SECTION
 # [Plots]     - definition of time series plots
 #    # subsection that defines a collection of plots on a single page
 #    [[1]]
@@ -81,10 +183,6 @@
 #        # Y axis maximum limits for right time series axis, optional, must be a number or 'Auto'
 #        YRMax     = "[1200 , 300 , 600 , 600 ,   600 ]"
 #
-[General]
-    PlotWidth = 10.9
-    PlotHeight = 7.5
-
 [Files]
     file_path = ../Sites/<site_name>/Data/Processed/<year>/
     in_filename = <site_name>_<year>_L1.nc
