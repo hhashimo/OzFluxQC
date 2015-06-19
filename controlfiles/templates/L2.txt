@@ -54,6 +54,24 @@
 #            b) longhand eg [-10,-20,-30,-40,-50,-60,-60,-50,-40,-30,-20,-10]
 #               - allows a separate value to be specified for each month
 #
+# [[DependencyCheck]]
+#     Purpose:
+#         Reject data in the target series based on rejected data in precursor series.
+#         The usual way to use this QC check is to apply the other QC checks to the
+#         precursor series first, place the [[DependencyChecks]] key in the target
+#         series section and list the precursor series in the Source key of the
+#         [[DependencyCheck]].
+#     Example:
+#        [[[DependencyCheck]]]
+#            Source     = "['Fh_EPFlag']"
+#        where;
+#            Source - a list of series on which the target depends.
+#     Syntax rules for [[DependencyCheck]]
+#         1) only 1 Source line can be specified
+#         2) the list of sources must be enclosed in DOUBLE quotes (""), in square
+#            brackets ([]) and with each series label enclosed in SINGLE quotes ('')
+#            and separated by commas(,).
+#
 # [[DiurnalCheck]]
 #     CAUTION:
 #         This is a powerful command.  Unsupervised application can remove a great
