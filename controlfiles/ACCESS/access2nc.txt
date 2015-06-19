@@ -1,8 +1,16 @@
 [Options]
     WriteExcelIntermediate = No
     WriteExcelNoGaps       = No
-    
+
 [Sites]
+    [[AdelaideRiver]]
+        in_filepath = ../../ACCESS/AdelaideRiver/Daily/
+        in_filename = access_Adelaide_River_*.nc
+        out_filepath = ../../Sites/AdelaideRiver/Data/ACCESS/
+        out_filename = AdelaideRiver_ACCESS.nc
+        interpolate = Yes
+        site_name = "AdelaideRiver"
+        site_timezone = Australia/Darwin
     [[AliceSpringsMulga]]
         in_filepath = ../../ACCESS/AliceSpringsMulga/Daily/
         in_filename = access_Alice_Springs_Mulga_*.nc
@@ -11,14 +19,14 @@
         interpolate = Yes
         site_name = "AliceSpringsMulga"
         site_timezone = Australia/Darwin
-#    [[Arcturus]]
-#        in_filepath = ../../ACCESS/Arcturus/Daily/
-#        in_filename = access_Arcturus_*.nc
-#        out_filepath = ../../Sites/Arcturus/Data/ACCESS/
-#        out_filename = Arcturus_ACCESS.nc
-#        interpolate = Yes
-#        site_name = "Arcturus"
-#        site_timezone = Australia/Brisbane
+    [[Arcturus]]
+        in_filepath = ../../ACCESS/Arcturus/Daily/
+        in_filename = access_Arcturus_*.nc
+        out_filepath = ../../Sites/Arcturus/Data/ACCESS/
+        out_filename = Arcturus_ACCESS.nc
+        interpolate = Yes
+        site_name = "Arcturus"
+        site_timezone = Australia/Brisbane
     [[Calperum]]
         in_filepath = ../../ACCESS/Calperum/Daily/
         in_filename = access_Calperum_*.nc
@@ -118,10 +126,10 @@
     [[Jaxa]]
         in_filepath = ../../ACCESS/Jaxa/Daily/
         in_filename = access_Jaxa_*.nc
-        out_filepath = ../../Sites/Jaxa/Data/ACCESS/
-        out_filename = Jaxa_ACCESS.nc
+        out_filepath = ../../Sites/Yanco/Data/ACCESS/
+        out_filename = Yanco_ACCESS.nc
         interpolate = Yes
-        site_name = "Jaxa"
+        site_name = "Yanco"
         site_timezone = Australia/Sydney
     [[Litchfield]]
         in_filepath = ../../ACCESS/Litchfield/Daily/

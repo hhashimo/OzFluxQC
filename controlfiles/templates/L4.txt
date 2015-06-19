@@ -128,8 +128,11 @@
             [[[[Sws_bios]]]]
                 source = "BIOS2"
                 lag = "no"
+        [[[GapFillFromClimatology]]]
+            [[[[Sws_cli]]]]
+                method = "interpolated daily"
         [[[MergeSeries]]]
-            Source     = "['Sws','Sws_access','Sws_bios']"
+            Source     = "['Sws','Sws_access','Sws_bios','Sws_cli']"
     [[Ta]]
         [[[GapFillFromAlternate]]]
             [[[[Ta_aws]]]]

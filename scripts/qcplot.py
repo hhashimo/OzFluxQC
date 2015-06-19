@@ -218,8 +218,10 @@ def plot_fingerprint(cf):
             plt.imshow(data_daily,extent=[0,24,sd,ed],aspect='auto',origin='lower')
             ax.yaxis.set_major_locator(loc)
             ax.yaxis.set_major_formatter(fmt)
-            cb = plt.colorbar(orientation='horizontal',fraction=0.02,pad=0.075)
-            cb.set_ticks(numpy.linspace(numpy.min(data),numpy.max(data),4))
+            # only plot the colourbar if there is data to plot
+            if numpy.ma.count(data)!=0:
+                cb = plt.colorbar(orientation='horizontal',fraction=0.02,pad=0.075)
+                cb.set_ticks(numpy.linspace(numpy.min(data),numpy.max(data),4))
             plt.xticks([0,6,12,18,24])
             plt.xlabel(label)
             if n!= 0: plt.setp(ax.get_yticklabels(), visible=False)

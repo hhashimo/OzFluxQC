@@ -1,0 +1,34 @@
+# Control file for batch processing
+# [Files]
+#  Section containing keywords set to the names of control files
+#  for processing L1 to L3 for each year at each site.
+#  Keys in the Files section must be unique.
+[Files]
+    # process Daly Uncleared for year 2008
+    0 = 'controlfiles/DalyUncleared/2008/L1.txt'
+    1 = 'controlfiles/DalyUncleared/2008/L2.txt'
+    2 = 'controlfiles/DalyUncleared/2008/L3.txt'
+    # process Daly Uncleared for year 2009
+    3 = 'controlfiles/DalyUncleared/2009/L1.txt'
+    4 = 'controlfiles/DalyUncleared/2009/L2.txt'
+    5 = 'controlfiles/DalyUncleared/2009/L3.txt'
+    # process Daly Uncleared for year 2010
+    6 = 'controlfiles/DalyUncleared/2010/L1.txt'
+    7 = 'controlfiles/DalyUncleared/2010/L2.txt'
+    8 = 'controlfiles/DalyUncleared/2010/L3.txt'
+    # process Daly Uncleared for year 2011
+    9 = 'controlfiles/DalyUncleared/2011/L1.txt'
+    10 = 'controlfiles/DalyUncleared/2011/L2.txt'
+    11 = 'controlfiles/DalyUncleared/2011/L3.txt'
+    # process Daly Uncleared for year 2012
+    12 = 'controlfiles/DalyUncleared/2012/L1.txt'
+    13 = 'controlfiles/DalyUncleared/2012/L2.txt'
+    14 = 'controlfiles/DalyUncleared/2012/L3.txt'
+    # process Daly Uncleared for year 2013
+    15 = 'controlfiles/DalyUncleared/2013/L1.txt'
+    16 = 'controlfiles/DalyUncleared/2013/L2.txt'
+    17 = 'controlfiles/DalyUncleared/2013/L3.txt'
+    # process Daly Uncleared for year 2014
+    18 = 'controlfiles/DalyUncleared/2014/L1.txt'
+    19 = 'controlfiles/DalyUncleared/2014/L2.txt'
+    20 = 'controlfiles/DalyUncleared/2014/L3.txt'

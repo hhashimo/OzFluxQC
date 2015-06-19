@@ -167,6 +167,41 @@ def do_CSATcheck(cf,ds):
     if 'CSATCheck' not in ds.globalattributes['Functions']:
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',CSATCheck'
 
+def do_dependencycheck(cf,ds,section='',series='',code=23,mode="quiet"):
+    if "DependencyCheck" not in cf[section][series].keys(): return
+    if "Source" not in cf[section][series]["DependencyCheck"]:
+        msg = " DependencyCheck: keyword Source not found for series "+series+", skipping ..."
+        log.error(msg)
+        return
+    if mode=="verbose":
+        msg = " Doing DependencyCheck for "+series
+        log.info(msg)
+    # get the precursor source list from the control file
+    source_list = ast.literal_eval(cf[section][series]["DependencyCheck"]["Source"])
+    # get the data
+    dependent_data,dependent_flag,dependent_attr = qcutils.GetSeriesasMA(ds,series)
+    # loop over the precursor source list
+    for item in source_list:
+        # check the precursor is in the data structure
+        if item not in ds.series.keys():
+            msg = " DependencyCheck: "+series+" precursor series "+item+" not found, skipping ..."
+            continue
+        # get the precursor data
+        precursor_data,precursor_flag,precursor_attr = qcutils.GetSeriesasMA(ds,item)
+        # mask the dependent data where the precurso is masked
+        dependent_data = numpy.ma.masked_where(numpy.ma.getmaskarray(precursor_data)==True,dependent_data)
+        # get an index of masked precursor data
+        index = numpy.ma.where(numpy.ma.getmaskarray(precursor_data)==True)[0]
+        # set the dependent QC flag
+        dependent_flag[index] = numpy.int32(code)
+    # put the data back into the data structure
+    if series=="Fc":
+        pass
+    dependent_attr["DependencyCheck_source"] = str(source_list)
+    qcutils.CreateSeries(ds,series,dependent_data,Flag=dependent_flag,Attr=dependent_attr)
+    if 'do_dependencychecks' not in ds.globalattributes['Functions']:
+        ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',do_dependencychecks'
+
 def do_diurnalcheck(cf,ds,section='',series='',code=5):
     if 'DiurnalCheck' not in cf[section][series].keys(): return
     if 'NumSd' not in cf[section][series]['DiurnalCheck'].keys(): return
@@ -290,12 +325,43 @@ def do_rangecheck(cf,ds,section='',series='',code=2):
 def do_qcchecks(cf,ds,mode="verbose"):
     level = ds.globalattributes['nc_level']
     if mode!="quiet": log.info(' Doing the QC checks at level '+str(level))
-    for series in ds.series.keys():
-            do_qcchecks_oneseries(cf,ds,series=series)
+    # get the series list from the control file
+    series_list = []
+    for item in ["Variables","Drivers","Fluxes"]:
+        if item in cf:
+            section = item
+            series_list = cf[item].keys()
+    if len(series_list)==0:
+        msg = " do_qcchecks: Variables, Drivers or Fluxes section not found in control file, skipping QC checks ..."
+        log.warning(msg)
+        return
+    # loop over the series specified in the control file
+    # first time for general QC checks
+    for series in series_list:
+        # check the series is in the data structure
+        if series not in ds.series.keys():
+            if mode!="quiet":
+                msg = " do_qcchecks: series "+series+" not found in data structure, skipping ..."
+                log.warning(msg)
+            continue
+        # if so, do the QC checks
+        do_qcchecks_oneseries(cf,ds,section=section,series=series)
+    # loop over the series in the control file
+    # second time for dependencies
+    for series in series_list:
+        # check the series is in the data structure
+        if series not in ds.series.keys():
+            if mode!="quiet":
+                msg = " do_qcchecks: series "+series+" not found in data structure, skipping ..."
+                log.warning(msg)
+            continue
+        # if so, do dependency check
+        do_dependencycheck(cf,ds,section=section,series=series,code=23,mode="quiet")
 
-def do_qcchecks_oneseries(cf,ds,series=''):
-    section = qcutils.get_cfsection(cf,series=series,mode='quiet')
-    if len(section)==0: return
+def do_qcchecks_oneseries(cf,ds,section='',series=''):
+    if len(section)==0:
+        section = qcutils.get_cfsection(cf,series=series,mode='quiet')
+        if len(section)==0: return
     # do the range check
     do_rangecheck(cf,ds,section=section,series=series,code=2)
     # do the diurnal check

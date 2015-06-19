@@ -1,0 +1,62 @@
+# Control file for batch processing
+# [Files]
+#  Section containing keywords set to the names of control files
+#  for processing L1 to L3 for each year at each site.
+#  Keys in the Files section must be unique.
+[Files]
+    # process Tumbarumba for year 2001
+    0 = 'controlfiles/Tumbarumba/2001/L1.txt'
+    1 = 'controlfiles/Tumbarumba/2001/L2.txt'
+    2 = 'controlfiles/Tumbarumba/2001/L3.txt'
+    # process Tumbarumba for year 2002
+    3 = 'controlfiles/Tumbarumba/2002/L1.txt'
+    4 = 'controlfiles/Tumbarumba/2002/L2.txt'
+    5 = 'controlfiles/Tumbarumba/2002/L3.txt'
+    # process Tumbarumba for year 2003
+    6 = 'controlfiles/Tumbarumba/2003/L1.txt'
+    7 = 'controlfiles/Tumbarumba/2003/L2.txt'
+    8 = 'controlfiles/Tumbarumba/2003/L3.txt'
+    # process Tumbarumba for year 2004
+    9 = 'controlfiles/Tumbarumba/2004/L1.txt'
+    10 = 'controlfiles/Tumbarumba/2004/L2.txt'
+    11 = 'controlfiles/Tumbarumba/2004/L3.txt'
+    # process Tumbarumba for year 2005
+    12 = 'controlfiles/Tumbarumba/2005/L1.txt'
+    13 = 'controlfiles/Tumbarumba/2005/L2.txt'
+    14 = 'controlfiles/Tumbarumba/2005/L3.txt'
+    # process Tumbarumba for year 2006
+    15 = 'controlfiles/Tumbarumba/2006/L1.txt'
+    16 = 'controlfiles/Tumbarumba/2006/L2.txt'
+    17 = 'controlfiles/Tumbarumba/2006/L3.txt'
+    # process Tumbarumba for year 2007
+    18 = 'controlfiles/Tumbarumba/2007/L1.txt'
+    19 = 'controlfiles/Tumbarumba/2007/L2.txt'
+    20 = 'controlfiles/Tumbarumba/2007/L3.txt'
+    # process Tumbarumba for year 2008
+    21 = 'controlfiles/Tumbarumba/2008/L1.txt'
+    22 = 'controlfiles/Tumbarumba/2008/L2.txt'
+    23 = 'controlfiles/Tumbarumba/2008/L3.txt'
+    # process Tumbarumba for year 2009
+    24 = 'controlfiles/Tumbarumba/2009/L1.txt'
+    25 = 'controlfiles/Tumbarumba/2009/L2.txt'
+    26 = 'controlfiles/Tumbarumba/2009/L3.txt'
+    # process Tumbarumba for year 2010
+    27 = 'controlfiles/Tumbarumba/2010/L1.txt'
+    28 = 'controlfiles/Tumbarumba/2010/L2.txt'
+    29 = 'controlfiles/Tumbarumba/2010/L3.txt'
+    # process Tumbarumba for year 2011
+    30 = 'controlfiles/Tumbarumba/2011/L1.txt'
+    31 = 'controlfiles/Tumbarumba/2011/L2.txt'
+    32 = 'controlfiles/Tumbarumba/2011/L3.txt'
+    # process Tumbarumba for year 2012
+    33 = 'controlfiles/Tumbarumba/2012/L1.txt'
+    34 = 'controlfiles/Tumbarumba/2012/L2.txt'
+    35 = 'controlfiles/Tumbarumba/2012/L3.txt'
+    # process Tumbarumba for year 2013
+    36 = 'controlfiles/Tumbarumba/2013/L1.txt'
+    37 = 'controlfiles/Tumbarumba/2013/L2.txt'
+    38 = 'controlfiles/Tumbarumba/2013/L3.txt'
+    # process Tumbarumba for year 2014
+    39 = 'controlfiles/Tumbarumba/2014/L1.txt'
+    40 = 'controlfiles/Tumbarumba/2014/L2.txt'
+    41 = 'controlfiles/Tumbarumba/2014/L3.txt'
