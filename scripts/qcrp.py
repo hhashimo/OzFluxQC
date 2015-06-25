@@ -23,6 +23,26 @@ except ImportError:
     #log.error("FreUsingFFNET: Unable to import module ffnet")
     pass
 
+def CalculateET(cf,ds):
+    """
+    Purpose:
+     Calculate ET from Fe
+    Usage:
+     qcrp.CalculateET(cf,ds)
+      where cf is a conbtrol file object
+            ds is a data structure
+    Side effects:
+     Series to hold the ET data are created in ds.
+    Author: PRI
+    Date: June 2015
+    """
+    ts = int(ds.globalattributes["time_step"])
+    Fe,flag,attr = qcutils.GetSeriesasMA(ds,"Fe")
+    ET = Fe*ts*60/c.Lv
+    attr["long_name"] = "Evapo-transpiration calculated from latent heat flux"
+    attr["units"] = "mm"
+    qcutils.CreateSeries(ds,"ET",ET,Flag=flag,Attr=attr)
+
 def CalculateNEE(cf,ds):
     """
     Purpose:
@@ -557,6 +577,68 @@ def GetFreFromFc(cf,ds):
     qcutils.CreateSeries(ds,"Fsd_filtered",Fsd2,Flag=Fsd_flag,Attr=Fsd_attr)
     return True
 
+def L6_summary(cf,ds):
+    """
+    Purpose:
+     Produce summaries of L6 data, write them to an Excel spreadsheet and plot them.
+    Usage:
+    Author: PRI
+    Date: June 2015
+    """
+    # get the datetime series
+    dt = ds.series["DateTime"]["Data"]
+    # get the time step
+    ts = int(ds.globalattributes["time_step"])
+    # adjust units of NEE, NEP, GPP and Fre
+    nee_list = [item for item in ds.series.keys() if "NEE" in item]
+    nep_list = [item for item in ds.series.keys() if "NEP" in item]
+    gpp_list = [item for item in ds.series.keys() if "GPP" in item]
+    fre_list = [item for item in ds.series.keys() if "Fre" in item]
+    co2_list = nee_list+nep_list+gpp_list+fre_list
+    for item in co2_list:
+        data,flag,attr = qcutils.GetSeriesasMA(ds,item)
+        if attr["units"]=="umol/m2/s":
+            data = data*12.01*ts*60/1E6
+            attr["units"] = "gC/m2"
+            qcutils.CreateSeries(ds,item,data,Flag=flag,Attr=attr)
+        else:
+            msg = "L6_summary: unrecognised units for "+item
+            log.error(msg)
+            continue
+    # open the Excel workbook
+    nc_name = qcio.get_outfilenamefromcf(cf)
+    xl_name = nc_name.replace(".nc","_Summary.xls")
+    xl_file = qcio.xl_open_write(xl_name)
+    if len(xl_file)==0: return
+    # daily averages and totals
+    si = qcutils.GetDateIndex(dt,str(dt[0]),ts=ts,default=0,match="startnextday")
+    ei = qcutils.GetDateIndex(dt,str(dt[-1]),ts=ts,default=len(dt)-1,match="endpreviousday")
+    ldt = dt[si:ei+1]
+    ntsInDay = int(24.0*60.0/float(ts))
+    nDays = int(len(ldt))/ntsInDay
+    ldt_daily = [ldt[0]+datetime.timedelta(days=i) for i in range(0,nDays)]
+    daily_dict = {}
+    daily_dict["DateTime"]["data"] = ldt_daily
+    daily_dict["DateTime"]["format"] = "dd/mm/yyyy"
+    daily_dict["DateTime"]["units"] = "Days"
+    for item in cf["Variables"].keys():
+        if item not in ds.series.keys(): continue
+        daily_dict[item] = {}
+        data_1d,flag,attr = qcutils.GetSeriesasMA(ds,item,si=si,ei=ei)
+        daily_dict[item]["units"] = attr["units"]
+        data_2d = data_1d.reshape(nDays,ntsInDay)
+        if cf["Variables"][item]["operator"].lower()=="average":
+            daily_dict[item]["data"] = numpy.ma.average(data_2d,axis=1)
+        elif cf["Variables"][item]["operator"].lower()=="sum":
+            daily_dict[item]["data"] = numpy.ma.sum(data_2d,axis=1)
+            daily_dict[item]["units"] = daily_dict[item]["units"]+"/day"
+        else:
+            print "unrecognised operator"
+        daily_dict[item]["format"] = cf["Variables"][item]["format"]
+    # add the daily worksheet to the summary Excel file
+    xl_sheet = xl_file.add_sheet("Daily")
+    xl_write_data(xl_sheet,daily_dict)    
+    
 def ParseL6ControlFile(cf,ds):
     """ Parse the L6 control file. """
     # start with the repiration section

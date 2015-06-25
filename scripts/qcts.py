@@ -518,6 +518,52 @@ def RelativeHumidityFromAh(ds):
         attr = qcutils.MakeAttributeDictionary(long_name='Relative humidity',units='%',standard_name='relative_humidity')
         qcutils.CreateSeries(ds,"RH",RH_new,Flag=RH_new_flag,Attr=attr)
 
+def smooth(x,window_len=11,window='hanning'):
+    """
+    Purpose:
+        Smooth the data using a window with requested size.
+        This method is based on the convolution of a scaled window with the signal.
+        The signal is prepared by introducing reflected copies of the signal 
+        (with the window size) in both ends so that transient parts are minimized
+        in the begining and end part of the output signal.
+    Input:
+        x: the input signal 
+        window_len: the dimension of the smoothing window; should be an odd integer
+        window: the type of window from 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'
+            flat window will produce a moving average smoothing.
+    Output:
+        the smoothed signal
+    Example:
+        t=linspace(-2,2,0.1)
+        x=sin(t)+randn(len(t))*0.1
+        y=smooth(x)
+    See also: 
+        numpy.hanning, numpy.hamming, numpy.bartlett, numpy.blackman, numpy.convolve
+        scipy.signal.lfilter
+    TODO: the window parameter could be the window itself if an array instead of a string
+    Note:
+        1) length(output) != length(input), to correct this: return y[(window_len/2-1):-(window_len/2)] instead of just y.
+        2) odd values for window_len return output with different length from input
+    Source:
+        Lifted from scipy Cookbook (http://wiki.scipy.org/Cookbook/SignalSmooth)
+    """
+    if x.ndim != 1:
+        raise ValueError, "smooth only accepts 1 dimension arrays."
+    if x.size < window_len:
+        raise ValueError, "Input vector needs to be bigger than window size."
+    if window_len<3:
+        return x
+    if not window in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
+        raise ValueError, "Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'"
+    s=numpy.r_[x[window_len-1:0:-1],x,x[-1:-window_len:-1]]
+    if window == 'flat': #moving average
+        w=numpy.ones(window_len,'d')
+    else:
+        w=eval('numpy.'+window+'(window_len)')
+    y=numpy.convolve(w/w.sum(),s,mode='valid')
+#    return y
+    return y[(window_len/2-1):-(window_len/2)]
+
 def SpecificHumidityFromAh(ds):
     """ Calculate specific humidity from absolute humidity. """
     log.info(' Calculating specific humidity from absolute humidity')
@@ -938,7 +984,7 @@ def CorrectFgForStorage(cf,ds,Fg_out='Fg',Fg_in='Fg',Ts_in='Ts',Sws_in='Sws'):
         """
     # check to see if the user wants to skip the correction
     if not qcutils.cfoptionskeylogical(cf,Key="CorrectFgForStorage",default=True):
-        log.info(' CorrectFgForStorage: storage correction disabled in L3 control file')
+        log.info(' CorrectFgForStorage: storage correction disabled in control file')
         return
     # check to see if there is a [Soil] section in the control file
     if 'Soil' not in cf.keys():
@@ -952,10 +998,10 @@ def CorrectFgForStorage(cf,ds,Fg_out='Fg',Fg_in='Fg',Ts_in='Ts',Sws_in='Sws'):
             cf["Soil"]["SwsDefault"] = ds.globalattributes["SwsDefault"]
         else:
             # tell the user if we can't find the information needed
-            log.error(' CorrectFgForStorage: [Soil] section not found in control file or global attributes, Fg not corrected')
+            log.warning(' CorrectFgForStorage: [Soil] section not found in control file or global attributes, Fg not corrected')
             return
     if Fg_in not in ds.series.keys() or Ts_in not in ds.series.keys():
-        log.error(' CorrectFgForStorage: '+Fg_in+' or '+Ts_in+' not found in data structure, Fg not corrected')
+        log.warning(' CorrectFgForStorage: '+Fg_in+' or '+Ts_in+' not found in data structure, Fg not corrected')
         return
     log.info(' Correcting soil heat flux for storage')
     # put the contents of the soil section into the global attributes

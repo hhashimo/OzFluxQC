@@ -1072,7 +1072,7 @@ def nc_read_series(ncFullName):
         # update the Excel datetime from the Python datetime
         qcutils.get_xldatefromdatetime(ds)
         # update the Year, Month, Day etc from the Python datetime
-        qcutils.get_ymdhmsfromdatetime(ds)        
+        qcutils.get_ymdhmsfromdatetime(ds)
     # tell the user when the data starts and ends
     ldt = ds.series["DateTime"]["Data"]
     msg = " Got data from "+ldt[0].strftime("%Y-%m-%d %H:%M:%S")+" to "+ldt[-1].strftime("%Y-%m-%d %H:%M:%S")
@@ -1319,6 +1319,15 @@ def nc_write_var(ncFile,ds,ThisOne,dim):
     setattr(ncVar,'long_name',ThisOne+'QC flag')
     setattr(ncVar,'units','none')
 
+def xl_open_write(xl_name):
+    log.info(' Opening Excel file '+xl_name+' for writing')
+    try:
+        xl_file = xlwt.Workbook()
+    except:
+        log.error(' Unable to open Excel file '+xl_name+' for writing')
+        xl_file = ''
+    return xl_file
+
 def xl_read_flags(cf,ds,level,VariablesInFile):
     # First data row in Excel worksheets.
     FirstDataRow = int(get_keyvaluefromcf(cf,["Files",level],"first_data_row")) - 1
@@ -1499,6 +1508,52 @@ def xl_write_SOLOStats(ds):
             xlRow = 10
             xlCol = xlCol + 1
     xlfile.save(xl_filename)
+
+def xl_write_data(xl_sheet,data):
+    """
+    Purpose:
+     Writes a dictionary to a worksheet in an Excel workbook.
+     This routine has 2 arguments,an Excel worksheet instance and
+     a dictionary of data to be written out.  The dictionary
+     format needs to be:
+      1) data["DateTime"]["data"]   - a list of Python datetimes, these will
+                                      be written tp the first column of the
+                                      worksheet
+         data["DateTime"]["units"]  - units of the date time eg "Days", "Years"
+         data["DateTime"]["format"] - a format string for xlwt.easyxf eg "dd/mm/yyy"
+      2) data[variable]["data"]   - a numpy array of data values
+         data[variable]["units"]  - units of the data
+         data[variable]["format"] - an xlwt.easyxf format string eg "0.00" for 2 decimal places
+         There can be multiple variables but each must follow the above template.
+    Usage:
+     qcio.xl_write_data(xl_sheet,data)
+      where xl_sheet is an Excel worksheet instance
+            data     is a dictionary as defined above
+    Side effects:
+     Writes to an Excel worksheet instance
+    Called by:
+    Calls:
+    Author: PRI
+    Date: June 2015
+    """
+    xlCol = 0
+    # write the data to the xl file
+    series_list = data.keys()
+    xlSheet.write(1,xlCol,data["DateTime"]["units"])
+    nrows = len(data["DateTime"]["data"])
+    ncols = len(series_list)
+    d_xf = xlwt.easyxf(num_format_str=data["DateTime"]["format"])
+    for j in range(nrows):
+        xlSheet.write(j+2,xlCol,data["DateTime"]["data"][j],d_xf)
+    series_list.remove("DateTime")
+    series_list.sort()
+    for item in series_list:
+        xlCol = xlCol + 1
+        xlSheet.write(0,xlCol,data[item]["units"])
+        xlSheet.write(1,xlCol,item)
+        d_xf = xlwt.easyxf(num_format_str=data[item]["format"])
+        for j in range(nrows):
+            xlSheet.write(j+2,xlCol,float(data[item]["data"][j]),d_xf)
 
 def xl_write_series(ds, xlfullname, outputlist=None):
     if "nc_nrecs" in ds.globalattributes.keys():

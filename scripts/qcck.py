@@ -168,6 +168,8 @@ def do_CSATcheck(cf,ds):
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',CSATCheck'
 
 def do_dependencycheck(cf,ds,section='',series='',code=23,mode="quiet"):
+    if len(section)==0 and len(series)==0: return
+    if len(section)==0: section = qcutils.get_cfsection(cf,series=series,mode='quiet')
     if "DependencyCheck" not in cf[section][series].keys(): return
     if "Source" not in cf[section][series]["DependencyCheck"]:
         msg = " DependencyCheck: keyword Source not found for series "+series+", skipping ..."

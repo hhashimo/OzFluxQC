@@ -20,7 +20,7 @@ if len(cf)==0: sys.exit()
 min_n = int(cf["General"]["minimum_number"])
 min_r = float(cf["General"]["minimum_correlation"])
 # get the input file name
-fname = qcio.get_infilename_from_cf(cf)
+fname = qcio.get_infilenamefromcf(cf)
 if not os.path.exists(fname):
     print " compare_ah: Input netCDF file "+fname+" doesn't exist"
     sys.exit()

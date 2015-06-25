@@ -337,11 +337,15 @@ def l6qc(cf,ds5):
     qcrp.CalculateNEE(cf,ds6)
     # calculate NEP from NEE
     qcrp.CalculateNEP(cf,ds6)
+    # calculate ET from Fe
+    qcrp.CalculateET(cf,ds6)
     # partition NEE into GPP and Reco
     qcrp.PartitionNEE(cf,ds6)
     # write the percentage of good data as a variable attribute
     qcutils.get_coverage_individual(ds6)
     # write the percentage of good data for groups
     qcutils.get_coverage_groups(ds6)
+    # do the L6 summary
+    #qcrp.L6_summary(cf,ds)
 
     return ds6

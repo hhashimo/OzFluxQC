@@ -11,6 +11,7 @@
     nc = "['Ah','Cc','e','Fa','Fc','Fc_storage','Fe','Fg','Fh','Fld','Flu','Fm','Fn','Fsd','Fsu','Precip','ps','q','RH','Sws','SHD','Ta','Ts','ustar','VPD','Ws','Wd']"
 
 [Options]
+    CorrectFgForStorage = No           # Yes/No, correct Fg for storage in soil column above sensor
 
 [Drivers]
     [[Ah]]
