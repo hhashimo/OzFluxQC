@@ -1,5 +1,11 @@
 version_name = "OzFluxQC"
-version_number = "V2.9.1"
+version_number = "V2.9.2"
+# V2.9.2   - updates and bug fixes
+#            - implemented summary output to Excel file and plots at L6
+#            - implemented "ols_thru0", "rma" and "odr" fit types at L4
+#            - fixed bug in qcrp.GetFreFromFc that let gap filled Fc data
+#              through when estimating ecosystem respiration (Fre) from
+#              u*-filtered, nocturnal Fc
 # V2.9.1   - hopefully completed the major re-write of the gap filling
 #            routines for L4 and L5
 #            - much testing and tweaking of gfalternate_autocomplete
