@@ -17,7 +17,8 @@ import qcck
 import qcio
 import qcts
 import qcutils
-from scipy import interpolate
+import scipy
+import scipy.odr
 import shutil
 import statsmodels.api as sm
 import subprocess
@@ -122,7 +123,7 @@ def GapFillFluxFromDayRatio(cf,ds,series=''):
     x = numpy.linspace(1,nx,nx); y = numpy.linspace(1,ny,ny)                         # 1d array of x and y dimension indices, tiled original
     xi = numpy.linspace(1,nx,nxi); yi = numpy.linspace(1,ny,nyi)                     # 1d array of x and y dimension indices, tiled interpolated
     # interpolate from monthly to daily time step
-    nk = interpolate.RectBivariateSpline(y,x,flux_monthly_tiled,kx=2,ky=2)           # quadratic spline
+    nk = scipy.interpolate.RectBivariateSpline(y,x,flux_monthly_tiled,kx=2,ky=2)     # quadratic spline
     flux_daily_tiled = nk(yi,xi)                                                     # do the interpolation
     flux_daily = flux_daily_tiled[nyi/3:2*nyi/3,nxi/3:2*nxi/3]                       # pick out the central tile (still a 2D array)
     flux_ic = numpy.ravel(flux_daily,order='F')                                      # convert 2D array to 1D array, same length as data series, correct order
@@ -715,17 +716,17 @@ def gfalternate_createdict(cf,ds,series,ds_alt):
         # get the type of fit
         ds.alternate[output]["fit_type"] = "OLS"
         if "fit" in cf[section][series]["GapFillFromAlternate"][output]:
-            if cf[section][series]["GapFillFromAlternate"][output]["fit"].lower() in ["ols","mrev","replace"]:
+            if cf[section][series]["GapFillFromAlternate"][output]["fit"].lower() in ["ols","ols_thru0","mrev","replace","rma","odr"]:
                 ds.alternate[output]["fit_type"] = cf[section][series]["GapFillFromAlternate"][output]["fit"]
             else:
-                log.info("gfAlternate: unrecognised fit option for series "+output)
+                log.info("gfAlternate: unrecognised fit option for series "+output+", used OLS")
         # force the fit through the origin
-        ds.alternate[output]["thru0"] = "no"
-        if "thru0" in cf[section][series]["GapFillFromAlternate"][output]:
-            if cf[section][series]["GapFillFromAlternate"][output]["thru0"].lower() in ["yes","true"]:
-                ds.alternate[output]["thru0"] = "yes"
-            else:
-                log.info("gfAlternate: unrecognised thru0 option for series "+output)
+        #ds.alternate[output]["thru0"] = "no"
+        #if "thru0" in cf[section][series]["GapFillFromAlternate"][output]:
+            #if cf[section][series]["GapFillFromAlternate"][output]["thru0"].lower() in ["yes","true"]:
+                #ds.alternate[output]["thru0"] = "yes"
+            #else:
+                #log.info("gfAlternate: unrecognised thru0 option for series "+output)
         # correct for lag?
         ds.alternate[output]["lag"] = "yes"
         if "lag" in cf[section][series]["GapFillFromAlternate"][output]:
@@ -915,16 +916,18 @@ def gfalternate_getfitcorrecteddata(data_dict,stat_dict,alternate_info):
     """
     label_output = alternate_info["label_output"]
     label_alternate = alternate_info["label_alternate"]
-    if alternate_info["fit_type"].lower() not in ["ols","replace","mrev"]:
-        msg = " Unrecognised fit option for "+alternate_info["label_tower"]+", using OLS ..."
-        log.info(msg)
-        alternate_info["fit_type"] = "ols"
     if alternate_info["fit_type"].lower()=="ols":
+        gfalternate_getolscorrecteddata(data_dict,stat_dict,alternate_info)
+    if alternate_info["fit_type"].lower()=="ols_thru0":
         gfalternate_getolscorrecteddata(data_dict,stat_dict,alternate_info)
     if alternate_info["fit_type"].lower()=="mrev":
         gfalternate_getmrevcorrected(data_dict,stat_dict,alternate_info)
     if alternate_info["fit_type"].lower()=="replace":
         gfalternate_getreplacedata(data_dict,stat_dict,alternate_info)
+    if alternate_info["fit_type"].lower()=="rma":
+        gfalternate_getrmacorrecteddata(data_dict,stat_dict,alternate_info)
+    if alternate_info["fit_type"].lower()=="odr":
+        gfalternate_getodrcorrecteddata(data_dict,stat_dict,alternate_info)
 
 def gfalternate_getlabeloutputlist(ds_tower,label_tower):
     olist = [item for item in ds_tower.alternate.keys() if ds_tower.alternate[item]["label_tower"]==label_tower]
@@ -997,13 +1000,22 @@ def gfalternate_getmrevcorrected(data_dict,stat_dict,alternate_info):
     """
     Fit alternate data to tower data by replacing means and equalising variance.
     """
+    odt = data_dict["DateTime"]["data"]
     label_tower = alternate_info["label_tower"]
+    label_output = alternate_info["label_output"]
     label_alternate = alternate_info["label_alternate"]
     # local copies of the data
     data_tower = numpy.ma.copy(data_dict[label_tower]["data"])
-    data_alternate = numpy.ma.copy(data_dict[label_alternate]["data"])
-    data_twr_hravg = numpy.ma.copy(data_plot["tower"]["hourlyavg"])
-    data_alt_hravg = numpy.ma.copy(data_plot["alternate"][label_alternate]["lagcorr"]["hourlyavg"])
+    data_alternate = numpy.ma.copy(data_dict[label_output][label_alternate]["data"])
+    
+    data_2d = gfalternate_getdataas2d(odt,data_tower,alternate_info)
+    data_twr_hravg = numpy.ma.average(data_2d,axis=0)
+    data_2d = gfalternate_getdataas2d(odt,data_alternate,alternate_info)
+    data_alt_hravg = numpy.ma.average(data_2d,axis=0)
+    
+    #data_twr_hravg = numpy.ma.copy(data_plot["tower"]["hourlyavg"])
+    #data_alt_hravg = numpy.ma.copy(data_plot["alternate"][label_alternate]["lagcorr"]["hourlyavg"])
+    
     # calculate the means
     mean_tower = numpy.ma.mean(data_tower)
     mean_alternate = numpy.ma.mean(data_alternate)
@@ -1012,15 +1024,53 @@ def gfalternate_getmrevcorrected(data_dict,stat_dict,alternate_info):
     var_alt_hravg = numpy.ma.var(data_alt_hravg)
     var_ratio = var_twr_hravg/var_alt_hravg
     # correct the alternate data
-    results["fit"] = ((data_alternate - mean_alternate)*var_ratio) + mean_tower
-    results["eqnstr"] = "Mean replaced, equal variance"
-    results["slope"] = float(0); results["offset"] = float(0)
-    return results
+    data_dict[label_output][label_alternate]["fitcorr"] = ((data_alternate - mean_alternate)*var_ratio) + mean_tower
+    stat_dict[label_output][label_alternate]["eqnstr"] = "Mean replaced, equal variance"
+    stat_dict[label_output][label_alternate]["slope"] = float(0)
+    stat_dict[label_output][label_alternate]["offset"] = float(0)
 
 def gfalternate_getnumgoodpoints(data_tower,data_alternate):
     mask = numpy.ma.mask_or(data_tower.mask,data_alternate.mask,copy=True,shrink=False)
     return len(numpy.where(mask==False)[0])
     
+def gfalternate_getodrcorrecteddata(data_dict,stat_dict,alternate_info):
+    """
+    Calculate the orthogonal distance regression fit between 2 1D arrays.
+    """
+    label_tower = alternate_info["label_tower"]
+    label_output = alternate_info["label_output"]
+    label_alternate = alternate_info["label_alternate"]
+    y_in = numpy.ma.copy(data_dict[label_tower]["data"])
+    x_in = numpy.ma.copy(data_dict[label_output][label_alternate]["lagcorr"])
+    mask = numpy.ma.mask_or(x_in.mask,y_in.mask,copy=True,shrink=False)
+    x = numpy.ma.compressed(numpy.ma.array(x_in,mask=mask,copy=True))
+    y = numpy.ma.compressed(numpy.ma.array(y_in,mask=mask,copy=True))
+    # attempt an ODR fit
+    linear = scipy.odr.Model(qcutils.linear_function)
+    mydata = scipy.odr.Data(x,y)
+    myodr = scipy.odr.ODR(mydata,linear,beta0=[1,0])
+    myoutput = myodr.run()
+    odr_slope = myoutput.beta[0]
+    odr_offset = myoutput.beta[1]
+    data_dict[label_output][label_alternate]["fitcorr"] = odr_slope*x_in+odr_offset
+    stat_dict[label_output][label_alternate]["slope"] = odr_slope
+    stat_dict[label_output][label_alternate]["offset"] = odr_offset
+    stat_dict[label_output][label_alternate]["eqnstr"] = "y = %.3fx + %.3f"%(odr_slope,odr_offset)
+    
+    #resols = sm.OLS(y,sm.add_constant(x,prepend=False)).fit()
+    #if resols.params.shape[0]==2:
+        #rma_slope = resols.params[0]/numpy.sqrt(resols.rsquared)
+        #rma_offset = numpy.mean(y) - rma_slope * numpy.mean(x)
+        #data_dict[label_output][label_alternate]["fitcorr"] = rma_slope*x_in+rma_offset
+        #stat_dict[label_output][label_alternate]["slope"] = rma_slope
+        #stat_dict[label_output][label_alternate]["offset"] = rma_offset
+        #stat_dict[label_output][label_alternate]["eqnstr"] = "y = %.3fx + %.3f"%(rma_slope,rma_offset)
+    #else:
+        #data_dict[label_output][label_alternate]["fitcorr"] = numpy.ma.copy(x_in)
+        #stat_dict[label_output][label_alternate]["slope"] = float(0)
+        #stat_dict[label_output][label_alternate]["offset"] = float(0)
+        #stat_dict[label_output][label_alternate]["eqnstr"] = "RMA error, replaced"
+
 def gfalternate_getolscorrecteddata(data_dict,stat_dict,alternate_info):
     """
     Calculate the ordinary least squares fit between 2 1D arrays.
@@ -1034,7 +1084,7 @@ def gfalternate_getolscorrecteddata(data_dict,stat_dict,alternate_info):
     x = numpy.ma.compressed(numpy.ma.array(x_in,mask=mask,copy=True))
     y = numpy.ma.compressed(numpy.ma.array(y_in,mask=mask,copy=True))
     # attempt an OLS fit
-    if alternate_info["thru0"].lower()=="yes":
+    if alternate_info["fit_type"].lower()=="ols_thru0":
         resols = sm.OLS(y,x).fit()
         data_dict[label_output][label_alternate]["fitcorr"] = resols.params[0]*x_in
         stat_dict[label_output][label_alternate]["slope"] = resols.params[0]
@@ -1070,15 +1120,21 @@ def gfalternate_getoutputstatistics(data_dict,stat_dict,alternate_info):
             nx = len(x); ny = len(y)
             # attempt an OLS fit
             if nx>=alternate_info["min_points"]:
-                resols = sm.OLS(y,sm.add_constant(x,prepend=False)).fit()
-                if resols.params.shape[0]==2:
-                    stat_dict[label]["slope"] = resols.params[0]
-                    stat_dict[label]["offset"] = resols.params[1]
-                    stat_dict[label]["eqnstr"] = "y = %.3fx + %.3f"%(resols.params[0],resols.params[1])
+                if alternate_info["fit_type"].lower()=="ols":
+                    resols = sm.OLS(y,sm.add_constant(x,prepend=False)).fit()
+                    if resols.params.shape[0]==2:
+                        stat_dict[label]["slope"] = resols.params[0]
+                        stat_dict[label]["offset"] = resols.params[1]
+                        stat_dict[label]["eqnstr"] = "y = %.3fx + %.3f"%(resols.params[0],resols.params[1])
+                    else:
+                        stat_dict[label]["slope"] = float(0)
+                        stat_dict[label]["offset"] = float(0)
+                        stat_dict[label]["eqnstr"] = "OLS error"
                 else:
-                    stat_dict[label]["slope"] = float(0)
+                    resols = sm.OLS(y,x).fit()
+                    stat_dict[label]["slope"] = resols.params[0]
                     stat_dict[label]["offset"] = float(0)
-                    stat_dict[label]["eqnstr"] = "OLS error"
+                    stat_dict[label]["eqnstr"] = "y = %.3fx"%(resols.params[0])
             else:
                 stat_dict[label]["slope"] = float(0)
                 stat_dict[label]["offset"] = float(0)
@@ -1119,6 +1175,42 @@ def gfalternate_getreplacedata(data_dict,stat_dict,alternate_info):
     stat_dict[label_output][label_alternate]["slope"] = float(1)
     stat_dict[label_output][label_alternate]["offset"] = float(0)
     stat_dict[label_output][label_alternate]["eqnstr"] = "No OLS, replaced"
+
+def gfalternate_getrmacorrecteddata(data_dict,stat_dict,alternate_info):
+    """
+    Calculate the ordinary least squares fit between 2 1D arrays.
+    """
+    label_tower = alternate_info["label_tower"]
+    label_output = alternate_info["label_output"]
+    label_alternate = alternate_info["label_alternate"]
+    y_in = numpy.ma.copy(data_dict[label_tower]["data"])
+    x_in = numpy.ma.copy(data_dict[label_output][label_alternate]["lagcorr"])
+    mask = numpy.ma.mask_or(x_in.mask,y_in.mask,copy=True,shrink=False)
+    x = numpy.ma.compressed(numpy.ma.array(x_in,mask=mask,copy=True))
+    y = numpy.ma.compressed(numpy.ma.array(y_in,mask=mask,copy=True))
+    # attempt an OLS fit
+    if alternate_info["fit_type"].lower()=="ols_thru0":
+        resols = sm.OLS(y,x).fit()
+        rma_slope = resols.params[0]/numpy.sqrt(resols.rsquared)
+        rma_offset = numpy.mean(y) - rma_slope * numpy.mean(x)
+        data_dict[label_output][label_alternate]["fitcorr"] = rma_slope*x_in
+        stat_dict[label_output][label_alternate]["slope"] = rma_slope
+        stat_dict[label_output][label_alternate]["offset"] = float(0)
+        stat_dict[label_output][label_alternate]["eqnstr"] = "y = %.3fx"%(rma_slope)
+    else:
+        resols = sm.OLS(y,sm.add_constant(x,prepend=False)).fit()
+        if resols.params.shape[0]==2:
+            rma_slope = resols.params[0]/numpy.sqrt(resols.rsquared)
+            rma_offset = numpy.mean(y) - rma_slope * numpy.mean(x)
+            data_dict[label_output][label_alternate]["fitcorr"] = rma_slope*x_in+rma_offset
+            stat_dict[label_output][label_alternate]["slope"] = rma_slope
+            stat_dict[label_output][label_alternate]["offset"] = rma_offset
+            stat_dict[label_output][label_alternate]["eqnstr"] = "y = %.3fx + %.3f"%(rma_slope,rma_offset)
+        else:
+            data_dict[label_output][label_alternate]["fitcorr"] = numpy.ma.copy(x_in)
+            stat_dict[label_output][label_alternate]["slope"] = float(0)
+            stat_dict[label_output][label_alternate]["offset"] = float(0)
+            stat_dict[label_output][label_alternate]["eqnstr"] = "RMA error, replaced"
 
 def gfalternate_gotdataforgaps(data,data_alternate,alternate_info,mode="verbose"):
     """
@@ -1403,7 +1495,8 @@ def gfalternate_plotcomposite(nfig,data_dict,stat_dict,diel_avg,alternate_info,p
     text = str(time_step)+" minutes"
     xyscatter.text(0.6,0.075,text,fontsize=10,horizontalalignment="left",transform=xyscatter.transAxes)
     xyscatter.plot(data_dict[label_composite]["fitcorr"],data_dict[label_tower]["data"],'b.')
-    xfit = numpy.array([min(data_dict[label_composite]["fitcorr"]),max(data_dict[label_composite]["fitcorr"])])
+    xfit = numpy.array([numpy.ma.min(data_dict[label_composite]["fitcorr"]),
+                        numpy.ma.max(data_dict[label_composite]["fitcorr"])])
     yfit = xfit*stat_dict[label_composite]["slope"]+stat_dict[label_composite]["offset"]
     xyscatter.plot(xfit,yfit,'g--',linewidth=3)
     xyscatter.text(0.5,0.9,stat_dict[label_composite]["eqnstr"],fontsize=8,horizontalalignment='center',transform=xyscatter.transAxes,color='green')
@@ -1802,17 +1895,17 @@ def gfalternate_updatedict(cf,ds_tower,ds_alt):
             # get the type of fit
             ds_tower.alternate[output]["fit_type"] = "OLS"
             if "fit" in cf[section][series]["GapFillFromAlternate"][output]:
-                if cf[section][series]["GapFillFromAlternate"][output]["fit"].lower() in ["ols","mrev","replace"]:
+                if cf[section][series]["GapFillFromAlternate"][output]["fit"].lower() in ["ols","ols_thru0","mrev","replace","rma","odr"]:
                     ds_tower.alternate[output]["fit_type"] = cf[section][series]["GapFillFromAlternate"][output]["fit"]
                 else:
                     log.info("gfAlternate: unrecognised fit option for series "+output)
             # force the fit through the origin
-            ds_tower.alternate[output]["thru0"] = "no"
-            if "thru0" in cf[section][series]["GapFillFromAlternate"][output]:
-                if cf[section][series]["GapFillFromAlternate"][output]["thru0"].lower() in ["yes","true"]:
-                    ds_tower.alternate[output]["thru0"] = "yes"
-                else:
-                    log.info("gfAlternate: unrecognised thru0 option for series "+output)
+            #ds_tower.alternate[output]["thru0"] = "no"
+            #if "thru0" in cf[section][series]["GapFillFromAlternate"][output]:
+                #if cf[section][series]["GapFillFromAlternate"][output]["thru0"].lower() in ["yes","true"]:
+                    #ds_tower.alternate[output]["thru0"] = "yes"
+                #else:
+                    #log.info("gfAlternate: unrecognised thru0 option for series "+output)
             # correct for lag?
             ds_tower.alternate[output]["lag"] = "yes"
             if "lag" in cf[section][series]["GapFillFromAlternate"][output]:
@@ -1843,7 +1936,7 @@ def gfalternate_update_alternate_info(ds_tower,alternate_info):
     label_output = alternate_info["label_output"]
     alternate_info["fit_type"] = ds_tower.alternate[label_output]["fit_type"]
     alternate_info["lag"] = ds_tower.alternate[label_output]["lag"]
-    alternate_info["thru0"] = ds_tower.alternate[label_output]["thru0"]
+    #alternate_info["thru0"] = ds_tower.alternate[label_output]["thru0"]
     # autoforce is set true in gfalternate_autocomplete if there is not enough good points
     # in the tower data for the whole time series, in this case we will use the alternate
     # data "as is" by forcing a "replace" with no lag correction.

@@ -148,7 +148,7 @@ class qcgui(tk.Tk):
         plotmenu.add_command(label="Plot L3",command=self.do_plotL3L3)
         plotmenu.add_command(label="Plot L4",command=self.do_plotL3L4)
         plotmenu.add_command(label="Plot L5",command=self.option_not_implemented)
-        plotmenu.add_command(label="Plot L6",command=self.option_not_implemented)
+        plotmenu.add_command(label="Plot L6 summary",command=self.do_plotL6_summary)
         fnmenu = tk.Menu(menubar,tearoff=0)
         fnmenu.add_command(label="Standard",command=lambda:self.do_plotfluxnet(mode="standard"))
         fnmenu.add_command(label="Custom",command=lambda:self.do_plotfluxnet(mode="custom"))
@@ -793,6 +793,25 @@ class qcgui(tk.Tk):
             #qcplot.plottimeseries(self.cf,nFig,self.ds3,self.ds4,si,ei)
         #self.do_progress(text='Finished plotting L4')
         #log.info(' Finished plotting L4, check the GUI')
+
+    def do_plotL6_summary(self):
+        """
+            Plot L6 summary.
+        """
+        cf = qcio.load_controlfile(path='controlfiles')
+        if len(cf)==0:
+            self.do_progress(text='Waiting for input ...')
+            return
+        l6filename = qcio.get_outfilenamefromcf(cf)
+        if not qcutils.file_exists(l6filename): self.do_progress(text='An error occurred, check the console ...'); return
+        ds6 = qcio.nc_read_series(l6filename)
+        if len(ds6.series.keys())==0: self.do_progress(text='An error occurred, check the console ...'); del ds6; return
+        self.update_startenddate(str(ds6.series['DateTime']['Data'][0]),
+                                 str(ds6.series['DateTime']['Data'][-1]))
+        self.do_progress(text='Plotting L6 summary ...')
+        qcrp.L6_summary(cf,ds6)
+        self.do_progress(text='Finished plotting L6 summary')
+        log.info(' Finished plotting L6 summary, check the GUI')
 
     def do_progress(self,text):
         """

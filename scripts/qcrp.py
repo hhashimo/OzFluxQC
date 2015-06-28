@@ -456,7 +456,7 @@ def FreUsingSOLO(cf,ds):
 def GetFreFromFc(cf,ds):
     """
     Purpose:
-     Get tehe observed ecosystem respiration from measurements of Fc by
+     Get the observed ecosystem respiration from measurements of Fc by
      filtering out daytime periods and periods when ustar is less than
      a threshold value.
      The Fsd threshold for determining day time and night time and the
@@ -501,10 +501,16 @@ def GetFreFromFc(cf,ds):
     if "Fsd_syn" not in ds.series.keys(): qcts.get_synthetic_fsd(ds)
     Fsd_syn,flag,attr = qcutils.GetSeriesasMA(ds,"Fsd_syn")
     sa,flag,attr = qcutils.GetSeriesasMA(ds,"solar_altitude")
-    ustar,flag,attr = qcutils.GetSeriesasMA(ds,"ustar")
+    ustar,ustar_flag,attr = qcutils.GetSeriesasMA(ds,"ustar")
     Fc,Fc_flag,Fc_attr = qcutils.GetSeriesasMA(ds,"Fc")
+    # only accept Fc and ustar data when both have a QC flag value of 0
+    ustar = numpy.ma.masked_where((ustar_flag!=0)|(Fc_flag!=0),ustar)
+    Fc = numpy.ma.masked_where((ustar_flag!=0)|(Fc_flag!=0),Fc)
+    index_notok = numpy.where((ustar_flag!=0)|(Fc_flag!=0))[0]
+    ustar_flag[index_notok] = numpy.int32(61)
+    Fc_flag[index_notok] = numpy.int32(61)
     # check for any missing data
-    for item,label in zip([Fsd,Fsd_syn,ustar,Fc],["Fsd","Fsd_syn","ustar","Fc"]):
+    for item,label in zip([Fsd,Fsd_syn],["Fsd","Fsd_syn"]):
         index = numpy.where(numpy.ma.getmaskarray(item)==True)[0]
         if len(index)!=0:
             log.error(" GetFreFromFc: missing data in series "+label)
@@ -553,10 +559,8 @@ def GetFreFromFc(cf,ds):
         Fre2[si:ei] = numpy.ma.masked_where(ustar[si:ei]<ustar_threshold,Fre1[si:ei])
         Fsd2[si:ei] = numpy.ma.masked_where(ustar[si:ei]<ustar_threshold,Fsd1[si:ei])
         # set the QC flag
-        index = numpy.where(numpy.ma.getmaskarray(Fre2[si:ei])==True)[0]
-        #index = numpy.ma.where(numpy.ma.getmaskarray(Fre2[si:ei])==True)[0]
-        Fre_flag[si:ei][index] = numpy.int32(9)
-        Fsd_flag[si:ei][index] = numpy.int32(9)
+        index_lowustar = numpy.ma.where(ustar[si:ei]<ustar_threshold)[0]
+        Fre_flag[si:ei][index_lowustar] = numpy.int32(62)
     # apply quantile filter
     if qcutils.cfoptionskeylogical(cf,Key='UseQuantileFilter',default=False):
         Fre_attr["long_name"] = Fre_attr["long_name"]+", quantile filter not used"
@@ -568,6 +572,9 @@ def GetFreFromFc(cf,ds):
         q = numpy.percentile(numpy.ma.compressed(Fre2),[quantile_lower,quantile_upper])
         Fre2 = numpy.ma.masked_where((Fre2<q[0])|(Fre2>q[1]),Fre2)
         Fsd2 = numpy.ma.masked_where((Fre2<q[0])|(Fre2>q[1]),Fsd2)
+        index_qf = numpy.ma.where((Fre2<q[0])|(Fre2>q[1]))[0]
+        Fre_flag[index_qf] = numpy.int32(63)
+        Fsd_flag[index_qf] = numpy.int32(63)
         Fre_attr["long_name"].replace(", quantile filter not used",", quantile filter used")
         Fre_attr["Fre_quantile"] = str(quantile_lower)+","+str(quantile_upper)
         Fsd_attr["long_name"].replace(", quantile filter not used",", quantile filter used")
@@ -585,32 +592,260 @@ def L6_summary(cf,ds):
     Author: PRI
     Date: June 2015
     """
-    # get the datetime series
-    dt = ds.series["DateTime"]["Data"]
-    # get the time step
+    log.info(" Doing the L6 summary")
+    # set up a dictionary of lists
+    series_dict = L6_summary_createseriesdict(cf,ds)
+    # open the Excel workbook
+    nc_name = qcio.get_outfilenamefromcf(cf)
+    xl_name = nc_name.replace(".nc","_Summary.xls")
+    xl_file = qcio.xl_open_write(xl_name)
+    if xl_file=='':
+        log.error("L6_summary: error opening Excel file "+xl_name)
+        return
+    # daily averages and totals
+    daily_dict = L6_summary_daily(xl_file,ds,series_dict)
+    # annual averages and totals
+    annual_dict = L6_summary_annual(xl_file,ds,series_dict)
+    # cumulative totals
+    cumulative_dict = L6_summary_cumulative(xl_file,ds,series_dict)
+    # close the Excel workbook
+    xl_file.save(xl_name)
+    # plot the daily averages and sums
+    L6_summary_plotdaily(cf,ds,daily_dict)
+    # plot the cumulative sums
+    L6_summary_plotcumulative(cf,ds,cumulative_dict)
+
+def L6_summary_plotdaily(cf,ds,daily_dict):
+    """
+    Purpose:
+     Plot the daily averages or sums with a 30 day filter.
+    Usage:
+     L6_summary_plotdaily(daily_dict)
+     where daily_dict is the dictionary of results returned by L6_summary_daily
+    Author: PRI
+    Date: June 2015
+    """
+    type_list = []
+    for item in daily_dict.keys():
+        if item[0:3]=="Fre": type_list.append(item[3:])
+    # plot time series of NEE, GPP and Reco
+    sdate = daily_dict["DateTime"]["data"][0].strftime("%d-%m-%Y")
+    edate = daily_dict["DateTime"]["data"][-1].strftime("%d-%m-%Y")
+    site_name = ds.globalattributes["site_name"]
+    title_str = site_name+": "+sdate+" to "+edate
+    for item in type_list:
+        plt.ion()
+        fig = plt.figure(figsize=(16,4))
+        fig.canvas.set_window_title("Carbon Budget: "+item.replace("_",""))
+        plt.figtext(0.5,0.95,title_str,horizontalalignment='center')
+        plt.plot(daily_dict["DateTime"]["data"],daily_dict["NEE"+item]["data"],'b-',alpha=0.3)
+        plt.plot(daily_dict["DateTime"]["data"],qcts.smooth(daily_dict["NEE"+item]["data"],window_len=30),
+                 'b-',linewidth=2,label="NEE"+item+" (30 day filter)")
+        plt.plot(daily_dict["DateTime"]["data"],daily_dict["GPP"+item]["data"],'g-',alpha=0.3)
+        plt.plot(daily_dict["DateTime"]["data"],qcts.smooth(daily_dict["GPP"+item]["data"],window_len=30),
+                 'g-',linewidth=2,label="GPP"+item+" (30 day filter)")
+        plt.plot(daily_dict["DateTime"]["data"],daily_dict["Fre"+item]["data"],'r-',alpha=0.3)
+        plt.plot(daily_dict["DateTime"]["data"],qcts.smooth(daily_dict["Fre"+item]["data"],window_len=30),
+                 'r-',linewidth=2,label="Fre"+item+" (30 day filter)")
+        plt.axhline(0)
+        plt.xlabel("Date")
+        plt.ylabel(daily_dict["NEE"+item]["units"])
+        plt.legend(loc='upper left',prop={'size':8})
+        plt.tight_layout()
+        sdt = daily_dict["DateTime"]["data"][0].strftime("%Y%m%d")
+        edt = daily_dict["DateTime"]["data"][-1].strftime("%Y%m%d")
+        plot_path = "plots/"
+        if "plot_path" in cf["Files"].keys():
+            plot_path = cf["Files"]["plot_path"]
+            if not os.path.exists(plot_path): os.makedirs(plot_path)
+        figname = plot_path+site_name.replace(" ","")+"_CarbonBudget"+item
+        figname = figname+"_"+sdt+"_"+edt+'.png'
+        fig.savefig(figname,format='png')
+        plt.draw()
+        plt.ioff()
+    # plot time series of Fn,Fg,Fh,Fe
+    plt.ion()
+    fig = plt.figure(figsize=(16,4))
+    fig.canvas.set_window_title("Surface Energy Budget")
+    plt.figtext(0.5,0.95,title_str,horizontalalignment='center')
+    plt.plot(daily_dict["DateTime"]["data"],daily_dict["Fn"]["data"],'k-',alpha=0.3)
+    plt.plot(daily_dict["DateTime"]["data"],qcts.smooth(daily_dict["Fn"]["data"],window_len=30),
+             'k-',linewidth=2,label="Fn (30 day filter)")
+    plt.plot(daily_dict["DateTime"]["data"],daily_dict["Fg"]["data"],'g-',alpha=0.3)
+    plt.plot(daily_dict["DateTime"]["data"],qcts.smooth(daily_dict["Fg"]["data"],window_len=30),
+             'g-',linewidth=2,label="Fg (30 day filter)")
+    plt.plot(daily_dict["DateTime"]["data"],daily_dict["Fh"]["data"],'r-',alpha=0.3)
+    plt.plot(daily_dict["DateTime"]["data"],qcts.smooth(daily_dict["Fh"]["data"],window_len=30),
+             'r-',linewidth=2,label="Fh (30 day filter)")
+    plt.plot(daily_dict["DateTime"]["data"],daily_dict["Fe"]["data"],'b-',alpha=0.3)
+    plt.plot(daily_dict["DateTime"]["data"],qcts.smooth(daily_dict["Fe"]["data"],window_len=30),
+             'b-',linewidth=2,label="Fe (30 day filter)")
+    plt.xlabel("Date")
+    plt.ylabel(daily_dict["Fn"]["units"])
+    plt.legend(loc='upper left',prop={'size':8})
+    plt.tight_layout()
+    sdt = daily_dict["DateTime"]["data"][0].strftime("%Y%m%d")
+    edt = daily_dict["DateTime"]["data"][-1].strftime("%Y%m%d")
+    plot_path = "plots/"
+    if "plot_path" in cf["Files"].keys():
+        plot_path = cf["Files"]["plot_path"]
+        if not os.path.exists(plot_path): os.makedirs(plot_path)
+    figname = plot_path+site_name.replace(" ","")+"_SEB"
+    figname = figname+"_"+sdt+"_"+edt+'.png'
+    fig.savefig(figname,format='png')
+    plt.draw()
+    plt.ioff()
+
+def L6_summary_plotcumulative(cf,ds,cumulative_dict):
     ts = int(ds.globalattributes["time_step"])
+    # cumulative plots
+    color_list = ["blue","red","green","yellow","magenta","black","cyan","brown"]
+    year_list = cumulative_dict.keys()
+    year_list.sort()
+    type_list = []
+    for item in cumulative_dict[year_list[0]].keys():
+        if item[0:3]=="Fre": type_list.append(item[3:])
+    # do the plots
+    site_name = ds.globalattributes["site_name"]
+    title_str = site_name+": "+year_list[0]+" to "+year_list[-1]
+    plt.ion()
+    for item in type_list:
+        fig = plt.figure(figsize=(12,12))
+        fig.canvas.set_window_title("Cumulative plots: "+item.replace("_",""))
+        plt.suptitle(title_str)
+        plt.subplot(221)
+        plt.title("NEE: "+item.replace("_",""),fontsize=12)
+        for n,year in enumerate(year_list):
+            x = numpy.arange(0,len(cumulative_dict[year]["NEE"+item]["data"]))*ts/float(60)
+            plt.plot(x,cumulative_dict[year]["NEE"+item]["data"],color=color_list[numpy.mod(n,8)],
+                     label=str(year))
+            plt.xlabel("Hour of Year")
+            plt.ylabel(cumulative_dict[year]["NEE"+item]["units"])
+            plt.legend(loc='lower left',prop={'size':8})
+        plt.subplot(222)
+        plt.title("GPP: "+item.replace("_",""),fontsize=12)
+        for n,year in enumerate(year_list):
+            x = numpy.arange(0,len(cumulative_dict[year]["GPP"+item]["data"]))*ts/float(60)
+            plt.plot(x,cumulative_dict[year]["GPP"+item]["data"],color=color_list[numpy.mod(n,8)],
+                     label=str(year))
+            plt.xlabel("Hour of Year")
+            plt.ylabel(cumulative_dict[year]["GPP"+item]["units"])
+            plt.legend(loc='lower right',prop={'size':8})
+        plt.subplot(223)
+        plt.title("Fre: "+item.replace("_",""),fontsize=12)
+        for n,year in enumerate(year_list):
+            x = numpy.arange(0,len(cumulative_dict[year]["Fre"+item]["data"]))*ts/float(60)
+            plt.plot(x,cumulative_dict[year]["Fre"+item]["data"],color=color_list[numpy.mod(n,8)],
+                     label=str(year))
+            plt.xlabel("Hour of Year")
+            plt.ylabel(cumulative_dict[year]["Fre"+item]["units"])
+            plt.legend(loc='lower right',prop={'size':8})
+        plt.subplot(224)
+        plt.title("ET & Precip",fontsize=12)
+        for n,year in enumerate(year_list):
+            x = numpy.arange(0,len(cumulative_dict[year]["ET"]["data"]))*ts/float(60)
+            plt.plot(x,cumulative_dict[year]["ET"]["data"],color=color_list[numpy.mod(n,8)],
+                     label=str(year))
+            plt.plot(x,cumulative_dict[year]["Precip"]["data"],color=color_list[numpy.mod(n,8)],
+                     linestyle='--')
+            plt.xlabel("Hour of Year")
+            plt.ylabel(cumulative_dict[year]["ET"]["units"])
+            plt.legend(loc='upper left',prop={'size':8})
+        plt.tight_layout(rect=[0, 0, 1, 0.98])
+        # save a hard copy of the plot
+        sdt = year_list[0]
+        edt = year_list[-1]
+        plot_path = "plots/"
+        if "plot_path" in cf["Files"].keys():
+            plot_path = cf["Files"]["plot_path"]
+            if not os.path.exists(plot_path): os.makedirs(plot_path)
+        figname = plot_path+site_name.replace(" ","")+"_Cumulative_"+item.replace("_","")
+        figname = figname+"_"+sdt+"_"+edt+'.png'
+        fig.savefig(figname,format='png')
+        plt.draw()
+    plt.ioff()
+
+def L6_summary_createseriesdict(cf,ds):
+    """
+    Purpose:
+     Create a dictionary containing lists of variables, operators and formats
+    for use by the daily, annual and cumulative routines.
+    Usage:
+     series_dict = L6_summary_createseriesdict(cf,ds)
+     where cf is a control file object
+           ds is an OzFluxQC data structure
+           series_dict is a dictionary of various variable lists
+    Author: PRI
+    Date: June 2015
+    """
+    ts = int(ds.globalattributes["time_step"])
+    series_dict = {"daily":{},"annual":{},"cumulative":{}}
+    list_dict = {}
     # adjust units of NEE, NEP, GPP and Fre
-    nee_list = [item for item in ds.series.keys() if "NEE" in item]
-    nep_list = [item for item in ds.series.keys() if "NEP" in item]
-    gpp_list = [item for item in ds.series.keys() if "GPP" in item]
-    fre_list = [item for item in ds.series.keys() if "Fre" in item]
-    co2_list = nee_list+nep_list+gpp_list+fre_list
-    for item in co2_list:
+    list_dict["nee"] = [item for item in cf["NEE"].keys() if "NEE" in item]
+    list_dict["gpp"] = [item for item in cf["GPP"].keys() if "GPP" in item]
+    list_dict["fre"] = [item for item in cf["Respiration"].keys() if "Fre" in item]
+    list_dict["nep"] = [item.replace("NEE","NEP") for item in list_dict["nee"]]
+    list_dict["co2"] = list_dict["nee"]+list_dict["nep"]+list_dict["gpp"]+list_dict["fre"]
+    for item in list_dict["co2"]:
+        series_dict["daily"][item] = {}
+        series_dict["cumulative"][item] = {}
         data,flag,attr = qcutils.GetSeriesasMA(ds,item)
         if attr["units"]=="umol/m2/s":
             data = data*12.01*ts*60/1E6
             attr["units"] = "gC/m2"
             qcutils.CreateSeries(ds,item,data,Flag=flag,Attr=attr)
+        elif attr["units"]=="gC/m2":
+            pass
         else:
             msg = "L6_summary: unrecognised units for "+item
             log.error(msg)
             continue
-    # open the Excel workbook
-    nc_name = qcio.get_outfilenamefromcf(cf)
-    xl_name = nc_name.replace(".nc","_Summary.xls")
-    xl_file = qcio.xl_open_write(xl_name)
-    if len(xl_file)==0: return
-    # daily averages and totals
+        series_dict["daily"][item]["operator"] = "sum"
+        series_dict["daily"][item]["format"] = "0.00"
+        series_dict["cumulative"][item]["operator"] = "sum"
+        series_dict["cumulative"][item]["format"] = "0.00"
+    series_dict["daily"]["Ah"] = {"operator":"average","format":"0.00"}
+    series_dict["daily"]["Cc"] = {"operator":"average","format":"0.0"}
+    series_dict["daily"]["ps"] = {"operator":"average","format":"0.00"}
+    series_dict["daily"]["q"] = {"operator":"average","format":"0.0000"}
+    series_dict["daily"]["RH"] = {"operator":"average","format":"0"}
+    series_dict["daily"]["Ws"] = {"operator":"average","format":"0.00"}
+    series_dict["daily"]["Fn"] = {"operator":"average","format":"0.0"}
+    series_dict["daily"]["Fsd"] = {"operator":"average","format":"0.0"}
+    series_dict["daily"]["Fsu"] = {"operator":"average","format":"0.0"}
+    series_dict["daily"]["Fld"] = {"operator":"average","format":"0.0"}
+    series_dict["daily"]["Flu"] = {"operator":"average","format":"0.0"}
+    series_dict["daily"]["Fg"] = {"operator":"average","format":"0.0"}
+    series_dict["daily"]["Sws"] = {"operator":"average","format":"0.000"}
+    series_dict["daily"]["Ts"] = {"operator":"average","format":"0.00"}
+    series_dict["daily"]["Fc"] = {"operator":"average","format":"0.00"}
+    series_dict["daily"]["Fe"] = {"operator":"average","format":"0.0"}
+    series_dict["daily"]["Fh"] = {"operator":"average","format":"0.0"}
+    series_dict["daily"]["ustar"] = {"operator":"average","format":"0.00"}
+    series_dict["daily"]["ET"] = {"operator":"sum","format":"0.0"}
+    series_dict["daily"]["Precip"] = {"operator":"sum","format":"0.0"}
+    series_dict["cumulative"]["ET"] = series_dict["daily"]["ET"]
+    series_dict["cumulative"]["Precip"] = series_dict["daily"]["Precip"]
+    series_dict["annual"] = series_dict["daily"]
+    return series_dict
+
+def L6_summary_daily(xl_file,ds,series_dict):
+    """
+    Purpose:
+     Calculate the daily averages or sums of various quantities and write
+     them to a worksheet in an Excel workbook.
+    Usage:
+     L6_summary_daily(xl_file,ds,series_dict)
+     where xl_file is an Excel file object
+           ds is an OzFluxQC data structure
+           series_dict is a dictionary of various variable lists
+    Author: PRI
+    Date: June 2015
+    """
+    log.info(" Doing the daily summary at L6")
+    dt = ds.series["DateTime"]["Data"]
+    ts = int(ds.globalattributes["time_step"])
     si = qcutils.GetDateIndex(dt,str(dt[0]),ts=ts,default=0,match="startnextday")
     ei = qcutils.GetDateIndex(dt,str(dt[-1]),ts=ts,default=len(dt)-1,match="endpreviousday")
     ldt = dt[si:ei+1]
@@ -618,27 +853,129 @@ def L6_summary(cf,ds):
     nDays = int(len(ldt))/ntsInDay
     ldt_daily = [ldt[0]+datetime.timedelta(days=i) for i in range(0,nDays)]
     daily_dict = {}
-    daily_dict["DateTime"]["data"] = ldt_daily
-    daily_dict["DateTime"]["format"] = "dd/mm/yyyy"
-    daily_dict["DateTime"]["units"] = "Days"
-    for item in cf["Variables"].keys():
+    daily_dict["DateTime"] = {"data":ldt_daily,"units":"Days","format":"dd/mm/yyyy"}
+    series_list = series_dict["daily"].keys()
+    series_list.sort()
+    for item in series_list:
         if item not in ds.series.keys(): continue
         daily_dict[item] = {}
         data_1d,flag,attr = qcutils.GetSeriesasMA(ds,item,si=si,ei=ei)
         daily_dict[item]["units"] = attr["units"]
         data_2d = data_1d.reshape(nDays,ntsInDay)
-        if cf["Variables"][item]["operator"].lower()=="average":
+        if series_dict["daily"][item]["operator"].lower()=="average":
             daily_dict[item]["data"] = numpy.ma.average(data_2d,axis=1)
-        elif cf["Variables"][item]["operator"].lower()=="sum":
+        elif series_dict["daily"][item]["operator"].lower()=="sum":
             daily_dict[item]["data"] = numpy.ma.sum(data_2d,axis=1)
             daily_dict[item]["units"] = daily_dict[item]["units"]+"/day"
         else:
-            print "unrecognised operator"
-        daily_dict[item]["format"] = cf["Variables"][item]["format"]
+            print "unrecognised series: ",series
+        daily_dict[item]["format"] = series_dict["daily"][item]["format"]
     # add the daily worksheet to the summary Excel file
     xl_sheet = xl_file.add_sheet("Daily")
-    xl_write_data(xl_sheet,daily_dict)    
-    
+    qcio.xl_write_data(xl_sheet,daily_dict)
+    return daily_dict
+
+def L6_summary_annual(xl_file,ds,series_dict):
+    """
+    Purpose:
+     Calculate the annual averages or sums of various quantities and write
+     them to a worksheet in an Excel workbook.
+    Usage:
+     L6_summary_annual(xl_file,ds,series_dict)
+     where xl_file is an Excel file object
+           ds is an OzFluxQC data structure
+           series_dict is a dictionary of various variable lists
+    Author: PRI
+    Date: June 2015
+    """
+    log.info(" Doing the annual summaries at L6")
+    dt = ds.series["DateTime"]["Data"]
+    ts = int(ds.globalattributes["time_step"])
+    si = qcutils.GetDateIndex(dt,str(dt[0]),ts=ts,default=0,match="startnextday")
+    ei = qcutils.GetDateIndex(dt,str(dt[-1]),ts=ts,default=len(dt)-1,match="endpreviousday")
+    ldt = dt[si:ei+1]
+    start_year = ldt[0].year
+    end_year = ldt[-1].year
+    year_list = range(start_year,end_year+1,1)
+    annual_dict = {}
+    annual_dict["DateTime"] = {"data":[datetime.datetime(yr,1,1) for yr in year_list],
+                               "units":"Years","format":"dd/mm/yyyy"}
+    # create arrays in annual_dict
+    series_list = series_dict["annual"].keys()
+    series_list.sort()
+    for item in series_list:
+        annual_dict[item] = {"data":numpy.array([float(-9999)]*len(year_list))}
+    for i,year in enumerate(year_list):
+        if ts==30:
+            start_date = str(year)+"-01-01 00:30"
+        elif ts==60:
+            start_date = str(year)+"-01-01 01:00"
+        end_date = str(year+1)+"-01-01 00:00"
+        si = qcutils.GetDateIndex(dt,start_date,ts=ts,default=0)
+        ei = qcutils.GetDateIndex(dt,end_date,ts=ts,default=len(dt)-1)
+        for item in series_list:
+            if item not in ds.series.keys(): continue
+            data_1d,flag,attr = qcutils.GetSeriesasMA(ds,item,si=si,ei=ei)
+            annual_dict[item]["units"] = attr["units"]
+            if series_dict["annual"][item]["operator"].lower()=="average":
+                annual_dict[item]["data"][i] = numpy.ma.average(data_1d)
+            elif series_dict["annual"][item]["operator"].lower()=="sum":
+                annual_dict[item]["data"][i] = numpy.ma.sum(data_1d)
+                annual_dict[item]["units"] = annual_dict[item]["units"]+"/year"
+            else:
+                print "unrecognised operator"
+            annual_dict[item]["format"] = series_dict["annual"][item]["format"]
+    # add the annual worksheet to the summary Excel file
+    xl_sheet = xl_file.add_sheet("Annual")
+    qcio.xl_write_data(xl_sheet,annual_dict)
+    return annual_dict
+
+def L6_summary_cumulative(xl_file,ds,series_dict):
+    """
+    Purpose:
+     Calculate the cumulative sums of various quantities and write
+     them to a worksheet in an Excel workbook.
+    Usage:
+     L6_summary_cumulative(xl_file,ds,series_dict)
+     where xl_file is an Excel file object
+           ds is an OzFluxQC data structure
+           series_dict is a dictionary of various variable lists
+    Author: PRI
+    Date: June 2015
+    """
+    log.info(" Doing the cumulative summaries at L6")
+    dt = ds.series["DateTime"]["Data"]
+    ts = int(ds.globalattributes["time_step"])
+    si = qcutils.GetDateIndex(dt,str(dt[0]),ts=ts,default=0,match="startnextday")
+    ei = qcutils.GetDateIndex(dt,str(dt[-1]),ts=ts,default=len(dt)-1,match="endpreviousday")
+    ldt = dt[si:ei+1]
+    start_year = ldt[0].year
+    end_year = ldt[-1].year
+    year_list = range(start_year,end_year+1,1)
+    series_list = series_dict["cumulative"].keys()
+    cumulative_dict = {}
+    for i,year in enumerate(year_list):
+        cumulative_dict[str(year)] = {}
+        if ts==30:
+            start_date = str(year)+"-01-01 00:30"
+        elif ts==60:
+            start_date = str(year)+"-01-01 01:00"
+        end_date = str(year+1)+"-01-01 00:00"
+        si = qcutils.GetDateIndex(dt,start_date,ts=ts,default=0)
+        ei = qcutils.GetDateIndex(dt,end_date,ts=ts,default=len(dt)-1)
+        ldt = dt[si:ei+1]
+        cumulative_dict[str(year)]["DateTime"] = {"data":ldt,"units":"Year",
+                                                  "format":"dd/mm/yyyy HH:MM"}
+        for item in series_list:
+            cumulative_dict[str(year)][item] = {}
+            data,flag,attr = qcutils.GetSeriesasMA(ds,item,si=si,ei=ei)
+            cumulative_dict[str(year)][item]["data"] = numpy.ma.cumsum(data)
+            cumulative_dict[str(year)][item]["units"] = attr["units"]+"/year"
+            cumulative_dict[str(year)][item]["format"] = series_dict["cumulative"][item]["format"]
+        xl_sheet = xl_file.add_sheet("Cumulative("+str(year)+")")
+        qcio.xl_write_data(xl_sheet,cumulative_dict[str(year)])
+    return cumulative_dict
+
 def ParseL6ControlFile(cf,ds):
     """ Parse the L6 control file. """
     # start with the repiration section
@@ -1036,6 +1373,7 @@ def rpFFNET_plot(pd,ds,series,driverlist,targetlabel,outputlabel,rpFFNET_info,si
     ts_axes[0].scatter(xdt,obs,c=Hdh)
     ts_axes[0].plot(xdt,mod,'r-')
     ts_axes[0].set_xlim(xdt[0],xdt[-1])
+    plt.axhline(0)
     TextStr = targetlabel+'_obs ('+ds.series[targetlabel]['Attr']['units']+')'
     ts_axes[0].text(0.05,0.85,TextStr,color='b',horizontalalignment='left',transform=ts_axes[0].transAxes)
     TextStr = outputlabel+'('+ds.series[outputlabel]['Attr']['units']+')'
@@ -1045,7 +1383,10 @@ def rpFFNET_plot(pd,ds,series,driverlist,targetlabel,outputlabel,rpFFNET_info,si
         rect = [pd["margin_left"],this_bottom,pd["ts_width"],pd["ts_height"]]
         ts_axes.append(plt.axes(rect,sharex=ts_axes[0]))
         data,flag,attr = qcutils.GetSeriesasMA(ds,ThisOne,si=si,ei=ei)
-        ts_axes[i].plot(xdt,data)
+        data_notgf = numpy.ma.masked_where(flag!=0,data)
+        data_gf = numpy.ma.masked_where(flag==0,data)
+        ts_axes[i].plot(xdt,data_notgf,'b-')
+        ts_axes[i].plot(xdt,data_gf,'r-')
         plt.setp(ts_axes[i].get_xticklabels(),visible=False)
         TextStr = ThisOne+'('+ds.series[ThisOne]['Attr']['units']+')'
         ts_axes[i].text(0.05,0.85,TextStr,color='b',horizontalalignment='left',transform=ts_axes[i].transAxes)
@@ -1460,6 +1801,7 @@ def rpSOLO_plot(pd,ds,series,driverlist,targetlabel,outputlabel,rpSOLO_info,si=0
     #ts_axes[0].plot(xdt,obs,'b.',xdt,mod,'r-')
     ts_axes[0].scatter(xdt,obs,c=Hdh)
     ts_axes[0].plot(xdt,mod,'r-')
+    plt.axhline(0)
     ts_axes[0].set_xlim(xdt[0],xdt[-1])
     TextStr = targetlabel+'_obs ('+ds.series[targetlabel]['Attr']['units']+')'
     ts_axes[0].text(0.05,0.85,TextStr,color='b',horizontalalignment='left',transform=ts_axes[0].transAxes)
@@ -1470,7 +1812,10 @@ def rpSOLO_plot(pd,ds,series,driverlist,targetlabel,outputlabel,rpSOLO_info,si=0
         rect = [pd["margin_left"],this_bottom,pd["ts_width"],pd["ts_height"]]
         ts_axes.append(plt.axes(rect,sharex=ts_axes[0]))
         data,flag,attr = qcutils.GetSeriesasMA(ds,ThisOne,si=si,ei=ei)
-        ts_axes[i].plot(xdt,data)
+        data_notgf = numpy.ma.masked_where(flag!=0,data)
+        data_gf = numpy.ma.masked_where(flag==0,data)
+        ts_axes[i].plot(xdt,data_notgf,'b-')
+        ts_axes[i].plot(xdt,data_gf,'r-')
         plt.setp(ts_axes[i].get_xticklabels(),visible=False)
         TextStr = ThisOne+'('+ds.series[ThisOne]['Attr']['units']+')'
         ts_axes[i].text(0.05,0.85,TextStr,color='b',horizontalalignment='left',transform=ts_axes[i].transAxes)
@@ -1666,9 +2011,9 @@ def rpSOLO_runseqsolo(ds,driverlist,targetlabel,outputlabel,nRecs,si=0,ei=-1):
         return 0
 
 def rpSOLO_runsofm(ds,rpSOLO_gui,driverlist,targetlabel,nRecs,si=0,ei=-1):
-    '''
+    """
     Run sofm, the pre-processor for SOLO.
-    '''
+    """
     # get the number of drivers
     ndrivers = len(driverlist)
     # add an extra column for the target data

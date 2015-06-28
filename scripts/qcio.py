@@ -1539,21 +1539,21 @@ def xl_write_data(xl_sheet,data):
     xlCol = 0
     # write the data to the xl file
     series_list = data.keys()
-    xlSheet.write(1,xlCol,data["DateTime"]["units"])
+    xl_sheet.write(1,xlCol,data["DateTime"]["units"])
     nrows = len(data["DateTime"]["data"])
     ncols = len(series_list)
     d_xf = xlwt.easyxf(num_format_str=data["DateTime"]["format"])
     for j in range(nrows):
-        xlSheet.write(j+2,xlCol,data["DateTime"]["data"][j],d_xf)
+        xl_sheet.write(j+2,xlCol,data["DateTime"]["data"][j],d_xf)
     series_list.remove("DateTime")
     series_list.sort()
     for item in series_list:
         xlCol = xlCol + 1
-        xlSheet.write(0,xlCol,data[item]["units"])
-        xlSheet.write(1,xlCol,item)
+        xl_sheet.write(0,xlCol,data[item]["units"])
+        xl_sheet.write(1,xlCol,item)
         d_xf = xlwt.easyxf(num_format_str=data[item]["format"])
         for j in range(nrows):
-            xlSheet.write(j+2,xlCol,float(data[item]["data"][j]),d_xf)
+            xl_sheet.write(j+2,xlCol,float(data[item]["data"][j]),d_xf)
 
 def xl_write_series(ds, xlfullname, outputlist=None):
     if "nc_nrecs" in ds.globalattributes.keys():

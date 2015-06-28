@@ -346,6 +346,6 @@ def l6qc(cf,ds5):
     # write the percentage of good data for groups
     qcutils.get_coverage_groups(ds6)
     # do the L6 summary
-    #qcrp.L6_summary(cf,ds)
+    qcrp.L6_summary(cf,ds6)
 
     return ds6

@@ -1241,6 +1241,17 @@ def haskey(cf,ThisOne,key):
 def incf(cf,ThisOne):
     return ThisOne in cf['Variables'].keys()
 
+def linear_function(B,x):
+    """
+    Purpose:
+     Linear function for use with orthogonal distance regression.
+    Usage:
+     linear = scipy.odr.Model(qcutils.linear_function)
+     where B is a list of slope and offset values
+           x is an array of x values
+    """
+    return B[0]*x + B[1]
+
 def MakeAttributeDictionary(**kwargs):
     default_list = ['ancillary_variables','height','instrument','serial_number','standard_name','long_name','units']
     attr = {}
