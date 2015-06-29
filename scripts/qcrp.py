@@ -141,7 +141,7 @@ def FreUsingFFNET(cf,ds):
     rpFFNET_gui.nodesLabel.grid(row=nrow,column=0,columnspan=1,sticky="E")
     rpFFNET_gui.nodesEntry = Tkinter.Entry(rpFFNET_gui,width=6)
     rpFFNET_gui.nodesEntry.grid(row=nrow,column=1,columnspan=1,sticky="W")
-    rpFFNET_gui.nodesEntry.insert(0,"2")
+    rpFFNET_gui.nodesEntry.insert(0,"6,4")
     rpFFNET_gui.trainingLabel = Tkinter.Label(rpFFNET_gui,text="Training")
     rpFFNET_gui.trainingLabel.grid(row=nrow,column=2,columnspan=1,sticky="E")
     rpFFNET_gui.trainingEntry = Tkinter.Entry(rpFFNET_gui,width=6)
@@ -150,7 +150,7 @@ def FreUsingFFNET(cf,ds):
     # second row
     nrow = nrow + 1
     rpFFNET_gui.trainOptionVar = Tkinter.StringVar()
-    rpFFNET_gui.trainOptionVar.set("TNC")
+    rpFFNET_gui.trainOptionVar.set("Rprop")
     choices = ["BFGS","CG","Genetic","Back","Rprop","TNC"]
     rpFFNET_gui.trainOptionLabel = Tkinter.Label(rpFFNET_gui,text="Training type")
     rpFFNET_gui.trainOptionLabel.grid(row=nrow,column=0,columnspan=1,sticky="E")
@@ -782,9 +782,9 @@ def L6_summary_createseriesdict(cf,ds):
     series_dict = {"daily":{},"annual":{},"cumulative":{}}
     list_dict = {}
     # adjust units of NEE, NEP, GPP and Fre
-    list_dict["nee"] = [item for item in cf["NEE"].keys() if "NEE" in item]
-    list_dict["gpp"] = [item for item in cf["GPP"].keys() if "GPP" in item]
-    list_dict["fre"] = [item for item in cf["Respiration"].keys() if "Fre" in item]
+    list_dict["nee"] = [item for item in cf["NEE"].keys() if "NEE" in item and item in ds.series.keys()]
+    list_dict["gpp"] = [item for item in cf["GPP"].keys() if "GPP" in item and item in ds.series.keys()]
+    list_dict["fre"] = [item for item in cf["Fre"].keys() if "Fre" in item and item in ds.series.keys()]
     list_dict["nep"] = [item.replace("NEE","NEP") for item in list_dict["nee"]]
     list_dict["co2"] = list_dict["nee"]+list_dict["nep"]+list_dict["gpp"]+list_dict["fre"]
     for item in list_dict["co2"]:
@@ -979,14 +979,13 @@ def L6_summary_cumulative(xl_file,ds,series_dict):
 def ParseL6ControlFile(cf,ds):
     """ Parse the L6 control file. """
     # start with the repiration section
-    if "Respiration" in cf.keys():
-        for ThisOne in cf["Respiration"].keys():
-            if "FreUsingSOLO" in cf["Respiration"][ThisOne].keys():
+    if "Respiration" in cf.keys() and "Fre" not in cf.keys(): cf["Fre"] = cf["Respiration"]
+    if "Fre" in cf.keys():
+        for ThisOne in cf["Fre"].keys():
+            if "FreUsingSOLO" in cf["Fre"][ThisOne].keys():
                 rpSOLO_createdict(cf,ds,ThisOne)      # create the SOLO dictionary in ds
-            if "FreUsingFFNET" in cf["Respiration"][ThisOne].keys():
+            if "FreUsingFFNET" in cf["Fre"][ThisOne].keys():
                 rpFFNET_createdict(cf,ds,ThisOne)     # create the FFNET dictionary in ds
-            if "MergeSeries" in cf["Respiration"][ThisOne].keys():
-                rpMerge_createdict(cf,ds,ThisOne)      # create the merge dictionary in ds
     if "NEE" in cf.keys():
         for ThisOne in cf["NEE"].keys():
             rpNEE_createdict(cf,ds,ThisOne)
@@ -1125,6 +1124,19 @@ def rpFFNET_createdict(cf,ds,series):
     if ds.ffnet[series]["output"] not in ds.series.keys():
         data,flag,attr = qcutils.MakeEmptySeries(ds,ds.ffnet[series]["output"])
         qcutils.CreateSeries(ds,ds.ffnet[series]["output"],data,Flag=flag,Attr=attr)
+    # create the merge directory in the data structure
+    if "merge" not in dir(ds): ds.merge = {}
+    if "standard" not in ds.merge.keys(): ds.merge["standard"] = {}
+    # create the dictionary keys for this series
+    ds.merge["standard"][series] = {}
+    # output series name
+    ds.merge["standard"][series]["output"] = series
+    # source
+    ds.merge["standard"][series]["source"] = ast.literal_eval(cf[section][series]["MergeSeries"]["Source"])
+    # create an empty series in ds if the output series doesn't exist yet
+    if ds.merge["standard"][series]["output"] not in ds.series.keys():
+        data,flag,attr = qcutils.MakeEmptySeries(ds,ds.merge["standard"][series]["output"])
+        qcutils.CreateSeries(ds,ds.merge["standard"][series]["output"],data,Flag=flag,Attr=attr)
 
 def rpFFNET_done(ds,rpFFNET_gui):
     # destroy the FFNET GUI
@@ -1231,21 +1243,30 @@ def rpFFNET_main(ds,rpFFNET_gui,rpFFNET_info):
         else:
             log.error("FreUsingFFNET: more than 2 hidden layers specified, using 1 ("+str(ndrivers)+")")
             arch = (ndrivers,ndrivers,1)
-        conec = ffnet.mlgraph(arch,biases=True)
+        if rpFFNET_info["train_type"]==1:
+            conec = ffnet.mlgraph(arch,biases=True)
+        elif rpFFNET_info["train_type"]==2:
+            conec = ffnet.tmlgraph(arch,biases=True)
+        else:
+            raise Exception("rpFFNET: unrecognised FFNET training type")
         net = ffnet.ffnet(conec)
         # train the network
-        if rpFFNET_info["train_type"].lower()=="tnc":
+        if rpFFNET_info["train_option"].lower()=="tnc":
             net.train_tnc(input_train,target_train)
-        elif rpFFNET_info["train_type"].lower()=="bfgs":
+        elif rpFFNET_info["train_option"].lower()=="bfgs":
             net.train_bfgs(input_train,target_train)
-        elif rpFFNET_info["train_type"].lower()=="cg":
+        elif rpFFNET_info["train_option"].lower()=="cg":
             net.train_cg(input_train,target_train)
-        elif rpFFNET_info["train_type"].lower()=="genetic":
+        elif rpFFNET_info["train_option"].lower()=="genetic":
             net.train_genetic(input_train,target_train)
-        elif rpFFNET_info["train_type"].lower()=="back":
+        elif rpFFNET_info["train_option"].lower()=="back":
             net.train_momentum(input_train,target_train)
-        elif rpFFNET_info["train_type"].lower()=="rprop":
-            net.train_rprop(input_train,target_train)
+        elif rpFFNET_info["train_option"].lower()=="rprop":
+            try:
+                net.train_rprop(input_train,target_train)
+            except:
+                log.warning("rpFFNET: Rprop training failed, using TNC ...")
+                net.train_tnc(input_train,target_train)
         else:
             raise Exception("rpFFNET: unrecognised FFNET training option")
         #output,regress=net.test(input_train,target_train)
@@ -1338,8 +1359,12 @@ def rpFFNET_plot(pd,ds,series,driverlist,targetlabel,outputlabel,rpFFNET_info,si
     plt.figtext(0.75,0.200,str(rpFFNET_info["hidden"]))
     plt.figtext(0.65,0.175,'Training')
     plt.figtext(0.75,0.175,str(rpFFNET_info["iterations"]))
-    plt.figtext(0.65,0.150,'Training type')
-    plt.figtext(0.75,0.150,str(rpFFNET_info["train_type"]))
+    plt.figtext(0.65,0.150,'Training option')
+    plt.figtext(0.75,0.150,str(rpFFNET_info["train_option"]))
+    plt.figtext(0.65,0.125,'Training type')
+    train_type = "Std"
+    if rpFFNET_info["train_type"]==2: train_type = "Full"
+    plt.figtext(0.75,0.125,train_type)
     #plt.figtext(0.65,0.125,'Learning rate')
     #plt.figtext(0.75,0.125,str(rpSOLO_gui.learningrateEntry.get()))
     #plt.figtext(0.65,0.100,'Iterations')
@@ -1414,7 +1439,8 @@ def rpFFNET_run(ds,rpFFNET_gui,rpFFNET_info):
     # populate the rpFFNET_info dictionary with things that will be useful
     rpFFNET_info["hidden"] = rpFFNET_gui.nodesEntry.get()
     rpFFNET_info["iterations"] = rpFFNET_gui.trainingEntry.get()
-    rpFFNET_info["train_type"] = str(rpFFNET_gui.trainOptionVar.get())
+    rpFFNET_info["train_option"] = str(rpFFNET_gui.trainOptionVar.get())
+    rpFFNET_info["train_type"] = int(rpFFNET_gui.trainTypeVar.get())
     rpFFNET_info["peropt"] = rpFFNET_gui.peropt.get()
     rpFFNET_info["min_points"] = int(rpFFNET_gui.minpts.get())
     rpFFNET_info["site_name"] = ds.globalattributes["site_name"]
@@ -1599,6 +1625,19 @@ def rpSOLO_createdict(cf,ds,series):
     if ds.solo[series]["output"] not in ds.series.keys():
         data,flag,attr = qcutils.MakeEmptySeries(ds,ds.solo[series]["output"])
         qcutils.CreateSeries(ds,ds.solo[series]["output"],data,Flag=flag,Attr=attr)
+    # create the merge directory in the data structure
+    if "merge" not in dir(ds): ds.merge = {}
+    if "standard" not in ds.merge.keys(): ds.merge["standard"] = {}
+    # create the dictionary keys for this series
+    ds.merge["standard"][series] = {}
+    # output series name
+    ds.merge["standard"][series]["output"] = series
+    # source
+    ds.merge["standard"][series]["source"] = ast.literal_eval(cf[section][series]["MergeSeries"]["Source"])
+    # create an empty series in ds if the output series doesn't exist yet
+    if ds.merge["standard"][series]["output"] not in ds.series.keys():
+        data,flag,attr = qcutils.MakeEmptySeries(ds,ds.merge["standard"][series]["output"])
+        qcutils.CreateSeries(ds,ds.merge["standard"][series]["output"],data,Flag=flag,Attr=attr)
 
 def rpSOLO_done(ds,rpSOLO_gui):
     # destroy the SOLO GUI
