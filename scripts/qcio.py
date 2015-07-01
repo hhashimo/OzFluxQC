@@ -1228,7 +1228,7 @@ def nc_write_series(ncFile,ds,outputlist=None,ndims=3):
     else:
         for ThisOne in outputlist:
             if ThisOne not in ds.series.keys():
-                log.error(' Requested series '+ThisOne+' not found in data structure')
+                log.warning(" Requested series "+ThisOne+" not found in data structure")
                 outputlist.remove(ThisOne)
         if len(outputlist)==0: outputlist = ds.series.keys()
     # can't write an array of Python datetime objects to a netCDF file
@@ -1605,7 +1605,7 @@ def xl_write_series(ds, xlfullname, outputlist=None):
     else:
         for ThisOne in outputlist:
             if ThisOne not in variablelist:
-                log.info(' Requested series '+ThisOne+' not found in data structure')
+                log.warning(" Requested series "+ThisOne+" not found in data structure")
                 outputlist.remove(ThisOne)
         if len(outputlist)==0:
             outputlist = variablelist
@@ -1721,7 +1721,7 @@ def xlsx_write_series(ds, xlsxfullname, outputlist=None):
     else:
         for ThisOne in outputlist:
             if ThisOne not in variablelist:
-                log.info(' Requested series '+ThisOne+' not found in data structure')
+                log.warning(" Requested series "+ThisOne+" not found in data structure")
                 outputlist.remove(ThisOne)
         if len(outputlist)==0:
             outputlist = variablelist

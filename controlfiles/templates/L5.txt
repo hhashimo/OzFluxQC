@@ -2,6 +2,7 @@
     file_path = ../Sites/<site_name>/Data/Processed/all/
     in_filename = <site_name>_<year>_L4.nc
     out_filename = <site_name>_<year>_L5.nc
+    plot_path = ../Sites/<site_name>/Plots/
 
 [Output]
     nc = "['Ah','Cc','e','Fa','Fc','Fc_storage','Fe','Fg','Fh','Fld','Flu','Fm','Fn','Fsd','Fsu','Precip','ps','q','RH','Sws','SHD','Ta','Ts','ustar','VPD','Ws','Wd']"

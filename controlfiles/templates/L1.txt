@@ -25,7 +25,11 @@
     in_firstdatarow = 5
     out_filename = <site_name>_<year>_L1.nc
 
-[Global] 
+[Global]
+    acknowledgement = """This work used eddy covariance data collected by the TERN-OzFlux facility. OzFlux
+would like to acknowledge the financial support of the Australian Federal Government via
+the National Collaborative Research Infrastructure Scheme and the Education Investment
+Fund."""
   	contact        = ""                                  
   	canopy_height  = ""
   	comment        = "CF metadata, OzFlux standard variable names"

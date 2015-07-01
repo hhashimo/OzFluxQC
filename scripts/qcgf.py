@@ -2063,7 +2063,7 @@ def GapFillUsingSOLO(dsa,dsb):
     solo_gui.overwrite.grid(row=nrow,column=3,columnspan=3,sticky="w")
     # tenth row
     nrow = nrow + 1
-    solo_gui.doneButton = Tkinter.Button (solo_gui, text="Done",command=lambda:gfSOLO_done(dsb,solo_gui))
+    solo_gui.doneButton = Tkinter.Button (solo_gui, text="Done",command=lambda:gfSOLO_done(dsb,solo_gui,solo_info))
     solo_gui.doneButton.grid(row=nrow,column=0,columnspan=2)
     solo_gui.runButton = Tkinter.Button (solo_gui, text="Run",command=lambda:gfSOLO_run(dsa,dsb,solo_gui,solo_info))
     solo_gui.runButton.grid(row=nrow,column=2,columnspan=2)
@@ -2145,9 +2145,9 @@ def gfSOLO_createdict(cf,ds,series):
             data,flag,attr = qcutils.MakeEmptySeries(ds,output)
             qcutils.CreateSeries(ds,output,data,Flag=flag,Attr=attr)
 
-def gfSOLO_done(ds,solo_gui):
+def gfSOLO_done(ds,solo_gui,solo_info):
     # plot the summary statistics if required
-    if solo_gui.peropt.get()==1: gfSOLO_plotsummary(ds)
+    if solo_gui.peropt.get()==1: gfSOLO_plotsummary(ds,solo_info)
     # destroy the SOLO GUI
     solo_gui.destroy()
     # write Excel spreadsheet with fit statistics
@@ -2190,6 +2190,7 @@ def gfSOLO_main(dsa,dsb,solo_info,output_list=[]):
     # be changed with the SOLO GUI still displayed
     cfname = dsb.globalattributes["controlfile_name"]
     cf = qcio.get_controlfilecontents(cfname,mode="quiet")
+    solo_info["plot_path"] = cf["Files"]["plot_path"]
     # put the control file object in the solo_info dictionary
     dsb.cf = cf.copy()
     # get some useful things
@@ -2388,7 +2389,9 @@ def gfSOLO_plot(pd,dsa,dsb,driverlist,targetlabel,outputlabel,solo_info,si=0,ei=
     # save a hard copy of the plot
     sdt = xdt[0].strftime("%Y%m%d")
     edt = xdt[-1].strftime("%Y%m%d")
-    figname = "plots/"+pd["site_name"].replace(" ","")+"_SOLO_"+pd["label"]
+    plot_path = solo_info["plot_path"]+"L5/"
+    if not os.path.exists(plot_path): os.makedirs(plot_path)
+    figname = plot_path+pd["site_name"].replace(" ","")+"_SOLO_"+pd["label"]
     figname = figname+"_"+sdt+"_"+edt+'.png'
     fig.savefig(figname,format='png')
     if solo_info["show_plots"]:
@@ -2430,7 +2433,7 @@ def gfSOLO_plotcoveragelines(dsb):
     plt.draw()
     plt.ioff()
 
-def gfSOLO_plotsummary(ds):
+def gfSOLO_plotsummary(ds,solo_info):
     """ Plot single pages of summary results for groups of variables. """
     # get a list of variables for which SOLO data was available
     label_list = ds.solo.keys()
@@ -2504,7 +2507,9 @@ def gfSOLO_plotsummary(ds):
         # make the hard-copy file name and save the plot as a PNG file
         sdt = startdate.strftime("%Y%m%d")
         edt = enddate.strftime("%Y%m%d")
-        figname = "plots/"+site_name.replace(" ","")+"_SOLO_FitStatistics_"+figlab
+        plot_path = solo_info["plot_path"]+"L5/"
+        if not os.path.exists(plot_path): os.makedirs(plot_path)
+        figname = plot_path+site_name.replace(" ","")+"_SOLO_FitStatistics_"+figlab
         figname = figname+"_"+sdt+"_"+edt+".png"
         fig.savefig(figname,format="png")
 
@@ -2591,7 +2596,7 @@ def gfSOLO_run(dsa,dsb,solo_gui,solo_info):
         # now fill any remaining gaps
         gfSOLO_autocomplete(dsa,dsb,solo_info)
         # plot the summary statistics
-        gfSOLO_plotsummary(dsb)
+        gfSOLO_plotsummary(dsb,solo_info)
         gfSOLO_progress(solo_gui,"Finished auto (monthly) run ...")
         log.info(" GapFillUsingSOLO: Finished auto (monthly) run ...")
     elif solo_gui.peropt.get()==3:
@@ -2615,7 +2620,7 @@ def gfSOLO_run(dsa,dsb,solo_gui,solo_info):
         # now fill any remaining gaps
         gfSOLO_autocomplete(dsa,dsb,solo_info)
         # plot the summary statistics
-        gfSOLO_plotsummary(dsb)
+        gfSOLO_plotsummary(dsb,solo_info)
         gfSOLO_progress(solo_gui,"Finished auto (days) run ...")
         log.info(" GapFillUsingSOLO: Finished auto (days) run ...")
     elif solo_gui.peropt.get()==4:

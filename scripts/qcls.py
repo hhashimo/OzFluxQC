@@ -212,10 +212,7 @@ def l4qc(cf,ds3):
     # return from this routine if this is the case
     if not ds4: return ds4
     # set some attributes for this level    
-    ds4.globalattributes["nc_level"] = "L4"
-    ds4.globalattributes["EPDversion"] = sys.version
-    # put the control file name into the global attributes
-    ds4.globalattributes["controlfile_name"] = cf["controlfile_name"]
+    qcutils.UpdateGlobalAttributes(cf,ds4,"L4")
     ds4.cf = cf
     # calculate the available energy
     if "Fa" not in ds4.series.keys():
@@ -270,11 +267,8 @@ def l5qc(cf,ds4):
     # ds4 will be empty (logical false) if an error occurs in copy_datastructure
     # return from this routine if this is the case
     if not ds5: return ds5
-    # set some attributes for this level    
-    ds5.globalattributes["nc_level"] = "L5"
-    ds5.globalattributes["EPDversion"] = sys.version
-    # put the control file name into the global attributes
-    ds5.globalattributes["controlfile_name"] = cf["controlfile_name"]
+    # set some attributes for this level
+    qcutils.UpdateGlobalAttributes(cf,ds5,"L5")
     ds5.cf = cf
     # create a dictionary to hold the gap filling data
     ds_alt = {}
@@ -312,11 +306,8 @@ def l6qc(cf,ds5):
     # ds6 will be empty (logical false) if an error occurs in copy_datastructure
     # return from this routine if this is the case
     if not ds6: return ds6
-    # set some attributes for this level    
-    ds6.globalattributes["nc_level"] = "L6"
-    ds6.globalattributes["EPDversion"] = sys.version
-    # put the control file name into the global attributes
-    ds6.globalattributes["controlfile_name"] = cf["controlfile_name"]
+    # set some attributes for this level
+    qcutils.UpdateGlobalAttributes(cf,ds6,"L6")
     # parse the control file
     qcrp.ParseL6ControlFile(cf,ds6)
     # check to see if we have any imports

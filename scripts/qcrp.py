@@ -130,7 +130,8 @@ def FreUsingFFNET(cf,ds):
     startdate = ldt[0]
     enddate = ldt[-1]
     rpFFNET_info = {"file_startdate":startdate.strftime("%Y-%m-%d %H:%M"),
-                 "file_enddate":enddate.strftime("%Y-%m-%d %H:%M")}
+                    "file_enddate":enddate.strftime("%Y-%m-%d %H:%M"),
+                    "plot_path":cf["Files"]["plot_path"]}
     # set up the GUI
     rpFFNET_gui = Tkinter.Toplevel()
     rpFFNET_gui.wm_title("FFNET GUI (Reco)")
@@ -346,7 +347,8 @@ def FreUsingSOLO(cf,ds):
     startdate = ldt[0]
     enddate = ldt[-1]
     rpSOLO_info = {"file_startdate":startdate.strftime("%Y-%m-%d %H:%M"),
-                 "file_enddate":enddate.strftime("%Y-%m-%d %H:%M")}
+                   "file_enddate":enddate.strftime("%Y-%m-%d %H:%M"),
+                   "plot_path":cf["Files"]["plot_path"]}
     # set up the GUI
     rpSOLO_gui = Tkinter.Toplevel()
     rpSOLO_gui.wm_title("SOLO GUI (Fre)")
@@ -374,7 +376,7 @@ def FreUsingSOLO(cf,ds):
     rpSOLO_gui.learningrateLabel.grid(row=nrow,column=2,columnspan=1,sticky="E")
     rpSOLO_gui.learningrateEntry = Tkinter.Entry(rpSOLO_gui,width=6)
     rpSOLO_gui.learningrateEntry.grid(row=nrow,column=3,columnspan=1,sticky="W")
-    rpSOLO_gui.learningrateEntry.insert(0,"0.01")
+    rpSOLO_gui.learningrateEntry.insert(0,"0.001")
     rpSOLO_gui.iterationsLabel = Tkinter.Label(rpSOLO_gui,text="Iterations")
     rpSOLO_gui.iterationsLabel.grid(row=nrow,column=4,columnspan=1,sticky="E")
     rpSOLO_gui.iterationsEntry = Tkinter.Entry(rpSOLO_gui,width=6)
@@ -628,6 +630,9 @@ def L6_summary_plotdaily(cf,ds,daily_dict):
     type_list = []
     for item in daily_dict.keys():
         if item[0:3]=="Fre": type_list.append(item[3:])
+    for item in type_list:
+        if "NEE"+item not in daily_dict or "GPP"+item not in daily_dict:
+            type_list.remove(item)
     # plot time series of NEE, GPP and Reco
     sdate = daily_dict["DateTime"]["data"][0].strftime("%d-%m-%Y")
     edate = daily_dict["DateTime"]["data"][-1].strftime("%d-%m-%Y")
@@ -654,10 +659,8 @@ def L6_summary_plotdaily(cf,ds,daily_dict):
         plt.tight_layout()
         sdt = daily_dict["DateTime"]["data"][0].strftime("%Y%m%d")
         edt = daily_dict["DateTime"]["data"][-1].strftime("%Y%m%d")
-        plot_path = "plots/"
-        if "plot_path" in cf["Files"].keys():
-            plot_path = cf["Files"]["plot_path"]
-            if not os.path.exists(plot_path): os.makedirs(plot_path)
+        plot_path = cf["Files"]["plot_path"]+"L6/"
+        if not os.path.exists(plot_path): os.makedirs(plot_path)
         figname = plot_path+site_name.replace(" ","")+"_CarbonBudget"+item
         figname = figname+"_"+sdt+"_"+edt+'.png'
         fig.savefig(figname,format='png')
@@ -686,10 +689,8 @@ def L6_summary_plotdaily(cf,ds,daily_dict):
     plt.tight_layout()
     sdt = daily_dict["DateTime"]["data"][0].strftime("%Y%m%d")
     edt = daily_dict["DateTime"]["data"][-1].strftime("%Y%m%d")
-    plot_path = "plots/"
-    if "plot_path" in cf["Files"].keys():
-        plot_path = cf["Files"]["plot_path"]
-        if not os.path.exists(plot_path): os.makedirs(plot_path)
+    plot_path = cf["Files"]["plot_path"]+"L6/"
+    if not os.path.exists(plot_path): os.makedirs(plot_path)
     figname = plot_path+site_name.replace(" ","")+"_SEB"
     figname = figname+"_"+sdt+"_"+edt+'.png'
     fig.savefig(figname,format='png')
@@ -705,6 +706,9 @@ def L6_summary_plotcumulative(cf,ds,cumulative_dict):
     type_list = []
     for item in cumulative_dict[year_list[0]].keys():
         if item[0:3]=="Fre": type_list.append(item[3:])
+    for item in type_list:
+        if "NEE"+item not in cumulative_dict[year_list[0]] or "GPP"+item not in cumulative_dict[year_list[0]]:
+            type_list.remove(item)
     # do the plots
     site_name = ds.globalattributes["site_name"]
     title_str = site_name+": "+year_list[0]+" to "+year_list[-1]
@@ -755,10 +759,8 @@ def L6_summary_plotcumulative(cf,ds,cumulative_dict):
         # save a hard copy of the plot
         sdt = year_list[0]
         edt = year_list[-1]
-        plot_path = "plots/"
-        if "plot_path" in cf["Files"].keys():
-            plot_path = cf["Files"]["plot_path"]
-            if not os.path.exists(plot_path): os.makedirs(plot_path)
+        plot_path = cf["Files"]["plot_path"]+"L6/"
+        if not os.path.exists(plot_path): os.makedirs(plot_path)
         figname = plot_path+site_name.replace(" ","")+"_Cumulative_"+item.replace("_","")
         figname = figname+"_"+sdt+"_"+edt+'.png'
         fig.savefig(figname,format='png')
@@ -1418,7 +1420,9 @@ def rpFFNET_plot(pd,ds,series,driverlist,targetlabel,outputlabel,rpFFNET_info,si
     # save a hard copy of the plot
     sdt = xdt[0].strftime("%Y%m%d")
     edt = xdt[-1].strftime("%Y%m%d")
-    figname = "plots/"+pd["site_name"].replace(" ","")+"_FFNET_"+pd["label"]
+    plot_path = rpFFNET_info["plot_path"]+"L6/"
+    if not os.path.exists(plot_path): os.makedirs(plot_path)
+    figname = plot_path+pd["site_name"].replace(" ","")+"_FFNET_"+pd["label"]
     figname = figname+"_"+sdt+"_"+edt+'.png'
     fig.savefig(figname,format='png')
     # draw the plot on the screen
@@ -1478,8 +1482,6 @@ def rpFFNET_run(ds,rpFFNET_gui,rpFFNET_info):
             enddate = startdate+dateutil.relativedelta.relativedelta(days=nDays)
             rpFFNET_info["startdate"] = startdate.strftime("%Y-%m-%d")
             rpFFNET_info["enddate"] = enddate.strftime("%Y-%m-%d")
-        ## plot the summary statistics
-        #gfSOLO_plotsummary(ds)
         rpFFNET_progress(rpFFNET_gui,"Finished auto (days) run ...")
     elif rpFFNET_gui.peropt.get()==3:
         rpFFNET_progress(rpFFNET_gui,"Starting auto (monthly) run ...")
@@ -1499,8 +1501,6 @@ def rpFFNET_run(ds,rpFFNET_gui,rpFFNET_info):
             enddate = startdate+dateutil.relativedelta.relativedelta(months=nMonths)
             rpFFNET_info["startdate"] = startdate.strftime("%Y-%m-%d")
             rpFFNET_info["enddate"] = enddate.strftime("%Y-%m-%d")
-        ## plot the summary statistics
-        #gfSOLO_plotsummary(ds)
         rpFFNET_progress(rpFFNET_gui,"Finished auto (monthly) run ...")
     elif rpFFNET_gui.peropt.get()==4:
         # automatic run with yearly datetime periods
@@ -1521,8 +1521,6 @@ def rpFFNET_run(ds,rpFFNET_gui,rpFFNET_info):
             enddate = startdate+dateutil.relativedelta.relativedelta(years=1)
             rpFFNET_info["startdate"] = startdate.strftime("%Y-%m-%d")
             rpFFNET_info["enddate"] = enddate.strftime("%Y-%m-%d")
-        ### plot the summary statistics
-        ##gfSOLO_plotsummary(ds)
         rpFFNET_progress(rpFFNET_gui,"Finished auto (yearly) run ...")
     elif rpFFNET_gui.peropt.get()==5:
         pass
@@ -1861,7 +1859,9 @@ def rpSOLO_plot(pd,ds,series,driverlist,targetlabel,outputlabel,rpSOLO_info,si=0
     # save a hard copy of the plot
     sdt = xdt[0].strftime("%Y%m%d")
     edt = xdt[-1].strftime("%Y%m%d")
-    figname = "plots/"+pd["site_name"].replace(" ","")+"_SOLO_"+pd["label"]
+    plot_path = rpSOLO_info["plot_path"]+"L6/"
+    if not os.path.exists(plot_path): os.makedirs(plot_path)
+    figname = plot_path+pd["site_name"].replace(" ","")+"_SOLO_"+pd["label"]
     figname = figname+"_"+sdt+"_"+edt+'.png'
     fig.savefig(figname,format='png')
     # draw the plot on the screen
@@ -1926,8 +1926,6 @@ def rpSOLO_run(ds,rpSOLO_gui,rpSOLO_info):
             enddate = startdate+dateutil.relativedelta.relativedelta(days=nDays)
             rpSOLO_info["startdate"] = startdate.strftime("%Y-%m-%d")
             rpSOLO_info["enddate"] = enddate.strftime("%Y-%m-%d")
-        ## plot the summary statistics
-        #gfSOLO_plotsummary(ds)
         rpSOLO_progress(rpSOLO_gui,"Finished auto (days) run ...")
     elif rpSOLO_gui.peropt.get()==3:
         # automatic run with monthly datetime periods
@@ -1947,8 +1945,6 @@ def rpSOLO_run(ds,rpSOLO_gui,rpSOLO_info):
             enddate = startdate+dateutil.relativedelta.relativedelta(months=nMonths)
             rpSOLO_info["startdate"] = startdate.strftime("%Y-%m-%d")
             rpSOLO_info["enddate"] = enddate.strftime("%Y-%m-%d")
-        ## plot the summary statistics
-        #gfSOLO_plotsummary(ds)
         rpSOLO_progress(rpSOLO_gui,"Finished auto (monthly) run ...")
     elif rpSOLO_gui.peropt.get()==4:
         # automatic run with yearly datetime periods
@@ -1971,8 +1967,6 @@ def rpSOLO_run(ds,rpSOLO_gui,rpSOLO_info):
             enddate = startdate+dateutil.relativedelta.relativedelta(years=1)
             rpSOLO_info["startdate"] = startdate.strftime("%Y-%m-%d")
             rpSOLO_info["enddate"] = enddate.strftime("%Y-%m-%d")
-        ### plot the summary statistics
-        ##gfSOLO_plotsummary(ds)
         rpSOLO_progress(rpSOLO_gui,"Finished auto (yearly) run ...")
     elif rpSOLO_gui.peropt.get()==5:
         pass

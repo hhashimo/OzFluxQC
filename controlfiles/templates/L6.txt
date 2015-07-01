@@ -2,6 +2,7 @@
     file_path = ../Sites/<site_name>/Data/Processed/all/
     in_filename = <site_name>_<start_year>_to_<end_year>_L5.nc
     out_filename = <site_name>_<start_year>_to_<end_year>_L6.nc
+    plot_path = ../Sites/<site_name>/Plots/
 
 [Options]
     DayNightFilter      = Fsd    # Fsd/sa, Fsd ==> use Fsd, sa ==> use solar altitude
@@ -23,14 +24,14 @@
     [[Fre_SOLO]]
         [[[FreUsingSOLO]]]
             target ="Fre"
-            drivers = "['Ts','Sws']"             #minimal
+            drivers = "['Ts','Ta','Sws']"
             output = "Fre_SOLO_all"
         [[[MergeSeries]]]
             Source = "['Fre','Fre_SOLO_all']"
     [[Fre_FFNET]]
         [[[FreUsingFFNET]]]
             target ="Fre"
-            drivers = "['Ts','Sws']"
+            drivers = "['Ts','Ta','Sws']"
             output = "Fre_FFNET_all"
         [[[MergeSeries]]]
             Source = "['Fre','Fre_FFNET_all']"

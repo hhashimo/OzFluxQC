@@ -471,31 +471,32 @@ class qcgui(tk.Tk):
         """
             Call qcls.l5qc function to gap fill the fluxes.
         """
-        self.cf = qcio.load_controlfile(path='controlfiles')
-        if len(self.cf)==0: self.do_progress(text='Waiting for input ...'); return
-        infilename = qcio.get_infilenamefromcf(self.cf)
+        cf = qcio.load_controlfile(path='controlfiles')
+        if len(cf)==0: self.do_progress(text='Waiting for input ...'); return
+        infilename = qcio.get_infilenamefromcf(cf)
+        if "plot_path" not in cf["Files"].keys(): cf["Files"]["plot_path"] = "plots/"
         if len(infilename)==0: self.do_progress(text='An error occurred, check the console ...'); return
         if not qcutils.file_exists(infilename): self.do_progress(text='An error occurred, check the console ...'); return
-        self.ds4 = qcio.nc_read_series(infilename)
-        if len(self.ds4.series.keys())==0: self.do_progress(text='An error occurred, check the console ...'); del self.ds4; return
-        self.ds4.globalattributes['controlfile_name'] = self.cf['controlfile_name']
-        self.update_startenddate(str(self.ds4.series['DateTime']['Data'][0]),
-                                 str(self.ds4.series['DateTime']['Data'][-1]))
-        sitename = self.ds4.globalattributes['site_name']
+        ds4 = qcio.nc_read_series(infilename)
+        if len(ds4.series.keys())==0: self.do_progress(text='An error occurred, check the console ...'); del ds4; return
+        ds4.globalattributes['controlfile_name'] = cf['controlfile_name']
+        self.update_startenddate(str(ds4.series['DateTime']['Data'][0]),
+                                 str(ds4.series['DateTime']['Data'][-1]))
+        sitename = ds4.globalattributes['site_name']
         self.do_progress(text='Doing L5 gap filling fluxes: '+sitename+' ...')
-        self.ds5 = qcls.l5qc(self.cf,self.ds4)
-        if self.ds5.returncodes["solo"]=="quit":
+        ds5 = qcls.l5qc(cf,ds4)
+        if ds5.returncodes["solo"]=="quit":
             self.do_progress(text='Quitting L5: '+sitename)
             log.info(' Quitting L5: '+sitename)
         else:
             self.do_progress(text='Finished L5: '+sitename)
             log.info(' Finished L5: '+sitename)
             self.do_progress(text='Saving L5 gap filled data ...')           # put up the progress message
-            outfilename = qcio.get_outfilenamefromcf(self.cf)
+            outfilename = qcio.get_outfilenamefromcf(cf)
             if len(outfilename)==0: self.do_progress(text='An error occurred, check the console ...'); return
             ncFile = qcio.nc_open_write(outfilename)
-            outputlist = qcio.get_outputlistfromcf(self.cf,'nc')
-            qcio.nc_write_series(ncFile,self.ds5,outputlist=outputlist)             # save the L5 data
+            outputlist = qcio.get_outputlistfromcf(cf,'nc')
+            qcio.nc_write_series(ncFile,ds5,outputlist=outputlist)           # save the L5 data
             self.do_progress(text='Finished saving L5 gap filled data')      # tell the user we are done
             log.info(' Finished saving L5 gap filled data')
 
@@ -503,27 +504,28 @@ class qcgui(tk.Tk):
         """
             Call qcls.l6qc function to partition NEE into GPP and Fre.
         """
-        self.cf = qcio.load_controlfile(path='controlfiles')
-        if len(self.cf)==0: self.do_progress(text='Waiting for input ...'); return
-        infilename = qcio.get_infilenamefromcf(self.cf)
+        cf = qcio.load_controlfile(path='controlfiles')
+        if len(cf)==0: self.do_progress(text='Waiting for input ...'); return
+        infilename = qcio.get_infilenamefromcf(cf)
+        if "plot_path" not in cf["Files"].keys(): cf["Files"]["plot_path"] = "plots/"
         if len(infilename)==0: self.do_progress(text='An error occurred, check the console ...'); return
         if not qcutils.file_exists(infilename): self.do_progress(text='An error occurred, check the console ...'); return
-        self.ds5 = qcio.nc_read_series(infilename)
-        if len(self.ds5.series.keys())==0: self.do_progress(text='An error occurred, check the console ...'); del self.ds5; return
-        self.ds5.globalattributes['controlfile_name'] = self.cf['controlfile_name']
-        self.update_startenddate(str(self.ds5.series['DateTime']['Data'][0]),
-                                 str(self.ds5.series['DateTime']['Data'][-1]))
-        sitename = self.ds5.globalattributes['site_name']
+        ds5 = qcio.nc_read_series(infilename)
+        if len(ds5.series.keys())==0: self.do_progress(text='An error occurred, check the console ...'); del ds5; return
+        ds5.globalattributes['controlfile_name'] = cf['controlfile_name']
+        self.update_startenddate(str(ds5.series['DateTime']['Data'][0]),
+                                 str(ds5.series['DateTime']['Data'][-1]))
+        sitename = ds5.globalattributes['site_name']
         self.do_progress(text='Doing L6 partitioning: '+sitename+' ...')
-        self.ds6 = qcls.l6qc(self.cf,self.ds5)
+        ds6 = qcls.l6qc(cf,ds5)
         self.do_progress(text='Finished L6: '+sitename)
         log.info(' Finished L6: '+sitename)
         self.do_progress(text='Saving L6 partitioned data ...')           # put up the progress message
-        outfilename = qcio.get_outfilenamefromcf(self.cf)
+        outfilename = qcio.get_outfilenamefromcf(cf)
         if len(outfilename)==0: self.do_progress(text='An error occurred, check the console ...'); return
         ncFile = qcio.nc_open_write(outfilename)
-        outputlist = qcio.get_outputlistfromcf(self.cf,'nc')
-        qcio.nc_write_series(ncFile,self.ds6,outputlist=outputlist)             # save the L6 data
+        outputlist = qcio.get_outputlistfromcf(cf,'nc')
+        qcio.nc_write_series(ncFile,ds6,outputlist=outputlist)             # save the L6 data
         self.do_progress(text='Finished saving L6 partitioned data')      # tell the user we are done
         log.info(' Finished saving L6 partitioned data')
 
