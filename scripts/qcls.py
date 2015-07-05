@@ -232,17 +232,17 @@ def l4qc(cf,ds3):
         qcgf.GapFillParseControlFile(cf,ds4,ThisOne,ds_alt)
     # *** start of the section that does the gap filling of the drivers ***
     # do the gap filling using the ACCESS output
-    qcgf.GapFillFromAlternate(ds4,ds_alt)
+    qcgf.GapFillFromAlternate(cf,ds4,ds_alt)
     if ds4.returncodes["alternate"]=="quit": return ds4
     # gap fill using SOLO
-    qcgf.GapFillUsingSOLO(ds3,ds4)
+    qcgf.GapFillUsingSOLO(cf,ds3,ds4)
     if ds4.returncodes["solo"]=="quit": return ds4
     # gap fill using climatology
     qcgf.GapFillFromClimatology(ds4)
     # merge the first group of gap filled drivers into a single series
     qcts.MergeSeriesUsingDict(ds4,merge_order="prerequisite")
     # re-calculate the ground heat flux
-    qcts.CorrectFgForStorage(cf,ds4,Fg_out='Fg',Fg_in='Fg_Av',Ts_in='Ts',Sws_in='Sws')
+    #qcts.CorrectFgForStorage(cf,ds4,Fg_out='Fg',Fg_in='Fg_Av',Ts_in='Ts',Sws_in='Sws')
     # re-calculate the net radiation
     qcts.CalculateNetRadiation(cf,ds4,Fn_out='Fn',Fsd_in='Fsd',Fsu_in='Fsu',Fld_in='Fld',Flu_in='Flu')
     # re-calculate the available energy
@@ -284,7 +284,7 @@ def l5qc(cf,ds4):
         qcgf.GapFillParseControlFile(cf,ds5,ThisOne,ds_alt)
     # *** start of the section that does the gap filling of the fluxes ***
     # do the gap filling using SOLO
-    qcgf.GapFillUsingSOLO(ds4,ds5)
+    qcgf.GapFillUsingSOLO(cf,ds4,ds5)
     if ds5.returncodes["solo"]=="quit": return ds5
     ## gap fill using marginal distribution sampling
     #qcgf.GapFillFluxUsingMDS(cf,ds5)

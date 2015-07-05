@@ -316,7 +316,7 @@ def CreateSeries(ds,Label,Data,FList=None,Flag=None,Attr=None):
     if Flag is None:
         ds.series['_tmp_']['Flag'] = MakeQCFlag(ds,FList)
     else:
-        ds.series['_tmp_']['Flag'] = Flag
+        ds.series['_tmp_']['Flag'] = Flag.astype(numpy.int32)
     # do the attributes
     ds.series['_tmp_']['Attr'] = {}
     if Label in ds.series.keys():                 # check to see if the series already exists
@@ -761,7 +761,6 @@ def GetSeries(ds,ThisOne,si=0,ei=-1,mode="truncate"):
         if 'Flag' in ds.series[ThisOne].keys():
             # return the QC flag if it exists
             Flag = ds.series[ThisOne]['Flag'].copy()
-            Flag = Flag.astype(numpy.int32)
         else:
             # create a QC flag if one does not exist
             Flag = numpy.zeros(nRecs,dtype=numpy.int32)
@@ -1177,14 +1176,14 @@ def get_ymdhmsfromdatetime(ds):
     nRecs = int(ds.globalattributes["nc_nrecs"])
     dt = ds.series["DateTime"]["Data"]
     flag = numpy.zeros(nRecs,dtype=numpy.int32)
-    Year = [dt[i].year for i in range(0,nRecs)]
-    Month = [dt[i].month for i in range(0,nRecs)]
-    Day = [dt[i].day for i in range(0,nRecs)]
-    Hour = [dt[i].hour for i in range(0,nRecs)]
-    Minute = [dt[i].minute for i in range(0,nRecs)]
-    Second = [dt[i].second for i in range(0,nRecs)]
-    Hdh = [float(Hour[i])+float(Minute[i])/60. for i in range(0,nRecs)]
-    Ddd = [(dt[i] - datetime.datetime(Year[i],1,1)).days+1+Hdh[i]/24. for i in range(0,nRecs)]
+    Year = numpy.array([dt[i].year for i in range(0,nRecs)]).astype(numpy.int32)
+    Month = numpy.array([dt[i].month for i in range(0,nRecs)]).astype(numpy.int32)
+    Day = numpy.array([dt[i].day for i in range(0,nRecs)]).astype(numpy.int32)
+    Hour = numpy.array([dt[i].hour for i in range(0,nRecs)]).astype(numpy.int32)
+    Minute = numpy.array([dt[i].minute for i in range(0,nRecs)]).astype(numpy.int32)
+    Second = numpy.array([dt[i].second for i in range(0,nRecs)]).astype(numpy.int32)
+    Hdh = numpy.array([float(Hour[i])+float(Minute[i])/60. for i in range(0,nRecs)]).astype(numpy.float64)
+    Ddd = numpy.array([(dt[i] - datetime.datetime(Year[i],1,1)).days+1+Hdh[i]/24. for i in range(0,nRecs)]).astype(numpy.float64)
     CreateSeries(ds,'Year',Year,Flag=flag,Attr=MakeAttributeDictionary(long_name='Year',units='none'))
     CreateSeries(ds,'Month',Month,Flag=flag,Attr=MakeAttributeDictionary(long_name='Month',units='none'))
     CreateSeries(ds,'Day',Day,Flag=flag,Attr=MakeAttributeDictionary(long_name='Day',units='none'))
@@ -1286,7 +1285,7 @@ def MakeQCFlag(ds,SeriesList):
                     flag = numpy.maximum(flag,tmp_flag)               # now take the maximum
             else:
                 log.error('  MakeQCFlag: series '+ThisOne+' not in ds.series')
-    return flag
+    return flag.astype(numpy.int32)
 
 def MAtoSeries(Series):
     """

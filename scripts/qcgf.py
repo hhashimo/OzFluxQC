@@ -315,7 +315,7 @@ def gfClimatology_monthly(ds,series,output,xlbook):
     ds.series[output]['Flag'][index] = numpy.int32(40)
 
 # functions for GapFillFromAlternate
-def GapFillFromAlternate(ds4,ds_alt):
+def GapFillFromAlternate(cf,ds4,ds_alt):
     '''
     This is the gap fill from alternate data GUI.
     The alternate data gap fill GUI is displayed separately from the main OzFluxQC GUI.
@@ -328,8 +328,6 @@ def GapFillFromAlternate(ds4,ds_alt):
     # set the default return code
     ds4.returncodes["alternate"] = "normal"
     if "alternate" not in dir(ds4): return
-    # put up a plot of the data coverage at L3
-    gfalternate_plotcoveragelines(ds4)
     # get a local pointer to the tower datetime series
     ldt_tower = ds4.series["DateTime"]["Data"]
     # get the start and end datetime of the tower data
@@ -340,6 +338,24 @@ def GapFillFromAlternate(ds4,ds_alt):
                       "overlap_enddate":enddate.strftime("%Y-%m-%d %H:%M"),
                       "startdate":startdate.strftime("%Y-%m-%d %H:%M"),
                       "enddate":enddate.strftime("%Y-%m-%d %H:%M")}
+    # check to see if this is a batch or an interactive run
+    call_mode = qcio.get_keyvaluefromcf(cf,["Options"],"call_mode",default="interactive")
+    alternate_info["call_mode"]= call_mode
+    if call_mode.lower()=="interactive": alternate_info["show_plots"] = True
+    if call_mode.lower()=="interactive":
+        # put up a plot of the data coverage at L3
+        gfalternate_plotcoveragelines(ds4,alternate_info)
+        # call the GapFillFromAlternate GUI
+        gfalternate_gui(cf,ds4,ds_alt,alternate_info)
+    else:
+        if "GUI" in cf["Options"]:
+            gfalternate_run_nogui(cf,ds4,ds_alt,alternate_info)
+        else:
+            log.warning(" No GUI sub-section found in Options section of control file")
+            gfalternate_plotcoveragelines(ds4,alternate_info)
+            gfalternate_gui(cf,ds4,ds_alt,alternate_info)
+
+def gfalternate_gui(cf,ds4,ds_alt,alternate_info):
     # make the GUI
     alt_gui = Tkinter.Toplevel()
     alt_gui.wm_title("Gap fill using alternate data")
@@ -406,7 +422,7 @@ def GapFillFromAlternate(ds4,ds_alt):
     nrow = nrow + 1
     alt_gui.doneButton = Tkinter.Button(alt_gui,text="Done",command=lambda:gfalternate_done(ds4,alt_gui))
     alt_gui.doneButton.grid(row=nrow,column=0,columnspan=2)
-    alt_gui.runButton = Tkinter.Button(alt_gui,text="Run",command=lambda:gfalternate_run(ds4,ds_alt,alt_gui,alternate_info))
+    alt_gui.runButton = Tkinter.Button(alt_gui,text="Run",command=lambda:gfalternate_run_gui(ds4,ds_alt,alt_gui,alternate_info))
     alt_gui.runButton.grid(row=nrow,column=2,columnspan=2)
     alt_gui.quitButton = Tkinter.Button(alt_gui,text="Quit",command=lambda:gfalternate_quit(ds4,alt_gui))
     alt_gui.quitButton.grid(row=nrow,column=4,columnspan=2)
@@ -547,7 +563,7 @@ def gfalternate_autocomplete(ds_tower,ds_alt,alternate_info,mode="verbose"):
             alternate_info["startdate"] = ldt_tower[gap[0]].strftime("%Y-%m-%d %H:%M")
             alternate_info["enddate"] = ldt_tower[gap[1]].strftime("%Y-%m-%d %H:%M")
             gfalternate_main(ds_tower,ds_alt,alternate_info,label_tower_list=[label_tower])
-            gfalternate_plotcoveragelines(ds_tower)
+            gfalternate_plotcoveragelines(ds_tower,alternate_info)
             if not_enough_points: break
 
 def gfalternate_autocomplete_rewrite(ds_tower,ds_alt,alternate_info,mode="verbose"):
@@ -765,7 +781,7 @@ def gfalternate_done(ds,alt_gui):
     Date: August 2014
     """
     # plot the summary statistics
-    #gfalternate_plotsummary(ds)
+    #gfalternate_plotsummary(ds,alternate_info)
     # destroy the alternate GUI
     alt_gui.destroy()
     # write Excel spreadsheet with fit statistics
@@ -1387,6 +1403,7 @@ def gfalternate_main(ds_tower,ds_alt,alternate_info,label_tower_list=[]):
     # read the control file again
     cfname = ds_tower.globalattributes["controlfile_name"]
     cf = qcio.get_controlfilecontents(cfname,mode="quiet")
+    alternate_info["plot_path"] = cf["Files"]["plot_path"]
     # do any QC checks
     qcck.do_qcchecks(cf,ds_tower,mode="quiet")
     # update the ds.alternate dictionary
@@ -1543,8 +1560,8 @@ def gfalternate_plotcomposite(nfig,data_dict,stat_dict,diel_avg,alternate_info,p
     # save a hard copy of the plot
     sdt = data_dict["DateTime"]["data"][0].strftime("%Y%m%d")
     edt = data_dict["DateTime"]["data"][-1].strftime("%Y%m%d")
-    plot_path = "plots/"
-    if "plot_path" in alternate_info.keys(): plot_path = alternate_info["plot_path"]
+    plot_path = alternate_info["plot_path"]+"L4/"
+    if not os.path.exists(plot_path): os.makedirs(plot_path)
     figname = plot_path+alternate_info["site_name"].replace(" ","")+"_Alternate_"+label_tower
     figname = figname+"_"+sdt+"_"+edt+'.png'
     fig.savefig(figname,format='png')
@@ -1555,8 +1572,11 @@ def gfalternate_plotcomposite(nfig,data_dict,stat_dict,diel_avg,alternate_info,p
     else:
         plt.ion()
 
-def gfalternate_plotcoveragelines(ds_tower):
+def gfalternate_plotcoveragelines(ds_tower,alternate_info):
     ldt = ds_tower.series["DateTime"]["Data"]
+    site_name = ds_tower.globalattributes["site_name"]
+    start_date = ldt[0].strftime("%Y-%m-%d")
+    end_date = ldt[-1].strftime("%Y-%m-%d")
     slist = [ds_tower.alternate[item]["label_tower"] for item in ds_tower.alternate.keys()]
     series_list = list(set(slist))
     ylabel_list = [""]+series_list+[""]
@@ -1564,7 +1584,10 @@ def gfalternate_plotcoveragelines(ds_tower):
     color_list = ["blue","red","green","yellow","magenta","black","cyan","brown"]
     xsize = 15.0
     ysize = len(series_list)*0.2
-    plt.ion()
+    if alternate_info["show_plots"]:
+        plt.ion()
+    else:
+        plt.ioff()
     if plt.fignum_exists(0):
         fig=plt.figure(0)
         plt.clf()
@@ -1572,7 +1595,8 @@ def gfalternate_plotcoveragelines(ds_tower):
     else:
         fig=plt.figure(0,figsize=(xsize,ysize))
         ax1 = plt.subplot(111)
-    fig.canvas.set_window_title("Coverage")
+    title = "Coverage: "+site_name+" "+start_date+" to "+end_date
+    fig.canvas.set_window_title(title)
     plt.ylim([0,len(series_list)+1])
     plt.xlim([ldt[0],ldt[-1]])
     for series,n in zip(series_list,range(1,len(series_list)+1)):
@@ -1593,11 +1617,14 @@ def gfalternate_plotcoveragelines(ds_tower):
     ax2 = ax1.twinx()
     pylab.yticks(ylabel_posn,ylabel_right_list)
     fig.tight_layout()
-    fig.canvas.manager.window.attributes('-topmost', 1)
-    plt.draw()
-    plt.ioff()
+    #fig.canvas.manager.window.attributes('-topmost', 1)
+    if alternate_info["show_plots"]:
+        plt.draw()
+        plt.ioff()
+    else:
+        plt.ion()
 
-def gfalternate_plotsummary(ds):
+def gfalternate_plotsummary(ds,alternate_info):
     """ Plot single pages of summary results for groups of variables. """
     # get a list of variables for which alternate data is available
     output_list = ds.alternate.keys()
@@ -1678,7 +1705,9 @@ def gfalternate_plotsummary(ds):
         # make the hard-copy file name and save the plot as a PNG file
         sdt = startdate.strftime("%Y%m%d")
         edt = enddate.strftime("%Y%m%d")
-        figname = "plots/"+site_name.replace(" ","")+"_Alternate_FitStatistics_"+figlab
+        plot_path = alternate_info["plot_path"]+"L4/"
+        if not os.path.exists(plot_path): os.makedirs(plot_path)
+        figname = plot_path+site_name.replace(" ","")+"_Alternate_FitStatistics_"+figlab
         figname = figname+"_"+sdt+"_"+edt+".png"
         fig.savefig(figname,format="png")
 
@@ -1706,7 +1735,7 @@ def gfalternate_quit(ds,alt_gui):
     # put the return code into ds.alternate
     ds.returncodes["alternate"] = "quit"
 
-def gfalternate_run(ds_tower,ds_alt,alt_gui,alternate_info):
+def gfalternate_run_gui(ds_tower,ds_alt,alt_gui,alternate_info):
     # populate the alternate_info dictionary with things that will be useful
     alternate_info["peropt"] = alt_gui.peropt.get()
     alternate_info["overwrite"] = True
@@ -1734,7 +1763,7 @@ def gfalternate_run(ds_tower,ds_alt,alt_gui,alternate_info):
         if len(alt_gui.startEntry.get())!=0: alternate_info["startdate"] = alt_gui.startEntry.get()
         if len(alt_gui.endEntry.get())!=0: alternate_info["enddate"] = alt_gui.endEntry.get()
         gfalternate_main(ds_tower,ds_alt,alternate_info)
-        gfalternate_plotcoveragelines(ds_tower)
+        gfalternate_plotcoveragelines(ds_tower,alternate_info)
         gfalternate_progress(alt_gui,"Finished manual run ...")
         # get the start and end datetime of the tower data
         ldt_tower = ds_tower.series["DateTime"]["Data"]
@@ -1743,8 +1772,8 @@ def gfalternate_run(ds_tower,ds_alt,alt_gui,alternate_info):
         # create the alternate_info dictionary, this will hold much useful information
         alternate_info = {"overlap_startdate":startdate.strftime("%Y-%m-%d %H:%M"),
                           "overlap_enddate":enddate.strftime("%Y-%m-%d %H:%M"),
-                          "startdate":startdate.strftime("%Y-%m-%d"),
-                          "enddate":enddate.strftime("%Y-%m-%d")}
+                          "startdate":startdate.strftime("%Y-%m-%d %H:%M"),
+                          "enddate":enddate.strftime("%Y-%m-%d %H:%M")}
     elif alt_gui.peropt.get()==2:
         gfalternate_progress(alt_gui,"Starting auto (monthly) run ...")
         # get the start datetime entered in the alternate GUI
@@ -1757,7 +1786,7 @@ def gfalternate_run(ds_tower,ds_alt,alt_gui,alternate_info):
         alternate_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d %H:%M")
         while startdate<overlap_enddate:
             gfalternate_main(ds_tower,ds_alt,alternate_info)
-            gfalternate_plotcoveragelines(ds_tower)
+            gfalternate_plotcoveragelines(ds_tower,alternate_info)
             startdate = enddate
             enddate = startdate+dateutil.relativedelta.relativedelta(months=1)
             alternate_info["startdate"] = startdate.strftime("%Y-%m-%d %H:%M")
@@ -1791,7 +1820,7 @@ def gfalternate_run(ds_tower,ds_alt,alt_gui,alternate_info):
         stopdate = min([overlap_enddate,gui_enddate])
         while startdate<stopdate:
             gfalternate_main(ds_tower,ds_alt,alternate_info)
-            gfalternate_plotcoveragelines(ds_tower)
+            gfalternate_plotcoveragelines(ds_tower,alternate_info)
             startdate = enddate
             enddate = startdate+dateutil.relativedelta.relativedelta(days=nDays)
             run_enddate = min([stopdate,enddate])
@@ -1806,8 +1835,134 @@ def gfalternate_run(ds_tower,ds_alt,alt_gui,alternate_info):
         # create the alternate_info dictionary, this will hold much useful information
         alternate_info = {"overlap_startdate":startdate.strftime("%Y-%m-%d %H:%M"),
                           "overlap_enddate":enddate.strftime("%Y-%m-%d %H:%M"),
-                          "startdate":startdate.strftime("%Y-%m-%d"),
-                          "enddate":enddate.strftime("%Y-%m-%d")}        
+                          "startdate":startdate.strftime("%Y-%m-%d %H:%M"),
+                          "enddate":enddate.strftime("%Y-%m-%d %H:%M")}        
+    else:
+        log.error("GapFillFromAlternate: unrecognised period option")
+
+def gfalternate_run_nogui(cf,ds_tower,ds_alt,alternate_info):
+    # populate the alternate_info dictionary with things that will be useful
+    # autoforce is used by gfalternate_autocomplete
+    alternate_info["autoforce"] = False
+    # period option
+    dt_tower = ds_tower.series["DateTime"]["Data"]
+    opt = qcio.get_keyvaluefromcf(cf,["Options","GUI"],"period_option",default="manual",mode="quiet")
+    if opt=="manual":
+        alternate_info["peropt"] = 1
+        sd = qcio.get_keyvaluefromcf(cf,["Options","GUI"],"start_date",default="",mode="quiet")
+        alternate_info["startdate"] = dt_tower[0].strftime("%Y-%m-%d %H:%M")
+        if len(sd)!=0: alternate_info["startdate"] = sd
+        ed = qcio.get_keyvaluefromcf(cf,["Options","GUI"],"end_date",default="",mode="quiet")
+        alternate_info["enddate"] = dt_tower[-1].strftime("%Y-%m-%d %H:%M")
+        if len(ed)!=0: alternate_info["enddate"] = ed
+    elif opt=="monthly":
+        alternate_info["peropt"] = 2
+        sd = qcio.get_keyvaluefromcf(cf,["Options","GUI"],"start_date",default="",mode="quiet")
+        alternate_info["startdate"] = dt_tower[0].strftime("%Y-%m-%d %H:%M")
+        if len(sd)!=0: alternate_info["startdate"] = sd
+    elif opt=="days":
+        alternate_info["peropt"] = 3
+        sd = qcio.get_keyvaluefromcf(cf,["Options","GUI"],"start_date",default="",mode="quiet")
+        alternate_info["startdate"] = dt_tower[0].strftime("%Y-%m-%d %H:%M")
+        if len(sd)!=0: alternate_info["startdate"] = sd
+        ed = qcio.get_keyvaluefromcf(cf,["Options","GUI"],"end_date",default="",mode="quiet")
+        alternate_info["enddate"] = dt_tower[-1].strftime("%Y-%m-%d %H:%M")
+        if len(ed)!=0: alternate_info["enddate"] = ed
+    # overwrite option
+    alternate_info["overwrite"] = False
+    opt = qcio.get_keyvaluefromcf(cf,["Options","GUI"],"overwrite",default="no",mode="quiet")
+    if opt.lower()=="yes": alternate_info["overwrite"] = True
+    # show plots option
+    alternate_info["show_plots"] = True
+    opt = qcio.get_keyvaluefromcf(cf,["Options","GUI"],"show_plots",default="yes",mode="quiet")
+    if opt.lower()=="no": alternate_info["show_plots"] = False
+    # auto-complete option
+    alternate_info["auto_complete"] = True
+    opt = qcio.get_keyvaluefromcf(cf,["Options","GUI"],"auto_complete",default="yes",mode="quiet")
+    if opt.lower()=="no": alternate_info["auto_complete"] = False
+    # minimum percentage of good points required
+    opt = qcio.get_keyvaluefromcf(cf,["Options","GUI"],"min_percent",default=50,mode="quiet")
+    alternate_info["min_percent"] = int(opt)
+    # number of days
+    opt = qcio.get_keyvaluefromcf(cf,["Options","GUI"],"number_days",default=90,mode="quiet")
+    alternate_info["number_days"] = int(opt)
+    # now set up the rest of the alternate_info dictionary
+    alternate_info["site_name"] = ds_tower.globalattributes["site_name"]
+    alternate_info["time_step"] = int(ds_tower.globalattributes["time_step"])
+    alternate_info["nperhr"] = int(float(60)/alternate_info["time_step"]+0.5)
+    alternate_info["nperday"] = int(float(24)*alternate_info["nperhr"]+0.5)
+    alternate_info["max_lags"] = int(float(12)*alternate_info["nperhr"]+0.5)
+    alternate_info["tower"] = {}
+    alternate_info["alternate"] = {}
+    series_list = [ds_tower.alternate[item]["label_tower"] for item in ds_tower.alternate.keys()]
+    alternate_info["series_list"] = series_list
+    #alternate_info["series_list"] = ["Ah","Ta"]
+    log.info(" Gap filling "+str(list(set(series_list)))+" using alternate data")
+    if alternate_info["peropt"]==1:
+        gfalternate_main(ds_tower,ds_alt,alternate_info)
+        #gfalternate_plotcoveragelines(ds_tower)
+        # get the start and end datetime of the tower data
+        startdate = dt_tower[0]
+        enddate = dt_tower[-1]
+        # create the alternate_info dictionary, this will hold much useful information
+        alternate_info = {"overlap_startdate":startdate.strftime("%Y-%m-%d %H:%M"),
+                          "overlap_enddate":enddate.strftime("%Y-%m-%d %H:%M"),
+                          "startdate":startdate.strftime("%Y-%m-%d %H:%M"),
+                          "enddate":enddate.strftime("%Y-%m-%d %H:%M")}
+    elif alternate_info["peropt"]==2:
+        startdate = dateutil.parser.parse(alternate_info["startdate"])
+        overlap_startdate = dateutil.parser.parse(alternate_info["overlap_startdate"])
+        overlap_enddate = dateutil.parser.parse(alternate_info["overlap_enddate"])
+        enddate = startdate+dateutil.relativedelta.relativedelta(months=1)
+        enddate = min([overlap_enddate,enddate])
+        alternate_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d %H:%M")
+        while startdate<overlap_enddate:
+            gfalternate_main(ds_tower,ds_alt,alternate_info)
+            #gfalternate_plotcoveragelines(ds_tower)
+            startdate = enddate
+            enddate = startdate+dateutil.relativedelta.relativedelta(months=1)
+            alternate_info["startdate"] = startdate.strftime("%Y-%m-%d %H:%M")
+            alternate_info["enddate"] = enddate.strftime("%Y-%m-%d %H:%M")
+        gfalternate_autocomplete(ds_tower,ds_alt,alternate_info)
+        # get the start and end datetime of the tower data
+        ldt_tower = ds_tower.series["DateTime"]["Data"]
+        startdate = ldt_tower[0]
+        enddate = ldt_tower[-1]
+        # create the alternate_info dictionary, this will hold much useful information
+        alternate_info = {"overlap_startdate":startdate.strftime("%Y-%m-%d %H:%M"),
+                          "overlap_enddate":enddate.strftime("%Y-%m-%d %H:%M"),
+                          "startdate":startdate.strftime("%Y-%m-%d %H:%M"),
+                          "enddate":enddate.strftime("%Y-%m-%d %H:%M")}
+    elif alternate_info["peropt"]==3:
+        nDays = alternate_info["number_days"]
+        alternate_info["gui_startdate"] = alternate_info["startdate"]
+        alternate_info["gui_enddate"] = alternate_info["enddate"]
+        startdate = dateutil.parser.parse(alternate_info["startdate"])
+        gui_enddate = dateutil.parser.parse(alternate_info["gui_enddate"])
+        overlap_enddate = dateutil.parser.parse(alternate_info["overlap_enddate"])
+        enddate = startdate+dateutil.relativedelta.relativedelta(days=nDays)
+        enddate = min([overlap_enddate,enddate,gui_enddate])
+        alternate_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d %H:%M")
+        alternate_info["startdate"] = datetime.datetime.strftime(startdate,"%Y-%m-%d %H:%M")
+        stopdate = min([overlap_enddate,gui_enddate])
+        while startdate<stopdate:
+            gfalternate_main(ds_tower,ds_alt,alternate_info)
+            #gfalternate_plotcoveragelines(ds_tower)
+            startdate = enddate
+            enddate = startdate+dateutil.relativedelta.relativedelta(days=nDays)
+            run_enddate = min([stopdate,enddate])
+            alternate_info["startdate"] = startdate.strftime("%Y-%m-%d %H:%M")
+            alternate_info["enddate"] = run_enddate.strftime("%Y-%m-%d %H:%M")
+        gfalternate_autocomplete(ds_tower,ds_alt,alternate_info)
+        # get the start and end datetime of the tower data
+        ldt_tower = ds_tower.series["DateTime"]["Data"]
+        startdate = ldt_tower[0]
+        enddate = ldt_tower[-1]
+        # create the alternate_info dictionary, this will hold much useful information
+        alternate_info = {"overlap_startdate":startdate.strftime("%Y-%m-%d %H:%M"),
+                          "overlap_enddate":enddate.strftime("%Y-%m-%d %H:%M"),
+                          "startdate":startdate.strftime("%Y-%m-%d %H:%M"),
+                          "enddate":enddate.strftime("%Y-%m-%d %H:%M")}        
     else:
         log.error("GapFillFromAlternate: unrecognised period option")
 
@@ -1946,7 +2101,7 @@ def gfalternate_update_alternate_info(ds_tower,alternate_info):
         alternate_info["lag"] = "no"
 
 # functions for GapFillUsingSOLO
-def GapFillUsingSOLO(dsa,dsb):
+def GapFillUsingSOLO(cf,dsa,dsb):
     '''
     This is the "Run SOLO" GUI.
     The SOLO GUI is displayed separately from the main OzFluxQC GUI.
@@ -1959,7 +2114,6 @@ def GapFillUsingSOLO(dsa,dsb):
     # set the default return code
     dsb.returncodes["solo"] = "normal"
     if "solo" not in dir(dsb): return
-    gfSOLO_plotcoveragelines(dsb)
     # local pointer to the datetime series
     ldt = dsb.series["DateTime"]["Data"]
     startdate = ldt[0]
@@ -1968,6 +2122,25 @@ def GapFillUsingSOLO(dsa,dsb):
                  "file_enddate":enddate.strftime("%Y-%m-%d %H:%M"),
                  "startdate":startdate.strftime("%Y-%m-%d %H:%M"),
                  "enddate":enddate.strftime("%Y-%m-%d %H:%M")}
+    # check to see if this is a batch or an interactive run
+    call_mode = qcio.get_keyvaluefromcf(cf,["Options"],"call_mode",default="interactive")
+    solo_info["call_mode"]= call_mode
+    if call_mode.lower()=="interactive": solo_info["show_plots"] = True
+    if call_mode.lower()=="interactive":
+        # put up a plot of the data coverage at L4
+        gfSOLO_plotcoveragelines(dsb,solo_info)
+        # call the GapFillUsingSOLO GUI
+        gfSOLO_gui(cf,dsa,dsb,solo_info)
+    else:
+        if "GUI" in cf["Options"]:
+            gfSOLO_run_nogui(cf,dsa,dsb,solo_info)
+        else:
+            log.warning(" No GUI sub-section found in Options section of control file")
+            gfSOLO_plotcoveragelines(dsb,solo_info)
+            gfSOLO_gui(cf,dsa,dsb,solo_info)
+
+def  gfSOLO_gui(cf,dsa,dsb,solo_info):
+    ldt = dsb.series["DateTime"]["Data"]
     # set up the GUI
     solo_gui = Tkinter.Toplevel()
     solo_gui.wm_title("SOLO GUI (Fluxes)")
@@ -2065,7 +2238,7 @@ def GapFillUsingSOLO(dsa,dsb):
     nrow = nrow + 1
     solo_gui.doneButton = Tkinter.Button (solo_gui, text="Done",command=lambda:gfSOLO_done(dsb,solo_gui,solo_info))
     solo_gui.doneButton.grid(row=nrow,column=0,columnspan=2)
-    solo_gui.runButton = Tkinter.Button (solo_gui, text="Run",command=lambda:gfSOLO_run(dsa,dsb,solo_gui,solo_info))
+    solo_gui.runButton = Tkinter.Button (solo_gui, text="Run",command=lambda:gfSOLO_run_gui(dsa,dsb,solo_gui,solo_info))
     solo_gui.runButton.grid(row=nrow,column=2,columnspan=2)
     solo_gui.quitButton = Tkinter.Button (solo_gui, text="Quit",command=lambda:gfSOLO_quit(dsb,solo_gui))
     solo_gui.quitButton.grid(row=nrow,column=4,columnspan=2)
@@ -2400,8 +2573,11 @@ def gfSOLO_plot(pd,dsa,dsb,driverlist,targetlabel,outputlabel,solo_info,si=0,ei=
     else:
         plt.ion()
 
-def gfSOLO_plotcoveragelines(dsb):
+def gfSOLO_plotcoveragelines(dsb,solo_info):
     ldt = dsb.series["DateTime"]["Data"]
+    site_name = dsb.globalattributes["site_name"]
+    start_date = ldt[0].strftime("%Y-%m-%d")
+    end_date = ldt[-1].strftime("%Y-%m-%d")
     output_list = dsb.solo.keys()
     series_list = [dsb.solo[item]["label_tower"] for item in dsb.solo.keys()]
     ylabel_list = [""]+series_list+[""]
@@ -2415,7 +2591,8 @@ def gfSOLO_plotcoveragelines(dsb):
         plt.cla()
     else:
         fig=plt.figure(0,figsize=(xsize,ysize))
-    fig.canvas.set_window_title("Coverage")
+    title = "Coverage: "+site_name+" "+start_date+" to "+end_date
+    fig.canvas.set_window_title(title)
     plt.ylim([0,len(output_list)+1])
     for output,series,n in zip(output_list,series_list,range(1,len(output_list)+1)):
         data_output,f,a = qcutils.GetSeriesasMA(dsb,output)
@@ -2542,7 +2719,7 @@ def gfSOLO_resetnodesEntry(solo_gui):
     solo_gui.nodesEntry.delete(0,Tkinter.END)
     solo_gui.nodesEntry.insert(0,"Auto")
 
-def gfSOLO_run(dsa,dsb,solo_gui,solo_info):
+def gfSOLO_run_gui(dsa,dsb,solo_gui,solo_info):
     # populate the solo_info dictionary with things that will be useful
     solo_info["peropt"] = solo_gui.peropt.get()
     solo_info["overwrite"] = True
@@ -2624,6 +2801,121 @@ def gfSOLO_run(dsa,dsb,solo_gui,solo_info):
         gfSOLO_progress(solo_gui,"Finished auto (days) run ...")
         log.info(" GapFillUsingSOLO: Finished auto (days) run ...")
     elif solo_gui.peropt.get()==4:
+        pass
+
+def gfSOLO_run_nogui(cf,dsa,dsb,solo_info):
+    # populate the solo_info dictionary with things that will be useful
+    # period option
+    dt = dsb.series["DateTime"]["Data"]
+    opt = qcio.get_keyvaluefromcf(cf,["Options","GUI"],"period_option",default="manual",mode="quiet")
+    if opt=="manual":
+        solo_info["peropt"] = 1
+        sd = qcio.get_keyvaluefromcf(cf,["Options","GUI"],"start_date",default="",mode="quiet")
+        solo_info["startdate"] = dt[0].strftime("%Y-%m-%d %H:%M")
+        if len(sd)!=0: solo_info["startdate"] = sd
+        ed = qcio.get_keyvaluefromcf(cf,["Options","GUI"],"end_date",default="",mode="quiet")
+        solo_info["enddate"] = dt[-1].strftime("%Y-%m-%d %H:%M")
+        if len(ed)!=0: solo_info["enddate"] = ed
+    elif opt=="monthly":
+        solo_info["peropt"] = 2
+        sd = qcio.get_keyvaluefromcf(cf,["Options","GUI"],"start_date",default="",mode="quiet")
+        solo_info["startdate"] = dt[0].strftime("%Y-%m-%d %H:%M")
+        if len(sd)!=0: solo_info["startdate"] = sd
+    elif opt=="days":
+        solo_info["peropt"] = 3
+        sd = qcio.get_keyvaluefromcf(cf,["Options","GUI"],"start_date",default="",mode="quiet")
+        solo_info["startdate"] = dt[0].strftime("%Y-%m-%d %H:%M")
+        if len(sd)!=0: solo_info["startdate"] = sd
+        ed = qcio.get_keyvaluefromcf(cf,["Options","GUI"],"end_date",default="",mode="quiet")
+        solo_info["enddate"] = dt[-1].strftime("%Y-%m-%d %H:%M")
+        if len(ed)!=0: solo_info["enddate"] = ed
+    # overwrite option
+    solo_info["overwrite"] = False
+    opt = qcio.get_keyvaluefromcf(cf,["Options","GUI"],"overwrite",default="no",mode="quiet")
+    if opt.lower()=="yes": solo_info["overwrite"] = True
+    # show plots option
+    solo_info["show_plots"] = True
+    opt = qcio.get_keyvaluefromcf(cf,["Options","GUI"],"show_plots",default="yes",mode="quiet")
+    if opt.lower()=="no": solo_info["show_plots"] = False
+    # auto-complete option
+    solo_info["auto_complete"] = True
+    opt = qcio.get_keyvaluefromcf(cf,["Options","GUI"],"auto_complete",default="yes",mode="quiet")
+    if opt.lower()=="no": alternate_info["auto_complete"] = False
+    # minimum percentage of good points required
+    opt = qcio.get_keyvaluefromcf(cf,["Options","GUI"],"min_percent",default=50,mode="quiet")
+    solo_info["min_percent"] = int(opt)
+    # number of days
+    opt = qcio.get_keyvaluefromcf(cf,["Options","GUI"],"number_days",default=90,mode="quiet")
+    solo_info["number_days"] = int(opt)
+    # nodes for SOFM/SOLO network
+    opt = qcio.get_keyvaluefromcf(cf,["Options","GUI"],"nodes",default="auto",mode="quiet")
+    solo_info["nodes"] = str(opt)
+    # training iterations
+    opt = qcio.get_keyvaluefromcf(cf,["Options","GUI"],"training",default="500",mode="quiet")
+    solo_info["training"] = str(opt)
+    # nda factor
+    opt = qcio.get_keyvaluefromcf(cf,["Options","GUI"],"nda_factor",default="5",mode="quiet")
+    solo_info["factor"] = str(opt)
+    # learning rate
+    opt = qcio.get_keyvaluefromcf(cf,["Options","GUI"],"learning",default="0.01",mode="quiet")
+    solo_info["learningrate"] = str(opt)
+    # learning iterations
+    opt = qcio.get_keyvaluefromcf(cf,["Options","GUI"],"iterations",default="500",mode="quiet")
+    solo_info["iterations"] = str(opt)
+    # now set up the rest of the solo_info dictionary
+    solo_info["site_name"] = dsb.globalattributes["site_name"]
+    solo_info["time_step"] = int(dsb.globalattributes["time_step"])
+    solo_info["nperhr"] = int(float(60)/solo_info["time_step"]+0.5)
+    solo_info["nperday"] = int(float(24)*solo_info["nperhr"]+0.5)
+    solo_info["maxlags"] = int(float(12)*solo_info["nperhr"]+0.5)
+    solo_info["series"] = dsb.solo.keys()
+    solo_info["tower"] = {}
+    solo_info["alternate"] = {}
+    series_list = [dsb.solo[item]["label_tower"] for item in dsb.solo.keys()]
+    log.info(" Gap filling "+str(series_list)+" using SOLO")
+    if solo_info["peropt"]==1:
+        gfSOLO_main(dsa,dsb,solo_info)
+        log.info(" GapFillUsingSOLO: Finished manual run ...")
+    elif solo_info["peropt"]==2:
+        # get the start datetime entered in the SOLO GUI
+        startdate = dateutil.parser.parse(solo_info["startdate"])
+        file_startdate = dateutil.parser.parse(solo_info["file_startdate"])
+        file_enddate = dateutil.parser.parse(solo_info["file_enddate"])
+        enddate = startdate+dateutil.relativedelta.relativedelta(months=1)
+        enddate = min([file_enddate,enddate])
+        solo_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d %H:%M")
+        while startdate<file_enddate:
+            gfSOLO_main(dsa,dsb,solo_info)
+            startdate = enddate
+            enddate = startdate+dateutil.relativedelta.relativedelta(months=1)
+            solo_info["startdate"] = startdate.strftime("%Y-%m-%d %H:%M")
+            solo_info["enddate"] = enddate.strftime("%Y-%m-%d %H:%M")
+        # now fill any remaining gaps
+        gfSOLO_autocomplete(dsa,dsb,solo_info)
+        # plot the summary statistics
+        gfSOLO_plotsummary(dsb,solo_info)
+        log.info(" GapFillUsingSOLO: Finished auto (monthly) run ...")
+    elif solo_info["peropt"]==3:
+        # get the start datetime entered in the SOLO GUI
+        startdate = dateutil.parser.parse(solo_info["startdate"])
+        file_startdate = dateutil.parser.parse(solo_info["file_startdate"])
+        file_enddate = dateutil.parser.parse(solo_info["file_enddate"])
+        nDays = int(alternate_info["number_days"])
+        enddate = startdate+dateutil.relativedelta.relativedelta(days=nDays)
+        enddate = min([file_enddate,enddate])
+        solo_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d %H:%M")
+        while startdate<file_enddate:
+            gfSOLO_main(dsa,dsb,solo_info)
+            startdate = enddate
+            enddate = startdate+dateutil.relativedelta.relativedelta(days=nDays)
+            solo_info["startdate"] = startdate.strftime("%Y-%m-%d %H:%M")
+            solo_info["enddate"] = enddate.strftime("%Y-%m-%d %H:%M")
+        # now fill any remaining gaps
+        gfSOLO_autocomplete(dsa,dsb,solo_info)
+        # plot the summary statistics
+        gfSOLO_plotsummary(dsb,solo_info)
+        log.info(" GapFillUsingSOLO: Finished auto (days) run ...")
+    elif solo_info["peropt"]==4:
         pass
 
 def gfSOLO_runseqsolo(dsa,dsb,driverlist,targetlabel,outputlabel,nRecs,si=0,ei=-1):

@@ -50,7 +50,7 @@ def convert_v27tov28():
     # add the "missing_value" attribute if it is not present
     for ThisOne in ds.series.keys():
         if "missing_value" not in ds.series[ThisOne]["Attr"].keys():
-            ds.series[ThisOne]["Attr"]["missing_value"] = c.missing_value
+            ds.series[ThisOne]["Attr"]["missing_value"] = numpy.int32(c.missing_value)
     # write the V2.8 file
     ncFile = nc_open_write(ncV28name,nctype='NETCDF4')
     nc_write_series(ncFile, ds)
@@ -594,6 +594,9 @@ def get_controlfilecontents(ControlFileName,mode="verbose"):
         cf['controlfile_name'] = ControlFileName
     else:
         cf = ConfigObj()
+    if "Files" in cf:
+        if "plot_path" not in cf["Files"].keys():
+            cf["Files"]["plot_path"] = "plots/"
     return cf
 
 def get_controlfilename(path='.',title='Choose a control file'):
@@ -1188,6 +1191,11 @@ def nc_read_var(ncFile,ThisOne):
             # create an empty flag series if it does not exist
             nRecs = numpy.size(data)
             flag = numpy.zeros(nRecs,dtype=numpy.int32)
+    # force float32 to float64
+    if data.dtype=="float32": data = data.astype(numpy.float64)
+    # check for Year, Month etc as int64, force to int32 if required
+    if ThisOne in ["Year","Month","Day","Hour","Minute","Second"]:
+        if data.dtype=="int64": data = data.astype(numpy.int32)
     # get the variable attributes
     vattrlist = ncFile.variables[ThisOne].ncattrs()
     attr = {}
@@ -1209,6 +1217,8 @@ def nc_write_series(ncFile,ds,outputlist=None,ndims=3):
     ldt = ds.series["DateTime"]["Data"]
     ds.globalattributes['QC_version'] = str(cfg.version_name)+' '+str(cfg.version_number)
     for ThisOne in ds.globalattributes.keys():
+        if "int" in str(type(ds.globalattributes[ThisOne])):
+            ds.globalattributes[ThisOne] = numpy.int32(ds.globalattributes[ThisOne])
         setattr(ncFile,ThisOne,ds.globalattributes[ThisOne])
     t = time.localtime()
     rundatetime = str(datetime.datetime(t[0],t[1],t[2],t[3],t[4],t[5]))
@@ -1259,7 +1269,7 @@ def nc_write_series(ncFile,ds,outputlist=None,ndims=3):
             setattr(ncVar,'standard_name','longitude')
             setattr(ncVar,'units','degrees east')
     # now make sure the date and time series are in outputlist
-    datetimelist = ['xlDateTime','Year','Month','Day','Hour','Minute','Second','Hdh']
+    datetimelist = ['xlDateTime','Year','Month','Day','Hour','Minute','Second','Hdh','Ddd']
     # and write them to the netCDF file
     for ThisOne in sorted(datetimelist):
         if ThisOne in ds.series.keys(): nc_write_var(ncFile,ds,ThisOne,dims)
@@ -1292,6 +1302,10 @@ def nc_write_var(ncFile,ds,ThisOne,dim):
     """
     # get the data type of the series in ds
     dt = get_ncdtype(ds.series[ThisOne]['Data'])
+    # force data type to float64 or int32
+    if dt not in ["d","i"]:
+        dt = "d"
+        if ThisOne in ["Year","Month","Day","Hour","Minute","Second"]: dt = "i"
     # create the netCDF variable
     try:
         ncVar = ncFile.createVariable(ThisOne,dt,dim)

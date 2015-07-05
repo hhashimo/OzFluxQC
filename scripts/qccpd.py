@@ -17,6 +17,7 @@ import sys
 import Tkinter, tkFileDialog
 import xlrd
 import pdb
+import qcio
 
 log = logging.getLogger('qc.cpd')
 
@@ -145,16 +146,16 @@ def get_data():
             d[i] = nc_obj.variables[i][:]
     nc_obj.close()
     df = pd.DataFrame(d, index = dates_list)    
-        
+
     # Build dictionary of additional configs
     d = {}
     d['radiation_threshold'] = int(cf['options']['radiation_threshold'])
     d['num_bootstraps'] = int(cf['options']['num_bootstraps'])
     d['flux_period'] = flux_period
     if cf['options']['output_plots'] == 'True':
-        d['plot_output_path'] = plot_path_out
+        d['plot_path'] = plot_path_out
     if cf['options']['output_results'] == 'True':
-        d['results_output_path'] = results_path_out
+        d['results_path'] = results_path_out
         
     # Replace configured error values with NaNs and remove data with unacceptable QC codes, then drop flags
     df.replace(int(cf['options']['nan_value']), np.nan)
@@ -247,13 +248,12 @@ def cpd_main(cf):
             #if 'results_output_path' in d.keys(): 
                 #print 'Outputting results for all years / seasons / T classes in observational dataset'
                 #results_df.to_csv(os.path.join(d['results_output_path'],'Observational_ustar_threshold_statistics.csv'))
-            #if 'plot_output_path' in d.keys(): 
+            #if 'plot_path' in d.keys(): 
                 #print 'Doing plotting for observational data'
                 #for j in results_df.index:
-                    #plot_fits(seasons_df.loc[j], results_df.loc[j], d['plot_output_path'])
+                    #plot_fits(seasons_df.loc[j], results_df.loc[j], d['plot_path'])
             log.info('Outputting results for all years / seasons / T classes in observational dataset')
-            xlname = os.path.join(d['results_output_path'],"CPD_output_statistics.xls")
-            xlwriter = pd.ExcelWriter(xlname)
+            xlwriter = pd.ExcelWriter(d['file_out'])
             xlsheet = "T class"
             results_df.to_excel(xlwriter,sheet_name=xlsheet)
 
@@ -296,17 +296,17 @@ def cpd_main(cf):
     
     # If requested by user, plot: 1) histograms of u* thresholds for each year; 
     #                             2) normalised a1 and a2 values
-    if 'plot_output_path' in d.keys():
+    if 'plot_path' in d.keys():
         log.info(' Plotting u* histograms for all valid b model thresholds for all valid years')
         [plot_hist(all_results_df.loc[j, 'bMod_threshold'][all_results_df.loc[j, 'b_valid'] == True],
                    output_stats_df.loc[j, 'ustar_mean'],
                    output_stats_df.loc[j, 'ustar_sig'],
                    output_stats_df.loc[j, 'crit_t'],
-                   j, d['plot_output_path'])
+                   j, d)
          for j in output_stats_df.index]
         
         log.info(' Plotting normalised median slope parameters for all valid a model thresholds for all valid years')
-        plot_slopes(output_stats_df[['norm_a1_median', 'norm_a2_median']], d['plot_output_path'])    
+        plot_slopes(output_stats_df[['norm_a1_median', 'norm_a2_median']], d)
     
     # Output final stats if requested by user
     #if 'results_output_path' in d.keys():
@@ -315,10 +315,13 @@ def cpd_main(cf):
     xlsheet = "Annual"
     output_stats_df.to_excel(xlwriter,sheet_name=xlsheet)    
     xlwriter.save()
+    # close any open plot windows if we are doing batch processing
+    print d["call_mode"]
+    if d["call_mode"]!="interactive": plt.close('all')
     
     log.info(' CPD analysis complete!')
     # Return final results
-    return output_stats_df    
+    return output_stats_df
 #------------------------------------------------------------------------------
 
 #------------------------------------------------------------------------------
@@ -334,11 +337,14 @@ def CPD_run(cf):
     # Set input file and output path and create directories for plots and results
     file_in = os.path.join(cf['Files']['file_path'],cf['Files']['in_filename'])
     path_out = cf['Files']['file_path']
-    path_out = os.path.join(path_out,'CPD')
-    plot_path_out = os.path.join(path_out,'Plots')
-    if not os.path.isdir(plot_path_out): os.makedirs(plot_path_out)
-    results_path_out = os.path.join(path_out,'Results')
-    if not os.path.isdir(results_path_out): os.makedirs(results_path_out)    
+    #path_out = os.path.join(path_out,'CPD')
+    file_out = os.path.join(cf['Files']['file_path'],cf['Files']['in_filename'].replace(".nc","_CPD.xls"))
+    plot_path = "plots/"
+    if "plot_path" in cf["Files"]: plot_path = os.path.join(cf["Files"]["plot_path"],"CPD/")
+    #plot_path = os.path.join(path_out,'Plots')
+    if not os.path.isdir(plot_path): os.makedirs(plot_path)
+    results_path = path_out
+    if not os.path.isdir(results_path): os.makedirs(results_path)
     # **** original code from IMcH
     #file_in=os.path.join(cf['files']['input_path'],cf['files']['input_file'])
     #path_out=cf['files']['output_path']
@@ -391,7 +397,6 @@ def CPD_run(cf):
         elif nDims==3:
             # 3 dimensions
             d[item] = ncFile.variables[item][:,0,0]
-    ncFile.close()
     df=pd.DataFrame(d,index=dates_list)
 
     # Build dictionary of additional configs
@@ -408,10 +413,14 @@ def CPD_run(cf):
     d['radiation_threshold']=int(cf['Options']['Fsd_threshold'])
     d['num_bootstraps']=int(cf['Options']['Num_bootstraps'])
     d['flux_period']=flux_period
+    d['site_name']=getattr(ncFile,"site_name")
+    d["call_mode"]=qcio.get_keyvaluefromcf(cf,["Options"],"call_mode",default="interactive",mode="quiet")
+    d["show_plots"]=qcio.get_keyvaluefromcf(cf,["Options"],"show_plots",default=True,mode="quiet")
     if cf['Options']['Output_plots']=='True':
-        d['plot_output_path']=plot_path_out
+        d['plot_path']=plot_path
     if cf['Options']['Output_results']=='True':
-        d['results_output_path']=results_path_out
+        d['results_path']=results_path
+        d["file_out"]=file_out
 
     # Replace configured error values with NaNs and remove data with unacceptable QC codes, then drop flags
     # *** original code from IMcH
@@ -426,6 +435,8 @@ def CPD_run(cf):
     for i in xrange(len(vars_data)):
         df[vars_data[i]]=np.where(eval(eval_string),df[vars_data[i]],np.nan)
     df=df[vars_data]
+
+    ncFile.close()
     
     return df,d
 #------------------------------------------------------------------------------
@@ -464,7 +475,7 @@ def plot_fits(temp_df,stats_df,plot_out):
     plt.close(fig)
 
 # Plot PDF of u* values and write to specified folder           
-def plot_hist(S,mu,sig,crit_t,year,plot_out):
+def plot_hist(S,mu,sig,crit_t,year,d):
     if len(S)<=1:
         log.info(" plot_hist: 1 or less values in S for year "+str(year)+", skipping histogram ...")
         return
@@ -472,7 +483,10 @@ def plot_hist(S,mu,sig,crit_t,year,plot_out):
     x_low=S.min()-0.1*S.min()
     x_high=S.max()+0.1*S.max()
     x=np.linspace(x_low,x_high,100)
-    plt.ion()
+    if d["show_plots"]:
+        plt.ion()
+    else:
+        plt.ioff()
     fig=plt.figure(figsize=(12,8))
     #fig.patch.set_facecolor('white')
     plt.hist(S,normed=True)
@@ -488,16 +502,23 @@ def plot_hist(S,mu,sig,crit_t,year,plot_out):
     plt.text(0.4,0.1,txt,bbox=props,fontsize=12,verticalalignment='top',transform=ax.transAxes)
     plt.legend(loc='upper left')
     plt.title(str(year)+'\n')
-    plt.draw()
-    plot_out_name='ustar'+str(year)+'.jpg'
-    fig.savefig(os.path.join(plot_out,plot_out_name))
-    #plt.close(fig)
+    plot_out_name=os.path.join(d["plot_path"],d["site_name"]+'_CPD_'+str(year)+'.png')
+    fig.savefig(plot_out_name)
+    if d["show_plots"]:
+        plt.draw()
+        plt.ioff()
+    else:
+        plt.ion()
+    #if d["call_mode"].lower()!="interactive": plt.close(fig)
 
 # Plot normalised slope parameters to identify outlying years and output to    
 # results folder - user can discard output for that year                       
-def plot_slopes(df,plot_out):
+def plot_slopes(df,d):
     df=df.reset_index(drop=True)
-    plt.ion()
+    if d["show_plots"]:
+        plt.ion()
+    else:
+        plt.ioff()
     fig=plt.figure(figsize=(12,8))
     #fig.patch.set_facecolor('white')
     plt.scatter(df['norm_a1_median'],df['norm_a2_median'],s=80,edgecolors='blue',facecolors='none')
@@ -508,10 +529,14 @@ def plot_slopes(df,plot_out):
     plt.title('Normalised slope parameters \n')
     plt.axvline(x=1,color='black',linestyle='dotted')
     plt.axhline(y=0,color='black',linestyle='dotted')
-    plt.draw()
-    plot_out_name='normalised_slope_parameters.jpg'
-    fig.savefig(os.path.join(plot_out,plot_out_name))
-    #plt.close(fig)
+    plot_out_name=os.path.join(d["plot_path"],d['site_name']+"_CPD_slopes.png")
+    fig.savefig(plot_out_name)
+    if d["show_plots"]:
+        plt.draw()
+        plt.ioff()
+    else:
+        plt.ion()
+    #if d["call_mode"].lower()!="interactive": plt.close(fig)
 
 #------------------------------------------------------------------------------
 

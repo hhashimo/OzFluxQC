@@ -98,7 +98,7 @@ def ApplyLinear(cf,ds,ThisOne):
             data[si:ei] = Slope * data[si:ei] + Offset
             index = numpy.where(flag[si:ei]==0)[0]
             flag[si:ei][index] = numpy.int32(10)
-            ds.series[ThisOne]['Data'] = numpy.ma.filled(data,float(c.missing_value))
+            ds.series[ThisOne]['Data'] = numpy.ma.filled(data,float(c.missing_value)).astype(numpy.float64)
             ds.series[ThisOne]['Flag'] = flag
 
 def ApplyLinearDrift(cf,ds,ThisOne):
@@ -258,7 +258,6 @@ def CalculateAvailableEnergy(ds,Fa_out='Fa',Fn_in='Fn',Fg_in='Fg'):
     else:
         Fa_exist,flag,attr = qcutils.GetSeriesasMA(ds,Fa_out)
         idx = numpy.where((numpy.ma.getmaskarray(Fa_exist)==True)&(numpy.ma.getmaskarray(Fa_calc)==False))[0]
-        #idx = numpy.ma.where((numpy.ma.getmaskarray(Fa_exist)==True)&(numpy.ma.getmaskarray(Fa_calc)==False))[0]
         if len(idx)!=0:
             Fa_exist[idx] = Fa_calc[idx]
             flag[idx] = numpy.int32(20)
@@ -1279,7 +1278,7 @@ def do_attributes(cf,ds):
                 for attr in cf['Variables'][ThisOne]['Attr'].keys():
                     ds.series[ThisOne]['Attr'][attr] = cf['Variables'][ThisOne]['Attr'][attr]
                 if "missing_value" not in ds.series[ThisOne]['Attr'].keys():
-                    ds.series[ThisOne]['Attr']["missing_value"] = c.missing_value
+                    ds.series[ThisOne]['Attr']["missing_value"] = numpy.int32(c.missing_value)
 
 def do_functions(cf,ds):
     log.info(' Getting variances from standard deviations & vice versa')
@@ -1821,7 +1820,7 @@ def InterpolateOverMissing(ds,series='',maxlen=1000):
     # linear interpolation function
     f = interpolate.interp1d(DateNum[iog],data_org[iog],bounds_error=False,fill_value=float(c.missing_value))
     # interpolate over the whole time series
-    data_int = f(DateNum).astype(numpy.float32)
+    data_int = f(DateNum).astype(numpy.float64)
     # copy the original flag
     flag_int = numpy.copy(flag_org)
     # index of interpolates that are not equal to the missing value
@@ -1844,7 +1843,7 @@ def InterpolateOverMissing(ds,series='',maxlen=1000):
         if duration>maxlen:
             #data_int[start:stop+1] = numpy.float(c.missing_value)
             #flag_int[start:stop+1] = flag_org[start:stop+1]
-            data_int[start:stop] = numpy.float(c.missing_value)
+            data_int[start:stop] = numpy.float64(c.missing_value)
             flag_int[start:stop] = flag_org[start:stop]
     # put data_int back into the data structure
     attr_int = dict(attr_org)
