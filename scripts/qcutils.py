@@ -219,6 +219,44 @@ def ConvertFcUnits(cf,ds,Fc='Fc',Fc_storage='Fc_storage'):
             else:
                 log.info('  ConvertFcUnits: input or output units for Fc_storage unrecognised')
 
+def convertunits(old_data,old_units,new_units,ts,mode="quiet"):
+    """
+    Purpose:
+     Generic routine for changing units.
+     Nothing is done if the original units are the same as the requested units.
+    Usage:
+     new_data = qcutils.convertunits(old_data,old_units,new_units)
+     where old_data is a 1D array of data in the original units
+           old_units are the units of the original data
+           new_units are the units of the new data
+           ts is the time step
+    Author: PRI
+    Date: July 2015
+    """
+    if old_units==new_units: return
+    # check the units are something we understand
+    # add more lists here to cope with water etc
+    co2_list = ["umol/m2/s","gC/m2"]
+    ok_list = co2_list
+    if old_units not in ok_list:
+        msg = " Unrecognised units in quantity provided ("+old_units+")"
+        log.error(msg)
+        new_data = old_data
+    elif new_units not in ok_list:
+        msg = " Unrecognised units requested ("+new_units+")"
+        log.error(msg)
+        new_data = old_data
+    elif old_units=="umol/m2/s" and new_units=="gC/m2":
+        # do the units change
+        new_data = old_data*12.01*ts*60/1E6
+    elif old_units=="gC/m2" and new_units=="umol/m2/s":
+        # do the units change
+        new_data = old_data*1E6/(12.01*ts*60)
+    else:
+        msg = "Unrecognised units combination "+old_units+" and "+new_units
+        log.error(msg)
+    return new_data
+
 def convert_anglestring(anglestring):
     """
     Purpose:

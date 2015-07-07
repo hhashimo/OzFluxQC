@@ -1,73 +1,35 @@
-import sys
-sys.path.append('../scripts')
-import constants as c
-import csv
-import matplotlib.pyplot as plt
-import meteorologicalfunctions as mf
 import netCDF4
-import numpy
-import os
-import qcio
-import qcts
-import qcutils
 
-# open the logging file
-log = qcutils.startlog('bios2nc','../logfiles/bios2nc.log')
+dap_url = "http://www.auscover.org.au/thredds/dodsC/"
+dap_folder = "auscover/lpdaac-aggregates/c5/v2-nc4/aust/MOD13Q1.005/"
+dap_name = "MOD13Q1.aggregated.aust.005.enhanced_vegetation_index.ncml"
+dap_file = dap_url+dap_folder+dap_name
 
-# load a control file
-cf = qcio.load_controlfile(path='../controlfiles')
-# get the variable list
-var_list = cf["Variables"].keys()
-# get the site list
-site_list = cf["Sites"].keys()
-# get the variable names
-xldt_label = cf["Variables"]["xlDateTime"]["dingo_name"]
-evii_label = cf["Variables"]["EVI_MODIS_interp"]["dingo_name"]
-evis_label = cf["Variables"]["EVI_MODIS_smooth"]["dingo_name"]
-for site in site_list:
-    # get the input file mask
-    infilename = cf["Sites"][site]["in_filepath"]+cf["Sites"][site]["in_filename"]
-    if not os.path.isfile(infilename):
-        log.error("CSV file "+infilename+" not found, skipping ...")
-        continue
-    log.info("Starting site: "+site)
-    csvfile = open(infilename,'rb')
-    csvreader = csv.reader(csvfile)
-    header = csvreader.next()
-    dt_col=header.index(xldt_label)
-    eviint_col = header.index(evii_label)
-    evismo_col = header.index(evis_label)
-    csvfile.close()
+nc_file = netCDF4.Dataset(dap_file,"r")
 
-    evi=numpy.genfromtxt(infilename,skip_header=1,delimiter=",",usecols=(dt_col,eviint_col,evismo_col))
-    
-    ds=qcio.DataStructure()
-    ds.globalattributes["xl_datemode"] = 0
-    ds.globalattributes["time_step"] = cf["Sites"][site]["time_step"]
-    ds.globalattributes["time_zone"] = cf["Sites"][site]["time_zone"]
-    ds.globalattributes["latitude"] = cf["Sites"][site]["latitude"]
-    ds.globalattributes["longitude"] = cf["Sites"][site]["longitude"]
-    
-    ds.series["xlDateTime"] = {}
-    ds.series["xlDateTime"]["Data"] = numpy.array(evi[:,0]+1,dtype=numpy.float64)
-    nRecs = len(ds.series["xlDateTime"]["Data"])
-    ds.globalattributes["nc_nrecs"] = nRecs
-    flag = numpy.zeros(nRecs,dtype=numpy.int32)
-    ds.series["xlDateTime"]["Flag"] = flag
-    ds.series["xlDateTime"]["Attr"] = {}
-    ds.series["xlDateTime"]["Attr"]["long_name"] = "Date/time in Excel format"
-    ds.series["xlDateTime"]["Attr"]["units"] = "days since 1899-12-31 00:00:00"
-    ds.series["xlDateTime"]["Attr"]["standard_name"] = "not defined"
-    ds.series["xlDateTime"]["Attr"]["cf_role"] = "timeseries_id"
-    
-    qcutils.get_datetimefromxldate(ds)
-    qcutils.get_ymdhms_from_datetime(ds)
-    
-    attr=qcutils.MakeAttributeDictionary(long_name="MODIS EVI, 250m, interpolated",units="none")
-    qcutils.CreateSeries(ds,"EVI_MODIS_interp",evi[:,1],Flag=flag,Attr=attr)
-    attr=qcutils.MakeAttributeDictionary(long_name="MODIS EVI, 250m, interpolated and smooothed",units="none")
-    qcutils.CreateSeries(ds,"EVI_MODIS_smooth",evi[:,2],Flag=flag,Attr=attr)
-    
-    outfilename = cf["Sites"][site]["out_filepath"]+cf["Sites"][site]["out_filename"]
-    ncfile=qcio.nc_open_write(outfilename)
-    qcio.nc_write_series(ncfile,ds)
+lat_resolution = getattr(nc_file,"geospatial_lat_resolution")
+lon_resolution = getattr(nc_file,"geospatial_lon_resolution")
+
+# get the site information and the AWS stations to use
+xlname = "../../BoM/Locations/AWS_Locations.xls"
+wb = xlrd.open_workbook(xlname)
+sheet = wb.sheet_by_name("OzFlux")
+xl_row = 10
+xl_col = 0
+bom_sites_info = {}
+for n in range(xl_row,sheet.nrows):
+    xlrow = sheet.row_values(n)
+    bom_sites_info[str(xlrow[0])] = {}
+    bom_sites_info[xlrow[0]]["latitude"] = xlrow[1]
+    bom_sites_info[xlrow[0]]["longitude"] = xlrow[2]
+    bom_sites_info[xlrow[0]]["elevation"] = xlrow[3]
+    for i in [4,10,16,22]:
+        if xlrow[i]!="":
+            bom_sites_info[str(xlrow[0])][str(int(xlrow[i+1]))] = {}
+            bom_sites_info[str(xlrow[0])][str(int(xlrow[i+1]))]["site_name"] = xlrow[i]
+            bom_sites_info[str(xlrow[0])][str(int(xlrow[i+1]))]["latitude"] = xlrow[i+2]
+            bom_sites_info[str(xlrow[0])][str(int(xlrow[i+1]))]["longitude"] = xlrow[i+3]
+            bom_sites_info[str(xlrow[0])][str(int(xlrow[i+1]))]["elevation"] = xlrow[i+4]
+            bom_sites_info[str(xlrow[0])][str(int(xlrow[i+1]))]["distance"] = xlrow[i+5]
+
+site_list = bom_sites_info.keys()

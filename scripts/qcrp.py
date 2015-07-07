@@ -781,28 +781,17 @@ def L6_summary_createseriesdict(cf,ds):
     Date: June 2015
     """
     ts = int(ds.globalattributes["time_step"])
-    series_dict = {"daily":{},"annual":{},"cumulative":{}}
-    list_dict = {}
+    series_dict = {"daily":{},"annual":{},"cumulative":{},"lists":{}}
     # adjust units of NEE, NEP, GPP and Fre
-    list_dict["nee"] = [item for item in cf["NEE"].keys() if "NEE" in item and item in ds.series.keys()]
-    list_dict["gpp"] = [item for item in cf["GPP"].keys() if "GPP" in item and item in ds.series.keys()]
-    list_dict["fre"] = [item for item in cf["Fre"].keys() if "Fre" in item and item in ds.series.keys()]
-    list_dict["nep"] = [item.replace("NEE","NEP") for item in list_dict["nee"]]
-    list_dict["co2"] = list_dict["nee"]+list_dict["nep"]+list_dict["gpp"]+list_dict["fre"]
-    for item in list_dict["co2"]:
+    sdl = series_dict["lists"]
+    sdl["nee"] = [item for item in cf["NEE"].keys() if "NEE" in item and item in ds.series.keys()]
+    sdl["gpp"] = [item for item in cf["GPP"].keys() if "GPP" in item and item in ds.series.keys()]
+    sdl["fre"] = [item for item in cf["Fre"].keys() if "Fre" in item and item in ds.series.keys()]
+    sdl["nep"] = [item.replace("NEE","NEP") for item in sdl["nee"]]
+    sdl["co2"] = sdl["nee"]+sdl["nep"]+sdl["gpp"]+sdl["fre"]
+    for item in sdl["co2"]:
         series_dict["daily"][item] = {}
         series_dict["cumulative"][item] = {}
-        data,flag,attr = qcutils.GetSeriesasMA(ds,item)
-        if attr["units"]=="umol/m2/s":
-            data = data*12.01*ts*60/1E6
-            attr["units"] = "gC/m2"
-            qcutils.CreateSeries(ds,item,data,Flag=flag,Attr=attr)
-        elif attr["units"]=="gC/m2":
-            pass
-        else:
-            msg = "L6_summary: unrecognised units for "+item
-            log.error(msg)
-            continue
         series_dict["daily"][item]["operator"] = "sum"
         series_dict["daily"][item]["format"] = "0.00"
         series_dict["cumulative"][item]["operator"] = "sum"
@@ -863,7 +852,11 @@ def L6_summary_daily(xl_file,ds,series_dict):
         if item not in ds.series.keys(): continue
         daily_dict[item] = {}
         data_1d,flag,attr = qcutils.GetSeriesasMA(ds,item,si=si,ei=ei)
-        daily_dict[item]["units"] = attr["units"]
+        if item in series_dict["lists"]["co2"]:
+            data_1d = qcutils.convertunits(data_1d,attr["units"],"gC/m2",ts)
+            daily_dict[item]["units"] = "gC/m2"
+        else:
+            daily_dict[item]["units"] = attr["units"]
         data_2d = data_1d.reshape(nDays,ntsInDay)
         if series_dict["daily"][item]["operator"].lower()=="average":
             daily_dict[item]["data"] = numpy.ma.average(data_2d,axis=1)
@@ -980,7 +973,11 @@ def L6_summary_annual(xl_file,ds,series_dict):
         for item in series_list:
             if item not in ds.series.keys(): continue
             data_1d,flag,attr = qcutils.GetSeriesasMA(ds,item,si=si,ei=ei)
-            annual_dict[item]["units"] = attr["units"]
+            if item in series_dict["lists"]["co2"]:
+                data_1d = qcutils.convertunits(data_1d,attr["units"],"gC/m2",ts)
+                annual_dict[item]["units"] = "gC/m2"
+            else:
+                annual_dict[item]["units"] = attr["units"]
             if series_dict["annual"][item]["operator"].lower()=="average":
                 annual_dict[item]["data"][i] = numpy.ma.average(data_1d)
             elif series_dict["annual"][item]["operator"].lower()=="sum":
@@ -1033,9 +1030,14 @@ def L6_summary_cumulative(xl_file,ds,series_dict):
         for item in series_list:
             cumulative_dict[str(year)][item] = {}
             data,flag,attr = qcutils.GetSeriesasMA(ds,item,si=si,ei=ei)
+            if item in series_dict["lists"]["co2"]:
+                data = qcutils.convertunits(data,attr["units"],"gC/m2",ts)
+                cumulative_dict[str(year)][item]["units"] = "gC/m2"
+            else:
+                cumulative_dict[str(year)][item]["units"] = attr["units"]
             cumulative_dict[str(year)][item]["data"] = numpy.ma.cumsum(data)
-            cumulative_dict[str(year)][item]["units"] = attr["units"]+"/year"
             cumulative_dict[str(year)][item]["format"] = series_dict["cumulative"][item]["format"]
+            cumulative_dict[str(year)][item]["units"] = cumulative_dict[str(year)][item]["units"]+"/year"
         xl_sheet = xl_file.add_sheet("Cumulative("+str(year)+")")
         qcio.xl_write_data(xl_sheet,cumulative_dict[str(year)])
     return cumulative_dict
