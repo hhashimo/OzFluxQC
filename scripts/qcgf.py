@@ -2283,7 +2283,7 @@ def gfSOLO_autocomplete(dsa,dsb,solo_info):
             solo_info["startdate"] = ldt[si].strftime("%Y-%m-%d %H:%M")
             solo_info["enddate"] = ldt[ei].strftime("%Y-%m-%d %H:%M")
             gfSOLO_main(dsa,dsb,solo_info,output_list=[output])
-            gfSOLO_plotcoveragelines(dsb)
+            gfSOLO_plotcoveragelines(dsb,solo_info)
 
 def gfSOLO_createdict(cf,ds,series):
     """ Creates a dictionary in ds to hold information about the SOLO data used
@@ -2750,7 +2750,7 @@ def gfSOLO_run_gui(dsa,dsb,solo_gui,solo_info):
         if len(solo_gui.startEntry.get())!=0: solo_info["startdate"] = solo_gui.startEntry.get()
         if len(solo_gui.endEntry.get())!=0: solo_info["enddate"] = solo_gui.endEntry.get()
         gfSOLO_main(dsa,dsb,solo_info)
-        gfSOLO_plotcoveragelines(dsb)
+        gfSOLO_plotcoveragelines(dsb,solo_info)
         gfSOLO_progress(solo_gui,"Finished manual run ...")
         log.info(" GapFillUsingSOLO: Finished manual run ...")
     elif solo_gui.peropt.get()==2:
@@ -2765,7 +2765,7 @@ def gfSOLO_run_gui(dsa,dsb,solo_gui,solo_info):
         solo_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d %H:%M")
         while startdate<file_enddate:
             gfSOLO_main(dsa,dsb,solo_info)
-            gfSOLO_plotcoveragelines(dsb)
+            gfSOLO_plotcoveragelines(dsb,solo_info)
             startdate = enddate
             enddate = startdate+dateutil.relativedelta.relativedelta(months=1)
             solo_info["startdate"] = startdate.strftime("%Y-%m-%d %H:%M")
@@ -2789,7 +2789,7 @@ def gfSOLO_run_gui(dsa,dsb,solo_gui,solo_info):
         solo_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d %H:%M")
         while startdate<file_enddate:
             gfSOLO_main(dsa,dsb,solo_info)
-            gfSOLO_plotcoveragelines(dsb)
+            gfSOLO_plotcoveragelines(dsb,solo_info)
             startdate = enddate
             enddate = startdate+dateutil.relativedelta.relativedelta(days=nDays)
             solo_info["startdate"] = startdate.strftime("%Y-%m-%d %H:%M")
