@@ -18,6 +18,7 @@ import Tkinter, tkFileDialog
 import xlrd
 import pdb
 import qcio
+import qcutils
 
 log = logging.getLogger('qc.cpd')
 
@@ -49,7 +50,8 @@ def fit(temp_df):
     temp_df['int']=np.ones(50)
         
     ### Iterate through all possible change points (1-49) as below
-    for i in xrange(1,49):
+    #for i in xrange(1,49):
+    for i in range(1,49):
         
         # Operational (b) model
         temp_df['ustar_alt']=temp_df['ustar'] # Add dummy variable to df
@@ -162,7 +164,8 @@ def get_data():
     if 'QC_accept_codes' in cf['options']:    
         QC_accept_codes = ast.literal_eval(cf['options']['QC_accept_codes'])
         eval_string = '|'.join(['(df[vars_QC[i]]=='+str(i)+')' for i in QC_accept_codes])
-        for i in xrange(4):
+        #for i in xrange(4):
+        for i in range(4):
             df[vars_data[i]] = np.where(eval(eval_string), df[vars_data[i]], np.nan)
     df = df[vars_data]
     
@@ -204,8 +207,9 @@ def cpd_main(cf):
     log.info(' Starting CPD analysis...')
     
     # Bootstrap the data and run the CPD algorithm
-    for i in xrange(d['num_bootstraps']):
-                        
+    #for i in xrange(d['num_bootstraps']):
+    for i in range(d['num_bootstraps']):
+
         # Bootstrap the data for each year
         bootstrap_flag = (False if i == 0 else True)
         if bootstrap_flag == False:
@@ -414,8 +418,8 @@ def CPD_run(cf):
     d['num_bootstraps']=int(cf['Options']['Num_bootstraps'])
     d['flux_period']=flux_period
     d['site_name']=getattr(ncFile,"site_name")
-    d["call_mode"]=qcio.get_keyvaluefromcf(cf,["Options"],"call_mode",default="interactive",mode="quiet")
-    d["show_plots"]=qcio.get_keyvaluefromcf(cf,["Options"],"show_plots",default=True,mode="quiet")
+    d["call_mode"]=qcutils.get_keyvaluefromcf(cf,["Options"],"call_mode",default="interactive",mode="quiet")
+    d["show_plots"]=qcutils.get_keyvaluefromcf(cf,["Options"],"show_plots",default=True,mode="quiet")
     if cf['Options']['Output_plots']=='True':
         d['plot_path']=plot_path
     if cf['Options']['Output_results']=='True':
@@ -432,7 +436,8 @@ def CPD_run(cf):
             #df[vars_data[i]]=np.where(eval(eval_string),df[vars_data[i]],np.nan)
     df.replace(c.missing_value,np.nan)
     eval_string='|'.join(['(df[vars_QC[i]]=='+str(i)+')' for i in [0,10]])
-    for i in xrange(len(vars_data)):
+    #for i in xrange(len(vars_data)):
+    for i in range(len(vars_data)):
         df[vars_data[i]]=np.where(eval(eval_string),df[vars_data[i]],np.nan)
     df=df[vars_data]
 
@@ -636,7 +641,8 @@ def sort(df, flux_period, years_index):
     # Extract overlapping series, sort by temperature and concatenate
     lst = []
     for year in years_df.index:
-        for season in xrange(years_df.loc[year, 'seasons']):
+        #for season in xrange(years_df.loc[year, 'seasons']):
+        for season in range(int(years_df.loc[year, 'seasons'])):
             start_ind = season * (bin_size / 2)
             end_ind = season * (bin_size / 2) + bin_size
             lst.append(df.ix[str(year)].iloc[start_ind:end_ind].sort('Ta', axis = 0))
@@ -646,11 +652,16 @@ def sort(df, flux_period, years_index):
     years_index=np.concatenate([np.int32(np.ones(years_df.loc[year, 'seasons'] * bin_size) * year) 
                                 for year in years_df.index])
     
+    #seasons_index=np.concatenate([np.concatenate([np.int32(np.ones(bin_size)*(season+1)) 
+                                                  #for season in xrange(years_df.loc[year, 'seasons'])]) 
+                                                  #for year in years_df.index])
     seasons_index=np.concatenate([np.concatenate([np.int32(np.ones(bin_size)*(season+1)) 
-                                                  for season in xrange(years_df.loc[year, 'seasons'])]) 
+                                                  for season in range(int(years_df.loc[year, 'seasons']))]) 
                                                   for year in years_df.index])
 
-    Tclass_index=np.tile(np.concatenate([np.int32(np.ones(bin_size/4)*(i+1)) for i in xrange(4)]),
+    #Tclass_index=np.tile(np.concatenate([np.int32(np.ones(bin_size/4)*(i+1)) for i in xrange(4)]),
+                         #len(seasons_index)/bin_size)
+    Tclass_index=np.tile(np.concatenate([np.int32(np.ones(bin_size/4)*(i+1)) for i in range(4)]),
                          len(seasons_index)/bin_size)
     
     bin_index=np.tile(np.int32(np.arange(bin_size/4)/(bin_size/200)),len(seasons_df)/(bin_size/4))

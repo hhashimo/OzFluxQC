@@ -17,6 +17,9 @@ logging.basicConfig()
 # open the logging file
 log = qcutils.startlog('aws2nc','../logfiles/aws2nc.log')
 
+# dummt control file for FixTimeSteps
+cf = {"Options":{"FixTimeStepMethod":"round"}}
+
 # get the site information and the AWS stations to use
 xlname = "../../BoM/Locations/AWS_Locations.xls"
 wb = xlrd.open_workbook(xlname)
@@ -90,6 +93,7 @@ for site_name in sorted(site_list):
     ds_dict = {}
     for bom_id in data_dict.keys():
         log.info("Processing BoM station: "+str(bom_id))
+        # create a data structure
         ds=qcio.DataStructure()
         # put the year, month, day, hour and minute into the data structure
         nRecs = data_dict[bom_id].shape[0]
@@ -107,19 +111,6 @@ for site_name in sorted(site_list):
         qcutils.CreateSeries(ds,'Second',Seconds,Flag=flag,Attr=qcutils.MakeAttributeDictionary(long_name='Second',units='none'))
         # now get the Python datetime
         qcutils.get_datetimefromymdhms(ds)
-        # fix any time stamp issues
-        #if qcutils.CheckTimeStep(ds):
-            #print "Calling FixTimeStep"
-            #qcutils.FixTimeStep(ds)
-            ## update the Year, Month, Day etc from the Python datetime
-            #qcutils.get_ymdhmsfromdatetime(ds)
-        #ldt = ds.series["DateTime"]["Data"]
-        #year = ds.series["Year"]["Data"]
-        #month = ds.series["Month"]["Data"]
-        #day = ds.series["Day"]["Data"]
-        #hour = ds.series["Hour"]["Data"]
-        #minute = ds.series["Minute"]["Data"]
-        #print bom_id,ldt[-1],year[-1],month[-1],day[-1],hour[-1],minute[-1]
         # now put the data into the data structure
         attr=qcutils.MakeAttributeDictionary(long_name='Precipitation since 0900',units='mm',
                                              bom_id=str(bom_id),bom_name=bom_sites_info[site_name][str(bom_id)]["site_name"],

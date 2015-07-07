@@ -1,0 +1,67 @@
+# Control file for batch processing
+# [Levels]
+#  Section containing keywords set to the names of control files
+#  for processing L1 to L3 for each year at each site.
+#  Keys in the Files section must be unique.
+[Options]
+    #levels = "['L1','L2','L3','concatenate','climatology','cpd','L4','L5','L6']"
+    levels = "['L1','L2','L3','concatenate','climatology','cpd','L4','L5']"
+
+[Levels]
+   [[L1]]
+       0 = 'controlfiles/Tumbarumba/2001/L1.txt'
+       1 = 'controlfiles/Tumbarumba/2002/L1.txt'
+       2 = 'controlfiles/Tumbarumba/2003/L1.txt'
+       3 = 'controlfiles/Tumbarumba/2004/L1.txt'
+       4 = 'controlfiles/Tumbarumba/2005/L1.txt'
+       5 = 'controlfiles/Tumbarumba/2006/L1.txt'
+       6 = 'controlfiles/Tumbarumba/2007/L1.txt'
+       7 = 'controlfiles/Tumbarumba/2008/L1.txt'
+       8 = 'controlfiles/Tumbarumba/2009/L1.txt'
+       9 = 'controlfiles/Tumbarumba/2010/L1.txt'
+       10 = 'controlfiles/Tumbarumba/2011/L1.txt'
+       11 = 'controlfiles/Tumbarumba/2012/L1.txt'
+       12 = 'controlfiles/Tumbarumba/2013/L1.txt'
+       13 = 'controlfiles/Tumbarumba/2014/L1.txt'
+   [[L2]]
+       0 = 'controlfiles/Tumbarumba/2001/L2.txt'
+       1 = 'controlfiles/Tumbarumba/2002/L2.txt'
+       2 = 'controlfiles/Tumbarumba/2003/L2.txt'
+       3 = 'controlfiles/Tumbarumba/2004/L2.txt'
+       4 = 'controlfiles/Tumbarumba/2005/L2.txt'
+       5 = 'controlfiles/Tumbarumba/2006/L2.txt'
+       6 = 'controlfiles/Tumbarumba/2007/L2.txt'
+       7 = 'controlfiles/Tumbarumba/2008/L2.txt'
+       8 = 'controlfiles/Tumbarumba/2009/L2.txt'
+       9 = 'controlfiles/Tumbarumba/2010/L2.txt'
+       10 = 'controlfiles/Tumbarumba/2011/L2.txt'
+       11 = 'controlfiles/Tumbarumba/2012/L2.txt'
+       12 = 'controlfiles/Tumbarumba/2013/L2.txt'
+       13 = 'controlfiles/Tumbarumba/2014/L2.txt'
+   [[L3]]
+       0 = 'controlfiles/Tumbarumba/2001/L3.txt'
+       1 = 'controlfiles/Tumbarumba/2002/L3.txt'
+       2 = 'controlfiles/Tumbarumba/2003/L3.txt'
+       3 = 'controlfiles/Tumbarumba/2004/L3.txt'
+       4 = 'controlfiles/Tumbarumba/2005/L3.txt'
+       5 = 'controlfiles/Tumbarumba/2006/L3.txt'
+       6 = 'controlfiles/Tumbarumba/2007/L3.txt'
+       7 = 'controlfiles/Tumbarumba/2008/L3.txt'
+       8 = 'controlfiles/Tumbarumba/2009/L3.txt'
+       9 = 'controlfiles/Tumbarumba/2010/L3.txt'
+       10 = 'controlfiles/Tumbarumba/2011/L3.txt'
+       11 = 'controlfiles/Tumbarumba/2012/L3.txt'
+       12 = 'controlfiles/Tumbarumba/2013/L3.txt'
+       13 = 'controlfiles/Tumbarumba/2014/L3.txt'
+   [[concatenate]]
+       0 = 'controlfiles/Tumbarumba/all/ncconcat.txt'
+   [[climatology]]
+       0 = 'controlfiles/Tumbarumba/all/climatology.txt'
+   [[cpd]]
+       0 = 'controlfiles/Tumbarumba/all/cpd.txt'
+   [[L4]]
+       0 = 'controlfiles/Tumbarumba/all/L4.txt'
+   [[L5]]
+       0 = 'controlfiles/Tumbarumba/all/L5.txt'
+   [[L6]]
+       0 = 'controlfiles/Tumbarumba/all/L6.txt'

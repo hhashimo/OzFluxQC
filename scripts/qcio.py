@@ -82,7 +82,7 @@ def copy_datastructure(cf,ds_in):
     # if the L4 file does exist ...
     if os.path.exists(ct_filename):
         # check to see if the user wants to use it
-        if get_keyvaluefromcf(cf,["Options"],"UseExistingOutFile",default="No")!='Yes':
+        if qcutils.get_keyvaluefromcf(cf,["Options"],"UseExistingOutFile",default="No")!='Yes':
             # if the user doesn't want to use the existing L4 data then create
             # the L4 data structure as a copy of the L3 data structure
             ds_out = copy.deepcopy(ds_in)
@@ -398,7 +398,8 @@ def xl2nc(cf,InLevel):
     # round the Python datetime to the nearest second
     qcutils.round_datetime(ds,mode="nearest_second")
     #check for gaps in the Python datetime series and fix if present
-    if qcutils.CheckTimeStep(ds): qcutils.FixTimeStep(ds)
+    fixtimestepmethod = qcutils.get_keyvaluefromcf(cf,["options"],"FixTimeStepMethod",default="")
+    if qcutils.CheckTimeStep(ds): qcutils.FixTimeStep(ds,fixtimestepmethod=fixtimestepmethod)
     # recalculate the Excel datetime
     qcutils.get_xldatefromdatetime(ds)
     # get the Year, Month, Day etc from the Python datetime
@@ -631,57 +632,14 @@ def get_filename_dialog(path='.',title='Choose a file'):
     return str(FileName)
 
 def get_infilenamefromcf(cf):
-    path = get_keyvaluefromcf(cf,["Files"],"file_path",default="")
-    name = get_keyvaluefromcf(cf,["Files"],"in_filename",default="")
+    path = qcutils.get_keyvaluefromcf(cf,["Files"],"file_path",default="")
+    name = qcutils.get_keyvaluefromcf(cf,["Files"],"in_filename",default="")
     return str(path)+str(name)
 
 def get_outfilenamefromcf(cf):
-    path = get_keyvaluefromcf(cf,["Files"],"file_path",default="")
-    name = get_keyvaluefromcf(cf,["Files"],"out_filename",default="")
+    path = qcutils.get_keyvaluefromcf(cf,["Files"],"file_path",default="")
+    name = qcutils.get_keyvaluefromcf(cf,["Files"],"out_filename",default="")
     return str(path)+str(name)
-
-def get_keyvaluefromcf(cf,sections,key,default=None,mode="quiet"):
-    """
-    Purpose:
-     General return a keyword value from a control file.
-    Usage:
-     keyval = qcio.get_keyvaluefromcf(cf,sections,key,default=default)
-     where
-      cf is a control file object from ConfigObj
-      sections is a list of sections and nested sub-sections to search
-      key is the keyword
-      default is a default value
-    Example:
-     ncOutFileName = qcio.get_keyvaluefromcf(cf,["Files","Out"],"ncFileName",default="")
-     The example above will return the value for ncFileName from the ["Files"]["Out"] sub-section
-     in the control file.
-    Author: PRI
-    Date: February 2015
-    """
-    if len(sections)<1:
-        msg = " get_keyvaluefromsections: no sections specified"
-        if mode.lower()!="quiet": log.info(msg)
-    if sections[0] in cf:
-        section = cf[sections[0]]
-        if len(sections)>1:
-            for item in sections[1:]:
-                if item in section:
-                    section = section[item]
-                else:
-                    msg = " get_keyvaluefromcf: Sub section "+item+" not found in control file, used default ("+str(default)+")"
-                    if mode.lower()!="quiet": log.info(msg)
-                    value = default
-        if key in section:
-            value = section[key]
-        else:
-            msg = " get_keyvaluefromcf: Key "+key+" not found in section, used default ("+str(default)+")"
-            if mode.lower()!="quiet": log.info(msg)
-            value = default
-    else:
-        msg = " get_keyvaluefromcf: Section "+sections[0]+" not found in control file, used default ("+str(default)+")"
-        if mode.lower()!="quiet": log.error(msg)
-        value = default
-    return value
 
 def get_outputlistfromcf(cf,filetype):
     try:
@@ -802,7 +760,8 @@ def nc_concatenate(cf):
     # read in the first file
     ncFileName = cf['Files']['In'][InFile_list[0]]
     log.info(' Reading data from '+ncFileName)
-    ds_n = nc_read_series(ncFileName)
+    fixtimestepmethod = qcutils.get_keyvaluefromcf(cf,["Options"],"FixTimeStepMethod",default="")
+    ds_n = nc_read_series(ncFileName,fixtimestepmethod=fixtimestepmethod)
     if len(ds_n.series.keys())==0:
         log.error(' An error occurred reading netCDF file: '+ncFileName)
         return
@@ -831,7 +790,7 @@ def nc_concatenate(cf):
         ncFileName = cf['Files']['In'][InFile_list[int(n)]]
         log.info(' Reading data from '+ncFileName)
         #print 'ncconcat: reading data from '+ncFileName
-        ds_n = nc_read_series(ncFileName)
+        ds_n = nc_read_series(ncFileName,fixtimestepmethod=fixtimestepmethod)
         if len(ds.series.keys())==0:
             log.error(' An error occurred reading the netCDF file: '+ncFileName)
             return
@@ -891,7 +850,8 @@ def nc_concatenate(cf):
     ds.globalattributes["nc_nrecs"] = len(ds.series["DateTime"]["Data"])
     # now sort out any time gaps
     if qcutils.CheckTimeStep(ds):
-        qcutils.FixTimeStep(ds)
+        fixtimestepmethod = qcutils.get_keyvaluefromcf(cf,["Options"],"FixTimeStepMethod",default="")
+        qcutils.FixTimeStep(ds,fixtimestepmethod=fixtimestepmethod)
         # update the Excel datetime from the Python datetime
         qcutils.get_xldatefromdatetime(ds)
         # update the Year, Month, Day etc from the Python datetime
@@ -905,7 +865,7 @@ def nc_concatenate(cf):
         if item in series_list: series_list.remove(item)
     # loop over the non-datetime data series in ds and interpolate
     # get the maximum gap length (in hours) from the control file
-    maxlen = int(get_keyvaluefromcf(cf,["Options"],"MaxGapInterpolate",default=3))
+    maxlen = int(qcutils.get_keyvaluefromcf(cf,["Options"],"MaxGapInterpolate",default=3))
     # now loop over the series and do the interpolation
     log.info(" Interpolating over fixed time gaps ("+str(maxlen)+" hour max)")
     for item in series_list:
@@ -917,7 +877,7 @@ def nc_concatenate(cf):
     # update the coverage statistics
     qcutils.get_coverage_individual(ds)
     # write the netCDF file
-    ncFileName = get_keyvaluefromcf(cf,["Files","Out"],"ncFileName",default="out.nc")
+    ncFileName = qcutils.get_keyvaluefromcf(cf,["Files","Out"],"ncFileName",default="out.nc")
     log.info(' Writing data to '+ncFileName)
     ncFile = nc_open_write(ncFileName)
     nc_write_series(ncFile,ds,ndims=3)
@@ -1028,7 +988,7 @@ def ncsplit_run(split_gui):
     ncFile = nc_open_write(outfilename)
     nc_write_series(ncFile, ds_out)
 
-def nc_read_series(ncFullName):
+def nc_read_series(ncFullName,fixtimestepmethod=""):
     ''' Read a netCDF file and put the data and meta-data into a DataStructure'''
     log.info(" Reading netCDF file "+ntpath.split(ncFullName)[1])
     netCDF4.default_encoding = 'latin-1'
@@ -1071,7 +1031,7 @@ def nc_read_series(ncFullName):
     qcutils.round_datetime(ds,mode="nearest_second")
     # check the time step and fix it required
     if qcutils.CheckTimeStep(ds):
-        qcutils.FixTimeStep(ds)
+        qcutils.FixTimeStep(ds,fixtimestepmethod=fixtimestepmethod)
         # update the Excel datetime from the Python datetime
         qcutils.get_xldatefromdatetime(ds)
         # update the Year, Month, Day etc from the Python datetime
@@ -1146,7 +1106,8 @@ def df_droprecords(df,qc_list=[0,10]):
     flag_list = [item for item in var_list if "QCFlag" in item]
     if len(data_list)!=len(flag_list): raise Exception("df_droprecords: number of data and flag series differ")
     eval_string='|'.join(['(df[flag_list[i]]=='+str(i)+')' for i in qc_list])
-    for i in xrange(len(data_list)):
+    #for i in xrange(len(data_list)):
+    for i in range(len(data_list)):
         df[data_list[i]]=np.where(eval(eval_string),df[data_list[i]],np.nan)
     # drop the all records with NaNs
     df=df[data_list]
@@ -1344,8 +1305,8 @@ def xl_open_write(xl_name):
 
 def xl_read_flags(cf,ds,level,VariablesInFile):
     # First data row in Excel worksheets.
-    FirstDataRow = int(get_keyvaluefromcf(cf,["Files",level],"first_data_row")) - 1
-    HeaderRow = int(get_keyvaluefromcf(cf,['Files','in'],'header_row')) - 1
+    FirstDataRow = int(qcutils.get_keyvaluefromcf(cf,["Files",level],"first_data_row")) - 1
+    HeaderRow = int(qcutils.get_keyvaluefromcf(cf,['Files','in'],'header_row')) - 1
     # Get the full name of the Excel file from the control file.
     xlFullName = get_filename_from_cf(cf,level)
     # Get the Excel workbook object.
@@ -1389,8 +1350,8 @@ def xl_read_series(cf):
         log.error(' Input file '+FileName+' specified in control file not found')
         return ds
     # convert from Excel row number to xlrd row number
-    FirstDataRow = int(get_keyvaluefromcf(cf,["Files"],"in_firstdatarow")) - 1
-    HeaderRow = int(get_keyvaluefromcf(cf,["Files"],"in_headerrow")) - 1
+    FirstDataRow = int(qcutils.get_keyvaluefromcf(cf,["Files"],"in_firstdatarow")) - 1
+    HeaderRow = int(qcutils.get_keyvaluefromcf(cf,["Files"],"in_headerrow")) - 1
     # get the Excel workbook object.
     log.info(" Opening and reading Excel file "+FileName)
     xlBook = xlrd.open_workbook(FileName)

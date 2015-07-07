@@ -436,7 +436,7 @@ def RemoveDuplicateRecords(ds):
         CreateSeries(ds,ThisOne,data_nodups,Flag=flag_nodups,Attr=attr)
     ds.globalattributes['nc_nrecs'] = len(ds.series["DateTime"]["Data"])
 
-def FixNonIntegralTimeSteps(ds):
+def FixNonIntegralTimeSteps(ds,fixtimestepmethod=""):
     """
     Purpose:
      Fix time steps that are not an integral number of the default time step.
@@ -456,14 +456,15 @@ def FixNonIntegralTimeSteps(ds):
     ldt = ds.series["DateTime"]["Data"]
     dt_diffs = numpy.array([(ldt[i]-rounddttots(ldt[i],ts=ts)).total_seconds() for i in range(1,len(ldt))])
     log.info(" Maximum drift is "+str(numpy.max(dt_diffs))+" seconds, minimum drift is "+str(numpy.min(dt_diffs))+" seconds")
-    ans = raw_input("Do you want to [Q]uit, [I]nterploate or [R]ound? ")
-    if ans.lower()=="q":
+    ans = fixtimestepmethod
+    if ans=="": ans = raw_input("Do you want to [Q]uit, [I]nterploate or [R]ound? ")
+    if ans.lower()[0]=="q":
         print "Quiting ..."
         sys.exit()
-    if ans.lower()=="i":
+    if ans.lower()[0]=="i":
         print "Interpolation to regular time step not implemented yet ..."
         sys.exit()
-    if ans.lower()=="r":
+    if ans.lower()[0]=="r":
         log.info("Rounding to the nearest time step")
         ldt_rounded = [rounddttots(dt,ts=ts) for dt in ldt]
         rdt = numpy.array([(ldt_rounded[i]-ldt_rounded[i-1]).total_seconds() for i in range(1,len(ldt))])
@@ -525,12 +526,12 @@ def FixTimeGaps(ds,startend=[]):
         flag_nogaps[idx_gaps] = flag_gaps
         CreateSeries(ds,ThisOne,data_nogaps,Flag=flag_nogaps,Attr=attr)
 
-def FixTimeStep(ds):
+def FixTimeStep(ds,fixtimestepmethod=""):
     """
     Purpose:
      Fix problems with the time stamp.
     Useage:
-     qcutils.FixTimeStep(ds)
+     qcutils.FixTimeStep(ds,fixtimestepmethod=fixtimestepmethod)
     Author: PRI
     Date: April 2013
     Modified:
@@ -558,7 +559,7 @@ def FixTimeStep(ds):
         index = numpy.where(numpy.min(numpy.mod(dt,ts*60))!=0 or numpy.max(numpy.mod(dt,ts*60))!=0)[0]
         log.info(" FixTimeStep: Non-integral time steps found "+str(len(index))+" times out of "+str(nRecs))
         log.info(" FixTimeStep: Maximum time step was "+str(numpy.max(dt))+" seconds, minimum time step was "+str(numpy.min(dt)))
-        FixNonIntegralTimeSteps(ds)
+        FixNonIntegralTimeSteps(ds,fixtimestepmethod=fixtimestepmethod)
         dt = get_timestep(ds)
         dtmin = numpy.min(dt)
         dtmax = numpy.max(dt)
@@ -1035,6 +1036,49 @@ def get_datetimefromymdhms(ds):
     ds.series['DateTime']['Attr'] = {}
     ds.series['DateTime']['Attr']['long_name'] = 'Date-time object'
     ds.series['DateTime']['Attr']['units'] = 'None'
+
+def get_keyvaluefromcf(cf,sections,key,default=None,mode="quiet"):
+    """
+    Purpose:
+     General return a keyword value from a control file.
+    Usage:
+     keyval = qcutils.get_keyvaluefromcf(cf,sections,key,default=default)
+     where
+      cf is a control file object from ConfigObj
+      sections is a list of sections and nested sub-sections to search
+      key is the keyword
+      default is a default value
+    Example:
+     ncOutFileName = qcutils.get_keyvaluefromcf(cf,["Files","Out"],"ncFileName",default="")
+     The example above will return the value for ncFileName from the ["Files"]["Out"] sub-section
+     in the control file.
+    Author: PRI
+    Date: February 2015
+    """
+    if len(sections)<1:
+        msg = " get_keyvaluefromsections: no sections specified"
+        if mode.lower()!="quiet": log.info(msg)
+    if sections[0] in cf:
+        section = cf[sections[0]]
+        if len(sections)>1:
+            for item in sections[1:]:
+                if item in section:
+                    section = section[item]
+                else:
+                    msg = " get_keyvaluefromcf: Sub section "+item+" not found in control file, used default ("+str(default)+")"
+                    if mode.lower()!="quiet": log.info(msg)
+                    value = default
+        if key in section:
+            value = section[key]
+        else:
+            msg = " get_keyvaluefromcf: Key "+key+" not found in section, used default ("+str(default)+")"
+            if mode.lower()!="quiet": log.info(msg)
+            value = default
+    else:
+        msg = " get_keyvaluefromcf: Section "+sections[0]+" not found in control file, used default ("+str(default)+")"
+        if mode.lower()!="quiet": log.error(msg)
+        value = default
+    return value
 
 def get_missingingapfilledseries(ds):
     """

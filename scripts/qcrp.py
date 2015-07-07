@@ -59,7 +59,7 @@ def CalculateNEE(cf,ds):
     """
     if "nee" not in dir(ds): return
     # get the Fsd and ustar thresholds
-    Fsd_threshold = float(qcio.get_keyvaluefromcf(cf,["Params"],"Fsd_threshold",default=10))
+    Fsd_threshold = float(qcutils.get_keyvaluefromcf(cf,["Params"],"Fsd_threshold",default=10))
     # get the incoming shortwave radiation and friction velocity
     Fsd,Fsd_flag,Fsd_attr = qcutils.GetSeriesasMA(ds,"Fsd")
     if "Fsd_syn" in ds.series.keys():
@@ -519,7 +519,7 @@ def GetFreFromFc(cf,ds):
             raise Exception("GetFreFromFc: missing data in series "+label)
     # apply the day/night filter
     # get the day/night filter type from the control file
-    daynightfilter_type = qcio.get_keyvaluefromcf(cf,["Options"],"DayNightFilter",default="Fsd")
+    daynightfilter_type = qcutils.get_keyvaluefromcf(cf,["Options"],"DayNightFilter",default="Fsd")
     # trap any types not implemented and set to Fsd
     if daynightfilter_type not in ["Fsd","sa"]: daynightfilter_type = "Fsd"
     # make the attribute dictionary first so we can add the ustar thresholds to it
@@ -539,7 +539,7 @@ def GetFreFromFc(cf,ds):
             Fre1 = numpy.ma.masked_where(Fsd>Fsd_threshold,Fc,copy=True)
             Fsd1 = numpy.ma.masked_where(Fsd>Fsd_threshold,Fsd,copy=True)
     else:
-        sa_threshold = int(qcio.get_keyvaluefromcf(cf,["Options"],"sa_threshold",default="-5"))
+        sa_threshold = int(qcutils.get_keyvaluefromcf(cf,["Options"],"sa_threshold",default="-5"))
         Fre_attr["sa_threshold"] = str(sa_threshold)
         Fsd_attr["sa_threshold"] = str(sa_threshold)
         Fre1 = numpy.ma.masked_where(sa>sa_threshold,Fc,copy=True)
@@ -569,7 +569,7 @@ def GetFreFromFc(cf,ds):
         Fsd_attr["long_name"] = Fsd_attr["long_name"]+", quantile filter not used"
         qcutils.CreateSeries(ds,"Fre_nqf",Fre2,Flag=Fre_flag,Attr=Fre_attr)
         qcutils.CreateSeries(ds,"Fsd_nqf",Fsd2,Flag=Fsd_flag,Attr=Fsd_attr)
-        quantile_lower = float(qcio.get_keyvaluefromcf(cf,["Options"],"QuantileValue",default="2.5"))
+        quantile_lower = float(qcutils.get_keyvaluefromcf(cf,["Options"],"QuantileValue",default="2.5"))
         quantile_upper = float(100) - quantile_lower
         q = numpy.percentile(numpy.ma.compressed(Fre2),[quantile_lower,quantile_upper])
         Fre2 = numpy.ma.masked_where((Fre2<q[0])|(Fre2>q[1]),Fre2)
