@@ -2585,7 +2585,10 @@ def gfSOLO_plotcoveragelines(dsb,solo_info):
     color_list = ["blue","red","green","yellow","magenta","black","cyan","brown"]
     xsize = 15.0
     ysize = len(output_list)*0.3
-    plt.ion()
+    if solo_info["show_plots"]:
+        plt.ion()
+    else:
+        plt.ioff()
     if plt.fignum_exists(0):
         fig=plt.figure(0)
         plt.cla()
@@ -2606,9 +2609,12 @@ def gfSOLO_plotcoveragelines(dsb,solo_info):
     ylabel_posn = range(0,len(output_list)+2)
     pylab.yticks(ylabel_posn,ylabel_list)
     fig.tight_layout()
-    fig.canvas.manager.window.attributes('-topmost', 1)
-    plt.draw()
-    plt.ioff()
+    #fig.canvas.manager.window.attributes('-topmost', 1)
+    if solo_info["show_plots"]:
+        plt.draw()
+        plt.ioff()
+    else:
+        plt.ion()
 
 def gfSOLO_plotsummary(ds,solo_info):
     """ Plot single pages of summary results for groups of variables. """
@@ -2641,7 +2647,10 @@ def gfSOLO_plotsummary(ds,solo_info):
     result_list = ["r","Bias","RMSE","Var ratio","m_ols","b_ols"]
     ylabel_list = ["r","Bias","RMSE","Var ratio","Slope","Offset"]
     # turn on interactive plotting
-    plt.ion()
+    if solo_info["show_plots"]:
+        plt.ion()
+    else:
+        plt.ioff()
     # now loop over the group lists
     for nFig in ds.cf["SOLO_Summary"].keys():
         plot_title = ds.cf["SOLO_Summary"][str(nFig)]["Title"]
@@ -2679,8 +2688,6 @@ def gfSOLO_plotsummary(ds,solo_info):
                 if row==len(result_list)-1:
                     axs[row,col].xaxis.set_major_formatter(MTFmt)
                     axs[row,col].set_xlabel('Month',visible=True)
-        # draw the plot
-        plt.draw()
         # make the hard-copy file name and save the plot as a PNG file
         sdt = startdate.strftime("%Y%m%d")
         edt = enddate.strftime("%Y%m%d")
@@ -2689,6 +2696,11 @@ def gfSOLO_plotsummary(ds,solo_info):
         figname = plot_path+site_name.replace(" ","")+"_SOLO_FitStatistics_"+figlab
         figname = figname+"_"+sdt+"_"+edt+".png"
         fig.savefig(figname,format="png")
+        if solo_info["show_plots"]:
+            plt.draw()
+            plt.ioff()
+        else:
+            plt.ion()
 
 def gfSOLO_plotsummary_getdata(dt_start,dt_end,result):
     dt = []
@@ -2900,7 +2912,7 @@ def gfSOLO_run_nogui(cf,dsa,dsb,solo_info):
         startdate = dateutil.parser.parse(solo_info["startdate"])
         file_startdate = dateutil.parser.parse(solo_info["file_startdate"])
         file_enddate = dateutil.parser.parse(solo_info["file_enddate"])
-        nDays = int(alternate_info["number_days"])
+        nDays = int(solo_info["number_days"])
         enddate = startdate+dateutil.relativedelta.relativedelta(days=nDays)
         enddate = min([file_enddate,enddate])
         solo_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d %H:%M")

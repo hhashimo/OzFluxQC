@@ -6,7 +6,7 @@
 [Options]
     #levels = "['L1','L2','L3','concatenate','climatology','cpd','L4','L5','L6']"
     #levels = "['concatenate','climatology','cpd','L4','L5']"
-    levels = "['cpd','L4','L5']"
+    levels = "['L5']"
 
 [Levels]
    [[concatenate]]

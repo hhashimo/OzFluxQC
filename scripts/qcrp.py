@@ -1,4 +1,5 @@
 import ast
+import collections
 import constants as c
 import csv
 import datetime
@@ -14,6 +15,7 @@ import qcutils
 import subprocess
 import sys
 import Tkinter
+import xlrd
 
 log = logging.getLogger('qc.rp')
 # lets see if ffnet is installed
@@ -129,112 +131,134 @@ def FreUsingFFNET(cf,ds):
     ldt = ds.series["DateTime"]["Data"]
     startdate = ldt[0]
     enddate = ldt[-1]
-    rpFFNET_info = {"file_startdate":startdate.strftime("%Y-%m-%d %H:%M"),
+    FFNET_info = {"file_startdate":startdate.strftime("%Y-%m-%d %H:%M"),
                     "file_enddate":enddate.strftime("%Y-%m-%d %H:%M"),
                     "plot_path":cf["Files"]["plot_path"]}
+    # check to see if this is a batch or an interactive run
+    call_mode = qcutils.get_keyvaluefromcf(cf,["Options"],"call_mode",default="interactive")
+    FFNET_info["call_mode"]= call_mode
+    if call_mode.lower()=="interactive":
+        FFNET_info["show_plots"] = True
+        # call the FFNET GUI
+        rpFFNET_gui(cf,ds,FFNET_info)
+    else:
+        if "GUI_FFNET" in cf["Options"]:
+            rpFFNET_run_nogui(cf,ds,FFNET_info)
+        else:
+            log.warning(" No GUI sub-section found in Options section of control file")
+            rpFFNET_gui(cf,ds,FFNET_info)
+
+def rpFFNET_gui(cf,ds,FFNET_info):
+    ldt = ds.series["DateTime"]["Data"]
     # set up the GUI
-    rpFFNET_gui = Tkinter.Toplevel()
-    rpFFNET_gui.wm_title("FFNET GUI (Reco)")
-    rpFFNET_gui.grid()
+    FFNET_gui = Tkinter.Toplevel()
+    FFNET_gui.wm_title("FFNET GUI (Reco)")
+    FFNET_gui.grid()
     # top row
     nrow = 0
-    rpFFNET_gui.nodesLabel = Tkinter.Label(rpFFNET_gui,text="Hidden Nodes")
-    rpFFNET_gui.nodesLabel.grid(row=nrow,column=0,columnspan=1,sticky="E")
-    rpFFNET_gui.nodesEntry = Tkinter.Entry(rpFFNET_gui,width=6)
-    rpFFNET_gui.nodesEntry.grid(row=nrow,column=1,columnspan=1,sticky="W")
-    rpFFNET_gui.nodesEntry.insert(0,"6,4")
-    rpFFNET_gui.trainingLabel = Tkinter.Label(rpFFNET_gui,text="Training")
-    rpFFNET_gui.trainingLabel.grid(row=nrow,column=2,columnspan=1,sticky="E")
-    rpFFNET_gui.trainingEntry = Tkinter.Entry(rpFFNET_gui,width=6)
-    rpFFNET_gui.trainingEntry.grid(row=nrow,column=3,columnspan=1,sticky="W")
-    rpFFNET_gui.trainingEntry.insert(0,"500")
+    FFNET_gui.nodesLabel = Tkinter.Label(FFNET_gui,text="Hidden Nodes")
+    FFNET_gui.nodesLabel.grid(row=nrow,column=0,columnspan=1,sticky="E")
+    FFNET_gui.nodesEntry = Tkinter.Entry(FFNET_gui,width=6)
+    FFNET_gui.nodesEntry.grid(row=nrow,column=1,columnspan=1,sticky="W")
+    FFNET_gui.nodesEntry.insert(0,"6,4")
+    FFNET_gui.trainingLabel = Tkinter.Label(FFNET_gui,text="Training")
+    FFNET_gui.trainingLabel.grid(row=nrow,column=2,columnspan=1,sticky="E")
+    FFNET_gui.trainingEntry = Tkinter.Entry(FFNET_gui,width=6)
+    FFNET_gui.trainingEntry.grid(row=nrow,column=3,columnspan=1,sticky="W")
+    FFNET_gui.trainingEntry.insert(0,"500")
     # second row
     nrow = nrow + 1
-    rpFFNET_gui.trainOptionVar = Tkinter.StringVar()
-    rpFFNET_gui.trainOptionVar.set("Rprop")
+    FFNET_gui.trainOptionVar = Tkinter.StringVar()
+    FFNET_gui.trainOptionVar.set("Rprop")
     choices = ["BFGS","CG","Genetic","Back","Rprop","TNC"]
-    rpFFNET_gui.trainOptionLabel = Tkinter.Label(rpFFNET_gui,text="Training type")
-    rpFFNET_gui.trainOptionLabel.grid(row=nrow,column=0,columnspan=1,sticky="E")
-    rpFFNET_gui.trainOption = Tkinter.OptionMenu(rpFFNET_gui,rpFFNET_gui.trainOptionVar,*choices)
-    rpFFNET_gui.trainOption.grid(row=nrow,column=1,columnspan=1,sticky="E")
-    rpFFNET_gui.trainTypeVar = Tkinter.IntVar()
-    rpFFNET_gui.trainTypeVar.set(2)
-    rpFFNET_gui.trainTypeStd = Tkinter.Radiobutton(rpFFNET_gui,text="Standard",variable=rpFFNET_gui.trainTypeVar,value=1)
-    rpFFNET_gui.trainTypeStd.grid(row=nrow,column=2,columnspan=1,sticky="W")
-    rpFFNET_gui.trainTypeFC = Tkinter.Radiobutton(rpFFNET_gui,text="Fully connected",variable=rpFFNET_gui.trainTypeVar,value=2)
-    rpFFNET_gui.trainTypeFC.grid(row=nrow,column=3,columnspan=1,sticky="W")
+    FFNET_gui.trainOptionLabel = Tkinter.Label(FFNET_gui,text="Training type")
+    FFNET_gui.trainOptionLabel.grid(row=nrow,column=0,columnspan=1,sticky="E")
+    FFNET_gui.trainOption = Tkinter.OptionMenu(FFNET_gui,FFNET_gui.trainOptionVar,*choices)
+    FFNET_gui.trainOption.grid(row=nrow,column=1,columnspan=1,sticky="E")
+    FFNET_gui.trainTypeVar = Tkinter.IntVar()
+    FFNET_gui.trainTypeVar.set(2)
+    FFNET_gui.trainTypeStd = Tkinter.Radiobutton(FFNET_gui,text="Standard",variable=FFNET_gui.trainTypeVar,value=1)
+    FFNET_gui.trainTypeStd.grid(row=nrow,column=2,columnspan=1,sticky="W")
+    FFNET_gui.trainTypeFC = Tkinter.Radiobutton(FFNET_gui,text="Fully connected",variable=FFNET_gui.trainTypeVar,value=2)
+    FFNET_gui.trainTypeFC.grid(row=nrow,column=3,columnspan=1,sticky="W")
     # third row
     nrow = nrow + 1
-    rpFFNET_gui.filestartLabel = Tkinter.Label(rpFFNET_gui,text="File start date")
-    rpFFNET_gui.filestartLabel.grid(row=nrow,column=0,columnspan=3)
-    rpFFNET_gui.fileendLabel = Tkinter.Label(rpFFNET_gui,text="File end date")
-    rpFFNET_gui.fileendLabel.grid(row=nrow,column=3,columnspan=3)
+    FFNET_gui.filestartLabel = Tkinter.Label(FFNET_gui,text="File start date")
+    FFNET_gui.filestartLabel.grid(row=nrow,column=0,columnspan=3)
+    FFNET_gui.fileendLabel = Tkinter.Label(FFNET_gui,text="File end date")
+    FFNET_gui.fileendLabel.grid(row=nrow,column=3,columnspan=3)
     # fourth row
     nrow = nrow + 1
-    rpFFNET_gui.filestartValue = Tkinter.Label(rpFFNET_gui,text=str(ldt[0]))
-    rpFFNET_gui.filestartValue.grid(row=nrow,column=0,columnspan=3)
-    rpFFNET_gui.fileendValue = Tkinter.Label(rpFFNET_gui,text=str(ldt[-1]))
-    rpFFNET_gui.fileendValue.grid(row=nrow,column=3,columnspan=3)
+    FFNET_gui.filestartValue = Tkinter.Label(FFNET_gui,text=str(ldt[0]))
+    FFNET_gui.filestartValue.grid(row=nrow,column=0,columnspan=3)
+    FFNET_gui.fileendValue = Tkinter.Label(FFNET_gui,text=str(ldt[-1]))
+    FFNET_gui.fileendValue.grid(row=nrow,column=3,columnspan=3)
     # fifth row
     nrow = nrow + 1
-    rpFFNET_gui.startLabel = Tkinter.Label(rpFFNET_gui, text="Start date (YYYY-MM-DD)")
-    rpFFNET_gui.startLabel.grid(row=nrow,column=0,columnspan=3)
-    rpFFNET_gui.startEntry = Tkinter.Entry(rpFFNET_gui)
-    rpFFNET_gui.startEntry.grid(row=nrow,column=3,columnspan=3)
+    FFNET_gui.startLabel = Tkinter.Label(FFNET_gui, text="Start date (YYYY-MM-DD)")
+    FFNET_gui.startLabel.grid(row=nrow,column=0,columnspan=3)
+    FFNET_gui.startEntry = Tkinter.Entry(FFNET_gui)
+    FFNET_gui.startEntry.grid(row=nrow,column=3,columnspan=3)
     # sixth row
     nrow = nrow + 1
-    rpFFNET_gui.endLabel = Tkinter.Label(rpFFNET_gui, text="End date   (YYYY-MM-DD)")
-    rpFFNET_gui.endLabel.grid(row=nrow,column=0,columnspan=3)
-    rpFFNET_gui.endEntry = Tkinter.Entry(rpFFNET_gui)
-    rpFFNET_gui.endEntry.grid(row=nrow,column=3,columnspan=3)
+    FFNET_gui.endLabel = Tkinter.Label(FFNET_gui, text="End date   (YYYY-MM-DD)")
+    FFNET_gui.endLabel.grid(row=nrow,column=0,columnspan=3)
+    FFNET_gui.endEntry = Tkinter.Entry(FFNET_gui)
+    FFNET_gui.endEntry.grid(row=nrow,column=3,columnspan=3)
     # seventh row
     nrow = nrow + 1
-    rpFFNET_gui.peropt = Tkinter.IntVar()
-    rpFFNET_gui.peropt.set(1)
-    rpFFNET_gui.manualperiod = Tkinter.Radiobutton(rpFFNET_gui,text="Manual",variable=rpFFNET_gui.peropt,value=1)
-    rpFFNET_gui.manualperiod.grid(row=nrow,column=0,columnspan=1,sticky="W")
-    rpFFNET_gui.daysperiod = Tkinter.Radiobutton(rpFFNET_gui,text="No. days",variable=rpFFNET_gui.peropt,value=2)
-    rpFFNET_gui.daysperiod.grid(row=nrow,column=1,sticky="W")
-    rpFFNET_gui.daysentry = Tkinter.Entry(rpFFNET_gui,width=5)
-    rpFFNET_gui.daysentry.grid(row=nrow,column=2,sticky="W")
-    rpFFNET_gui.daysentry.insert(0,"30")
-    rpFFNET_gui.monthsperiod = Tkinter.Radiobutton(rpFFNET_gui,text="No. Months",variable=rpFFNET_gui.peropt,value=3)
-    rpFFNET_gui.monthsperiod.grid(row=nrow,column=3,sticky="W")
-    rpFFNET_gui.monthsentry = Tkinter.Entry(rpFFNET_gui,width=5)
-    rpFFNET_gui.monthsentry.grid(row=nrow,column=4,sticky="W")
-    rpFFNET_gui.monthsentry.insert(0,"1")
+    FFNET_gui.peropt = Tkinter.IntVar()
+    FFNET_gui.peropt.set(1)
+    FFNET_gui.manualperiod = Tkinter.Radiobutton(FFNET_gui,text="Manual",variable=FFNET_gui.peropt,value=1)
+    FFNET_gui.manualperiod.grid(row=nrow,column=0,columnspan=1,sticky="W")
+    FFNET_gui.yearsLabel = Tkinter.Radiobutton(FFNET_gui,text="Years",variable=FFNET_gui.peropt,value=4)
+    FFNET_gui.yearsLabel.grid(row=nrow,column=1,columnspan=1,sticky="W")
+    FFNET_gui.yearsEntry = Tkinter.Entry(FFNET_gui,width=3)
+    FFNET_gui.yearsEntry.grid(row=nrow,column=2,columnspan=1,sticky="W")
+    FFNET_gui.yearsEntry.insert(0,"1")
+    FFNET_gui.minptsLabel = Tkinter.Label(FFNET_gui,text="Min. pts (%)")
+    FFNET_gui.minptsLabel.grid(row=nrow,column=3,columnspan=1,sticky="E")
+    FFNET_gui.minptsEntry = Tkinter.Entry(FFNET_gui,width=5)
+    FFNET_gui.minptsEntry.grid(row=nrow,column=4,columnspan=1,sticky="W")
+    FFNET_gui.minptsEntry.insert(0,"10")
     # eigth row
     nrow = nrow + 1
-    rpFFNET_gui.autoyearly = Tkinter.Radiobutton(rpFFNET_gui,text="Yearly",variable=rpFFNET_gui.peropt,value=4)
-    rpFFNET_gui.autoyearly.grid(row=nrow,column=0,columnspan=1,sticky="W")
-    rpFFNET_gui.pointsperiod = Tkinter.Radiobutton(rpFFNET_gui,text="No. pts",variable=rpFFNET_gui.peropt,value=5)
-    rpFFNET_gui.pointsperiod.grid(row=nrow,column=1,sticky="W")
-    rpFFNET_gui.pointsentry = Tkinter.Entry(rpFFNET_gui,width=5)
-    rpFFNET_gui.pointsentry.grid(row=nrow,column=2,columnspan=1,sticky="W")
+    FFNET_gui.automonthly = Tkinter.Radiobutton(FFNET_gui,text="Monthly",variable=FFNET_gui.peropt,value=2)
+    FFNET_gui.automonthly.grid(row=nrow,column=0,columnspan=1,sticky="W")
+    FFNET_gui.daysLabel = Tkinter.Radiobutton(FFNET_gui,text="Days",variable=FFNET_gui.peropt,value=3)
+    FFNET_gui.daysLabel.grid(row=nrow,column=1,columnspan=1,sticky="W")
+    FFNET_gui.daysEntry = Tkinter.Entry(FFNET_gui,width=3)
+    FFNET_gui.daysEntry.grid(row=nrow,column=2,columnspan=1,sticky="W")
+    FFNET_gui.daysEntry.insert(0,"90")
+    FFNET_gui.autocompleteopt = Tkinter.IntVar()
+    FFNET_gui.autocompleteopt.set(1)
+    FFNET_gui.autocomplete = Tkinter.Checkbutton(FFNET_gui, text="Auto complete", variable=FFNET_gui.autocompleteopt)
+    FFNET_gui.autocomplete.grid(row=nrow,column=3,columnspan=3,sticky="w")
     # ninth row
     nrow = nrow + 1
-    rpFFNET_gui.minptsLabel = Tkinter.Label(rpFFNET_gui,text="Min points")
-    rpFFNET_gui.minptsLabel.grid(row=nrow,column=0,columnspan=1,sticky="E")
-    rpFFNET_gui.minpts = Tkinter.Entry(rpFFNET_gui,width=5)
-    rpFFNET_gui.minpts.grid(row=nrow,column=1,columnspan=1,sticky="W")
-    rpFFNET_gui.minpts.insert(0,"200")
-    rpFFNET_gui.owopt = Tkinter.IntVar()
-    rpFFNET_gui.owopt.set(1)
-    rpFFNET_gui.overwrite = Tkinter.Checkbutton(rpFFNET_gui, text="Overwrite", variable=rpFFNET_gui.owopt)
-    rpFFNET_gui.overwrite.grid(row=nrow,column=2,columnspan=2,sticky="w")
+    FFNET_gui.pltopt = Tkinter.IntVar()
+    FFNET_gui.pltopt.set(1)
+    FFNET_gui.showplots = Tkinter.Checkbutton(FFNET_gui, text="Show plots", variable=FFNET_gui.pltopt)
+    FFNET_gui.showplots.grid(row=nrow,column=0,columnspan=3,sticky="w")
+    FFNET_gui.owopt = Tkinter.IntVar()
+    FFNET_gui.owopt.set(0)
+    FFNET_gui.overwrite = Tkinter.Checkbutton(FFNET_gui, text="Overwrite", variable=FFNET_gui.owopt)
+    FFNET_gui.overwrite.grid(row=nrow,column=3,columnspan=3,sticky="w")
     # tenth row
     nrow = nrow + 1
-    rpFFNET_gui.doneButton = Tkinter.Button (rpFFNET_gui, text="Done",command=lambda:rpFFNET_done(ds,rpFFNET_gui))
-    rpFFNET_gui.doneButton.grid(row=nrow,column=0,columnspan=3)
-    rpFFNET_gui.runButton = Tkinter.Button (rpFFNET_gui, text="Run",command=lambda:rpFFNET_run(ds,rpFFNET_gui,rpFFNET_info))
-    rpFFNET_gui.runButton.grid(row=nrow,column=3,columnspan=3)
+    FFNET_gui.doneButton = Tkinter.Button (FFNET_gui, text="Done",command=lambda:rpFFNET_done(ds,FFNET_gui,FFNET_info))
+    FFNET_gui.doneButton.grid(row=nrow,column=0,columnspan=2)
+    FFNET_gui.runButton = Tkinter.Button (FFNET_gui, text="Run",command=lambda:rpFFNET_run_gui(ds,FFNET_gui,FFNET_info))
+    FFNET_gui.runButton.grid(row=nrow,column=2,columnspan=2)
+    FFNET_gui.quitButton = Tkinter.Button (FFNET_gui, text="Quit",command=lambda:rpFFNET_quit(ds,FFNET_gui))
+    FFNET_gui.quitButton.grid(row=nrow,column=4,columnspan=2)
     # eleventh row
     nrow = nrow + 1
-    rpFFNET_gui.progress_row = nrow
-    rpFFNET_gui.progress = Tkinter.Label(rpFFNET_gui, text='Waiting for input ...')
-    rpFFNET_gui.progress.grid(row=nrow,column=0,columnspan=6,sticky="W")
+    FFNET_gui.progress_row = nrow
+    FFNET_gui.progress = Tkinter.Label(FFNET_gui, text='Waiting for input ...')
+    FFNET_gui.progress.grid(row=nrow,column=0,columnspan=6,sticky="W")
 
-    rpFFNET_gui.wait_window(rpFFNET_gui)
+    FFNET_gui.wait_window(FFNET_gui)
 
 def FreUsingLasslop(cf,ds):
     log.info('Estimating Fre using Lasslop et al is not implemented yet, but we are working on it now ...')
@@ -346,114 +370,147 @@ def FreUsingSOLO(cf,ds):
     ldt = ds.series["DateTime"]["Data"]
     startdate = ldt[0]
     enddate = ldt[-1]
-    rpSOLO_info = {"file_startdate":startdate.strftime("%Y-%m-%d %H:%M"),
+    solo_info = {"file_startdate":startdate.strftime("%Y-%m-%d %H:%M"),
                    "file_enddate":enddate.strftime("%Y-%m-%d %H:%M"),
                    "plot_path":cf["Files"]["plot_path"]}
+    # check to see if this is a batch or an interactive run
+    call_mode = qcutils.get_keyvaluefromcf(cf,["Options"],"call_mode",default="interactive")
+    solo_info["call_mode"]= call_mode
+    if call_mode.lower()=="interactive": solo_info["show_plots"] = True
+    if call_mode.lower()=="interactive":
+        # call the FreUsingSOLO GUI
+        rpSOLO_gui(cf,ds,solo_info)
+    else:
+        if "GUI" in cf:
+            if "SOLO" in cf["GUI"]:
+                rpSOLO_run_nogui(cf,ds,solo_info)
+            else:
+                log.warning(" No GUI sub-section found in Options section of control file")
+                rpSOLO_gui(cf,ds,solo_info)
+        else:
+            log.warning(" No GUI sub-section found in Options section of control file")
+            rpSOLO_gui(cf,ds,solo_info)
+
+def rpSOLO_gui(cf,ds,solo_info):
+    ldt = ds.series["DateTime"]["Data"]
+    # use specific parameters are "Nodes", "Learning"
     # set up the GUI
-    rpSOLO_gui = Tkinter.Toplevel()
-    rpSOLO_gui.wm_title("SOLO GUI (Fre)")
-    rpSOLO_gui.grid()
+    solo_gui = Tkinter.Toplevel()
+    solo_gui.wm_title("SOLO GUI (Fre)")
+    solo_gui.grid()
     # top row
     nrow = 0
-    rpSOLO_gui.nodesLabel = Tkinter.Label(rpSOLO_gui,text="Nodes")
-    rpSOLO_gui.nodesLabel.grid(row=nrow,column=0,columnspan=1,sticky="E")
-    rpSOLO_gui.nodesEntry = Tkinter.Entry(rpSOLO_gui,width=6)
-    rpSOLO_gui.nodesEntry.grid(row=nrow,column=1,columnspan=1,sticky="W")
-    rpSOLO_gui.nodesEntry.insert(0,"1")
-    rpSOLO_gui.trainingLabel = Tkinter.Label(rpSOLO_gui,text="Training")
-    rpSOLO_gui.trainingLabel.grid(row=nrow,column=2,columnspan=1,sticky="E")
-    rpSOLO_gui.trainingEntry = Tkinter.Entry(rpSOLO_gui,width=6)
-    rpSOLO_gui.trainingEntry.grid(row=nrow,column=3,columnspan=1,sticky="W")
-    rpSOLO_gui.trainingEntry.insert(0,"500")
-    rpSOLO_gui.factorLabel = Tkinter.Label(rpSOLO_gui,text="Nda factor")
-    rpSOLO_gui.factorLabel.grid(row=nrow,column=4,columnspan=1,sticky="E")
-    rpSOLO_gui.factorEntry = Tkinter.Entry(rpSOLO_gui,width=6)
-    rpSOLO_gui.factorEntry.grid(row=nrow,column=5,columnspan=1,sticky="W")
-    rpSOLO_gui.factorEntry.insert(0,"5")
+    solo_gui.nodesLabel = Tkinter.Label(solo_gui,text="Nodes")
+    solo_gui.nodesLabel.grid(row=nrow,column=0,columnspan=1,sticky="E")
+    solo_gui.nodesEntry = Tkinter.Entry(solo_gui,width=6)
+    solo_gui.nodesEntry.grid(row=nrow,column=1,columnspan=1,sticky="W")
+    solo_gui.nodesEntry.insert(0,"1")
+    solo_gui.trainingLabel = Tkinter.Label(solo_gui,text="Training")
+    solo_gui.trainingLabel.grid(row=nrow,column=2,columnspan=1,sticky="E")
+    solo_gui.trainingEntry = Tkinter.Entry(solo_gui,width=6)
+    solo_gui.trainingEntry.grid(row=nrow,column=3,columnspan=1,sticky="W")
+    solo_gui.trainingEntry.insert(0,"500")
+    solo_gui.factorLabel = Tkinter.Label(solo_gui,text="Nda factor")
+    solo_gui.factorLabel.grid(row=nrow,column=4,columnspan=1,sticky="E")
+    solo_gui.factorEntry = Tkinter.Entry(solo_gui,width=6)
+    solo_gui.factorEntry.grid(row=nrow,column=5,columnspan=1,sticky="W")
+    solo_gui.factorEntry.insert(0,"5")
     # second row
     nrow = nrow + 1
-    rpSOLO_gui.learningrateLabel = Tkinter.Label(rpSOLO_gui,text="Learning")
-    rpSOLO_gui.learningrateLabel.grid(row=nrow,column=2,columnspan=1,sticky="E")
-    rpSOLO_gui.learningrateEntry = Tkinter.Entry(rpSOLO_gui,width=6)
-    rpSOLO_gui.learningrateEntry.grid(row=nrow,column=3,columnspan=1,sticky="W")
-    rpSOLO_gui.learningrateEntry.insert(0,"0.001")
-    rpSOLO_gui.iterationsLabel = Tkinter.Label(rpSOLO_gui,text="Iterations")
-    rpSOLO_gui.iterationsLabel.grid(row=nrow,column=4,columnspan=1,sticky="E")
-    rpSOLO_gui.iterationsEntry = Tkinter.Entry(rpSOLO_gui,width=6)
-    rpSOLO_gui.iterationsEntry.grid(row=nrow,column=5,columnspan=1,sticky="W")
-    rpSOLO_gui.iterationsEntry.insert(0,"500")
+    solo_gui.learningrateLabel = Tkinter.Label(solo_gui,text="Learning")
+    solo_gui.learningrateLabel.grid(row=nrow,column=2,columnspan=1,sticky="E")
+    solo_gui.learningrateEntry = Tkinter.Entry(solo_gui,width=6)
+    solo_gui.learningrateEntry.grid(row=nrow,column=3,columnspan=1,sticky="W")
+    solo_gui.learningrateEntry.insert(0,"0.001")
+    solo_gui.iterationsLabel = Tkinter.Label(solo_gui,text="Iterations")
+    solo_gui.iterationsLabel.grid(row=nrow,column=4,columnspan=1,sticky="E")
+    solo_gui.iterationsEntry = Tkinter.Entry(solo_gui,width=6)
+    solo_gui.iterationsEntry.grid(row=nrow,column=5,columnspan=1,sticky="W")
+    solo_gui.iterationsEntry.insert(0,"500")
     # third row
     nrow = nrow + 1
-    rpSOLO_gui.filestartLabel = Tkinter.Label(rpSOLO_gui,text="File start date")
-    rpSOLO_gui.filestartLabel.grid(row=nrow,column=0,columnspan=3)
-    rpSOLO_gui.fileendLabel = Tkinter.Label(rpSOLO_gui,text="File end date")
-    rpSOLO_gui.fileendLabel.grid(row=nrow,column=3,columnspan=3)
+    solo_gui.filestartLabel = Tkinter.Label(solo_gui,text="File start date")
+    solo_gui.filestartLabel.grid(row=nrow,column=0,columnspan=3)
+    solo_gui.fileendLabel = Tkinter.Label(solo_gui,text="File end date")
+    solo_gui.fileendLabel.grid(row=nrow,column=3,columnspan=3)
     # fourth row
     nrow = nrow + 1
-    rpSOLO_gui.filestartValue = Tkinter.Label(rpSOLO_gui,text=str(ldt[0]))
-    rpSOLO_gui.filestartValue.grid(row=nrow,column=0,columnspan=3)
-    rpSOLO_gui.fileendValue = Tkinter.Label(rpSOLO_gui,text=str(ldt[-1]))
-    rpSOLO_gui.fileendValue.grid(row=nrow,column=3,columnspan=3)
+    solo_gui.filestartValue = Tkinter.Label(solo_gui,text=str(ldt[0]))
+    solo_gui.filestartValue.grid(row=nrow,column=0,columnspan=3)
+    solo_gui.fileendValue = Tkinter.Label(solo_gui,text=str(ldt[-1]))
+    solo_gui.fileendValue.grid(row=nrow,column=3,columnspan=3)
     # fifth row
     nrow = nrow + 1
-    rpSOLO_gui.startLabel = Tkinter.Label(rpSOLO_gui, text="Start date (YYYY-MM-DD)")
-    rpSOLO_gui.startLabel.grid(row=nrow,column=0,columnspan=3)
-    rpSOLO_gui.startEntry = Tkinter.Entry(rpSOLO_gui)
-    rpSOLO_gui.startEntry.grid(row=nrow,column=3,columnspan=3)
+    solo_gui.startLabel = Tkinter.Label(solo_gui, text="Start date (YYYY-MM-DD)")
+    solo_gui.startLabel.grid(row=nrow,column=0,columnspan=3)
+    solo_gui.startEntry = Tkinter.Entry(solo_gui)
+    solo_gui.startEntry.grid(row=nrow,column=3,columnspan=3)
     # sixth row
     nrow = nrow + 1
-    rpSOLO_gui.endLabel = Tkinter.Label(rpSOLO_gui, text="End date   (YYYY-MM-DD)")
-    rpSOLO_gui.endLabel.grid(row=nrow,column=0,columnspan=3)
-    rpSOLO_gui.endEntry = Tkinter.Entry(rpSOLO_gui)
-    rpSOLO_gui.endEntry.grid(row=nrow,column=3,columnspan=3)
+    solo_gui.endLabel = Tkinter.Label(solo_gui, text="End date   (YYYY-MM-DD)")
+    solo_gui.endLabel.grid(row=nrow,column=0,columnspan=3)
+    solo_gui.endEntry = Tkinter.Entry(solo_gui)
+    solo_gui.endEntry.grid(row=nrow,column=3,columnspan=3)
     # seventh row
     nrow = nrow + 1
-    rpSOLO_gui.peropt = Tkinter.IntVar()
-    rpSOLO_gui.peropt.set(1)
-    rpSOLO_gui.manualperiod = Tkinter.Radiobutton(rpSOLO_gui,text="Manual",variable=rpSOLO_gui.peropt,value=1)
-    rpSOLO_gui.manualperiod.grid(row=nrow,column=0,columnspan=2,sticky="W")
-    rpSOLO_gui.daysperiod = Tkinter.Radiobutton(rpSOLO_gui,text="No. days",variable=rpSOLO_gui.peropt,value=2)
-    rpSOLO_gui.daysperiod.grid(row=nrow,column=2,sticky="W")
-    rpSOLO_gui.daysentry = Tkinter.Entry(rpSOLO_gui,width=5)
-    rpSOLO_gui.daysentry.grid(row=nrow,column=3,sticky="W")
-    rpSOLO_gui.daysentry.insert(0,"30")
-    rpSOLO_gui.monthsperiod = Tkinter.Radiobutton(rpSOLO_gui,text="No. months",variable=rpSOLO_gui.peropt,value=3)
-    rpSOLO_gui.monthsperiod.grid(row=nrow,column=4,sticky="W")
-    rpSOLO_gui.monthsentry = Tkinter.Entry(rpSOLO_gui,width=5)
-    rpSOLO_gui.monthsentry.grid(row=nrow,column=5,sticky="W")
-    rpSOLO_gui.monthsentry.insert(0,"1")
+    solo_gui.peropt = Tkinter.IntVar()
+    solo_gui.peropt.set(1)
+    solo_gui.manualperiod = Tkinter.Radiobutton(solo_gui,text="Manual",variable=solo_gui.peropt,value=1)
+    solo_gui.manualperiod.grid(row=nrow,column=0,columnspan=1,sticky="W")
+    solo_gui.yearsLabel = Tkinter.Radiobutton(solo_gui,text="Years",variable=solo_gui.peropt,value=4)
+    solo_gui.yearsLabel.grid(row=nrow,column=1,columnspan=1,sticky="W")
+    solo_gui.yearsEntry = Tkinter.Entry(solo_gui,width=3)
+    solo_gui.yearsEntry.grid(row=nrow,column=2,columnspan=1,sticky="W")
+    solo_gui.yearsEntry.insert(0,"1")
+    solo_gui.minptsLabel = Tkinter.Label(solo_gui,text="Min. pts (%)")
+    solo_gui.minptsLabel.grid(row=nrow,column=3,columnspan=1,sticky="E")
+    solo_gui.minptsEntry = Tkinter.Entry(solo_gui,width=5)
+    solo_gui.minptsEntry.grid(row=nrow,column=4,columnspan=1,sticky="W")
+    solo_gui.minptsEntry.insert(0,"10")
     # eigth row
     nrow = nrow + 1
-    rpSOLO_gui.autoyearly = Tkinter.Radiobutton(rpSOLO_gui,text="Yearly",variable=rpSOLO_gui.peropt,value=4)
-    rpSOLO_gui.autoyearly.grid(row=nrow,column=0,columnspan=1,sticky="W")
-    rpSOLO_gui.pointsperiod = Tkinter.Radiobutton(rpSOLO_gui,text="No. pts",variable=rpSOLO_gui.peropt,value=5)
-    rpSOLO_gui.pointsperiod.grid(row=nrow,column=2,sticky="W")
-    rpSOLO_gui.pointsentry = Tkinter.Entry(rpSOLO_gui,width=5)
-    rpSOLO_gui.pointsentry.grid(row=nrow,column=3,columnspan=1,sticky="W")
+    solo_gui.automonthly = Tkinter.Radiobutton(solo_gui,text="Monthly",variable=solo_gui.peropt,value=2)
+    solo_gui.automonthly.grid(row=nrow,column=0,columnspan=1,sticky="W")
+    solo_gui.daysLabel = Tkinter.Radiobutton(solo_gui,text="Days",variable=solo_gui.peropt,value=3)
+    solo_gui.daysLabel.grid(row=nrow,column=1,columnspan=1,sticky="W")
+    solo_gui.daysEntry = Tkinter.Entry(solo_gui,width=3)
+    solo_gui.daysEntry.grid(row=nrow,column=2,columnspan=1,sticky="W")
+    solo_gui.daysEntry.insert(0,"90")
+    solo_gui.autocompleteopt = Tkinter.IntVar()
+    solo_gui.autocompleteopt.set(1)
+    solo_gui.autocomplete = Tkinter.Checkbutton(solo_gui, text="Auto complete", variable=solo_gui.autocompleteopt)
+    solo_gui.autocomplete.grid(row=nrow,column=3,columnspan=3,sticky="w")
     # ninth row
     nrow = nrow + 1
-    rpSOLO_gui.minptsLabel = Tkinter.Label(rpSOLO_gui,text="Min points")
-    rpSOLO_gui.minptsLabel.grid(row=nrow,column=0,columnspan=1,sticky="E")
-    rpSOLO_gui.minpts = Tkinter.Entry(rpSOLO_gui,width=5)
-    rpSOLO_gui.minpts.grid(row=nrow,column=1,columnspan=1,sticky="W")
-    rpSOLO_gui.minpts.insert(0,"200")
-    rpSOLO_gui.owopt = Tkinter.IntVar()
-    rpSOLO_gui.owopt.set(1)
-    rpSOLO_gui.overwrite = Tkinter.Checkbutton(rpSOLO_gui, text="Overwrite", variable=rpSOLO_gui.owopt)
-    rpSOLO_gui.overwrite.grid(row=nrow,column=3,columnspan=2,sticky="w")
+    solo_gui.pltopt = Tkinter.IntVar()
+    solo_gui.pltopt.set(1)
+    solo_gui.showplots = Tkinter.Checkbutton(solo_gui, text="Show plots", variable=solo_gui.pltopt)
+    solo_gui.showplots.grid(row=nrow,column=0,columnspan=3,sticky="w")
+    solo_gui.owopt = Tkinter.IntVar()
+    solo_gui.owopt.set(0)
+    solo_gui.overwrite = Tkinter.Checkbutton(solo_gui, text="Overwrite", variable=solo_gui.owopt)
+    solo_gui.overwrite.grid(row=nrow,column=3,columnspan=3,sticky="w")
     # tenth row
     nrow = nrow + 1
-    rpSOLO_gui.doneButton = Tkinter.Button (rpSOLO_gui, text="Done",command=lambda:rpSOLO_done(ds,rpSOLO_gui))
-    rpSOLO_gui.doneButton.grid(row=nrow,column=0,columnspan=3)
-    rpSOLO_gui.runButton = Tkinter.Button (rpSOLO_gui, text="Run",command=lambda:rpSOLO_run(ds,rpSOLO_gui,rpSOLO_info))
-    rpSOLO_gui.runButton.grid(row=nrow,column=3,columnspan=3)
+    solo_gui.doneButton = Tkinter.Button (solo_gui, text="Done",command=lambda:rpSOLO_done(ds,solo_gui,solo_info))
+    solo_gui.doneButton.grid(row=nrow,column=0,columnspan=2)
+    solo_gui.runButton = Tkinter.Button (solo_gui, text="Run",command=lambda:rpSOLO_run_gui(ds,solo_gui,solo_info))
+    solo_gui.runButton.grid(row=nrow,column=2,columnspan=2)
+    solo_gui.quitButton = Tkinter.Button (solo_gui, text="Quit",command=lambda:rpSOLO_quit(ds,solo_gui))
+    solo_gui.quitButton.grid(row=nrow,column=4,columnspan=2)
     # eleventh row
     nrow = nrow + 1
-    rpSOLO_gui.progress_row = nrow
-    rpSOLO_gui.progress = Tkinter.Label(rpSOLO_gui, text='Waiting for input ...')
-    rpSOLO_gui.progress.grid(row=nrow,column=0,columnspan=6,sticky="W")
+    solo_gui.progress_row = nrow
+    solo_gui.progress = Tkinter.Label(solo_gui, text='Waiting for input ...')
+    solo_gui.progress.grid(row=nrow,column=0,columnspan=6,sticky="W")
 
-    rpSOLO_gui.wait_window(rpSOLO_gui)
+    solo_gui.wait_window(solo_gui)
+
+def rpSOLO_quit(ds,solo_gui):
+    # destroy the GUI
+    solo_gui.destroy()
+    # put the return code in ds.returncodes
+    ds.returncodes["solo"] = "quit"
 
 def GetFreFromFc(cf,ds):
     """
@@ -473,6 +530,7 @@ def GetFreFromFc(cf,ds):
     Author: PRI
     Date: August 2014
     """
+    # needs a fecking good refactor
     ts = int(ds.globalattributes["time_step"])
     ldt = ds.series['DateTime']['Data']
     # get the Fsd threshold
@@ -488,16 +546,24 @@ def GetFreFromFc(cf,ds):
         log.warning(" ... using default value of 10 W/m2")
         Fsd_threshold = float(10)
     # get the ustar thresholds
-    ustar_threshold_list = []
-    if "ustar_threshold" in cf.keys():
-        for n in cf["ustar_threshold"].keys():
-            ustar_threshold_list.append(ast.literal_eval(cf["ustar_threshold"][str(n)]))
+    if "cpd_filename" in cf["Files"]:
+        ustar_dict = get_ustarthreshold_from_cpdresults(cf)
     else:
-        log.warning(" No [ustar_threshold] section in control file")
-        log.warning(" ... using default value of 0.25 m/s")
-        ustar_threshold_list.append([ldt[0].strftime("%Y-%m-%d %H:%M"),
-                                     ldt[-1].strftime("%Y-%m-%d %H:%M"),
-                                     str(0.25)])
+        msg = " CPD results filename not in control file"
+        log.error(msg)
+        return False
+        #ustar_annual = get_ustarthreshold_from_cf(cf)
+    # make sure we have an entry in ustar_dict for all years
+    start_year = ldt[0].year
+    end_year = ldt[-1].year
+    data_years = range(start_year,end_year+1)
+    ustar_years = ustar_dict.keys()
+    ustar_list = ustar_dict[ustar_years[0]]
+    for year in data_years:
+        if str(year) not in ustar_years:
+            ustar_dict[str(year)] = {}
+            for item in ustar_list:
+                ustar_dict[str(year)][item] = float(c.missing_value)
     # get the data
     Fsd,Fsd_flag,Fsd_attr = qcutils.GetSeriesasMA(ds,"Fsd")
     if "Fsd_syn" not in ds.series.keys(): qcts.get_synthetic_fsd(ds)
@@ -505,6 +571,7 @@ def GetFreFromFc(cf,ds):
     sa,flag,attr = qcutils.GetSeriesasMA(ds,"solar_altitude")
     ustar,ustar_flag,attr = qcutils.GetSeriesasMA(ds,"ustar")
     Fc,Fc_flag,Fc_attr = qcutils.GetSeriesasMA(ds,"Fc")
+
     # only accept Fc and ustar data when both have a QC flag value of 0
     ustar = numpy.ma.masked_where((ustar_flag!=0)|(Fc_flag!=0),ustar)
     Fc = numpy.ma.masked_where((ustar_flag!=0)|(Fc_flag!=0),Fc)
@@ -517,6 +584,7 @@ def GetFreFromFc(cf,ds):
         if len(index)!=0:
             log.error(" GetFreFromFc: missing data in series "+label)
             raise Exception("GetFreFromFc: missing data in series "+label)
+
     # apply the day/night filter
     # get the day/night filter type from the control file
     daynightfilter_type = qcutils.get_keyvaluefromcf(cf,["Options"],"DayNightFilter",default="Fsd")
@@ -525,6 +593,7 @@ def GetFreFromFc(cf,ds):
     # make the attribute dictionary first so we can add the ustar thresholds to it
     Fre_attr = qcutils.MakeAttributeDictionary(long_name='Ecosystem respiration (observed)',units=Fc_attr["units"])
     Fsd_attr = qcutils.MakeAttributeDictionary(long_name='Incoming shortwave radiation, filtered',units="W/m2")
+
     # apply the day/night filter
     if daynightfilter_type=="Fsd":
         # we are using Fsd and possibly Fsd_syn to define day/night
@@ -549,20 +618,36 @@ def GetFreFromFc(cf,ds):
     Fsd2 = numpy.ma.array(Fsd1)
     # get a copy of the Fc flag
     Fre_flag = numpy.array(Fc_flag)
+
     # loop over the list of ustar thresholds
-    for i,list_item in enumerate(ustar_threshold_list):
-        Fre_attr["ustar_threshold_"+str(i)] = str(list_item)
+    year_list = ustar_dict.keys()
+    year_list.sort()
+    # get the average of good ustar threshold values
+    good_values = []
+    for year in year_list:
+        ustar_threshold = float(ustar_dict[year]["ustar_mean"])
+        if ustar_threshold!=float(c.missing_value):
+            good_values.append(ustar_threshold)
+    ustar_threshold_mean = numpy.sum(numpy.array(good_values))/len(good_values)
+    # now loop over the years in the data to apply the ustar threshold
+    for year in year_list:
+        start_date = str(year)+"-01-01 00:30"
+        if ts==60: start_date = str(year)+"-01-01 01:00"
+        end_date = str(int(year)+1)+"-01-01 00:00"
+        # get the ustar threshold
+        ustar_threshold = float(ustar_dict[year]["ustar_mean"])
+        if ustar_threshold==float(c.missing_value): ustar_threshold = ustar_threshold_mean
+        Fre_attr["ustar_threshold_"+str(year)] = str(ustar_threshold)
         # get the start and end datetime indices
-        si = qcutils.GetDateIndex(ldt,list_item[0],ts=ts,default=0,match='exact')
-        ei = qcutils.GetDateIndex(ldt,list_item[1],ts=ts,default=len(ldt),match='exact')
-        # get the ustar thrhold
-        ustar_threshold = float(list_item[2])
+        si = qcutils.GetDateIndex(ldt,start_date,ts=ts,default=0,match='exact')
+        ei = qcutils.GetDateIndex(ldt,end_date,ts=ts,default=len(ldt),match='exact')
         # filter out the low ustar conditions
         Fre2[si:ei] = numpy.ma.masked_where(ustar[si:ei]<ustar_threshold,Fre1[si:ei])
         Fsd2[si:ei] = numpy.ma.masked_where(ustar[si:ei]<ustar_threshold,Fsd1[si:ei])
         # set the QC flag
         index_lowustar = numpy.ma.where(ustar[si:ei]<ustar_threshold)[0]
         Fre_flag[si:ei][index_lowustar] = numpy.int32(62)
+
     # apply quantile filter
     if qcutils.cfoptionskeylogical(cf,Key='UseQuantileFilter',default=False):
         Fre_attr["long_name"] = Fre_attr["long_name"]+", quantile filter not used"
@@ -581,10 +666,46 @@ def GetFreFromFc(cf,ds):
         Fre_attr["Fre_quantile"] = str(quantile_lower)+","+str(quantile_upper)
         Fsd_attr["long_name"].replace(", quantile filter not used",", quantile filter used")
         Fsd_attr["Fre_quantile"] = str(quantile_lower)+","+str(quantile_upper)
+
     # put the nocturnal, filtered Fc data into the data structure
     qcutils.CreateSeries(ds,"Fre",Fre2,Flag=Fre_flag,Attr=Fre_attr)
     qcutils.CreateSeries(ds,"Fsd_filtered",Fsd2,Flag=Fsd_flag,Attr=Fsd_attr)
     return True
+
+def get_ustarthreshold_from_cf(cf):
+    ustar_annual = {}
+    # do some stuff
+    if "ustar_threshold" in cf.keys():
+        for n in cf["ustar_threshold"].keys():
+            ustar_threshold_list.append(ast.literal_eval(cf["ustar_threshold"][str(n)]))
+    else:
+        log.warning(" No [ustar_threshold] section in control file")
+        log.warning(" ... using default value of 0.25 m/s")
+        ustar_threshold_list.append([ldt[0].strftime("%Y-%m-%d %H:%M"),
+                                     ldt[-1].strftime("%Y-%m-%d %H:%M"),
+                                     str(0.25)])
+    return ustar_annual
+
+def get_ustarthreshold_from_cpdresults(cf):
+    # do some stuff
+    cpd_path = cf["Files"]["file_path"]
+    cpd_name = cpd_path+cf["Files"]["cpd_filename"]
+    cpd_wb = xlrd.open_workbook(cpd_name)
+    annual_ws = cpd_wb.sheet_by_name("Annual")
+    header_list = [x for x in annual_ws.row_values(0)]
+    year_list = [str(int(x)) for x in annual_ws.col_values(0)[1:]]
+    ustar_dict = collections.OrderedDict()
+    for i,year in enumerate(year_list):
+        ustar_dict[year] = collections.OrderedDict()
+        for item in header_list:
+            xlcol = header_list.index(item)
+            val = annual_ws.col_values(xlcol)[i+1]
+            typ = annual_ws.col_types(xlcol)[i+1]
+            if typ==2:
+                ustar_dict[year][item] = float(val)
+            else:
+                ustar_dict[year][item] = float(c.missing_value)
+    return ustar_dict
 
 def L6_summary(cf,ds):
     """
@@ -798,22 +919,23 @@ def L6_summary_createseriesdict(cf,ds):
         series_dict["cumulative"][item]["format"] = "0.00"
     series_dict["daily"]["Ah"] = {"operator":"average","format":"0.00"}
     series_dict["daily"]["Cc"] = {"operator":"average","format":"0.0"}
-    series_dict["daily"]["ps"] = {"operator":"average","format":"0.00"}
-    series_dict["daily"]["q"] = {"operator":"average","format":"0.0000"}
-    series_dict["daily"]["RH"] = {"operator":"average","format":"0"}
-    series_dict["daily"]["Ws"] = {"operator":"average","format":"0.00"}
+    series_dict["daily"]["Fc"] = {"operator":"average","format":"0.00"}
+    series_dict["daily"]["Fe"] = {"operator":"average","format":"0.0"}
+    series_dict["daily"]["Fh"] = {"operator":"average","format":"0.0"}
+    series_dict["daily"]["Fg"] = {"operator":"average","format":"0.0"}
     series_dict["daily"]["Fn"] = {"operator":"average","format":"0.0"}
     series_dict["daily"]["Fsd"] = {"operator":"average","format":"0.0"}
     series_dict["daily"]["Fsu"] = {"operator":"average","format":"0.0"}
     series_dict["daily"]["Fld"] = {"operator":"average","format":"0.0"}
     series_dict["daily"]["Flu"] = {"operator":"average","format":"0.0"}
-    series_dict["daily"]["Fg"] = {"operator":"average","format":"0.0"}
+    series_dict["daily"]["ps"] = {"operator":"average","format":"0.00"}
+    series_dict["daily"]["q"] = {"operator":"average","format":"0.0000"}
+    series_dict["daily"]["RH"] = {"operator":"average","format":"0"}
     series_dict["daily"]["Sws"] = {"operator":"average","format":"0.000"}
+    series_dict["daily"]["Ta"] = {"operator":"average","format":"0.00"}
     series_dict["daily"]["Ts"] = {"operator":"average","format":"0.00"}
-    series_dict["daily"]["Fc"] = {"operator":"average","format":"0.00"}
-    series_dict["daily"]["Fe"] = {"operator":"average","format":"0.0"}
-    series_dict["daily"]["Fh"] = {"operator":"average","format":"0.0"}
     series_dict["daily"]["ustar"] = {"operator":"average","format":"0.00"}
+    series_dict["daily"]["Ws"] = {"operator":"average","format":"0.00"}
     series_dict["daily"]["ET"] = {"operator":"sum","format":"0.0"}
     series_dict["daily"]["Precip"] = {"operator":"sum","format":"0.0"}
     series_dict["cumulative"]["ET"] = series_dict["daily"]["ET"]
@@ -1204,7 +1326,7 @@ def rpFFNET_createdict(cf,ds,series):
         data,flag,attr = qcutils.MakeEmptySeries(ds,ds.merge["standard"][series]["output"])
         qcutils.CreateSeries(ds,ds.merge["standard"][series]["output"],data,Flag=flag,Attr=attr)
 
-def rpFFNET_done(ds,rpFFNET_gui):
+def rpFFNET_done(ds,rpFFNET_gui,rpFFNET_info):
     # destroy the FFNET GUI
     rpFFNET_gui.destroy()
     if "ffnet" in dir(ds): del ds.ffnet
@@ -1503,14 +1625,106 @@ def rpFFNET_progress(rpFFNET_gui,text):
     rpFFNET_gui.progress.grid(row=rpFFNET_gui.progress_row,column=0,columnspan=4,sticky="W")
     rpFFNET_gui.update()
 
-def rpFFNET_run(ds,rpFFNET_gui,rpFFNET_info):
+def rpFFNET_quit(ds,rpFFNET_gui):
+    # destroy the GUI
+    rpFFNET_gui.destroy()
+    # put the return code in ds.returncodes
+    ds.returncodes["ffnet"] = "quit"
+
+def rpFFNET_run_gui(ds,rpFFNET_gui,rpFFNET_info):
     # populate the rpFFNET_info dictionary with things that will be useful
     rpFFNET_info["hidden"] = rpFFNET_gui.nodesEntry.get()
     rpFFNET_info["iterations"] = rpFFNET_gui.trainingEntry.get()
     rpFFNET_info["train_option"] = str(rpFFNET_gui.trainOptionVar.get())
     rpFFNET_info["train_type"] = int(rpFFNET_gui.trainTypeVar.get())
     rpFFNET_info["peropt"] = rpFFNET_gui.peropt.get()
-    rpFFNET_info["min_points"] = int(rpFFNET_gui.minpts.get())
+    rpFFNET_info["min_points"] = int(rpFFNET_gui.minptsEntry.get())
+    rpFFNET_info["site_name"] = ds.globalattributes["site_name"]
+    rpFFNET_info["time_step"] = int(ds.globalattributes["time_step"])
+    rpFFNET_info["nperhr"] = int(float(60)/rpFFNET_info["time_step"]+0.5)
+    rpFFNET_info["nperday"] = int(float(24)*rpFFNET_info["nperhr"]+0.5)
+    rpFFNET_info["maxlags"] = int(float(12)*rpFFNET_info["nperhr"]+0.5)
+    rpFFNET_info["tower"] = {}
+    rpFFNET_info["access"] = {}
+    #log.info(" Estimating Reco using SOLO")
+    if rpFFNET_gui.peropt.get()==1:
+        rpFFNET_progress(rpFFNET_gui,"Starting manual run ...")
+        # get the start and end datetimes entered in the SOLO GUI
+        rpFFNET_info["startdate"] = rpFFNET_gui.startEntry.get()
+        if len(rpFFNET_info["startdate"])==0: rpFFNET_info["startdate"] = rpFFNET_info["file_startdate"]
+        rpFFNET_info["enddate"] = rpFFNET_gui.endEntry.get()
+        if len(rpFFNET_info["enddate"])==0: rpFFNET_info["enddate"] = rpFFNET_info["file_enddate"]
+        rpFFNET_main(ds,rpFFNET_gui,rpFFNET_info)
+        rpFFNET_progress(rpFFNET_gui,"Finished manual run ...")
+    elif rpFFNET_gui.peropt.get()==2:
+        rpFFNET_progress(rpFFNET_gui,"Starting auto (days) run ...")
+        # get the start datetime entered in the SOLO GUI
+        rpFFNET_info["startdate"] = rpFFNET_gui.startEntry.get()
+        if len(rpFFNET_info["startdate"])==0: rpFFNET_info["startdate"] = rpFFNET_info["file_startdate"]
+        startdate = dateutil.parser.parse(rpFFNET_info["startdate"])
+        file_startdate = dateutil.parser.parse(rpFFNET_info["file_startdate"])
+        file_enddate = dateutil.parser.parse(rpFFNET_info["file_enddate"])
+        nDays = int(rpFFNET_gui.daysentry.get())
+        enddate = startdate+dateutil.relativedelta.relativedelta(days=nDays)
+        enddate = min([file_enddate,enddate])
+        rpFFNET_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d")
+        while startdate<file_enddate:
+            rpFFNET_main(ds,rpFFNET_gui,rpFFNET_info)
+            startdate = enddate
+            enddate = startdate+dateutil.relativedelta.relativedelta(days=nDays)
+            rpFFNET_info["startdate"] = startdate.strftime("%Y-%m-%d")
+            rpFFNET_info["enddate"] = enddate.strftime("%Y-%m-%d")
+        rpFFNET_progress(rpFFNET_gui,"Finished auto (days) run ...")
+    elif rpFFNET_gui.peropt.get()==3:
+        rpFFNET_progress(rpFFNET_gui,"Starting auto (monthly) run ...")
+        # get the start datetime entered in the SOLO GUI
+        rpFFNET_info["startdate"] = rpFFNET_gui.startEntry.get()
+        if len(rpFFNET_info["startdate"])==0: rpFFNET_info["startdate"] = rpFFNET_info["file_startdate"]
+        startdate = dateutil.parser.parse(rpFFNET_info["startdate"])
+        file_startdate = dateutil.parser.parse(rpFFNET_info["file_startdate"])
+        file_enddate = dateutil.parser.parse(rpFFNET_info["file_enddate"])
+        nMonths = int(rpFFNET_gui.monthsentry.get())
+        enddate = startdate+dateutil.relativedelta.relativedelta(months=nMonths)
+        enddate = min([file_enddate,enddate])
+        rpFFNET_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d")
+        while startdate<file_enddate:
+            rpFFNET_main(ds,rpFFNET_gui,rpFFNET_info)
+            startdate = enddate
+            enddate = startdate+dateutil.relativedelta.relativedelta(months=nMonths)
+            rpFFNET_info["startdate"] = startdate.strftime("%Y-%m-%d")
+            rpFFNET_info["enddate"] = enddate.strftime("%Y-%m-%d")
+        rpFFNET_progress(rpFFNET_gui,"Finished auto (monthly) run ...")
+    elif rpFFNET_gui.peropt.get()==4:
+        # automatic run with yearly datetime periods
+        rpFFNET_progress(rpFFNET_gui,"Starting auto (yearly) run ...")
+        # get the start date
+        rpFFNET_info["startdate"] = rpFFNET_gui.startEntry.get()
+        if len(rpFFNET_info["startdate"])==0: rpFFNET_info["startdate"] = rpFFNET_info["file_startdate"]
+        startdate = dateutil.parser.parse(rpFFNET_info["startdate"])
+        # get the start year
+        start_year = startdate.year
+        enddate = dateutil.parser.parse(str(start_year+1)+"-01-01 00:00")
+        file_enddate = dateutil.parser.parse(rpFFNET_info["file_enddate"])
+        enddate = min([file_enddate,enddate])
+        rpFFNET_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d")
+        while startdate<file_enddate:
+            rpFFNET_main(ds,rpFFNET_gui,rpFFNET_info)
+            startdate = enddate
+            enddate = startdate+dateutil.relativedelta.relativedelta(years=1)
+            rpFFNET_info["startdate"] = startdate.strftime("%Y-%m-%d")
+            rpFFNET_info["enddate"] = enddate.strftime("%Y-%m-%d")
+        rpFFNET_progress(rpFFNET_gui,"Finished auto (yearly) run ...")
+    elif rpFFNET_gui.peropt.get()==5:
+        pass
+
+def rpFFNET_run_nogui(cf,ds,rpFFNET_info):
+    # populate the rpFFNET_info dictionary with things that will be useful
+    rpFFNET_info["hidden"] = rpFFNET_gui.nodesEntry.get()
+    rpFFNET_info["iterations"] = rpFFNET_gui.trainingEntry.get()
+    rpFFNET_info["train_option"] = str(rpFFNET_gui.trainOptionVar.get())
+    rpFFNET_info["train_type"] = int(rpFFNET_gui.trainTypeVar.get())
+    rpFFNET_info["peropt"] = rpFFNET_gui.peropt.get()
+    rpFFNET_info["min_points"] = int(rpFFNET_gui.minptsEntry.get())
     rpFFNET_info["site_name"] = ds.globalattributes["site_name"]
     rpFFNET_info["time_step"] = int(ds.globalattributes["time_step"])
     rpFFNET_info["nperhr"] = int(float(60)/rpFFNET_info["time_step"]+0.5)
@@ -1701,7 +1915,7 @@ def rpSOLO_createdict(cf,ds,series):
         data,flag,attr = qcutils.MakeEmptySeries(ds,ds.merge["standard"][series]["output"])
         qcutils.CreateSeries(ds,ds.merge["standard"][series]["output"],data,Flag=flag,Attr=attr)
 
-def rpSOLO_done(ds,rpSOLO_gui):
+def rpSOLO_done(ds,rpSOLO_gui,rpSOLO_info):
     # destroy the SOLO GUI
     rpSOLO_gui.destroy()
     if "solo" in dir(ds): del ds.solo
@@ -1756,6 +1970,8 @@ def rpSOLO_main(ds,rpSOLO_gui,rpSOLO_info):
         nRecs = int(ds.globalattributes["nc_nrecs"])
     else:
         nRecs = ei - si + 1
+    # get the minimum number of points from the minimum percentage
+    rpSOLO_info["min_points"] = int((ei-si)*rpSOLO_info["min_percent"]/100)
     # get the figure number
     if len(plt.get_fignums())==0:
         fig_num = 0
@@ -1946,7 +2162,7 @@ def rpSOLO_resetnodesEntry(rpSOLO_gui):
     rpSOLO_gui.nodesEntry.delete(0,Tkinter.END)
     rpSOLO_gui.nodesEntry.insert(0,"10")
 
-def rpSOLO_run(ds,rpSOLO_gui,rpSOLO_info):
+def rpSOLO_run_gui(ds,rpSOLO_gui,rpSOLO_info):
     # populate the rpSOLO_info dictionary with things that will be useful
     rpSOLO_info["nodes"] = rpSOLO_gui.nodesEntry.get()
     rpSOLO_info["training"] = rpSOLO_gui.trainingEntry.get()
@@ -1954,7 +2170,7 @@ def rpSOLO_run(ds,rpSOLO_gui,rpSOLO_info):
     rpSOLO_info["learningrate"] = rpSOLO_gui.learningrateEntry.get()
     rpSOLO_info["iterations"] = rpSOLO_gui.iterationsEntry.get()
     rpSOLO_info["peropt"] = rpSOLO_gui.peropt.get()
-    rpSOLO_info["min_points"] = int(rpSOLO_gui.minpts.get())
+    rpSOLO_info["min_percent"] = int(rpSOLO_gui.minptsEntry.get())
     rpSOLO_info["site_name"] = ds.globalattributes["site_name"]
     rpSOLO_info["time_step"] = int(ds.globalattributes["time_step"])
     rpSOLO_info["nperhr"] = int(float(60)/rpSOLO_info["time_step"]+0.5)
@@ -2034,6 +2250,142 @@ def rpSOLO_run(ds,rpSOLO_gui,rpSOLO_info):
         rpSOLO_progress(rpSOLO_gui,"Finished auto (yearly) run ...")
     elif rpSOLO_gui.peropt.get()==5:
         pass
+
+def rpSOLO_run_nogui(cf,ds,rpSOLO_info):
+    # populate the rpSOLO_info dictionary with things that will be useful
+    # period option
+    dt = ds.series["DateTime"]["Data"]
+    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"period_option",default="manual",mode="quiet")
+    if opt=="manual":
+        rpSOLO_info["peropt"] = 1
+        sd = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"start_date",default="",mode="quiet")
+        rpSOLO_info["startdate"] = dt[0].strftime("%Y-%m-%d %H:%M")
+        if len(sd)!=0: rpSOLO_info["startdate"] = sd
+        ed = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"end_date",default="",mode="quiet")
+        rpSOLO_info["enddate"] = dt[-1].strftime("%Y-%m-%d %H:%M")
+        if len(ed)!=0: rpSOLO_info["enddate"] = ed
+    elif opt=="monthly":
+        rpSOLO_info["peropt"] = 2
+        sd = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"start_date",default="",mode="quiet")
+        rpSOLO_info["startdate"] = dt[0].strftime("%Y-%m-%d %H:%M")
+        if len(sd)!=0: rpSOLO_info["startdate"] = sd
+    elif opt=="days":
+        rpSOLO_info["peropt"] = 3
+        sd = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"start_date",default="",mode="quiet")
+        rpSOLO_info["startdate"] = dt[0].strftime("%Y-%m-%d %H:%M")
+        if len(sd)!=0: rpSOLO_info["startdate"] = sd
+        ed = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"end_date",default="",mode="quiet")
+        rpSOLO_info["enddate"] = dt[-1].strftime("%Y-%m-%d %H:%M")
+        if len(ed)!=0: rpSOLO_info["enddate"] = ed
+    elif opt=="yearly":
+        rpSOLO_info["peropt"] = 4
+        sd = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"start_date",default="",mode="quiet")
+        rpSOLO_info["startdate"] = dt[0].strftime("%Y-%m-%d %H:%M")
+        if len(sd)!=0: rpSOLO_info["startdate"] = sd
+    # overwrite option
+    rpSOLO_info["overwrite"] = False
+    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"overwrite",default="no",mode="quiet")
+    if opt.lower()=="yes": rpSOLO_info["overwrite"] = True
+    # show plots option
+    rpSOLO_info["show_plots"] = True
+    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"show_plots",default="yes",mode="quiet")
+    if opt.lower()=="no": rpSOLO_info["show_plots"] = False
+    # auto-complete option
+    rpSOLO_info["auto_complete"] = True
+    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"auto_complete",default="yes",mode="quiet")
+    if opt.lower()=="no": alternate_info["auto_complete"] = False
+    # minimum percentage of good points required
+    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"min_percent",default=50,mode="quiet")
+    rpSOLO_info["min_percent"] = int(opt)
+    # number of days
+    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"number_days",default=90,mode="quiet")
+    rpSOLO_info["number_days"] = int(opt)
+    # nodes for SOFM/SOLO network
+    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"nodes",default="auto",mode="quiet")
+    rpSOLO_info["nodes"] = str(opt)
+    # training iterations
+    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"training",default="500",mode="quiet")
+    rpSOLO_info["training"] = str(opt)
+    # nda factor
+    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"nda_factor",default="5",mode="quiet")
+    rpSOLO_info["factor"] = str(opt)
+    # learning rate
+    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"learning",default="0.01",mode="quiet")
+    rpSOLO_info["learningrate"] = str(opt)
+    # learning iterations
+    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"iterations",default="500",mode="quiet")
+    rpSOLO_info["iterations"] = str(opt)
+    # now set up the rest of the rpSOLO_info dictionary
+    rpSOLO_info["site_name"] = ds.globalattributes["site_name"]
+    rpSOLO_info["time_step"] = int(ds.globalattributes["time_step"])
+    rpSOLO_info["nperhr"] = int(float(60)/rpSOLO_info["time_step"]+0.5)
+    rpSOLO_info["nperday"] = int(float(24)*rpSOLO_info["nperhr"]+0.5)
+    rpSOLO_info["maxlags"] = int(float(12)*rpSOLO_info["nperhr"]+0.5)
+    rpSOLO_info["series"] = ds.solo.keys()
+    #rpSOLO_info["tower"] = {}
+    #rpSOLO_info["alternate"] = {}
+    #series_list = [ds.solo[item]["label_tower"] for item in ds.solo.keys()]
+    #log.info(" Gap filling "+str(series_list)+" using SOLO")
+    if rpSOLO_info["peropt"]==1:
+        rpSOLO_main(ds,rpSOLO_info)
+        log.info(" Finished manual run ...")
+    elif rpSOLO_info["peropt"]==2:
+        # get the start datetime entered in the SOLO GUI
+        startdate = dateutil.parser.parse(rpSOLO_info["startdate"])
+        file_startdate = dateutil.parser.parse(rpSOLO_info["file_startdate"])
+        file_enddate = dateutil.parser.parse(rpSOLO_info["file_enddate"])
+        enddate = startdate+dateutil.relativedelta.relativedelta(months=1)
+        enddate = min([file_enddate,enddate])
+        rpSOLO_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d %H:%M")
+        while startdate<file_enddate:
+            rpSOLO_main(ds,rpSOLO_info)
+            startdate = enddate
+            enddate = startdate+dateutil.relativedelta.relativedelta(months=1)
+            rpSOLO_info["startdate"] = startdate.strftime("%Y-%m-%d %H:%M")
+            rpSOLO_info["enddate"] = enddate.strftime("%Y-%m-%d %H:%M")
+        ## now fill any remaining gaps
+        #gfSOLO_autocomplete(dsa,dsb,rpSOLO_info)
+        ## plot the summary statistics
+        #gfSOLO_plotsummary(dsb,rpSOLO_info)
+        log.info(" Finished auto (monthly) run ...")
+    elif rpSOLO_info["peropt"]==3:
+        # get the start datetime entered in the SOLO GUI
+        startdate = dateutil.parser.parse(rpSOLO_info["startdate"])
+        file_startdate = dateutil.parser.parse(rpSOLO_info["file_startdate"])
+        file_enddate = dateutil.parser.parse(rpSOLO_info["file_enddate"])
+        nDays = int(rpSOLO_info["number_days"])
+        enddate = startdate+dateutil.relativedelta.relativedelta(days=nDays)
+        enddate = min([file_enddate,enddate])
+        rpSOLO_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d %H:%M")
+        while startdate<file_enddate:
+            rpSOLO_main(ds,rpSOLO_info)
+            startdate = enddate
+            enddate = startdate+dateutil.relativedelta.relativedelta(days=nDays)
+            rpSOLO_info["startdate"] = startdate.strftime("%Y-%m-%d %H:%M")
+            rpSOLO_info["enddate"] = enddate.strftime("%Y-%m-%d %H:%M")
+        ## now fill any remaining gaps
+        #gfSOLO_autocomplete(dsa,dsb,rpSOLO_info)
+        ## plot the summary statistics
+        #gfSOLO_plotsummary(dsb,rpSOLO_info)
+        log.info(" Finished auto (days) run ...")
+    elif rpSOLO_info["peropt"]==4:
+        if len(rpSOLO_info["startdate"])==0: rpSOLO_info["startdate"] = rpSOLO_info["file_startdate"]
+        startdate = dateutil.parser.parse(rpSOLO_info["startdate"])
+        # get the start year
+        start_year = startdate.year
+        enddate = dateutil.parser.parse(str(start_year+1)+"-01-01 00:00")
+        #file_startdate = dateutil.parser.parse(rpSOLO_info["file_startdate"])
+        file_enddate = dateutil.parser.parse(rpSOLO_info["file_enddate"])
+        #enddate = startdate+dateutil.relativedelta.relativedelta(months=1)
+        enddate = min([file_enddate,enddate])
+        rpSOLO_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d")
+        while startdate<file_enddate:
+            rpSOLO_main(ds,rpSOLO_gui,rpSOLO_info)
+            startdate = enddate
+            enddate = startdate+dateutil.relativedelta.relativedelta(years=1)
+            rpSOLO_info["startdate"] = startdate.strftime("%Y-%m-%d")
+            rpSOLO_info["enddate"] = enddate.strftime("%Y-%m-%d")
+        log.info(" Finished auto (yearly) run ...")
 
 def rpSOLO_runseqsolo(ds,driverlist,targetlabel,outputlabel,nRecs,si=0,ei=-1):
     '''

@@ -528,6 +528,8 @@ class qcgui(tk.Tk):
                                  str(ds5.series['DateTime']['Data'][-1]))
         sitename = ds5.globalattributes['site_name']
         self.do_progress(text='Doing L6 partitioning: '+sitename+' ...')
+        if "Options" not in cf: cf["Options"]={}
+        cf["Options"]["call_mode"] = "interactive"
         ds6 = qcls.l6qc(cf,ds5)
         self.do_progress(text='Finished L6: '+sitename)
         logging.info(' Finished L6: '+sitename)
