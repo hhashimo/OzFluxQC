@@ -129,3 +129,20 @@ for level in level_list:
             ncFile = qcio.nc_open_write(outfilename)
             qcio.nc_write_series(ncFile,ds5,outputlist=outputlist)
             logging.info('Finished L5 processing with '+cfname)
+    elif level.lower()=="l6":
+        # L6 processing
+        for i in cf_batch["Levels"][level].keys():
+            cfname = cf_batch["Levels"][level][i]
+            logging.info('Starting L6 processing with '+cfname)
+            cf = qcio.get_controlfilecontents(cfname)
+            if "Options" not in cf: cf["Options"]={}
+            cf["Options"]["call_mode"] = "batch"
+            cf["Options"]["show_plots"] = False
+            infilename = qcio.get_infilenamefromcf(cf)
+            ds5 = qcio.nc_read_series(infilename)
+            ds6 = qcls.l6qc(cf,ds5)
+            outfilename = qcio.get_outfilenamefromcf(cf)
+            outputlist = qcio.get_outputlistfromcf(cf,'nc')
+            ncFile = qcio.nc_open_write(outfilename)
+            qcio.nc_write_series(ncFile,ds6,outputlist=outputlist)
+            logging.info('Finished L6 processing with '+cfname)
