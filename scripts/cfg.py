@@ -1,5 +1,12 @@
 version_name = "OzFluxQC"
-version_number = "V2.9.2"
+version_number = "V2.9.3"
+# V2.9.3   - updates and bug fixes
+#            - implemented batch processing for L1 to L6 including climatology,
+#              CPD, conatenation
+#            - completed implementation of plot_path in control files
+#            - fixed bug that caused the units of NEE, NEP, GPP and Fre
+#              in the L6 output file to be gC/m2
+#            - fixed bug on gfalternate_matchstartendtimes
 # V2.9.2   - updates and bug fixes
 #            - implemented summary output to Excel file and plots at L6
 #            - implemented "ols_thru0", "rma" and "odr" fit types at L4

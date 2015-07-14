@@ -250,9 +250,14 @@ def gfClimatology_interpolateddaily(ds,series,output,xlbooks):
     """
     # gap fill from interpolated 30 minute data
     xlfilename = ds.climatology[output]["file_name"]
+    sheet_name = series+'i(day)'
+    if sheet_name not in xlbooks[xlfilename].sheet_names():
+        msg = " gfClimatology: sheet "+sheet_name+" not found, skipping ..."
+        log.warning(msg)
+        return
     ts = ds.globalattributes["time_step"]
     ldt = ds.series["DateTime"]["Data"]
-    thissheet = xlbooks[xlfilename].sheet_by_name(series+'i(day)')
+    thissheet = xlbooks[xlfilename].sheet_by_name(sheet_name)
     datemode = xlbooks[xlfilename].datemode
     basedate = datetime.datetime(1899, 12, 30)
     nts = thissheet.ncols - 1
@@ -1354,6 +1359,24 @@ def gfalternate_loadoutputdata(ds_tower,data_dict,alternate_info):
     ds_tower.series[label_output]["Flag"][si:ei+1][ind6] = numpy.int32(20)
 
 def gfalternate_matchstartendtimes(ds,ds_alternate):
+    """
+    Purpose:
+     Match the start and end times of the alternate and tower data.
+     The logic is as follows:
+      - if there is no overlap between the alternate and tower data then
+        dummy series with missing data are created for the alternate data
+        for the period of the tower data
+      - if the alternate and tower data overlap then truncate or pad (with
+        missing values) the alternate data series so that the periods of the
+        tower data and alternate data match.
+    Usage:
+     gfalternate_matchstartendtimes(ds,ds_alternate)
+     where ds is the data structure containing the tower data
+           ds_alternate is the data structure containing the alternate data
+    Author: PRI
+    Date: July 2015
+    """
+    # check the time steps are the same
     ts_tower = int(ds.globalattributes["time_step"])
     ts_alternate = int(ds_alternate.globalattributes["time_step"])
     if ts_tower!=ts_alternate:
@@ -1361,31 +1384,64 @@ def gfalternate_matchstartendtimes(ds,ds_alternate):
         log.error(msg)
         ds.returncodes["GapFillFromAlternate"] = "error"
         return
-    # truncate or pad the alternate data so the start and end times match the tower data
+    ts = ts_tower
+    # get the start and end times of the tower and the alternate data and see if they overlap
     ldt_alternate = ds_alternate.series["DateTime"]["Data"]
-    ldt_alternate_flag = ds_alternate.series["DateTime"]["Flag"]
     start_alternate = ldt_alternate[0]
     end_alternate = ldt_alternate[-1]
     ldt_tower = ds.series["DateTime"]["Data"]
     start_tower = ldt_tower[0]
     end_tower = ldt_tower[-1]
-    if start_alternate<start_tower or end_alternate>end_tower:
-        si_alternate = qcutils.GetDateIndex(ldt_alternate,str(start_tower),ts=ts_alternate,default=0,match="exact")
-        ei_alternate = qcutils.GetDateIndex(ldt_alternate,str(end_tower),ts=ts_alternate,default=len(ldt_alternate)-1,match="exact")
-        for ss in ds_alternate.series.keys():
-            if ss in ["DateTime","DateTime_UTC"]: continue
-            data,flag,attr = qcutils.GetSeriesasMA(ds_alternate,ss,si=si_alternate,ei=ei_alternate)
-            qcutils.CreateSeries(ds_alternate,ss,data,Flag=flag,Attr=attr)
-        ds_alternate.series["DateTime"]["Data"] = ldt_alternate[si_alternate:ei_alternate+1]
-        ds_alternate.series["DateTime"]["Flag"] = ldt_alternate_flag[si_alternate:ei_alternate+1]
-        ds_alternate.globalattributes["nc_nrecs"] = len(ds_alternate.series["DateTime"]["Data"])
-    ldt_alternate = ds_alternate.series["DateTime"]["Data"]
-    ldt_alternate_flag = ds_alternate.series["DateTime"]["Flag"]
-    start_alternate = ldt_alternate[0]
-    end_alternate = ldt_alternate[-1]
-    if start_alternate>start_tower or end_alternate<end_tower:
-        startend = [start_tower,end_tower]
-        qcutils.FixTimeGaps(ds_alternate,startend=startend)
+    # since the datetime is monotonically increasing we need only check the start datetime
+    overlap = start_alternate<=end_tower
+    # do the alternate and tower data overlap?
+    if overlap:
+        # index of alternate datetimes that are also in tower datetimes
+        alternate_index = qcutils.find_indices(ldt_tower,ldt_alternate)
+        # index of tower datetimes that are also in alternate datetimes
+        tower_index = qcutils.find_indices(ldt_alternate,ldt_tower)
+        # check that the indices point to the same times
+        ldta = [ldt_alternate[i] for i in alternate_index]
+        ldtt = [ldt_tower[i] for i in tower_index]
+        if ldta!=ldtt:
+            # and exit with a helpful message if they dont
+            log.error(" Something went badly wrong and I'm giving up")
+            sys.exit()
+        # get a list of alternate series
+        alternate_series_list = [item for item in ds_alternate.series.keys() if "_QCFlag" not in item]
+        # number of records in truncated or padded alternate data
+        nRecs_tower = len(ldt_tower)
+        # force the alternate dattime to be the tower date time
+        ds_alternate.series["DateTime"] = ds.series["DateTime"]
+        # loop over the alternate series and truncate or pad as required
+        # truncation or padding is handled by the indices
+        for series in alternate_series_list:
+            if series in ["DateTime","DateTime_UTC"]: continue
+            # get the alternate data
+            data,flag,attr = qcutils.GetSeriesasMA(ds_alternate,series)
+            # create an array of missing data of the required length
+            data_overlap = numpy.full(nRecs_tower,c.missing_value,dtype=numpy.float64)
+            flag_overlap = numpy.ones(nRecs_tower,dtype=numpy.int32)
+            # replace missing data with alternate data where times match
+            data_overlap[tower_index] = data[alternate_index]
+            flag_overlap[tower_index] = flag[alternate_index]
+            # write the truncated or padded series back into the alternate data structure
+            qcutils.CreateSeries(ds_alternate,series,data_overlap,Flag=flag_overlap,Attr=attr)
+        # update the number of records in the file
+        ds_alternate.globalattributes["nc_nrecs"] = nRecs_tower
+    else:
+        # there is no overlap between the alternate and tower data, create dummy series
+        nRecs = len(ldt_tower)
+        ds_alternate.globalattributes["nc_nrecs"] = nRecs
+        ds_alternate.series["DateTime"] = ds.series["DateTime"]
+        alternate_series_list = [item for item in ds_alternate.series.keys() if "_QCFlag" not in item]
+        for series in alternate_series_list:
+            if series in ["DateTime","DateTime_UTC"]: continue
+            d,f,attr = qcutils.GetSeriesasMA(ds_alternate,series)
+            data = numpy.full(nRecs,c.missing_value,dtype=numpy.float64)
+            flag = numpy.ones(nRecs,dtype=numpy.int32)
+            qcutils.CreateSeries(ds_alternate,series,data,Flag=flag,Attr=attr)
+    ds.returncodes["GapFillFromAlternate"] = "normal"
 
 def gfalternate_main(ds_tower,ds_alt,alternate_info,label_tower_list=[]):
     '''
@@ -1745,7 +1801,7 @@ def gfalternate_run_gui(ds_tower,ds_alt,alt_gui,alternate_info):
     alternate_info["auto_complete"] = True
     if alt_gui.autocompleteopt.get()==0: alternate_info["auto_complete"] = False
     alternate_info["autoforce"] = False
-    alternate_info["min_percent"] = int(alt_gui.minptsEntry.get())
+    alternate_info["min_percent"] = max(int(alt_gui.minptsEntry.get()),1)
     alternate_info["site_name"] = ds_tower.globalattributes["site_name"]
     alternate_info["time_step"] = int(ds_tower.globalattributes["time_step"])
     alternate_info["nperhr"] = int(float(60)/alternate_info["time_step"]+0.5)
@@ -1882,7 +1938,7 @@ def gfalternate_run_nogui(cf,ds_tower,ds_alt,alternate_info):
     if opt.lower()=="no": alternate_info["auto_complete"] = False
     # minimum percentage of good points required
     opt = qcutils.get_keyvaluefromcf(cf,["Options","GUI"],"min_percent",default=50,mode="quiet")
-    alternate_info["min_percent"] = int(opt)
+    alternate_info["min_percent"] = max(int(opt),1)
     # number of days
     opt = qcutils.get_keyvaluefromcf(cf,["Options","GUI"],"number_days",default=90,mode="quiet")
     alternate_info["number_days"] = int(opt)
@@ -1966,50 +2022,50 @@ def gfalternate_run_nogui(cf,ds_tower,ds_alt,alternate_info):
     else:
         log.error("GapFillFromAlternate: unrecognised period option")
 
-def gfalternate_startendtimesmatch(ldt_tower,ldt_alternate,alternate_info,mode="verbose"):
-    """ Checks the start and end times of the tower and alternate data."""
-    # initialise the return code
-    return_code = True
-    # local pointers to the start and end indices for the tower and alternate data
-    si_tower = alternate_info["tower"]["si"]
-    ei_tower = alternate_info["tower"]["ei"]
-    si_alternate = alternate_info["alternate"]["si"]
-    ei_alternate = alternate_info["alternate"]["ei"]
-    # test for the start and end times being equal
-    match_start = (ldt_tower[si_tower]==ldt_alternate[si_alternate])
-    match_end = (ldt_tower[ei_tower]==ldt_alternate[ei_alternate])
-    no_overlap_start = (ldt_tower[si_tower]>=ldt_alternate[ei_alternate])
-    no_overlap_end = (ldt_tower[ei_tower]<=ldt_alternate[si_alternate])
-    overlap_start = (ldt_tower[si_tower]>ldt_alternate[si_alternate]) and (ldt_tower[si_tower]<ldt_alternate[ei_tower])
-    overlap_end = (ldt_tower[ei_tower]>ldt_alternate[si_alternate]) and (ldt_tower[ei_tower]<ldt_alternate[ei_tower])
-    # if the start and end times are equal then set the match type and return
-    if match_start and match_end:
-        msg = " Start and end times match for "+alternate_info["label_output"]
-        if mode=="verbose": log.info(msg)
-        return_code = True
-        alternate_info["getseries_mode"] = "truncate"
-    # check for no overlap
-    elif no_overlap_start or no_overlap_end:
-        msg = " No overlap between tower and alternate data for "+alternate_info["label_output"]
-        if mode=="verbose": log.info(msg)
-        return_code = False
-        alternate_info["getseries_mode"] = "truncate"
-    # check for overlap
-    elif overlap_start or overlap_end:
-        msg = " Start and end times overlap for "+alternate_info["label_output"]
-        if mode=="verbose": log.info(msg)
-        return_code = True
-        alternate_info["getseries_mode"] = "pad"
-        pass
-    else:
-        msg = " gfalternate_startendtimesmatch: Unrecognised start or end time combination"
-        log.error(msg)
-        msg = " gfalternate_startendtimesmatch: variables are: "+alternate_info["label_tower"]
-        msg = msg+","+alternate_info["label_output"]+","+alternate_info["label_alternate"]
-        log.error(msg)
-        return_code = False
-        alternate_info["getseries_mode"] = "truncate"
-    return return_code
+#def gfalternate_startendtimesmatch(ldt_tower,ldt_alternate,alternate_info,mode="verbose"):
+    #""" Checks the start and end times of the tower and alternate data."""
+    ## initialise the return code
+    #return_code = True
+    ## local pointers to the start and end indices for the tower and alternate data
+    #si_tower = alternate_info["tower"]["si"]
+    #ei_tower = alternate_info["tower"]["ei"]
+    #si_alternate = alternate_info["alternate"]["si"]
+    #ei_alternate = alternate_info["alternate"]["ei"]
+    ## test for the start and end times being equal
+    #match_start = (ldt_tower[si_tower]==ldt_alternate[si_alternate])
+    #match_end = (ldt_tower[ei_tower]==ldt_alternate[ei_alternate])
+    #no_overlap_start = (ldt_tower[si_tower]>=ldt_alternate[ei_alternate])
+    #no_overlap_end = (ldt_tower[ei_tower]<=ldt_alternate[si_alternate])
+    #overlap_start = (ldt_tower[si_tower]>ldt_alternate[si_alternate]) and (ldt_tower[si_tower]<ldt_alternate[ei_tower])
+    #overlap_end = (ldt_tower[ei_tower]>ldt_alternate[si_alternate]) and (ldt_tower[ei_tower]<ldt_alternate[ei_tower])
+    ## if the start and end times are equal then set the match type and return
+    #if match_start and match_end:
+        #msg = " Start and end times match for "+alternate_info["label_output"]
+        #if mode=="verbose": log.info(msg)
+        #return_code = True
+        #alternate_info["getseries_mode"] = "truncate"
+    ## check for no overlap
+    #elif no_overlap_start or no_overlap_end:
+        #msg = " No overlap between tower and alternate data for "+alternate_info["label_output"]
+        #if mode=="verbose": log.info(msg)
+        #return_code = False
+        #alternate_info["getseries_mode"] = "truncate"
+    ## check for overlap
+    #elif overlap_start or overlap_end:
+        #msg = " Start and end times overlap for "+alternate_info["label_output"]
+        #if mode=="verbose": log.info(msg)
+        #return_code = True
+        #alternate_info["getseries_mode"] = "pad"
+        #pass
+    #else:
+        #msg = " gfalternate_startendtimesmatch: Unrecognised start or end time combination"
+        #log.error(msg)
+        #msg = " gfalternate_startendtimesmatch: variables are: "+alternate_info["label_tower"]
+        #msg = msg+","+alternate_info["label_output"]+","+alternate_info["label_alternate"]
+        #log.error(msg)
+        #return_code = False
+        #alternate_info["getseries_mode"] = "truncate"
+    #return return_code
 
 def gfalternate_updatedict(cf,ds_tower,ds_alt):
     """

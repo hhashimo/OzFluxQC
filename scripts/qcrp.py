@@ -719,6 +719,8 @@ def L6_summary(cf,ds):
         return
     # daily averages and totals
     daily_dict = L6_summary_daily(xl_file,ds,series_dict)
+    # monthly averages and totals
+    monthly_dict = L6_summary_monthly(xl_file,ds,series_dict)
     # annual averages and totals
     annual_dict = L6_summary_annual(xl_file,ds,series_dict)
     # cumulative totals
@@ -1019,50 +1021,50 @@ def L6_summary_monthly(xl_file,ds,series_dict):
     log.info(" Doing the monthly summaries at L6")
     dt = ds.series["DateTime"]["Data"]
     ts = int(ds.globalattributes["time_step"])
-    si = qcutils.GetDateIndex(dt,str(dt[0]),ts=ts,default=0,match="startnextday")
-    ei = qcutils.GetDateIndex(dt,str(dt[-1]),ts=ts,default=len(dt)-1,match="endpreviousday")
-    ldt = dt[si:ei+1]
-    start_year = ldt[0].year
-    end_year = ldt[-1].year
-    year_list = range(start_year,end_year+1,1)
-    month_list = range(1,13)
+    si = qcutils.GetDateIndex(dt,str(dt[0]),ts=ts,default=0,match="startnextmonth")
+    ldt = dt[si:]
     monthly_dict = {}
-    monthly_dict["DateTime"] = {"data":[],
-                                "units":"Years","format":"dd/mm/yyyy"}
-    # make the output datetime series
-    nRecs_output = len(year_list)*len(month_list)
-    for y in year_list:
-        for m in month_list:
-            monthly_dict["DateTime"]["data"].append(datetime.datetime(y,m,1))
+    monthly_dict["DateTime"] = {"data":[],"units":"Months","format":"dd/mm/yyyy"}
     # create arrays in monthly_dict
     series_list = series_dict["monthly"].keys()
     series_list.sort()
+    # create the data arrays
     for item in series_list:
-        monthly_dict[item] = {"data":numpy.array([float(-9999)]*nRecs_output)}
-    start_time = "00:30"
-    if ts==60: start_time = "01:00"
-    for y,year in enumerate(year_list):
-        for m,month in enumerate(month_list):
-            start_date = str(year)+"-"+str(month)+"-01 "+start_time
-            end_date = str(year+1)+"-"+str(month)+"-01 00:00"
-        si = qcutils.GetDateIndex(dt,start_date,ts=ts,default=0)
-        ei = qcutils.GetDateIndex(dt,end_date,ts=ts,default=len(dt)-1)
+        monthly_dict[item] = {"data":numpy.array([])}
+    # loop over the months in the data file
+    start_date = ldt[0]
+    end_date = start_date+dateutil.relativedelta.relativedelta(months=1)
+    end_date = end_date-dateutil.relativedelta.relativedelta(minutes=ts)
+    last_date = ldt[-1]
+    while start_date<=last_date:
+        si = qcutils.GetDateIndex(ldt,str(start_date),ts=ts,default=0)
+        ei = qcutils.GetDateIndex(ldt,str(end_date),ts=ts,default=len(ldt)-1)
+        monthly_dict["DateTime"]["data"].append(ldt[si].strftime("%Y-%m-%d"))
         for item in series_list:
             if item not in ds.series.keys(): continue
             data_1d,flag,attr = qcutils.GetSeriesasMA(ds,item,si=si,ei=ei)
-            annual_dict[item]["units"] = attr["units"]
-            if series_dict["annual"][item]["operator"].lower()=="average":
-                annual_dict[item]["data"][y] = numpy.ma.average(data_1d)
-            elif series_dict["annual"][item]["operator"].lower()=="sum":
-                annual_dict[item]["data"][y] = numpy.ma.sum(data_1d)
-                annual_dict[item]["units"] = annual_dict[item]["units"]+"/year"
+            if item in series_dict["lists"]["co2"]:
+                data_1d = qcutils.convertunits(data_1d,attr["units"],"gC/m2",ts)
+                monthly_dict[item]["units"] = "gC/m2"
+            else:
+                monthly_dict[item]["units"] = attr["units"]
+            if series_dict["monthly"][item]["operator"].lower()=="average":
+                monthly_dict[item]["data"] = numpy.append(monthly_dict[item]["data"],
+                                                          numpy.ma.average(data_1d))
+            elif series_dict["monthly"][item]["operator"].lower()=="sum":
+                monthly_dict[item]["data"] = numpy.append(monthly_dict[item]["data"],
+                                                          numpy.ma.sum(data_1d))
+                monthly_dict[item]["units"] = monthly_dict[item]["units"]+"/year"
             else:
                 print "unrecognised operator"
-            annual_dict[item]["format"] = series_dict["annual"][item]["format"]
+            monthly_dict[item]["format"] = series_dict["monthly"][item]["format"]
+        start_date = end_date+dateutil.relativedelta.relativedelta(minutes=ts)
+        end_date = start_date+dateutil.relativedelta.relativedelta(months=1)
+        end_date = end_date-dateutil.relativedelta.relativedelta(minutes=ts)
     # add the annual worksheet to the summary Excel file
-    xl_sheet = xl_file.add_sheet("Annual")
-    qcio.xl_write_data(xl_sheet,annual_dict)
-    return annual_dict
+    xl_sheet = xl_file.add_sheet("Monthly")
+    qcio.xl_write_data(xl_sheet,monthly_dict)
+    return monthly_dict
 
 def L6_summary_annual(xl_file,ds,series_dict):
     """

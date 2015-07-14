@@ -395,21 +395,26 @@ def file_exists(filename,mode="verbose"):
     else:
         return True
 
-def find_indices(a,b):
-    len_a = len(a)
-    len_b = len(b)
-    indices = []
-    idx = -1
-    if len_a>=len_b:
-        for item in b:
-            idx = a.index(item,idx+1)
-            indices.append(idx)
-    else:
-        for item in a:
-            idx = b.index(item,idx+1)
-            indices.append(idx)
-    return indices
+#def find_indices(a,b):
+    #len_a = len(a)
+    #len_b = len(b)
+    #indices = []
+    #idx = -1
+    #if len_a>=len_b:
+        #for item in b:
+            #idx = a.index(item,idx+1)
+            #indices.append(idx)
+    #else:
+        #for item in a:
+            #idx = b.index(item,idx+1)
+            #indices.append(idx)
+    #return indices
 
+def find_indices(a,b):
+    tmpset = set(a)
+    indices = [i for i,item in enumerate(b) if item in tmpset]
+    return indices
+    
 def RemoveDuplicateRecords(ds):
     """ Remove duplicate records."""
     # the ds.series["DateTime"]["Data"] series is actually a list
@@ -667,68 +672,79 @@ def GetRangesFromCF(cf,ThisOne,mode="verbose"):
         lower, upper = None
     return lower, upper
 
-def GetDateIndex(datetimeseries,date,ts=30,default=0,match='exact'):
+def GetDateIndex(dts,date,ts=30,default=0,match='exact'):
     '''
     Purpose:
      Return the index of a date/datetime string in an array of datetime objects
     Usage:
      si = qcutils.GetDateIndex(datetimeseries,date_str,ts=30,default=0,match='exact')
     where
-     datetimeseries - array of datetime objects
-     date_str       - a date or date/time string in a format dateutils can parse
-     ts             - time step for the data, optional (integer)
-     default        - default value, optional (integer)
-     match          - type of match (string) options are:
-                      "exact"           - finds the specified datetime and returns
-                                          the index
-                      "startnextday"    - returns the index of the first time period
-                                          in the next day
-                      "endpreviousday"  - returns the index of the last time period
-                                          in the previous day
-                      "startnexthour"   - returns the index of the first time period
-                                          in the next hour
-                      "endprevioushour" - returns the index of the last time period
-                                          in the next hour
+     dts      - array of datetime objects
+     date_str - a date or date/time string in a format dateutils can parse
+     ts       - time step for the data, optional (integer)
+     default  - default value, optional (integer)
+     match    - type of match (string) options are:
+                "exact"           - finds the specified datetime and returns
+                                    the index
+                "startnextday"    - returns the index of the first time period
+                                    in the next day
+                "endpreviousday"  - returns the index of the last time period
+                                    in the previous day
+                "startnexthour"   - returns the index of the first time period
+                                    in the next hour
+                "endprevioushour" - returns the index of the last time period
+                                    in the next hour
                 NOTE: "startnextday" and "endpreviousday" can be used to pick
                     out time periods with an integer number of days
     Author: PRI
     '''
     try:
         if len(date)!=0:
-            i = datetimeseries.index(dateutil.parser.parse(date))
+            i = dts.index(dateutil.parser.parse(date))
         else:
             if default==-1:
-                i = len(datetimeseries)-1
+                i = len(dts)-1
             else:
                 i = default
     except ValueError:
         if default==-1:
-            i = len(datetimeseries)-1
+            i = len(dts)-1
         else:
             i = default
     if match=="exact":
         # if an exact match is required, do nothing
         pass
+    elif match=="startnextmonth":
+        # get to the start of the next day
+        while abs(dts[i].hour+float(dts[i].minute)/60-float(ts)/60)>c.eps:
+            i = i + 1
+        while dts[i].day!=1:
+            i = i + int(float(24)/(float(ts)/60))
     elif match=='startnextday':
-        while abs(datetimeseries[i].hour+float(datetimeseries[i].minute)/60-float(ts)/60)>c.eps:
+        while abs(dts[i].hour+float(dts[i].minute)/60-float(ts)/60)>c.eps:
             i = i + 1
     elif match=="startnexthour":
         # check the time step value
         if int(ts)!=60:
             # if the time step is 60 then it is always the start of the next hour
             # we assume here that the time period ends on the datetime stamp
-            while datetimeseries[i].minute!=ts:
+            while dts[i].minute!=ts:
                 # iterate until the minutes equal the time step
                 i = i + 1
+    elif match=='endpreviousmonth':
+        while abs(dts[i].hour+float(dts[i].minute)/60)>c.eps:
+            i = i - 1
+        while dts[i].day!=1:
+            i = i - int(float(24)/(float(ts)/60))
     elif match=='endpreviousday':
-        while abs(datetimeseries[i].hour+float(datetimeseries[i].minute)/60)>c.eps:
+        while abs(dts[i].hour+float(dts[i].minute)/60)>c.eps:
             i = i - 1
     elif match=="endprevioushour":
         # check the time step value
         if int(ts)!=60:
             # if the time step is 60 then it is always the end of the previous hour
             # we assume here that the time period ends on the datetime stamp
-            while datetimeseries[i].minute!=0:
+            while dts[i].minute!=0:
                 # iterate until the minutes equal 0
                 i = i - 1
     else:

@@ -925,11 +925,18 @@ def nc_split():
     split_gui.doneButton.grid(row=nrow,column=0,columnspan=1)
     split_gui.runButton = Tkinter.Button(split_gui,text="Run",command=lambda:ncsplit_run(split_gui))
     split_gui.runButton.grid(row=nrow,column=1,columnspan=1)
+    # progress message area
+    nrow = nrow + 1
+    split_gui.progress_row = nrow
+    split_gui.progress = Tkinter.Label(split_gui, text='Waiting for input ...')
+    split_gui.progress.grid(row=nrow,column=0,columnspan=6,sticky="W")
+    # event loop for GUI
     split_gui.wait_window(split_gui)
 
 def ncsplit_infilename_browse(split_gui):
     root = Tkinter.Tk(); root.withdraw()
-    filename = tkFileDialog.askopenfilename(parent=root,title="Choose an input netCDF file")
+    filename = tkFileDialog.askopenfilename(parent=root,title="Choose an input netCDF file",
+                                            initialdir="../Sites")
     root.destroy()
     split_gui.inpathname = ntpath.split(filename)[0]+"/"
     split_gui.infilename.set(ntpath.split(filename)[1])
@@ -946,8 +953,14 @@ def ncsplit_done(split_gui):
     split_gui.destroy()
 
 def ncsplit_run(split_gui):
+    msg = " Splitting "+split_gui.infilename.get()
+    ncsplit_progress(split_gui,msg)
     infilename = split_gui.inpathname+split_gui.infilename.get()
     outfilename = split_gui.inpathname+split_gui.outfilename.get()
+    msg = " Splitting "+infilename
+    log.info(msg)
+    msg = " Output to "+outfilename
+    log.info(msg)
     startdate = str(split_gui.startEntry.get())
     enddate = str(split_gui.endEntry.get())
     # read the input file into the input data structure
@@ -987,6 +1000,16 @@ def ncsplit_run(split_gui):
     # write the output data structure to a netCDF file
     ncFile = nc_open_write(outfilename)
     nc_write_series(ncFile, ds_out)
+    msg = " Finished splitting "+split_gui.infilename.get()
+    ncsplit_progress(split_gui,msg)
+    log.info(msg)
+
+def ncsplit_progress(split_gui,text):
+    """ Update progress message in nc split GUI."""
+    split_gui.progress.destroy()
+    split_gui.progress = Tkinter.Label(split_gui, text=text)
+    split_gui.progress.grid(row=9,column=0,columnspan=6,sticky="W")
+    split_gui.update()
 
 def nc_read_series(ncFullName,fixtimestepmethod=""):
     ''' Read a netCDF file and put the data and meta-data into a DataStructure'''

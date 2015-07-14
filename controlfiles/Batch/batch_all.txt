@@ -5,8 +5,7 @@
 #  Keys in the Files section must be unique.
 [Options]
     #levels = "['L1','L2','L3','concatenate','climatology','cpd','L4','L5','L6']"
-    #levels = "['concatenate','climatology','cpd','L4','L5']"
-    levels = "['L5']"
+    levels = "['concatenate','climatology','cpd','L4','L5','L6']"
 
 [Levels]
    [[concatenate]]
@@ -109,5 +108,23 @@
        16 = 'controlfiles/Whroo/all/L5.txt'
        17 = 'controlfiles/WombatStateForest/all/L5.txt'
        18 = 'controlfiles/Yanco/all/L5.txt'
-#   [[L6]]
-#       0 = 'controlfiles/AdelaideRiver/all/L6.txt'
+   [[L6]]
+       0 = 'controlfiles/AdelaideRiver/all/L6.txt'
+       1 = 'controlfiles/Calperum/all/L6.txt'
+       2 = 'controlfiles/CumberlandPlains/all/L6.txt'
+       3 = 'controlfiles/DalyPasture/all/L6.txt'
+       4 = 'controlfiles/DalyUncleared/all/L6.txt'
+       5 = 'controlfiles/DryRiver/all/L6.txt'
+       6 = 'controlfiles/Emerald/all/L6.txt'
+       7 = 'controlfiles/Gingin/all/L6.txt'
+       8 = 'controlfiles/GreatWesternWoodlands/all/L6.txt'
+       9 = 'controlfiles/HowardSprings/all/L6.txt'
+       10 = 'controlfiles/Otway/all/L6.txt'
+       11 = 'controlfiles/RedDirtMelonFarm/all/L6.txt'
+       12 = 'controlfiles/RiggsCreek/all/L6.txt'
+       13 = 'controlfiles/Samford/all/L6.txt'
+       14 = 'controlfiles/SturtPlains/all/L6.txt'
+       15 = 'controlfiles/Tumbarumba/all/L6.txt'
+       16 = 'controlfiles/Whroo/all/L6.txt'
+       17 = 'controlfiles/WombatStateForest/all/L6.txt'
+       18 = 'controlfiles/Yanco/all/L6.txt'
