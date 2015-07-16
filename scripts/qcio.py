@@ -398,7 +398,7 @@ def xl2nc(cf,InLevel):
     # round the Python datetime to the nearest second
     qcutils.round_datetime(ds,mode="nearest_second")
     #check for gaps in the Python datetime series and fix if present
-    fixtimestepmethod = qcutils.get_keyvaluefromcf(cf,["options"],"FixTimeStepMethod",default="")
+    fixtimestepmethod = qcutils.get_keyvaluefromcf(cf,["options"],"FixTimeStepMethod",default="round")
     if qcutils.CheckTimeStep(ds): qcutils.FixTimeStep(ds,fixtimestepmethod=fixtimestepmethod)
     # recalculate the Excel datetime
     qcutils.get_xldatefromdatetime(ds)
@@ -760,7 +760,7 @@ def nc_concatenate(cf):
     # read in the first file
     ncFileName = cf['Files']['In'][InFile_list[0]]
     log.info(' Reading data from '+ncFileName)
-    fixtimestepmethod = qcutils.get_keyvaluefromcf(cf,["Options"],"FixTimeStepMethod",default="")
+    fixtimestepmethod = qcutils.get_keyvaluefromcf(cf,["Options"],"FixTimeStepMethod",default="round")
     ds_n = nc_read_series(ncFileName,fixtimestepmethod=fixtimestepmethod)
     if len(ds_n.series.keys())==0:
         log.error(' An error occurred reading netCDF file: '+ncFileName)
@@ -824,7 +824,10 @@ def nc_concatenate(cf):
             # does this series exist in the file being added to the concatenated file
             if ThisOne in ds_n.series.keys():
                 # if so, then append this series to the concatenated series
-                ds.series[ThisOne]['Data'] = numpy.append(ds.series[ThisOne]['Data'],ds_n.series[ThisOne]['Data'][si:ei])
+                if type(ds.series[ThisOne]["Data"]) is list:
+                    ds.series[ThisOne]['Data'] = ds.series[ThisOne]['Data']+ds_n.series[ThisOne]['Data'][si:ei]
+                else:
+                    ds.series[ThisOne]['Data'] = numpy.append(ds.series[ThisOne]['Data'],ds_n.series[ThisOne]['Data'][si:ei])
                 ds.series[ThisOne]['Flag'] = numpy.append(ds.series[ThisOne]['Flag'],ds_n.series[ThisOne]['Flag'][si:ei])
             else:
                 # if not, then create a dummy series and concatenate that
@@ -850,7 +853,7 @@ def nc_concatenate(cf):
     ds.globalattributes["nc_nrecs"] = len(ds.series["DateTime"]["Data"])
     # now sort out any time gaps
     if qcutils.CheckTimeStep(ds):
-        fixtimestepmethod = qcutils.get_keyvaluefromcf(cf,["Options"],"FixTimeStepMethod",default="")
+        fixtimestepmethod = qcutils.get_keyvaluefromcf(cf,["Options"],"FixTimeStepMethod",default="round")
         qcutils.FixTimeStep(ds,fixtimestepmethod=fixtimestepmethod)
         # update the Excel datetime from the Python datetime
         qcutils.get_xldatefromdatetime(ds)
@@ -1011,7 +1014,7 @@ def ncsplit_progress(split_gui,text):
     split_gui.progress.grid(row=9,column=0,columnspan=6,sticky="W")
     split_gui.update()
 
-def nc_read_series(ncFullName,fixtimestepmethod=""):
+def nc_read_series(ncFullName,fixtimestepmethod="round"):
     ''' Read a netCDF file and put the data and meta-data into a DataStructure'''
     log.info(" Reading netCDF file "+ntpath.split(ncFullName)[1])
     netCDF4.default_encoding = 'latin-1'

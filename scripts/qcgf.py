@@ -1397,9 +1397,9 @@ def gfalternate_matchstartendtimes(ds,ds_alternate):
     # do the alternate and tower data overlap?
     if overlap:
         # index of alternate datetimes that are also in tower datetimes
-        alternate_index = qcutils.find_indices(ldt_tower,ldt_alternate)
+        alternate_index = qcutils.FindIndicesOfBInA(ldt_tower,ldt_alternate)
         # index of tower datetimes that are also in alternate datetimes
-        tower_index = qcutils.find_indices(ldt_alternate,ldt_tower)
+        tower_index = qcutils.FindIndicesOfBInA(ldt_alternate,ldt_tower)
         # check that the indices point to the same times
         ldta = [ldt_alternate[i] for i in alternate_index]
         ldtt = [ldt_tower[i] for i in tower_index]
@@ -3323,8 +3323,16 @@ def ImportSeries(cf,ds):
     end_date = ldt[-1]
     # loop over the series in the Imports section
     for label in cf["Imports"].keys():
-        import_filename = cf["Imports"][label]["file_name"]
-        var_name = cf["Imports"][label]["var_name"]
+        import_filename = qcutils.get_keyvaluefromcf(cf,["Options",label],"file_name",default="")
+        if import_filename=="":
+            msg = " ImportSeries: import filename not found in control file, skipping ..."
+            log.warning(msg)
+            continue
+        var_name = qcutils.get_keyvaluefromcf(cf,["Options",label],"var_name",default="")
+        if var_name=="":
+            msg = " ImportSeries: variable name not found in control file, skipping ..."
+            log.warning(msg)
+            continue
         ds_import = qcio.nc_read_series(import_filename)
         ts_import = ds_import.globalattributes["time_step"]
         ldt_import = ds_import.series["DateTime"]["Data"]
@@ -3334,7 +3342,7 @@ def ImportSeries(cf,ds):
         flag = numpy.ma.ones(nRecs)
         data_import,flag_import,attr_import = qcutils.GetSeriesasMA(ds_import,var_name,si=si,ei=ei)
         ldt_import = ldt_import[si:ei+1]
-        index = qcutils.find_indices(ldt,ldt_import)
+        index = qcutils.FindIndicesOfBInA(ldt_import,ldt)
         data[index] = data_import
         flag[index] = flag_import
         qcutils.CreateSeries(ds,label,data,Flag=flag,Attr=attr_import)

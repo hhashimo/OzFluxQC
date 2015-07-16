@@ -17,7 +17,7 @@ logging.basicConfig()
 # open the logging file
 log = qcutils.startlog('aws2nc','../logfiles/aws2nc.log')
 
-# dummt control file for FixTimeSteps
+# dummy control file for FixTimeSteps
 cf = {"Options":{"FixTimeStepMethod":"round"}}
 
 # get the site information and the AWS stations to use
@@ -204,7 +204,7 @@ for site_name in sorted(site_list):
         log.info("Merging BoM site: "+str(bom_id))
         ds = ds_dict[bom_id]
         ldt = ds.series["DateTime"]["Data"]
-        index = qcutils.find_indices(ldt_all,ldt)
+        index = qcutils.FindIndicesOfBInA(ldt,ldt_all)
         # loop over the variables
         for label in ["Precip","Ta","Td","RH","Ws","Wd","Wg","ps"]:
             data_all = numpy.ma.ones(nRecs,dtype=numpy.float64)*float(c.missing_value)

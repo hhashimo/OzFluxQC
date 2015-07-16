@@ -395,22 +395,32 @@ def file_exists(filename,mode="verbose"):
     else:
         return True
 
-#def find_indices(a,b):
-    #len_a = len(a)
-    #len_b = len(b)
-    #indices = []
-    #idx = -1
-    #if len_a>=len_b:
-        #for item in b:
-            #idx = a.index(item,idx+1)
-            #indices.append(idx)
-    #else:
-        #for item in a:
-            #idx = b.index(item,idx+1)
-            #indices.append(idx)
-    #return indices
-
-def find_indices(a,b):
+def FindIndicesOfBInA(a,b):
+    """
+    Purpose:
+     Find the indices of elements in b that also occur in a.
+     The routine is intended for use only with lists of Python datetime
+     values.  This ensures the input series are monotonically increasing
+     (though this is not a requirement) and contain no duplicates (which
+     is required, or at least not handled).
+    Limitations:
+     Argument a is converted to a set to greatly speed the comparison
+     of b elements with a.  This means that duplicates in a will be
+     dropped and hence only 1 index will be returned for each value
+     in b.
+    Usage:
+     indices = qcutils.FindIndicesOfBInA(a,b)
+     where a is a list of Python datetime objects
+           b is a list of Python datetime objects
+           indices is a list of indices in b where the elements of b
+                also occur in a
+    Author: PRI
+    Date: July 2015
+    Comments: Replaces find_indices used up to V2.9.3.
+    """
+    if len(set(a))!=len(a):
+        msg = " FindIndicesOfBInA: first argument contains duplicate values"
+        log.warning(msg)
     tmpset = set(a)
     indices = [i for i,item in enumerate(b) if item in tmpset]
     return indices
@@ -478,7 +488,7 @@ def FixNonIntegralTimeSteps(ds,fixtimestepmethod=""):
         ds.series["DateTime"]["Data"] = ldt_rounded
     ds.globalattributes['nc_nrecs'] = len(ds.series["DateTime"]["Data"])
     
-def FixTimeGaps(ds,startend=[]):
+def FixTimeGaps(ds):
     """
     Purpose:
      Fix gaps in datetime series found by CheckTimeStep.
@@ -493,24 +503,17 @@ def FixTimeGaps(ds,startend=[]):
      February 2015 - and again ...
     """
     ts = int(ds.globalattributes["time_step"])
-    ldt_gaps,ldt_flag,ldt_attr = GetSeries(ds,"DateTime")
+    #ldt_gaps,ldt_flag,ldt_attr = GetSeries(ds,"DateTime")
+    ldt_gaps = ds.series["DateTime"]["Data"]
     # generate a datetime list from the start datetime to the end datetime
-    if len(startend)==0:
-        ldt_start = ldt_gaps[0]
-        ldt_end = ldt_gaps[-1]
-    elif len(startend)==2:
-        ldt_start = startend[0]
-        ldt_end = startend[1]
-    else:
-        msg = " FixTimeGaps: Unrecognised option "+str(startend)+" for start and end times passed in, returning ..."
-        log.error(msg)
-        return
+    ldt_start = ldt_gaps[0]
+    ldt_end = ldt_gaps[-1]
     ldt_nogaps = [result for result in perdelta(ldt_start,ldt_end,datetime.timedelta(minutes=ts))]
     # update the global attribute containing the number of records
     nRecs = len(ldt_nogaps)
     ds.globalattributes['nc_nrecs'] = nRecs
-    # find the indices of the original data in the no-gap data
-    idx_gaps = find_indices(ldt_nogaps,ldt_gaps)
+    # find the indices of the no-gap data in the original data
+    idx_gaps = FindIndicesOfBInA(ldt_gaps,ldt_nogaps)
     # update the series of Python datetimes
     ds.series['DateTime']['Data'] = ldt_nogaps
     org_flag = ds.series['DateTime']['Flag'].astype(numpy.int32)
@@ -531,7 +534,7 @@ def FixTimeGaps(ds,startend=[]):
         flag_nogaps[idx_gaps] = flag_gaps
         CreateSeries(ds,ThisOne,data_nogaps,Flag=flag_nogaps,Attr=attr)
 
-def FixTimeStep(ds,fixtimestepmethod=""):
+def FixTimeStep(ds,fixtimestepmethod="round"):
     """
     Purpose:
      Fix problems with the time stamp.
