@@ -218,7 +218,7 @@ def rpFFNET_gui(cf,ds,FFNET_info):
     FFNET_gui.minptsLabel.grid(row=nrow,column=3,columnspan=1,sticky="E")
     FFNET_gui.minptsEntry = Tkinter.Entry(FFNET_gui,width=5)
     FFNET_gui.minptsEntry.grid(row=nrow,column=4,columnspan=1,sticky="W")
-    FFNET_gui.minptsEntry.insert(0,"10")
+    FFNET_gui.minptsEntry.insert(0,"5")
     # eigth row
     nrow = nrow + 1
     FFNET_gui.automonthly = Tkinter.Radiobutton(FFNET_gui,text="Monthly",variable=FFNET_gui.peropt,value=2)
@@ -458,7 +458,7 @@ def rpSOLO_gui(cf,ds,solo_info):
     solo_gui.minptsLabel.grid(row=nrow,column=3,columnspan=1,sticky="E")
     solo_gui.minptsEntry = Tkinter.Entry(solo_gui,width=5)
     solo_gui.minptsEntry.grid(row=nrow,column=4,columnspan=1,sticky="W")
-    solo_gui.minptsEntry.insert(0,"10")
+    solo_gui.minptsEntry.insert(0,"5")
     # eigth row
     nrow = nrow + 1
     solo_gui.automonthly = Tkinter.Radiobutton(solo_gui,text="Monthly",variable=solo_gui.peropt,value=2)
@@ -2236,6 +2236,24 @@ def rpSOLO_run_gui(ds,SOLO_gui,solo_info):
         rpSOLO_main(ds,solo_info,SOLO_gui=SOLO_gui)
         rpSOLO_progress(SOLO_gui,"Finished manual run ...")
     elif SOLO_gui.peropt.get()==2:
+        # automatic run with monthly datetime periods
+        rpSOLO_progress(SOLO_gui,"Starting auto (monthly) run ...")
+        solo_info["startdate"] = SOLO_gui.startEntry.get()
+        if len(solo_info["startdate"])==0: solo_info["startdate"] = solo_info["file_startdate"]
+        startdate = dateutil.parser.parse(solo_info["startdate"])
+        file_startdate = dateutil.parser.parse(solo_info["file_startdate"])
+        file_enddate = dateutil.parser.parse(solo_info["file_enddate"])
+        enddate = startdate+dateutil.relativedelta.relativedelta(months=1)
+        enddate = min([file_enddate,enddate])
+        solo_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d")
+        while startdate<file_enddate:
+            rpSOLO_main(ds,solo_info,SOLO_gui=SOLO_gui)
+            startdate = enddate
+            enddate = startdate+dateutil.relativedelta.relativedelta(months=1)
+            solo_info["startdate"] = startdate.strftime("%Y-%m-%d")
+            solo_info["enddate"] = enddate.strftime("%Y-%m-%d")
+        rpSOLO_progress(SOLO_gui,"Finished auto (monthly) run ...")
+    elif SOLO_gui.peropt.get()==3:
         # automatc run with number of days specified by user via the GUI
         rpSOLO_progress(SOLO_gui,"Starting auto (days) run ...")
         solo_info["startdate"] = SOLO_gui.startEntry.get()
@@ -2254,25 +2272,6 @@ def rpSOLO_run_gui(ds,SOLO_gui,solo_info):
             solo_info["startdate"] = startdate.strftime("%Y-%m-%d")
             solo_info["enddate"] = enddate.strftime("%Y-%m-%d")
         rpSOLO_progress(SOLO_gui,"Finished auto (days) run ...")
-    elif SOLO_gui.peropt.get()==3:
-        # automatic run with monthly datetime periods
-        rpSOLO_progress(SOLO_gui,"Starting auto (monthly) run ...")
-        solo_info["startdate"] = SOLO_gui.startEntry.get()
-        if len(solo_info["startdate"])==0: solo_info["startdate"] = solo_info["file_startdate"]
-        startdate = dateutil.parser.parse(solo_info["startdate"])
-        file_startdate = dateutil.parser.parse(solo_info["file_startdate"])
-        file_enddate = dateutil.parser.parse(solo_info["file_enddate"])
-        nMonths = int(SOLO_gui.monthsentry.get())
-        enddate = startdate+dateutil.relativedelta.relativedelta(months=nMonths)
-        enddate = min([file_enddate,enddate])
-        solo_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d")
-        while startdate<file_enddate:
-            rpSOLO_main(ds,solo_info,SOLO_gui=SOLO_gui)
-            startdate = enddate
-            enddate = startdate+dateutil.relativedelta.relativedelta(months=nMonths)
-            solo_info["startdate"] = startdate.strftime("%Y-%m-%d")
-            solo_info["enddate"] = enddate.strftime("%Y-%m-%d")
-        rpSOLO_progress(SOLO_gui,"Finished auto (monthly) run ...")
     elif SOLO_gui.peropt.get()==4:
         # automatic run with yearly datetime periods
         rpSOLO_progress(SOLO_gui,"Starting auto (yearly) run ...")
