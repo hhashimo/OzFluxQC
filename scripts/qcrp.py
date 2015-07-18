@@ -25,14 +25,13 @@ except ImportError:
     #log.error("FreUsingFFNET: Unable to import module ffnet")
     pass
 
-def CalculateET(cf,ds):
+def CalculateET(ds):
     """
     Purpose:
      Calculate ET from Fe
     Usage:
-     qcrp.CalculateET(cf,ds)
-      where cf is a conbtrol file object
-            ds is a data structure
+     qcrp.CalculateET(ds)
+      where ds is a data structure
     Side effects:
      Series to hold the ET data are created in ds.
     Author: PRI
@@ -1082,6 +1081,7 @@ def L6_summary_annual(xl_file,ds,series_dict):
     log.info(" Doing the annual summaries at L6")
     dt = ds.series["DateTime"]["Data"]
     ts = int(ds.globalattributes["time_step"])
+    nperDay = int(24/(float(ts)/60.0)+0.5)
     si = qcutils.GetDateIndex(dt,str(dt[0]),ts=ts,default=0,match="startnextday")
     ei = qcutils.GetDateIndex(dt,str(dt[-1]),ts=ts,default=len(dt)-1,match="endpreviousday")
     ldt = dt[si:ei+1]
@@ -1104,6 +1104,8 @@ def L6_summary_annual(xl_file,ds,series_dict):
         end_date = str(year+1)+"-01-01 00:00"
         si = qcutils.GetDateIndex(dt,start_date,ts=ts,default=0)
         ei = qcutils.GetDateIndex(dt,end_date,ts=ts,default=len(dt)-1)
+        nDays = (ei-si+1)/
+        print year,nDays
         for item in series_list:
             if item not in ds.series.keys(): continue
             data_1d,flag,attr = qcutils.GetSeriesasMA(ds,item,si=si,ei=ei)

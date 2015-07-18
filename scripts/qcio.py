@@ -1,13 +1,13 @@
+# Python modules
 from configobj import ConfigObj
 from collections import OrderedDict
 import ast
-import cfg
 import copy
-import constants as c
 import csv
 import datetime
 import dateutil
-import meteorologicalfunctions as mf
+import logging
+import netCDF4
 import numpy
 import ntpath
 import os
@@ -18,8 +18,11 @@ import Tkinter, tkFileDialog
 import xlrd
 import xlwt
 import xlsxwriter
-import netCDF4
-import logging
+# OzFluxQC modules
+import cfg
+import constants as c
+import meteorologicalfunctions as mf
+import qcck
 import qcts
 import qcutils
 
@@ -616,16 +619,18 @@ def get_ncdtype(Series):
     return dt
 
 def get_filename_dialog(path='.',title='Choose a file'):
-    '''
-    Put up a file open dialog.
-    USEAGE:
+    """
+    Purpose:
+     Put up a file open dialog and let the user browse to open a file
+    Usage:
      fname = qcio.get_filename_dialog(path=<path_to_file>,title=<tile>)
-    INPUT:
-     path  - the path to the file location, optional
-     title - the title for the file open dialog, optional
-    RETURNS:
+     where path  - the path to the file location, optional
+           title - the title for the file open dialog, optional
+    Returns:
      fname - the full file name including path, string
-    '''
+    Author: PRI
+    Date: Back in the day
+    """
     root = Tkinter.Tk(); root.withdraw()
     FileName = tkFileDialog.askopenfilename(parent=root,initialdir=path,title=title)
     root.destroy()
@@ -877,6 +882,8 @@ def nc_concatenate(cf):
     qcts.CalculateHumidities(ds)
     # and make sure we have all of the meteorological variables
     qcts.CalculateMeteorologicalVariables(ds)
+    # re-apply the quality control checks (range, diurnal and rules)
+    qcck.do_qcchecks(cf,ds)
     # update the coverage statistics
     qcutils.get_coverage_individual(ds)
     # write the netCDF file
@@ -1014,8 +1021,43 @@ def ncsplit_progress(split_gui,text):
     split_gui.progress.grid(row=9,column=0,columnspan=6,sticky="W")
     split_gui.update()
 
-def nc_read_series(ncFullName,fixtimestepmethod="round"):
-    ''' Read a netCDF file and put the data and meta-data into a DataStructure'''
+def nc_read_series(ncFullName,fixtimestepmethod=""):
+    """
+    Purpose:
+     Reads a netCDF file and returns the meta-data and data in a DataStructure.
+     The returned data structure is an instance of qcio.DataStructure().
+     The data structure consists of:
+      1) ds.globalattributes
+         A dictionary containing the global attributes of the netCDF file.
+      2) ds.series
+         A dictionary containing the variable data, meta-data and QC flag
+         Each variable dictionary in ds.series contains;
+         a) ds.series[variable]["Data"]
+            A 1D numpy float64 array containing the variable data, missing
+            data value is -9999.
+         b) ds.series[variable]["Flag"]
+            A 1D numpy int32 array containing the QC flag data for this variable.
+         c) ds.series[variable]["Attr"]
+            A dictionary containing the variable attributes.
+    Usage:
+     nc_name = qcio.get_filename_dialog(path="../Sites/Whroo/Data/Processed/")
+     ds = qcio.nc_read_series(nc_name)
+     where nc_name is the full name of the netCDF file to be read
+           ds is the returned data structure
+    Side effects:
+     This routine checks the time step of the data read from the netCDF file
+     against the value of the global attribute "time_step", see qcutils.CheckTimeStep.
+     If a problem is found with the time step (duplicate records, non-integral
+     time steps or gaps) then qcutils.FixTimeStep is called to repair the time step.
+     Fixing non-integral timne steps requires some user input.  The options are to
+     quit ([Q]), interpolate ([I], not implemented yet) or round ([R]).  Quitting
+     causes the script to exit and return to the command prompt.  Interpolation
+     is not implemented yet but will interpolate the data from the original time
+     step to a regular time step.  Rounding will round any non-itegral time steps
+     to the nearest time step.
+    Author: PRI
+    Date: Back in the day
+    """
     log.info(" Reading netCDF file "+ntpath.split(ncFullName)[1])
     netCDF4.default_encoding = 'latin-1'
     ds = DataStructure()
@@ -1192,6 +1234,19 @@ def nc_read_var(ncFile,ThisOne):
     return data,flag,attr
 
 def nc_open_write(ncFullName,nctype='NETCDF4'):
+    """
+    Purpose:
+     Opens a netCDF file object for writing.  The opened netCDF file
+     object is then passed as an argument to qcio.nc_write_series, where
+     the actual writing of data occurs.
+    Usage:
+     nc_name = '../Sites/Whroo/Data/Processed/all/Whroo_L4.nc'
+     nc_file = qcio.nc_open_write(nc_name)
+     where nc_name is the ful file name of the netCDF to be written
+           nc_file is the returned netCDF file object
+    Author: PRI
+    Date: Back in the day
+    """
     log.info(' Opening netCDF file '+ncFullName+' for writing')
     try:
         ncFile = netCDF4.Dataset(ncFullName,'w',format=nctype)
@@ -1201,6 +1256,17 @@ def nc_open_write(ncFullName,nctype='NETCDF4'):
     return ncFile
 
 def nc_write_series(ncFile,ds,outputlist=None,ndims=3):
+    """
+    Purpose:
+     Write the contents of a data structure to a netCDF file.
+    Usage:
+     nc_file = qcio.nc_open_write(nc_name)
+     qcio.nc_write_series(nc_file,ds)
+     where nc_file is a netCDF file object returned by qcio.nc_open_write
+           ds is a data structure
+    Author: PRI
+    Date: Back in the day
+    """
     ldt = ds.series["DateTime"]["Data"]
     ds.globalattributes['QC_version'] = str(cfg.version_name)+' '+str(cfg.version_number)
     for ThisOne in ds.globalattributes.keys():

@@ -333,16 +333,21 @@ def convert_UVtoWsWd(u,v):
 
 def CreateSeries(ds,Label,Data,FList=None,Flag=None,Attr=None):
     """
-    Create a series (1d array) of data in the data structure.
-    
-    If the series already exists in the data structure, data values and QC flags will be
-    overwritten but attributes will be preserved.  However, the long_name and units attributes
-    are treated differently.  The existing long_name will have long_name appended to it.  The
-    existing units will be overwritten with units.
-    
-    This utility is the prefered method for creating or updating a data series because
-    it implements a consistent method for creating series in the data structure.  Direct
-    writes to the contents of the data structure are discouraged (unless PRI wrote the code:=P).
+    Purpose:
+     Create a series (1d array) of data in the data structure.
+     If the series already exists in the data structure, data values and QC flags will be
+     overwritten but attributes will be preserved.  However, the long_name and units attributes
+     are treated differently.  The existing long_name will have long_name appended to it.  The
+     existing units will be overwritten with units.
+     This utility is the prefered method for creating or updating a data series because
+     it implements a consistent method for creating series in the data structure.  Direct
+     writes to the contents of the data structure are discouraged (unless PRI wrote the code:=P).
+    Usage:
+     Fsd,flag,attr = qcutils.GetSeriesasMA(ds,"Fsd")
+      ... do something to Fsd here ...
+     qcutils.CreateSeries(ds,"Fsd",Fsd,Flag=flag,Attr=attr)
+    Author: PRI
+    Date: Back in the day
     """
     ds.series['_tmp_'] = {}                       # create a temporary series to avoid premature overwrites
     # put the data into the temporary series
@@ -480,10 +485,10 @@ def FixNonIntegralTimeSteps(ds,fixtimestepmethod=""):
         print "Interpolation to regular time step not implemented yet ..."
         sys.exit()
     if ans.lower()[0]=="r":
-        log.info("Rounding to the nearest time step")
+        log.info(" Rounding to the nearest time step")
         ldt_rounded = [rounddttots(dt,ts=ts) for dt in ldt]
         rdt = numpy.array([(ldt_rounded[i]-ldt_rounded[i-1]).total_seconds() for i in range(1,len(ldt))])
-        log.info("Maximum time step is now "+str(numpy.max(rdt))+" seconds, minimum time step is now "+str(numpy.min(rdt)))
+        log.info(" Maximum time step is now "+str(numpy.max(rdt))+" seconds, minimum time step is now "+str(numpy.min(rdt)))
         # replace the existing datetime series with the datetime series rounded to the nearest time step
         ds.series["DateTime"]["Data"] = ldt_rounded
     ds.globalattributes['nc_nrecs'] = len(ds.series["DateTime"]["Data"])
@@ -676,7 +681,7 @@ def GetRangesFromCF(cf,ThisOne,mode="verbose"):
     return lower, upper
 
 def GetDateIndex(dts,date,ts=30,default=0,match='exact'):
-    '''
+    """
     Purpose:
      Return the index of a date/datetime string in an array of datetime objects
     Usage:
@@ -687,20 +692,25 @@ def GetDateIndex(dts,date,ts=30,default=0,match='exact'):
      ts       - time step for the data, optional (integer)
      default  - default value, optional (integer)
      match    - type of match (string) options are:
-                "exact"           - finds the specified datetime and returns
-                                    the index
-                "startnextday"    - returns the index of the first time period
-                                    in the next day
-                "endpreviousday"  - returns the index of the last time period
-                                    in the previous day
-                "startnexthour"   - returns the index of the first time period
-                                    in the next hour
-                "endprevioushour" - returns the index of the last time period
-                                    in the next hour
+                "exact"            - finds the specified datetime and returns
+                                     the index
+                "startnextday"     - returns the index of the first time period
+                                     in the next day
+                "endpreviousday"   - returns the index of the last time period
+                                     in the previous day
+                "startnexthour"    - returns the index of the first time period
+                                     in the next hour
+                "endprevioushour"  - returns the index of the last time period
+                                     in the previous hour
+                "startnextmonth"   - returns the index of the first time period
+                                     in the next month
+                "endpreviousmonth" - returns the index of the last time period
+                                     in the previous month
                 NOTE: "startnextday" and "endpreviousday" can be used to pick
                     out time periods with an integer number of days
     Author: PRI
-    '''
+    Date: Back in the day
+    """
     try:
         if len(date)!=0:
             i = dts.index(dateutil.parser.parse(date))
@@ -902,7 +912,7 @@ def MakeEmptySeries(ds,ThisOne):
     return Series,Flag,Attr
 
 def GetSeriesasMA(ds,ThisOne,si=0,ei=-1,mode="truncate"):
-    '''
+    """
     Purpose:
      Returns a data series and the QC flag series from the data structure.
     Usage:
@@ -924,7 +934,7 @@ def GetSeriesasMA(ds,ThisOne,si=0,ei=-1,mode="truncate"):
       ds = qcio.nc_read_series("HowardSprings_2011_L3.nc")
       Fsd,f,a = qcutils.GetSeriesasMA(ds,"Fsd")
     Author: PRI
-    '''
+    """
     Series,Flag,Attr = GetSeries(ds,ThisOne,si=si,ei=ei,mode=mode)
     Series,WasND = SeriestoMA(Series)
     return Series,Flag,Attr
