@@ -1053,7 +1053,7 @@ def L6_summary_monthly(xl_file,ds,series_dict):
             elif series_dict["monthly"][item]["operator"].lower()=="sum":
                 monthly_dict[item]["data"] = numpy.append(monthly_dict[item]["data"],
                                                           numpy.ma.sum(data_1d))
-                monthly_dict[item]["units"] = monthly_dict[item]["units"]+"/year"
+                monthly_dict[item]["units"] = monthly_dict[item]["units"]+"/month"
             else:
                 print "unrecognised operator"
             monthly_dict[item]["format"] = series_dict["monthly"][item]["format"]
@@ -1091,6 +1091,8 @@ def L6_summary_annual(xl_file,ds,series_dict):
     annual_dict = {}
     annual_dict["DateTime"] = {"data":[datetime.datetime(yr,1,1) for yr in year_list],
                                "units":"Years","format":"dd/mm/yyyy"}
+    annual_dict["nDays"] = {"data":numpy.array([float(-9999)]*len(year_list)),
+                            "units":"","format":"0"}
     # create arrays in annual_dict
     series_list = series_dict["annual"].keys()
     series_list.sort()
@@ -1104,8 +1106,8 @@ def L6_summary_annual(xl_file,ds,series_dict):
         end_date = str(year+1)+"-01-01 00:00"
         si = qcutils.GetDateIndex(dt,start_date,ts=ts,default=0)
         ei = qcutils.GetDateIndex(dt,end_date,ts=ts,default=len(dt)-1)
-        nDays = (ei-si+1)/
-        print year,nDays
+        nDays = int((ei-si+1)/nperDay+0.5)
+        annual_dict["nDays"]["data"][i] = nDays
         for item in series_list:
             if item not in ds.series.keys(): continue
             data_1d,flag,attr = qcutils.GetSeriesasMA(ds,item,si=si,ei=ei)
