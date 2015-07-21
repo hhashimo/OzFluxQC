@@ -541,9 +541,8 @@ def GetFreFromFc(cf,ds):
         ustar_dict = get_ustarthreshold_from_cpdresults(cf)
     else:
         msg = " CPD results filename not in control file"
-        log.error(msg)
-        return False
-        #ustar_annual = get_ustarthreshold_from_cf(cf)
+        log.warning(msg)
+        ustar_dict = get_ustarthreshold_from_cf(cf,ldt)
     # make sure we have an entry in ustar_dict for all years
     start_year = ldt[0].year
     end_year = ldt[-1].year
@@ -663,19 +662,41 @@ def GetFreFromFc(cf,ds):
     qcutils.CreateSeries(ds,"Fsd_filtered",Fsd2,Flag=Fsd_flag,Attr=Fsd_attr)
     return True
 
-def get_ustarthreshold_from_cf(cf):
-    ustar_annual = {}
-    # do some stuff
+def get_ustarthreshold_from_cf(cf,ldt):
+    """
+    Purpose:
+     Returns a dictionary containing ustar thresholds for each year read from
+     the control file.  If no [ustar_threshold] section is found then a
+     default value of 0.25 is used.
+    Usage:
+     ustar_dict = qcrp.get_ustarthreshold_from_cf(cf,ldt)
+     where cf is the control file object
+           ldt is the Python datetime series from the data structure
+    Author: PRI
+    Date: July 2015
+    """
+    ustar_dict = collections.OrderedDict()
+    ustar_threshold_list = []
     if "ustar_threshold" in cf.keys():
+        msg = " Using values from ustar_threshold section"
+        log.warning(msg)
         for n in cf["ustar_threshold"].keys():
             ustar_threshold_list.append(ast.literal_eval(cf["ustar_threshold"][str(n)]))
+        for item in ustar_threshold_list:
+            startdate = dateutil.parser.parse(item[0])
+            year = startdate.year
+            ustar_dict[str(year)] = {}
+            ustar_dict[str(year)]["ustar_mean"] = float(item[2])
     else:
-        log.warning(" No [ustar_threshold] section in control file")
-        log.warning(" ... using default value of 0.25 m/s")
-        ustar_threshold_list.append([ldt[0].strftime("%Y-%m-%d %H:%M"),
-                                     ldt[-1].strftime("%Y-%m-%d %H:%M"),
-                                     str(0.25)])
-    return ustar_annual
+        log.error(" No [ustar_threshold] section in control file")
+        log.error(" ... using default value of 0.25 m/s")
+        startyear = ldt[0].year
+        endyear = ldt[-1].year
+        years = range(startyear,endyear+1)
+        for year in years:
+            ustar_dict[str(year)] = {}
+            ustar_dict[str(year)]["ustar_mean"] = float(0.25)
+    return ustar_dict
 
 def get_ustarthreshold_from_cpdresults(cf):
     # do some stuff
@@ -1038,7 +1059,7 @@ def L6_summary_monthly(xl_file,ds,series_dict):
     while start_date<=last_date:
         si = qcutils.GetDateIndex(ldt,str(start_date),ts=ts,default=0)
         ei = qcutils.GetDateIndex(ldt,str(end_date),ts=ts,default=len(ldt)-1)
-        monthly_dict["DateTime"]["data"].append(ldt[si].strftime("%Y-%m-%d"))
+        monthly_dict["DateTime"]["data"].append(ldt[si])
         for item in series_list:
             if item not in ds.series.keys(): continue
             data_1d,flag,attr = qcutils.GetSeriesasMA(ds,item,si=si,ei=ei)
@@ -1679,6 +1700,24 @@ def rpFFNET_run_gui(ds,FFNET_gui,rpFFNET_info):
         rpFFNET_main(ds,rpFFNET_info)
         rpFFNET_progress(FFNET_gui,"Finished manual run ...")
     elif FFNET_gui.peropt.get()==2:
+        rpFFNET_progress(FFNET_gui,"Starting auto (monthly) run ...")
+        # get the start datetime entered in the SOLO GUI
+        rpFFNET_info["startdate"] = FFNET_gui.startEntry.get()
+        if len(rpFFNET_info["startdate"])==0: rpFFNET_info["startdate"] = rpFFNET_info["file_startdate"]
+        startdate = dateutil.parser.parse(rpFFNET_info["startdate"])
+        file_startdate = dateutil.parser.parse(rpFFNET_info["file_startdate"])
+        file_enddate = dateutil.parser.parse(rpFFNET_info["file_enddate"])
+        enddate = startdate+dateutil.relativedelta.relativedelta(months=1)
+        enddate = min([file_enddate,enddate])
+        rpFFNET_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d")
+        while startdate<file_enddate:
+            rpFFNET_main(ds,rpFFNET_info)
+            startdate = enddate
+            enddate = startdate+dateutil.relativedelta.relativedelta(months=1)
+            rpFFNET_info["startdate"] = startdate.strftime("%Y-%m-%d")
+            rpFFNET_info["enddate"] = enddate.strftime("%Y-%m-%d")
+        rpFFNET_progress(FFNET_gui,"Finished auto (monthly) run ...")
+    elif FFNET_gui.peropt.get()==3:
         rpFFNET_progress(FFNET_gui,"Starting auto (days) run ...")
         # get the start datetime entered in the SOLO GUI
         rpFFNET_info["startdate"] = FFNET_gui.startEntry.get()
@@ -1686,7 +1725,7 @@ def rpFFNET_run_gui(ds,FFNET_gui,rpFFNET_info):
         startdate = dateutil.parser.parse(rpFFNET_info["startdate"])
         file_startdate = dateutil.parser.parse(rpFFNET_info["file_startdate"])
         file_enddate = dateutil.parser.parse(rpFFNET_info["file_enddate"])
-        nDays = int(FFNET_gui.daysentry.get())
+        nDays = int(FFNET_gui.daysEntry.get())
         enddate = startdate+dateutil.relativedelta.relativedelta(days=nDays)
         enddate = min([file_enddate,enddate])
         rpFFNET_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d")
@@ -1697,25 +1736,6 @@ def rpFFNET_run_gui(ds,FFNET_gui,rpFFNET_info):
             rpFFNET_info["startdate"] = startdate.strftime("%Y-%m-%d")
             rpFFNET_info["enddate"] = enddate.strftime("%Y-%m-%d")
         rpFFNET_progress(FFNET_gui,"Finished auto (days) run ...")
-    elif FFNET_gui.peropt.get()==3:
-        rpFFNET_progress(FFNET_gui,"Starting auto (monthly) run ...")
-        # get the start datetime entered in the SOLO GUI
-        rpFFNET_info["startdate"] = FFNET_gui.startEntry.get()
-        if len(rpFFNET_info["startdate"])==0: rpFFNET_info["startdate"] = rpFFNET_info["file_startdate"]
-        startdate = dateutil.parser.parse(rpFFNET_info["startdate"])
-        file_startdate = dateutil.parser.parse(rpFFNET_info["file_startdate"])
-        file_enddate = dateutil.parser.parse(rpFFNET_info["file_enddate"])
-        nMonths = int(FFNET_gui.monthsentry.get())
-        enddate = startdate+dateutil.relativedelta.relativedelta(months=nMonths)
-        enddate = min([file_enddate,enddate])
-        rpFFNET_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d")
-        while startdate<file_enddate:
-            rpFFNET_main(ds,rpFFNET_info)
-            startdate = enddate
-            enddate = startdate+dateutil.relativedelta.relativedelta(months=nMonths)
-            rpFFNET_info["startdate"] = startdate.strftime("%Y-%m-%d")
-            rpFFNET_info["enddate"] = enddate.strftime("%Y-%m-%d")
-        rpFFNET_progress(FFNET_gui,"Finished auto (monthly) run ...")
     elif FFNET_gui.peropt.get()==4:
         # automatic run with yearly datetime periods
         rpFFNET_progress(FFNET_gui,"Starting auto (yearly) run ...")
@@ -2265,7 +2285,7 @@ def rpSOLO_run_gui(ds,SOLO_gui,solo_info):
         startdate = dateutil.parser.parse(solo_info["startdate"])
         file_startdate = dateutil.parser.parse(solo_info["file_startdate"])
         file_enddate = dateutil.parser.parse(solo_info["file_enddate"])
-        nDays = int(SOLO_gui.daysentry.get())
+        nDays = int(SOLO_gui.daysEntry.get())
         enddate = startdate+dateutil.relativedelta.relativedelta(days=nDays)
         enddate = min([file_enddate,enddate])
         solo_info["enddate"] = datetime.datetime.strftime(enddate,"%Y-%m-%d")
