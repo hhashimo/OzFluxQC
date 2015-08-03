@@ -202,7 +202,9 @@ def AverageSeriesByElements(cf,ds,Av_out):
     if Av_out not in cf['Variables'].keys(): return
     if Av_out in ds.averageserieslist: return
     srclist, standardname = qcutils.GetAverageSeriesKeys(cf,Av_out)
-    log.info(' Averaging series in '+str(srclist)+' into '+Av_out)
+#    log.info(' Averaging series in '+str(srclist)+' into '+Av_out)
+    log.info(' Averaging '+str(srclist)+'==>'+Av_out)
+    
     nSeries = len(srclist)
     if nSeries==0:
         log.error('  AverageSeriesByElements: no input series specified for'+str(Av_out))
@@ -1049,17 +1051,8 @@ def CorrectFgForStorage(cf,ds,Fg_out='Fg',Fg_in='Fg',Ts_in='Ts',Sws_in='Sws'):
         index = numpy.where(item==numpy.int32(1))[0]
         Fg_out_flag[index] = numpy.int32(1)
     # put the corrected soil heat flux into the data structure
-    if Fg_out not in ds.series.keys():
-        attr= qcutils.MakeAttributeDictionary(long_name='Soil heat flux corrected for storage',units='W/m2',standard_name='downward_heat_flux_in_soil')
-        qcutils.CreateSeries(ds,Fg_out,Fg_out_data,Flag=Fg_out_flag,Attr=attr)
-    else:
-        Fg_exist,flag,attr = qcutils.GetSeriesasMA(ds,Fg_out)
-        idx = numpy.where((numpy.ma.getmaskarray(Fg_exist)==True)&(numpy.ma.getmaskarray(Fg_out_data)==False))[0]
-        #idx = numpy.ma.where((numpy.ma.getmaskarray(Fg_exist)==True)&(numpy.ma.getmaskarray(Fg_out_data)==False))[0]
-        if len(idx)!=0:
-            Fg_exist[idx] = Fg_out_data[idx]
-            flag[idx] = numpy.int32(20)
-        qcutils.CreateSeries(ds,Fg_out,Fg_exist,Flag=flag,Attr=attr)
+    attr= qcutils.MakeAttributeDictionary(long_name='Soil heat flux corrected for storage',units='W/m2',standard_name='downward_heat_flux_in_soil')
+    qcutils.CreateSeries(ds,Fg_out,Fg_out_data,Flag=Fg_out_flag,Attr=attr)
     # save the input (uncorrected) soil heat flux series, this will be used if the correction is relaxed
     attr = qcutils.MakeAttributeDictionary(long_name='Soil heat flux uncorrected for storage',units='W/m2')
     qcutils.CreateSeries(ds,'Fg_Av',Fg,Flag=Fg_flag,Attr=attr)
@@ -2061,7 +2054,7 @@ def MergeSeries(cf,ds,series,okflags):
         log.info(' MergeSeries: no input series specified for '+str(series))
         return
     if nSeries==1:
-        log.info(' Merging series '+str(srclist)+' into '+series)
+        log.info(' Merging '+str(srclist)+'==>'+series)
         if srclist[0] not in ds.series.keys():
             log.error('  MergeSeries: primary input series'+srclist[0]+'not found for'+str(series))
             return
@@ -2070,7 +2063,7 @@ def MergeSeries(cf,ds,series,okflags):
         attr = ds.series[srclist[0]]['Attr'].copy()
         SeriesNameString = srclist[0]
     else:
-        log.info(' Merging series '+str(srclist)+' into '+series)
+        log.info(' Merging '+str(srclist)+'==>'+series)
         if srclist[0] not in ds.series.keys():
             log.error('  MergeSeries: primary input series'+srclist[0]+'not found')
             return
