@@ -115,8 +115,8 @@
     FcUnits                 = umol/m2/s     # 'mg/m2/s' or 'umol/m2/s', units for Fc
 
 [Output]
-    xl = "['Ah','Cc','eta','Fa','Fc','Fe','Fg','Fh','Fld','Flu','Fm','Fn','Fsd','Fsu','Precip','ps','Sws','Ta','theta','Ts','ustar','Ws','Wd']"
-    #nc = "['Ah','Cc','eta','Fa','Fc','Fe','Fg','Fh','Fld','Flu','Fm','Fn','Fsd','Fsu','Precip','ps','Sws','Ta','theta','Ts','ustar','Ws','Wd']"
+    #xl = "['Ah','Cc','eta','Fa','Fc','Fe','Fg','Fg_Av','Fh','Fld','Flu','Fm','Fn','Fsd','Fsu','Precip','ps','Sws','Ta','theta','Ts','ustar','Ws','Wd']"
+    #nc = "['Ah','Cc','eta','Fa','Fc','Fe','Fg','Fg_Av','Fh','Fld','Flu','Fm','Fn','Fsd','Fsu','Precip','ps','Sws','Ta','theta','Ts','ustar','Ws','Wd']"
 
 [Soil]
     FgDepth = <depth>                       # depth of heat flux plates, m
