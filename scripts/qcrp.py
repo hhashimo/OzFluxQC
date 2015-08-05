@@ -679,7 +679,7 @@ def get_ustarthreshold_from_cf(cf,ldt):
     ustar_threshold_list = []
     if "ustar_threshold" in cf.keys():
         msg = " Using values from ustar_threshold section"
-        log.warning(msg)
+        log.info(msg)
         for n in cf["ustar_threshold"].keys():
             ustar_threshold_list.append(ast.literal_eval(cf["ustar_threshold"][str(n)]))
         for item in ustar_threshold_list:
