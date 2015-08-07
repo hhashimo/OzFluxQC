@@ -1,5 +1,11 @@
 version_name = "OzFluxQC"
-version_number = "V2.9.3"
+version_number = "V2.9.4"
+# V2.9.4   - major bug fix
+#            - a bug was introduced in V2.8.7 on 15/04/2015 that caused
+#              Fg corrected for heat storage in the layer above the
+#              ground heat flux plates to be replaced with uncorrected
+#              Fg during the L3 processing
+#            - this release fixes the bug
 # V2.9.3   - updates and bug fixes
 #            - implemented batch processing for L1 to L6 including climatology,
 #              CPD, conatenation
