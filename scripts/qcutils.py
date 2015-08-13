@@ -238,6 +238,9 @@ def convertunits(old_data,old_units,new_units,ts,mode="quiet"):
     # add more lists here to cope with water etc
     co2_list = ["umol/m2/s","gC/m2"]
     ok_list = co2_list
+    # parse the original units
+    if old_units=="umol/m^2/s": old_units="umol/m2/s"
+    if old_units.replace(" ","")=="umolm-2s-1": old_units="umol/m2/s"
     if old_units not in ok_list:
         msg = " Unrecognised units in quantity provided ("+old_units+")"
         log.error(msg)

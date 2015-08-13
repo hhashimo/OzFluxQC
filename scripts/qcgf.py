@@ -3323,12 +3323,12 @@ def ImportSeries(cf,ds):
     end_date = ldt[-1]
     # loop over the series in the Imports section
     for label in cf["Imports"].keys():
-        import_filename = qcutils.get_keyvaluefromcf(cf,["Options",label],"file_name",default="")
+        import_filename = qcutils.get_keyvaluefromcf(cf,["Imports",label],"file_name",default="")
         if import_filename=="":
             msg = " ImportSeries: import filename not found in control file, skipping ..."
             log.warning(msg)
             continue
-        var_name = qcutils.get_keyvaluefromcf(cf,["Options",label],"var_name",default="")
+        var_name = qcutils.get_keyvaluefromcf(cf,["Imports",label],"var_name",default="")
         if var_name=="":
             msg = " ImportSeries: variable name not found in control file, skipping ..."
             log.warning(msg)

@@ -70,6 +70,7 @@ def CalculateNEE(cf,ds):
         Fsd[index] = Fsd_syn[index]
     ustar,ustar_flag,ustar_attr = qcutils.GetSeriesasMA(ds,"ustar")
     for label in ds.nee.keys():
+        if "Fc" not in ds.nee[label] and "Fre" not in ds.nee[label]: continue
         Fc_label = ds.nee[label]["Fc"]
         Fre_label = ds.nee[label]["Fre"]
         output_label = ds.nee[label]["output"]
@@ -1244,6 +1245,7 @@ def PartitionNEE(cf,ds):
         Fsd[index] = Fsd_syn[index]
     # calculate GPP from NEE and Fre
     for label in ds.gpp.keys():
+        if "NEE" not in ds.gpp[label] and "Fre" not in ds.gpp[label]: continue
         NEE_label = ds.gpp[label]["NEE"]
         Fre_label = ds.gpp[label]["Fre"]
         output_label = ds.gpp[label]["output"]
@@ -1874,9 +1876,11 @@ def rpGPP_createdict(cf,ds,series):
     # output series name
     ds.gpp[series]["output"] = series
     # CO2 flux
-    ds.gpp[series]["NEE"] = cf["GPP"][series]["NEE"]
+    if "NEE" in cf["GPP"][series].keys():
+        ds.gpp[series]["NEE"] = cf["GPP"][series]["NEE"]
     # ecosystem respiration
-    ds.gpp[series]["Fre"] = cf["GPP"][series]["Fre"]
+    if "Fre" in cf["GPP"][series].keys():
+        ds.gpp[series]["Fre"] = cf["GPP"][series]["Fre"]
     # create an empty series in ds if the output series doesn't exist yet
     if ds.gpp[series]["output"] not in ds.series.keys():
         data,flag,attr = qcutils.MakeEmptySeries(ds,ds.gpp[series]["output"])
@@ -1916,9 +1920,11 @@ def rpNEE_createdict(cf,ds,series):
     # output series name
     ds.nee[series]["output"] = series
     # CO2 flux
-    ds.nee[series]["Fc"] = cf["NEE"][series]["Fc"]
+    if "Fc" in cf["NEE"][series].keys():
+        ds.nee[series]["Fc"] = cf["NEE"][series]["Fc"]
     # ecosystem respiration
-    ds.nee[series]["Fre"] = cf["NEE"][series]["Fre"]
+    if "Fre" in cf["NEE"][series].keys():
+        ds.nee[series]["Fre"] = cf["NEE"][series]["Fre"]
     # create an empty series in ds if the output series doesn't exist yet
     if ds.nee[series]["output"] not in ds.series.keys():
         data,flag,attr = qcutils.MakeEmptySeries(ds,ds.nee[series]["output"])
