@@ -4,8 +4,8 @@
 #  for processing L1 to L3 for each year at each site.
 #  Keys in the Files section must be unique.
 [Options]
-    #levels = "['L1','L2','L3','concatenate','climatology','cpd','L4','L5','L6']"
-    levels = "['L1','L2','L3','concatenate','climatology','cpd','L4','L5','L6']"
+    #levels = "['L1','L2','L3','FluxNet','concatenate','climatology','cpd','L4','L5','L6']"
+    levels = "['L1','L2','L3','FluxNet']"
 
 [Levels]
    [[L1]]
@@ -53,6 +53,21 @@
        11 = 'controlfiles/Tumbarumba/2012/L3.txt'
        12 = 'controlfiles/Tumbarumba/2013/L3.txt'
        13 = 'controlfiles/Tumbarumba/2014/L3.txt'
+   [[FluxNet]]
+       0 = 'controlfiles/Tumbarumba/2001/nc2fn.txt'
+       1 = 'controlfiles/Tumbarumba/2002/nc2fn.txt'
+       2 = 'controlfiles/Tumbarumba/2003/nc2fn.txt'
+       3 = 'controlfiles/Tumbarumba/2004/nc2fn.txt'
+       4 = 'controlfiles/Tumbarumba/2005/nc2fn.txt'
+       5 = 'controlfiles/Tumbarumba/2006/nc2fn.txt'
+       6 = 'controlfiles/Tumbarumba/2007/nc2fn.txt'
+       7 = 'controlfiles/Tumbarumba/2008/nc2fn.txt'
+       8 = 'controlfiles/Tumbarumba/2009/nc2fn.txt'
+       9 = 'controlfiles/Tumbarumba/2010/nc2fn.txt'
+       10 = 'controlfiles/Tumbarumba/2011/nc2fn.txt'
+       11 = 'controlfiles/Tumbarumba/2012/nc2fn.txt'
+       12 = 'controlfiles/Tumbarumba/2013/nc2fn.txt'
+       13 = 'controlfiles/Tumbarumba/2014/nc2fn.txt'
    [[concatenate]]
        0 = 'controlfiles/Tumbarumba/all/ncconcat.txt'
    [[climatology]]

@@ -68,6 +68,14 @@ for level in level_list:
             ncFile = qcio.nc_open_write(outfilename)
             qcio.nc_write_series(ncFile,ds3,outputlist=outputlist)
             logging.info('Finished L3 processing with '+cfname)
+    elif level.lower()=="fluxnet":
+        # convert netCDF files to FluxNet CSV files
+        for i in cf_batch["Levels"][level].keys():
+            cfname = cf_batch["Levels"][level][i]
+            logging.info('Starting FluxNet output with '+cfname)
+            cf = qcio.get_controlfilecontents(cfname)
+            qcio.fn_write_csv(cf)
+            logging.info('Finished FluxNet output with '+cfname)
     elif level.lower()=="concatenate":
         # concatenate netCDF files
         for i in cf_batch["Levels"][level].keys():
