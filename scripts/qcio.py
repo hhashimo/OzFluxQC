@@ -458,7 +458,7 @@ def fn_write_csv(cf):
     elif dt[0]>start_datetime:
         # requested start_datetime is before the start of the file
         log.info(" Padding start of file")
-        dt_patched = [ldt for ldt in qcutils.perdelta(start_datetime, dt[0], ts_delta)]
+        dt_patched = [ldt for ldt in qcutils.perdelta(start_datetime, dt[0]-ts_delta, ts_delta)]
         data_patched = numpy.ones(len(dt_patched))*float(c.missing_value)
         flag_patched = numpy.ones(len(dt_patched))
         # list of series in the data structure
@@ -514,7 +514,9 @@ def fn_write_csv(cf):
         return
     if (int(ds.globalattributes["nc_nrecs"])!=nRecs_year) & (int(ds.globalattributes["nc_nrecs"])!=nRecs_leapyear):
         log.error(" Number of records in file does not equal "+str(nRecs_year)+" or "+str(nRecs_leapyear))
-        log.error(len(ds.series["DateTime"]["Data"]),ds.series["DateTime"]["Data"][0],ds.series["DateTime"]["Data"][-1])
+        msg = str(len(ds.series["DateTime"]["Data"]))+" "+str(ds.series["DateTime"]["Data"][0])
+        msg = msg+" "+str(ds.series["DateTime"]["Data"][-1])
+        log.error(msg)
         return
     # get the date and time data
     Day,flag,attr = qcutils.GetSeries(ds,'Day')

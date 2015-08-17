@@ -5,8 +5,8 @@
 
 [General]
     CanopyHeight = ""
-    DataPolicy = "OzFlux (http://ozflux.its.monash.edu.au/ecosystem/site/licenceinfo.jspx)"
-    DataURL = "http://ozflux.its.monash.edu.au/"
+    DataPolicy = "OzFlux (http://data.ozflux.org.au/portal/site/licenceinfo.jspx)"
+    DataURL = "http://data.ozflux.org.au/"
     Elevation = "<elevation>m"
     Institution = "<institution>"
     LandUse = "<land_use>"
