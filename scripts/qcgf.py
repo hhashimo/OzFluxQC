@@ -2257,7 +2257,7 @@ def  gfSOLO_gui(cf,dsa,dsb,solo_info):
     # seventh row
     nrow = nrow + 1
     solo_gui.peropt = Tkinter.IntVar()
-    solo_gui.peropt.set(1)
+    solo_gui.peropt.set(2)
     solo_gui.manualperiod = Tkinter.Radiobutton(solo_gui,text="Manual",variable=solo_gui.peropt,value=1)
     solo_gui.manualperiod.grid(row=nrow,column=0,columnspan=1,sticky="W")
     #solo_gui.manualperiod = Tkinter.Radiobutton(solo_gui,text="Auto",variable=solo_gui.peropt,value=4)

@@ -557,7 +557,6 @@ def GetFreFromFc(cf,ds):
                 ustar_dict[str(year)][item] = float(c.missing_value)
     # get the data
     Fsd,Fsd_flag,Fsd_attr = qcutils.GetSeriesasMA(ds,"Fsd")
-    if "Fsd_syn" not in ds.series.keys(): qcts.get_synthetic_fsd(ds)
     Fsd_syn,flag,attr = qcutils.GetSeriesasMA(ds,"Fsd_syn")
     sa,flag,attr = qcutils.GetSeriesasMA(ds,"solar_altitude")
     ustar,ustar_flag,attr = qcutils.GetSeriesasMA(ds,"ustar")
@@ -662,6 +661,66 @@ def GetFreFromFc(cf,ds):
     qcutils.CreateSeries(ds,"Fre",Fre2,Flag=Fre_flag,Attr=Fre_attr)
     qcutils.CreateSeries(ds,"Fsd_filtered",Fsd2,Flag=Fsd_flag,Attr=Fsd_attr)
     return True
+
+def GetFreIndicator(cf,ds):
+    """
+    Purpose:
+     Indicator values are:
+      - 1 OK to use Fc as Fre
+      - 0 not OK to use Fc as Fre
+    Useage:
+    Author: PRI
+    Date: August 2015
+    """
+    # get the day/night indicator
+    # 1 ==> night, 0 ==> day
+    daynight_indicator = get_daynight_indicator(cf,ds)
+    # get the evening indicator
+    # 1 ==> within "evening" definition, 0 ==> outside "evening"
+    evening_indicator = get_evening_indicator(cf,ds)
+    # get the turbulent/non-turbulent indicator
+    # 1 ==> turbulent, 0 ==> non-turbulent
+    turbulence_indicator = get_turbulence_indicator(cf,ds)
+    # get Fre indicator
+    # 1 ==> OK to use Fc as Fre, 0 ==> not OK to use Fc as Fre
+    Fre_indicator = daynight_indicator*evening_indicator*turbulence_indicator
+    # put the indicator series in the data structure
+    nRecs = len(Fre_indicator)
+    flag = numpy.zeros(nRecs,dtype=numpy.int32)
+    attr = qcutils.MakeAttributeDictionary(long_name="Fre indicator series")
+    qcutils.CreateSeries(ds,"Fre_indicator",Fre_indicator,Flag=flag,Attr=attr)
+
+def get_daynight_indicator(cf,ds):
+    # get the day/night indicator
+    nRecs = int(ds.globalattributes["nc_nrecs"])
+    daynight_indicator = numpy.ones(nRecs,dtype=numpy.int32)
+    # get the filter type
+    filter_type = qcutils.get_keyvaluefromcf(cf,["Options"],"DayNightFilter",default="Fsd")
+    # get the indicator series
+    if filter_type=="Fsd":
+        # get the data
+        Fsd,Fsd_flag,Fsd_attr = qcutils.GetSeriesasMA(ds,"Fsd")
+        Fsd_syn,flag,attr = qcutils.GetSeriesasMA(ds,"Fsd_syn")
+        # get the Fsd threshold
+        Fsd_threshold = int(qcutils.get_keyvaluefromcf(cf,["Options"],"Fsd_threshold",default=10))
+        # we are using Fsd and Fsd_syn to define day/night
+        index = numpy.ma.where((Fsd>Fsd_threshold)|(Fsd_syn>Fsd_threshold))[0]
+        daynight_indicator[index] = numpy.int32(0)
+    else:
+        # get the data
+        sa,flag,attr = qcutils.GetSeriesasMA(ds,"solar_altitude")
+        # get the solar altitude threshold
+        sa_threshold = int(qcutils.get_keyvaluefromcf(cf,["Options"],"sa_threshold",default="-5"))
+        # we are using solar altitude to define day/night
+        index = numpy.ma.where(sa>sa_threshold)[0]
+        daynight_indicator[index] = numpy.int32(0)
+    return daynight_indicator
+
+def get_evening_indicator(cf,ds):
+    pass
+
+def get_turbulence_indicator(cf,ds):
+    pass
 
 def get_ustarthreshold_from_cf(cf,ldt):
     """

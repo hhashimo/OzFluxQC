@@ -314,7 +314,12 @@ def l6qc(cf,ds5):
     qcrp.ParseL6ControlFile(cf,ds6)
     # check to see if we have any imports
     qcgf.ImportSeries(cf,ds6)
+    # make sure we have the synthetic downwelling shortwave, the solar altitude
+    # and an indicator series for day/evening/night
+    if ("Fsd_syn" not in ds6.series.keys() or
+        "solar_altitude" not in ds6.series.keys()): qcts.get_synthetic_fsd(ds6)
     # filter Fc for night time and ustar threshold, write to ds as "Fre"
+    #qcrp.GetFreIndicator(cf,ds6)
     qcrp.GetFreFromFc(cf,ds6)
     # estimate Reco using SOLO
     qcrp.FreUsingSOLO(cf,ds6)
