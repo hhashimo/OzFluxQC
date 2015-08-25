@@ -561,13 +561,15 @@ def GetFreFromFc(cf,ds):
     sa,flag,attr = qcutils.GetSeriesasMA(ds,"solar_altitude")
     ustar,ustar_flag,attr = qcutils.GetSeriesasMA(ds,"ustar")
     Fc,Fc_flag,Fc_attr = qcutils.GetSeriesasMA(ds,"Fc")
+    # get a copy of the Fc flag
+    Fre_flag = numpy.array(Fc_flag)
 
     # only accept Fc and ustar data when both have a QC flag value of 0
     ustar = numpy.ma.masked_where((ustar_flag!=0)|(Fc_flag!=0),ustar)
     Fc = numpy.ma.masked_where((ustar_flag!=0)|(Fc_flag!=0),Fc)
     index_notok = numpy.where((ustar_flag!=0)|(Fc_flag!=0))[0]
-    ustar_flag[index_notok] = numpy.int32(61)
-    Fc_flag[index_notok] = numpy.int32(61)
+    #ustar_flag[index_notok] = numpy.int32(61)
+    Fre_flag[index_notok] = numpy.int32(61)
     # check for any missing data
     for item,label in zip([Fsd,Fsd_syn],["Fsd","Fsd_syn"]):
         index = numpy.where(numpy.ma.getmaskarray(item)==True)[0]
@@ -582,32 +584,36 @@ def GetFreFromFc(cf,ds):
     if daynightfilter_type not in ["Fsd","sa"]: daynightfilter_type = "Fsd"
     # make the attribute dictionary first so we can add the ustar thresholds to it
     Fre_attr = qcutils.MakeAttributeDictionary(long_name='Ecosystem respiration (observed)',units=Fc_attr["units"])
-    Fsd_attr = qcutils.MakeAttributeDictionary(long_name='Incoming shortwave radiation, filtered',units="W/m2")
+    #Fsd_attr = qcutils.MakeAttributeDictionary(long_name='Incoming shortwave radiation, filtered',units="W/m2")
 
     # apply the day/night filter
     if daynightfilter_type=="Fsd":
         # we are using Fsd and possibly Fsd_syn to define day/night
         Fre_attr["Fsd_threshold"] = str(Fsd_threshold)
-        Fsd_attr["Fsd_threshold"] = str(Fsd_threshold)
+        #Fsd_attr["Fsd_threshold"] = str(Fsd_threshold)
         if qcutils.cfoptionskeylogical(cf,Key='UseFsdsyn_threshold',default=False):
             # we are using Fsd and Fsd_syn
             Fre1 = numpy.ma.masked_where((Fsd>Fsd_threshold)|(Fsd_syn>Fsd_threshold),Fc,copy=True)
-            Fsd1 = numpy.ma.masked_where((Fsd>Fsd_threshold)|(Fsd_syn>Fsd_threshold),Fsd,copy=True)
+            #Fsd1 = numpy.ma.masked_where((Fsd>Fsd_threshold)|(Fsd_syn>Fsd_threshold),Fsd,copy=True)
+            index_daynight = numpy.ma.where((Fsd>Fsd_threshold)|(Fsd_syn>Fsd_threshold))[0]
+            Fre_flag[index_daynight] = numpy.int32(62)
         else:
             # we are only using Fsd
             Fre1 = numpy.ma.masked_where(Fsd>Fsd_threshold,Fc,copy=True)
-            Fsd1 = numpy.ma.masked_where(Fsd>Fsd_threshold,Fsd,copy=True)
+            #Fsd1 = numpy.ma.masked_where(Fsd>Fsd_threshold,Fsd,copy=True)
+            index_daynight = numpy.ma.where(Fsd>Fsd_threshold)[0]
+            Fre_flag[index_daynight] = numpy.int32(62)
     else:
         sa_threshold = int(qcutils.get_keyvaluefromcf(cf,["Options"],"sa_threshold",default="-5"))
         Fre_attr["sa_threshold"] = str(sa_threshold)
-        Fsd_attr["sa_threshold"] = str(sa_threshold)
+        #Fsd_attr["sa_threshold"] = str(sa_threshold)
         Fre1 = numpy.ma.masked_where(sa>sa_threshold,Fc,copy=True)
-        Fsd1 = numpy.ma.masked_where(sa>sa_threshold,Fsd,copy=True)
+        #Fsd1 = numpy.ma.masked_where(sa>sa_threshold,Fsd,copy=True)
+        index_daynight = numpy.ma.where(sa>sa_threshold)[0]
+        Fre_flag[index_daynight] = numpy.int32(63)
     # get a copy of the day/night filtered data
     Fre2 = numpy.ma.array(Fre1)
-    Fsd2 = numpy.ma.array(Fsd1)
-    # get a copy of the Fc flag
-    Fre_flag = numpy.array(Fc_flag)
+    #Fsd2 = numpy.ma.array(Fsd1)
 
     # loop over the list of ustar thresholds
     year_list = ustar_dict.keys()
@@ -633,34 +639,34 @@ def GetFreFromFc(cf,ds):
         ei = qcutils.GetDateIndex(ldt,end_date,ts=ts,default=len(ldt),match='exact')
         # filter out the low ustar conditions
         Fre2[si:ei] = numpy.ma.masked_where(ustar[si:ei]<ustar_threshold,Fre1[si:ei])
-        Fsd2[si:ei] = numpy.ma.masked_where(ustar[si:ei]<ustar_threshold,Fsd1[si:ei])
+        #Fsd2[si:ei] = numpy.ma.masked_where(ustar[si:ei]<ustar_threshold,Fsd1[si:ei])
         # set the QC flag
         index_lowustar = numpy.ma.where(ustar[si:ei]<ustar_threshold)[0]
-        Fre_flag[si:ei][index_lowustar] = numpy.int32(62)
+        Fre_flag[si:ei][index_lowustar] = numpy.int32(64)
 
     # apply quantile filter
     if qcutils.cfoptionskeylogical(cf,Key='UseQuantileFilter',default=False):
         Fre_attr["long_name"] = Fre_attr["long_name"]+", quantile filter not used"
-        Fsd_attr["long_name"] = Fsd_attr["long_name"]+", quantile filter not used"
+        #Fsd_attr["long_name"] = Fsd_attr["long_name"]+", quantile filter not used"
         qcutils.CreateSeries(ds,"Fre_nqf",Fre2,Flag=Fre_flag,Attr=Fre_attr)
-        qcutils.CreateSeries(ds,"Fsd_nqf",Fsd2,Flag=Fsd_flag,Attr=Fsd_attr)
+        #qcutils.CreateSeries(ds,"Fsd_nqf",Fsd2,Flag=Fsd_flag,Attr=Fsd_attr)
         quantile_lower = float(qcutils.get_keyvaluefromcf(cf,["Options"],"QuantileValue",default="2.5"))
         quantile_upper = float(100) - quantile_lower
         q = numpy.percentile(numpy.ma.compressed(Fre2),[quantile_lower,quantile_upper])
         Fre2 = numpy.ma.masked_where((Fre2<q[0])|(Fre2>q[1]),Fre2)
-        Fsd2 = numpy.ma.masked_where((Fre2<q[0])|(Fre2>q[1]),Fsd2)
+        #Fsd2 = numpy.ma.masked_where((Fre2<q[0])|(Fre2>q[1]),Fsd2)
         index_qf = numpy.ma.where((Fre2<q[0])|(Fre2>q[1]))[0]
-        Fre_flag[index_qf] = numpy.int32(63)
-        Fsd_flag[index_qf] = numpy.int32(63)
+        Fre_flag[index_qf] = numpy.int32(65)
+        #Fsd_flag[index_qf] = numpy.int32(65)
         Fre_attr["long_name"].replace(", quantile filter not used",", quantile filter used")
         Fre_attr["Fre_quantile"] = str(quantile_lower)+","+str(quantile_upper)
-        Fsd_attr["long_name"].replace(", quantile filter not used",", quantile filter used")
-        Fsd_attr["Fre_quantile"] = str(quantile_lower)+","+str(quantile_upper)
+        #Fsd_attr["long_name"].replace(", quantile filter not used",", quantile filter used")
+        #Fsd_attr["Fre_quantile"] = str(quantile_lower)+","+str(quantile_upper)
 
     # put the nocturnal, filtered Fc data into the data structure
     qcutils.CreateSeries(ds,"Fre",Fre2,Flag=Fre_flag,Attr=Fre_attr)
-    qcutils.CreateSeries(ds,"Fsd_filtered",Fsd2,Flag=Fsd_flag,Attr=Fsd_attr)
-    return True
+    #qcutils.CreateSeries(ds,"Fsd_filtered",Fsd2,Flag=Fsd_flag,Attr=Fsd_attr)
+    return
 
 def GetFreIndicator(cf,ds):
     """
@@ -798,13 +804,18 @@ def L6_summary(cf,ds):
         log.error("L6_summary: error opening Excel file "+xl_name)
         return
     # daily averages and totals
-    daily_dict = L6_summary_daily(xl_file,ds,series_dict)
+    daily_dict = L6_summary_daily(ds,series_dict)
+    L6_summary_write_xlfile(xl_file,"Daily",daily_dict)
     # monthly averages and totals
-    monthly_dict = L6_summary_monthly(xl_file,ds,series_dict)
+    monthly_dict = L6_summary_monthly(ds,series_dict)
+    L6_summary_write_xlfile(xl_file,"Monthly",monthly_dict)
     # annual averages and totals
-    annual_dict = L6_summary_annual(xl_file,ds,series_dict)
+    annual_dict = L6_summary_annual(ds,series_dict)
+    L6_summary_write_xlfile(xl_file,"Annual",annual_dict)
     # cumulative totals
-    cumulative_dict = L6_summary_cumulative(xl_file,ds,series_dict)
+    cumulative_dict = L6_summary_cumulative(ds,series_dict)
+    for year in cumulative_dict.keys():
+        L6_summary_write_xlfile(xl_file,"Cummulative("+str(year)+")",cumulative_dict[str(year)])
     # close the Excel workbook
     xl_file.save(xl_name)
     # plot the daily averages and sums
@@ -1036,7 +1047,7 @@ def L6_summary_createseriesdict(cf,ds):
     series_dict["monthly"] = series_dict["daily"]
     return series_dict
 
-def L6_summary_daily(xl_file,ds,series_dict):
+def L6_summary_daily(ds,series_dict,xl_file=None):
     """
     Purpose:
      Calculate the daily averages or sums of various quantities and write
@@ -1080,12 +1091,14 @@ def L6_summary_daily(xl_file,ds,series_dict):
         else:
             print "unrecognised series: ",series
         daily_dict[item]["format"] = series_dict["daily"][item]["format"]
-    # add the daily worksheet to the summary Excel file
-    xl_sheet = xl_file.add_sheet("Daily")
-    qcio.xl_write_data(xl_sheet,daily_dict)
     return daily_dict
 
-def L6_summary_monthly(xl_file,ds,series_dict):
+def L6_summary_write_xlfile(xl_file,sheet_name,data_dict):
+    # add the daily worksheet to the summary Excel file
+    xl_sheet = xl_file.add_sheet(sheet_name)
+    qcio.xl_write_data(xl_sheet,data_dict)
+
+def L6_summary_monthly(ds,series_dict):
     """
     Purpose:
      Calculate the monthly averages or sums of various quantities and write
@@ -1141,12 +1154,9 @@ def L6_summary_monthly(xl_file,ds,series_dict):
         start_date = end_date+dateutil.relativedelta.relativedelta(minutes=ts)
         end_date = start_date+dateutil.relativedelta.relativedelta(months=1)
         end_date = end_date-dateutil.relativedelta.relativedelta(minutes=ts)
-    # add the annual worksheet to the summary Excel file
-    xl_sheet = xl_file.add_sheet("Monthly")
-    qcio.xl_write_data(xl_sheet,monthly_dict)
     return monthly_dict
 
-def L6_summary_annual(xl_file,ds,series_dict):
+def L6_summary_annual(ds,series_dict):
     """
     Purpose:
      Calculate the annual averages or sums of various quantities and write
@@ -1205,12 +1215,9 @@ def L6_summary_annual(xl_file,ds,series_dict):
             else:
                 print "unrecognised operator"
             annual_dict[item]["format"] = series_dict["annual"][item]["format"]
-    # add the annual worksheet to the summary Excel file
-    xl_sheet = xl_file.add_sheet("Annual")
-    qcio.xl_write_data(xl_sheet,annual_dict)
     return annual_dict
 
-def L6_summary_cumulative(xl_file,ds,series_dict):
+def L6_summary_cumulative(ds,series_dict):
     """
     Purpose:
      Calculate the cumulative sums of various quantities and write
@@ -1257,8 +1264,6 @@ def L6_summary_cumulative(xl_file,ds,series_dict):
             cumulative_dict[str(year)][item]["data"] = numpy.ma.cumsum(data)
             cumulative_dict[str(year)][item]["format"] = series_dict["cumulative"][item]["format"]
             cumulative_dict[str(year)][item]["units"] = cumulative_dict[str(year)][item]["units"]+"/year"
-        xl_sheet = xl_file.add_sheet("Cumulative("+str(year)+")")
-        qcio.xl_write_data(xl_sheet,cumulative_dict[str(year)])
     return cumulative_dict
 
 def ParseL6ControlFile(cf,ds):
