@@ -557,6 +557,7 @@ def GetFreFromFc(cf,ds):
                 ustar_dict[str(year)][item] = float(c.missing_value)
     # get the data
     Fsd,Fsd_flag,Fsd_attr = qcutils.GetSeriesasMA(ds,"Fsd")
+    if "Fsd_syn" not in ds.series.keys(): qcts.get_synthetic_fsd(ds)
     Fsd_syn,flag,attr = qcutils.GetSeriesasMA(ds,"Fsd_syn")
     sa,flag,attr = qcutils.GetSeriesasMA(ds,"solar_altitude")
     ustar,ustar_flag,attr = qcutils.GetSeriesasMA(ds,"ustar")
