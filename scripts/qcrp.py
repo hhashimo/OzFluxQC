@@ -703,7 +703,7 @@ def get_daynight_indicator(cf,ds):
     # get the filter type
     filter_type = qcutils.get_keyvaluefromcf(cf,["Options"],"DayNightFilter",default="Fsd")
     # get the indicator series
-    if filter_type=="Fsd":
+    if filter_type.lower()=="fsd":
         # get the data
         Fsd,Fsd_flag,Fsd_attr = qcutils.GetSeriesasMA(ds,"Fsd")
         Fsd_syn,flag,attr = qcutils.GetSeriesasMA(ds,"Fsd_syn")
@@ -712,7 +712,7 @@ def get_daynight_indicator(cf,ds):
         # we are using Fsd and Fsd_syn to define day/night
         index = numpy.ma.where((Fsd>Fsd_threshold)|(Fsd_syn>Fsd_threshold))[0]
         daynight_indicator[index] = numpy.int32(0)
-    else:
+    elif filter_type.lower()=="sa":
         # get the data
         sa,flag,attr = qcutils.GetSeriesasMA(ds,"solar_altitude")
         # get the solar altitude threshold
@@ -720,10 +720,16 @@ def get_daynight_indicator(cf,ds):
         # we are using solar altitude to define day/night
         index = numpy.ma.where(sa>sa_threshold)[0]
         daynight_indicator[index] = numpy.int32(0)
+    else:
+        msg = "Unrecognised DayNightFilter option in L6 control file, no filter applied ..."
+        log.error(msg)
     return daynight_indicator
 
 def get_evening_indicator(cf,ds):
-    pass
+    # make sure we have the synthetic downwelling shortwave and the solar altitude
+    if ("Fsd_syn" not in ds.series.keys() or
+        "solar_altitude" not in ds.series.keys()): qcts.get_synthetic_fsd(ds)
+    
 
 def get_turbulence_indicator(cf,ds):
     pass
