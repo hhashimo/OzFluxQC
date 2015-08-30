@@ -775,6 +775,23 @@ def nc_concatenate(cf):
     # fill the global attributes
     for ThisOne in ds_n.globalattributes.keys():
         ds.globalattributes[ThisOne] = ds_n.globalattributes[ThisOne]
+    # check that we have 'Ws' and 'Wd' series
+    if "Ws" not in ds_n.series.keys():
+        if "Ws_CSAT" in ds_n.series.keys():
+            msg = "Ws not found, copying series Ws_CSAT to Ws"
+            log.info(msg)
+            ds_n.series["Ws"] = ds_n.series["Ws_CSAT"].copy()
+        else:
+            msg = "Both Ws and Ws_CSAT missing from file"
+            log.warning(msg)
+    if "Wd" not in ds_n.series.keys():
+        if "Wd_CSAT" in ds_n.series.keys():
+            msg = "Wd not found, copying series Wd_CSAT to Wd"
+            log.info(msg)
+            ds_n.series["Wd"] = ds_n.series["Wd_CSAT"].copy()
+        else:
+            msg = "Both Wd and Wd_CSAT missing from file"
+            log.warning(msg)
     # fill the variables
     for ThisOne in ds_n.series.keys():
         if ThisOne=="Fc":
@@ -805,6 +822,23 @@ def nc_concatenate(cf):
         dt = ds.series['DateTime']['Data']
         nRecs_n = len(ds_n.series['xlDateTime']['Data'])
         nRecs = len(ds.series['xlDateTime']['Data'])
+        # check that we have 'Ws' and 'Wd' series
+        if "Ws" not in ds_n.series.keys():
+            if "Ws_CSAT" in ds_n.series.keys():
+                msg = "Ws not found, copying series Ws_CSAT to Ws"
+                log.info(msg)
+                ds_n.series["Ws"] = ds_n.series["Ws_CSAT"].copy()
+            else:
+                msg = "Both Ws and Ws_CSAT missing from file"
+                log.warning(msg)
+        if "Wd" not in ds_n.series.keys():
+            if "Wd_CSAT" in ds_n.series.keys():
+                msg = "Wd not found, copying series Wd_CSAT to Wd"
+                log.info(msg)
+                ds_n.series["Wd"] = ds_n.series["Wd_CSAT"].copy()
+            else:
+                msg = "Both Wd and Wd_CSAT missing from file"
+                log.warning(msg)
         #print ds.series['DateTime']['Data'][-1],ds_n.series['DateTime']['Data'][-1]
         #print dt[-1],dt[-1]+datetime.timedelta(minutes=ts),dt_n[0]
         if dt_n[0]<dt[-1]+datetime.timedelta(minutes=ts):

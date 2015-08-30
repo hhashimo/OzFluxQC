@@ -205,6 +205,10 @@ def plot_fingerprint(cf):
             nDays = len(ldt)/nPerDay
             sd = datetime.datetime.toordinal(ldt[0])
             ed = datetime.datetime.toordinal(ldt[-1])
+            if nc_varname not in ds[infilename].series.keys():
+                msg = " Variable "+nc_varname+" not found in data structure, skipping ..."
+                log.warning(msg)
+                continue
             data,flag,attr = qcutils.GetSeriesasMA(ds[infilename],nc_varname,si=si,ei=ei)
             data = qcck.cliptorange(data,fp_info["variables"][var]["Lower"],fp_info["variables"][var]["Upper"])
             data_daily = data.reshape(nDays,nPerDay)
