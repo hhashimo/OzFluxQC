@@ -1370,10 +1370,23 @@ def linear_function(B,x):
     return B[0]*x + B[1]
 
 def MakeAttributeDictionary(**kwargs):
+    """
+    Purpose:
+     Make an attribute dictionary.
+    Usage:
+     attr_new = qcutils.MakeAttributeDictionary(long_name = "some string",attr_exist)
+     where long_name is an attribute to be written to the new attribute dictionary
+           attr_exist is an existing attribute dictionary
+    Author: PRI
+    Date: Back in the day
+    """
     default_list = ['ancillary_variables','height','instrument','serial_number','standard_name','long_name','units']
     attr = {}
     for item in kwargs:
-        attr[item] = kwargs.get(item,'not defined')
+        if isinstance(item, dict):
+            for entry in item: attr[entry] = item[entry]
+        else:
+            attr[item] = kwargs.get(item,'not defined')
         if item in default_list: default_list.remove(item)
     if len(default_list)!=0:
         for item in default_list: attr[item] = 'not defined'
