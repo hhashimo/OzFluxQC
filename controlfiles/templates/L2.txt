@@ -207,7 +207,6 @@
     out_filename = <site_name>_<year>_L2.nc
 
 [Output]
-    xl = "['Ah_7500_Av','Ah_HMP_<height>m','Cc_7500_Av','Tv_CSAT','Ta_HMP_<height>m']"
 
 [Variables]
 # Radiation

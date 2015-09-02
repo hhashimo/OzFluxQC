@@ -110,7 +110,7 @@ def access_read_mfiles2(file_list,var_list=[]):
         # load the data into the data structure
         for var in var_list:
             # get the name of the variable in the ACCESS file
-            access_name = qcio.get_keyvaluefromcf(cf,["Variables",var],"access_name",default=None)
+            access_name = qcutils.get_keyvaluefromcf(cf,["Variables",var],"access_name",default=None)
             # check that the requested variable exists in the ACCESS file
             if access_name in ncfile.variables.keys():
                 # check to see if the variable is already in the data structure
@@ -162,9 +162,12 @@ def find_indices(a,b):
             indices.append(idx)
     return indices
 
-# open the logging file
-#logging.basicConfig()
-log = qcutils.startlog('access2nc','../logfiles/access2nc.log')
+logging.basicConfig(filename='../logfiles/access2nc.log',level=logging.DEBUG)
+console = logging.StreamHandler()
+formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s', '%H:%M:%S')
+console.setFormatter(formatter)
+console.setLevel(logging.INFO)
+logging.getLogger('').addHandler(console)
 
 # get the control file
 cf = qcio.load_controlfile(path='../controlfiles')
@@ -173,14 +176,14 @@ var_list = cf["Variables"].keys()
 site_list = cf["Sites"].keys()
 for site in site_list:
     var_list = cf["Variables"].keys()
-    log.info("Starting site: "+site)
+    logging.info("Starting site: "+site)
     # get the input file mask
     infilename = cf["Sites"][site]["in_filepath"]+cf["Sites"][site]["in_filename"]
     # get a sorted list of files that match the mask in the control file
     file_list = sorted(glob.glob(infilename))
     # number of files to process
     nFiles = len(file_list)
-    log.info("Processing "+str(nFiles)+" files")
+    logging.info("Processing "+str(nFiles)+" files")
     # output file name
     outfilename = cf["Sites"][site]["out_filepath"]+cf["Sites"][site]["out_filename"]
     # interpolate to 30 minutes or not
@@ -202,16 +205,16 @@ for site in site_list:
     nRecs = len(valid_date)
     # check the files have the expected number of records
     nFiles = len(f.globalattr["file_list"])
-    log.info(str(nFiles)+" left after rejecting non-compliant files")
+    logging.info(str(nFiles)+" left after rejecting non-compliant files")
     if nRecs!=25*nFiles:
-        log.error("Number of records expected was "+str(25*nFiles)+", got "+str(nRecs))
+        logging.error("Number of records expected was "+str(25*nFiles)+", got "+str(nRecs))
         continue
     # check that every 25th record is at midnight
     index = range(25,nRecs-25,25)
     max_vt=max(valid_time[index])
     min_vt=min(valid_time[index])
     if (max_vt!=0) or (min_vt!=0):
-        log.error("Got unexpected time on n*25th record")
+        logging.error("Got unexpected time on n*25th record")
         continue
     # seems safe to proceed
     # map the ACCESS file global attributes to the OzFluxQC file
@@ -231,7 +234,7 @@ for site in site_list:
         # get the name of the ACCESS variable
         access_name = cf["Variables"][label]["access_name"]
         if access_name not in f.variables.keys():
-            log.error("Requested variable "+access_name+" not found in ACCESS data")
+            logging.error("Requested variable "+access_name+" not found in ACCESS data")
             continue
         attr = {}
         for this_attr in f.varattr[access_name].keys():
@@ -463,27 +466,27 @@ for site in site_list:
             qcutils.CreateSeries(ds_60minutes,label_Fa,Fa,Flag=f,Attr=attr)
 
     # dump to an Excel file so we can see what is going on
-    if qcio.get_keyvaluefromcf(cf,["Options"],"WriteExcelIntermediate",default="No")=="Yes":
+    if qcutils.get_keyvaluefromcf(cf,["Options"],"WriteExcelIntermediate",default="No")=="Yes":
         xlfullname= outfilename.replace('.nc','.xls')
-        log.info("Writing to file: "+xlfullname)
+        logging.info("Writing to file: "+xlfullname)
         qcio.xl_write_series(ds_60minutes, xlfullname, outputlist=None)
 
     # check for time gaps in the file
-    log.info("Checking for time gaps")
+    logging.info("Checking for time gaps")
     if qcutils.CheckTimeStep(ds_60minutes):
         qcutils.FixTimeStep(ds_60minutes)
         # update the Year, Month, Day etc from the Python datetime
         qcutils.get_ymdhmsfromdatetime(ds_60minutes)
 
     # dump the time step corrected data to an Excel file
-    if qcio.get_keyvaluefromcf(cf,["Options"],"WriteExcelNoGaps",default="No")=="Yes":
+    if qcutils.get_keyvaluefromcf(cf,["Options"],"WriteExcelNoGaps",default="No")=="Yes":
         xlfullname= xlfullname.replace('.xls','_nogaps.xls')
-        log.info("Writing to file: "+xlfullname)
+        logging.info("Writing to file: "+xlfullname)
         qcio.xl_write_series(ds_60minutes, xlfullname, outputlist=None)
 
     # interpolate from 60 to 30 minutes if requested
     if interpolate:
-        log.info("Interpolating site "+site+" to 30 minute time step")
+        logging.info("Interpolating site "+site+" to 30 minute time step")
         # copy the global attributes
         for this_attr in ds_60minutes.globalattributes.keys():
             ds_30minutes.globalattributes[this_attr] = ds_60minutes.globalattributes[this_attr]
@@ -543,7 +546,7 @@ for site in site_list:
         # now write out the ACCESS data interpolated to 30 minutes
         ncfile = qcio.nc_open_write(outfilename)
         qcio.nc_write_series(ncfile, ds_30minutes,ndims=1)
-        log.info("Finished site : "+site)
+        logging.info("Finished site : "+site)
     else:
         # now get precipitation per time step from the precipitation accumulated over the day
         dt_utc_60minutes=ds_60minutes.series["DateTime_UTC"]["Data"]
@@ -562,4 +565,4 @@ for site in site_list:
         # write out the ACCESS data
         ncfile = qcio.nc_open_write(outfilename)
         qcio.nc_write_series(ncfile, ds_60minutes,ndims=1)
-        log.info("Finished site : "+site)
+        logging.info("Finished site : "+site)

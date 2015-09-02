@@ -144,7 +144,10 @@ def nc_2xls(ncfilename,outputlist=None):
     # read the netCDF file
     ds = nc_read_series(ncfilename)
     nRecs = int(ds.globalattributes["nc_nrecs"])
-    if nRecs<65535:
+    nCols = len(ds.series.keys())
+    if outputlist!=None: nCols = len(outputlist)
+    # xlwt seems to only handle 225 columns
+    if nRecs<65535 and nCols<220:
         # write the variables to the Excel 97/2003 file
         xlfilename= ncfilename.replace('.nc','.xls')
         xl_write_series(ds,xlfilename,outputlist=outputlist)
