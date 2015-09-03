@@ -409,7 +409,7 @@
         Variables = "['UzA','UxA','UyA','UzC','UxC','UyC']"
     [[4]]
         Title = "Air temperature, humidity and CO2"
-        Variables = "['Ta_HMP_<height>m','Tv_CSAT','Ah_HMP_<height>m''Ah_7500_Av','Cc_7500_Av']"
+        Variables = "['Ta_HMP_<height>m','Tv_CSAT','Ah_HMP_<height>m','Ah_7500_Av','Cc_7500_Av']"
     [[5]]
         Title = "Soil temperature, water content & rain"
         Variables = "['Ts_<depth><letter>','Sws_<depth><letter>','Precip']"

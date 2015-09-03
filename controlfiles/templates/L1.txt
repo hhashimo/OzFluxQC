@@ -263,7 +263,7 @@ Fund."""
             long_name = "Covariance of Uy and Uz"
             serial_number = ""
             standard_name = "not defined"
-            units = "m2/s2"/s2"
+            units = "m2/s2"
     [[UxUy]]
         [[[xl]]]
             sheet    = slow_flux
