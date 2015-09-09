@@ -392,7 +392,7 @@ def gfalternate_gui(cf,ds4,ds_alt,alternate_info):
     # fifth row
     nrow = nrow + 1
     alt_gui.peropt = Tkinter.IntVar()
-    alt_gui.peropt.set(1)
+    alt_gui.peropt.set(3)
     alt_gui.manualperiod = Tkinter.Radiobutton(alt_gui,text="Manual",variable=alt_gui.peropt,value=1)
     alt_gui.manualperiod.grid(row=nrow,column=0,columnspan=1,sticky="W")
     alt_gui.minptsLabel = Tkinter.Label(alt_gui,text="Min. pts (%)")

@@ -1065,6 +1065,8 @@ def get_datetimefromymdhms(ds):
     else:
         microseconds = numpy.zeros(nRecs,dtype=numpy.float64)
     for i in range(nRecs):
+        #print i,int(ds.series['Year']['Data'][i]),int(ds.series['Month']['Data'][i]),int(ds.series['Day']['Data'][i])
+        #print i,int(ds.series['Hour']['Data'][i]),int(ds.series['Minute']['Data'][i]),int(ds.series['Second']['Data'][i])
         ds.series['DateTime']['Data'][i] = datetime.datetime(int(ds.series['Year']['Data'][i]),
                                                        int(ds.series['Month']['Data'][i]),
                                                        int(ds.series['Day']['Data'][i]),
@@ -1167,7 +1169,8 @@ def get_nrecs(ds):
     elif 'NumRecs' in ds.globalattributes.keys():
         nRecs = int(ds.globalattributes['NumRecs'])
     else:
-        nRecs = len(ds.series[SeriesList[0]]['Data'])
+        series_list = ds.series.keys()
+        nRecs = len(ds.series[series_list[0]]['Data'])
     return nRecs
 
 def get_timestep(ds):
