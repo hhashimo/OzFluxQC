@@ -224,6 +224,8 @@ for site in site_list:
     ds_60minutes.globalattributes['xl_datemode'] = str(0)
     # number of records
     ds_60minutes.globalattributes["nc_nrecs"] = nRecs
+    # processing level
+    ds_60minutes.globalattributes["nc_level"] = "L1"
     # put the ACCESS data into the 60 minute data structure ds_60minutes
     # make a QC flag with a value of 0
     flag_60minutes = numpy.zeros(nRecs)

@@ -975,7 +975,9 @@ def get_cfsection(cf,series='',mode='quiet'):
     return section
 
 def get_coverage_groups(ds,rad=None,met=None,flux=None,soil=None):
-    level = str(ds.globalattributes['nc_level'])
+    level = "L1"
+    if "nc_level" in ds.globalattributes:
+        level = str(ds.globalattributes["nc_level"])
     rad = ['Fsd','Fsu','Fld','Flu','Fn']
     met = ['Ah','Cc','Precip','ps','Ta','Ws','Wd']
     flux = ['Fm','ustar','Fh','Fe','Fc']
@@ -993,7 +995,9 @@ def get_coverage_groups(ds,rad=None,met=None,flux=None,soil=None):
         ds.globalattributes['coverage_'+ThisLabel+'_'+level] = str('%d'%coverage_group)
 
 def get_coverage_individual(ds):
-    level = str(ds.globalattributes['nc_level'])
+    level = "L1"
+    if "nc_level" in ds.globalattributes:
+        level = str(ds.globalattributes["nc_level"])
     SeriesList = ds.series.keys()
     for ThisOne in ["DateTime","DateTime_UTC"]:
         if ThisOne in SeriesList: SeriesList.remove(ThisOne)
