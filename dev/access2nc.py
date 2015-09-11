@@ -80,6 +80,12 @@ def access_read_mfiles2(file_list,var_list=[]):
     if len(file_list)==0:
         print "access_read_mfiles: empty file_list received, returning ..."
         return f
+    # make sure latitude and longitude are read
+    if "lat" not in var_list: var_list.append("lat")
+    if "lon" not in var_list: var_list.append("lon")
+    # make sure valid_date and valid_time are read
+    if "valid_date" not in var_list: var_list.append("valid_date")
+    if "valid_time" not in var_list: var_list.append("valid_time")
     for file_name in file_list:
         # open the netCDF file
         ncfile = Dataset(file_name)
@@ -110,7 +116,7 @@ def access_read_mfiles2(file_list,var_list=[]):
         # load the data into the data structure
         for var in var_list:
             # get the name of the variable in the ACCESS file
-            access_name = qcutils.get_keyvaluefromcf(cf,["Variables",var],"access_name",default=None)
+            access_name = qcutils.get_keyvaluefromcf(cf,["Variables",var],"access_name",default=var)
             # check that the requested variable exists in the ACCESS file
             if access_name in ncfile.variables.keys():
                 # check to see if the variable is already in the data structure
@@ -175,7 +181,6 @@ if len(cf)==0: sys.exit()
 var_list = cf["Variables"].keys()
 site_list = cf["Sites"].keys()
 for site in site_list:
-    var_list = cf["Variables"].keys()
     logging.info("Starting site: "+site)
     # get the input file mask
     infilename = cf["Sites"][site]["in_filepath"]+cf["Sites"][site]["in_filename"]
@@ -226,15 +231,18 @@ for site in site_list:
     ds_60minutes.globalattributes["nc_nrecs"] = nRecs
     # processing level
     ds_60minutes.globalattributes["nc_level"] = "L1"
+    # latitude and longitude, chose central pixel of 3x3 grid
+    ds_60minutes.globalattributes["latitude"] = f.variables["lat"][1]
+    ds_60minutes.globalattributes["longitude"] = f.variables["lon"][1]
     # put the ACCESS data into the 60 minute data structure ds_60minutes
     # make a QC flag with a value of 0
     flag_60minutes = numpy.zeros(nRecs)
     # loop over the variables defined in the control file
-    for item in ["valid_date","valid_time"]:
+    for item in ["valid_date","valid_time","lat","lon"]:
         if item in var_list: var_list.remove(item)
-    for label in var_list:
+    for var in var_list:
         # get the name of the ACCESS variable
-        access_name = cf["Variables"][label]["access_name"]
+        access_name = qcutils.get_keyvaluefromcf(cf,["Variables",var],"access_name",default=var)
         if access_name not in f.variables.keys():
             logging.error("Requested variable "+access_name+" not found in ACCESS data")
             continue
@@ -246,15 +254,15 @@ for site in site_list:
         for i in range(0,3):
             for j in range(0,3):
                 if len(f.variables[access_name].shape)==3:
-                    label_ij = label+'_'+str(i)+str(j)
+                    var_ij = var+'_'+str(i)+str(j)
                     series = f.variables[access_name][:,i,j]
-                    qcutils.CreateSeries(ds_60minutes,label_ij,series,Flag=flag_60minutes,Attr=attr)
+                    qcutils.CreateSeries(ds_60minutes,var_ij,series,Flag=flag_60minutes,Attr=attr)
                 elif len(f.variables[access_name].shape)==4:
-                    label_ij = label+'_'+str(i)+str(j)
+                    var_ij = var+'_'+str(i)+str(j)
                     series = f.variables[access_name][:,0,i,j]
-                    qcutils.CreateSeries(ds_60minutes,label_ij,series,Flag=flag_60minutes,Attr=attr)
+                    qcutils.CreateSeries(ds_60minutes,var_ij,series,Flag=flag_60minutes,Attr=attr)
                 else:
-                    print "Unrecognised variable ("+label+") dimension in ACCESS file"
+                    print "Unrecognised variable ("+var+") dimension in ACCESS file"
                     #sys.exit()
     # trap valid_date==0 occurrences, these happened in some of the files produced
     # in the second batch while the accum_prcp was being sorted out

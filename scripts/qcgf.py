@@ -2611,7 +2611,10 @@ def gfSOLO_plot(pd,dsa,dsb,driverlist,targetlabel,outputlabel,solo_info,si=0,ei=
         rect = [pd["margin_left"],this_bottom,pd["ts_width"],pd["ts_height"]]
         ts_axes.append(plt.axes(rect,sharex=ts_axes[0]))
         data,flag,attr = qcutils.GetSeriesasMA(dsb,ThisOne,si=si,ei=ei)
-        ts_axes[i].plot(xdt,data)
+        data_notgf = numpy.ma.masked_where(flag!=0,data)
+        data_gf = numpy.ma.masked_where(flag==0,data)
+        ts_axes[i].plot(xdt,data_notgf,'b-')
+        ts_axes[i].plot(xdt,data_gf,'r-',linewidth=2)
         plt.setp(ts_axes[i].get_xticklabels(),visible=False)
         TextStr = ThisOne+'('+dsb.series[ThisOne]['Attr']['units']+')'
         ts_axes[i].text(0.05,0.85,TextStr,color='b',horizontalalignment='left',transform=ts_axes[i].transAxes)

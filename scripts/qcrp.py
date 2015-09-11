@@ -585,7 +585,8 @@ def GetFreFromFc(cf,ds):
     if daynightfilter_type not in ["Fsd","sa"]: daynightfilter_type = "Fsd"
     # make the attribute dictionary first so we can add the ustar thresholds to it
     Fre_attr = qcutils.MakeAttributeDictionary(long_name='Ecosystem respiration (observed)',units=Fc_attr["units"])
-    #Fsd_attr = qcutils.MakeAttributeDictionary(long_name='Incoming shortwave radiation, filtered',units="W/m2")
+    Fsd_attr["long_name"] = "Incoming shortwave radiation, filtered"
+    Fsd_attr["units"] = "W/m2"
 
     # apply the day/night filter
     if daynightfilter_type=="Fsd":
@@ -595,26 +596,26 @@ def GetFreFromFc(cf,ds):
         if qcutils.cfoptionskeylogical(cf,Key='UseFsdsyn_threshold',default=False):
             # we are using Fsd and Fsd_syn
             Fre1 = numpy.ma.masked_where((Fsd>Fsd_threshold)|(Fsd_syn>Fsd_threshold),Fc,copy=True)
-            #Fsd1 = numpy.ma.masked_where((Fsd>Fsd_threshold)|(Fsd_syn>Fsd_threshold),Fsd,copy=True)
+            Fsd1 = numpy.ma.masked_where((Fsd>Fsd_threshold)|(Fsd_syn>Fsd_threshold),Fsd,copy=True)
             index_daynight = numpy.ma.where((Fsd>Fsd_threshold)|(Fsd_syn>Fsd_threshold))[0]
             Fre_flag[index_daynight] = numpy.int32(62)
         else:
             # we are only using Fsd
             Fre1 = numpy.ma.masked_where(Fsd>Fsd_threshold,Fc,copy=True)
-            #Fsd1 = numpy.ma.masked_where(Fsd>Fsd_threshold,Fsd,copy=True)
+            Fsd1 = numpy.ma.masked_where(Fsd>Fsd_threshold,Fsd,copy=True)
             index_daynight = numpy.ma.where(Fsd>Fsd_threshold)[0]
             Fre_flag[index_daynight] = numpy.int32(62)
     else:
         sa_threshold = int(qcutils.get_keyvaluefromcf(cf,["Options"],"sa_threshold",default="-5"))
         Fre_attr["sa_threshold"] = str(sa_threshold)
-        #Fsd_attr["sa_threshold"] = str(sa_threshold)
+        Fsd_attr["sa_threshold"] = str(sa_threshold)
         Fre1 = numpy.ma.masked_where(sa>sa_threshold,Fc,copy=True)
-        #Fsd1 = numpy.ma.masked_where(sa>sa_threshold,Fsd,copy=True)
+        Fsd1 = numpy.ma.masked_where(sa>sa_threshold,Fsd,copy=True)
         index_daynight = numpy.ma.where(sa>sa_threshold)[0]
         Fre_flag[index_daynight] = numpy.int32(63)
     # get a copy of the day/night filtered data
     Fre2 = numpy.ma.array(Fre1)
-    #Fsd2 = numpy.ma.array(Fsd1)
+    Fsd2 = numpy.ma.array(Fsd1)
 
     # loop over the list of ustar thresholds
     year_list = ustar_dict.keys()
@@ -640,7 +641,7 @@ def GetFreFromFc(cf,ds):
         ei = qcutils.GetDateIndex(ldt,end_date,ts=ts,default=len(ldt),match='exact')
         # filter out the low ustar conditions
         Fre2[si:ei] = numpy.ma.masked_where(ustar[si:ei]<ustar_threshold,Fre1[si:ei])
-        #Fsd2[si:ei] = numpy.ma.masked_where(ustar[si:ei]<ustar_threshold,Fsd1[si:ei])
+        Fsd2[si:ei] = numpy.ma.masked_where(ustar[si:ei]<ustar_threshold,Fsd1[si:ei])
         # set the QC flag
         index_lowustar = numpy.ma.where(ustar[si:ei]<ustar_threshold)[0]
         Fre_flag[si:ei][index_lowustar] = numpy.int32(64)
@@ -648,25 +649,25 @@ def GetFreFromFc(cf,ds):
     # apply quantile filter
     if qcutils.cfoptionskeylogical(cf,Key='UseQuantileFilter',default=False):
         Fre_attr["long_name"] = Fre_attr["long_name"]+", quantile filter not used"
-        #Fsd_attr["long_name"] = Fsd_attr["long_name"]+", quantile filter not used"
+        Fsd_attr["long_name"] = Fsd_attr["long_name"]+", quantile filter not used"
         qcutils.CreateSeries(ds,"Fre_nqf",Fre2,Flag=Fre_flag,Attr=Fre_attr)
-        #qcutils.CreateSeries(ds,"Fsd_nqf",Fsd2,Flag=Fsd_flag,Attr=Fsd_attr)
+        qcutils.CreateSeries(ds,"Fsd_nqf",Fsd2,Flag=Fsd_flag,Attr=Fsd_attr)
         quantile_lower = float(qcutils.get_keyvaluefromcf(cf,["Options"],"QuantileValue",default="2.5"))
         quantile_upper = float(100) - quantile_lower
         q = numpy.percentile(numpy.ma.compressed(Fre2),[quantile_lower,quantile_upper])
         Fre2 = numpy.ma.masked_where((Fre2<q[0])|(Fre2>q[1]),Fre2)
-        #Fsd2 = numpy.ma.masked_where((Fre2<q[0])|(Fre2>q[1]),Fsd2)
+        Fsd2 = numpy.ma.masked_where((Fre2<q[0])|(Fre2>q[1]),Fsd2)
         index_qf = numpy.ma.where((Fre2<q[0])|(Fre2>q[1]))[0]
         Fre_flag[index_qf] = numpy.int32(65)
-        #Fsd_flag[index_qf] = numpy.int32(65)
+        Fsd_flag[index_qf] = numpy.int32(65)
         Fre_attr["long_name"].replace(", quantile filter not used",", quantile filter used")
         Fre_attr["Fre_quantile"] = str(quantile_lower)+","+str(quantile_upper)
-        #Fsd_attr["long_name"].replace(", quantile filter not used",", quantile filter used")
-        #Fsd_attr["Fre_quantile"] = str(quantile_lower)+","+str(quantile_upper)
+        Fsd_attr["long_name"].replace(", quantile filter not used",", quantile filter used")
+        Fsd_attr["Fre_quantile"] = str(quantile_lower)+","+str(quantile_upper)
 
     # put the nocturnal, filtered Fc data into the data structure
     qcutils.CreateSeries(ds,"Fre",Fre2,Flag=Fre_flag,Attr=Fre_attr)
-    #qcutils.CreateSeries(ds,"Fsd_filtered",Fsd2,Flag=Fsd_flag,Attr=Fsd_attr)
+    qcutils.CreateSeries(ds,"Fsd_filtered",Fsd2,Flag=Fsd_flag,Attr=Fsd_attr)
     return
 
 def GetFreIndicator(cf,ds):

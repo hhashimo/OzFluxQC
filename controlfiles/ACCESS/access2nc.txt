@@ -54,7 +54,7 @@
     [[Daintree]]
         in_filepath = ../../ACCESS/Daintree/Daily/
         in_filename = access_Daintree_*.nc
-        out_filepath = ../../Sites/CowBay/Data/ACCESS/
+        out_filepath = ../../Sites/Daintree/Data/ACCESS/
         out_filename = Daintree_ACCESS_Archive.nc
         interpolate = Yes
         site_name = "Daintree"
@@ -237,10 +237,6 @@
         site_timezone = Australia/Melbourne
 
 [Variables]
-    [[valid_date]]
-        access_name = valid_date
-    [[valid_time]]
-        access_name = valid_time
     [[Fsd]]
         access_name = av_swsfcdown
     [[Fn_sw]]
