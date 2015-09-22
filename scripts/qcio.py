@@ -182,6 +182,7 @@ def csv_read_series(cf):
     # converter function for datetimes
     convert_datetime = lambda x: dateutil.parser.parse(x)
     # read the CSV file
+    missing_values = "NA,NAN"
     data = numpy.genfromtxt(csv_name,delimiter=",",skip_header=0,names=True,converters={0:convert_datetime},
                             dtype=dtype,missing_values="NA",filling_values=float(-9999))
     # set some global attributes
@@ -204,10 +205,16 @@ def csv_read_series(cf):
     var_list = cf["Variables"].keys()
     if "xlDateTime" in var_list: var_list.remove("xlDateTime")
     for var in var_list:
-        csv_var_name = cf["Variables"][var]["csv"]["name"]
+        if "csv" in cf["Variables"][var]:
+            csv_var_name = cf["Variables"][var]["csv"]["name"]
+        elif "xl" in cf["Variables"][var]:
+            csv_var_name = cf["Variables"][var]["xl"]["name"]
+        else:
+            log.error(" No csv or xl section found in control file for "+var+", skipping ...")
+            continue
         csv_var_name = csv_var_name.replace(".","")
         if csv_var_name not in data.dtype.names:
-            log.warning("Requested variable "+csv_var_name+" not found in CSV file")
+            log.warning("Requested variable "+csv_var_name+" not found in CSV file, skipping ...")
             continue
         ds.series[var] = {}
         ds.series[var]["Data"] = data[csv_var_name]
