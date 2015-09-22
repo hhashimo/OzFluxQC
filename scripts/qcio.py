@@ -223,7 +223,7 @@ def csv_read_series(cf):
 
 def nc_2xls(ncfilename,outputlist=None):
     # read the netCDF file
-    ds = nc_read_series(ncfilename)
+    ds = nc_read_series(ncfilename,checktimestep=False)
     nRecs = int(ds.globalattributes["nc_nrecs"])
     nCols = len(ds.series.keys())
     if outputlist!=None: nCols = len(outputlist)
@@ -1009,6 +1009,8 @@ def nc_concatenate(cf):
     qcts.CalculateHumidities(ds)
     # and make sure we have all of the meteorological variables
     qcts.CalculateMeteorologicalVariables(ds)
+    # re-calculate the synthetic Fsd
+    qcts.get_synthetic_fsd(ds)
     # re-apply the quality control checks (range, diurnal and rules)
     qcck.do_qcchecks(cf,ds)
     # update the coverage statistics
@@ -1017,7 +1019,8 @@ def nc_concatenate(cf):
     ncFileName = qcutils.get_keyvaluefromcf(cf,["Files","Out"],"ncFileName",default="out.nc")
     log.info(' Writing data to '+ncFileName)
     ncFile = nc_open_write(ncFileName)
-    nc_write_series(ncFile,ds,ndims=3)
+    ndims = qcutils.get_keyvaluefromcf(cf,["Options"],"NumberOfDimensions", default=3)
+    nc_write_series(ncFile,ds,ndims=ndims)
 
 def nc_split():
     split_info = {}
@@ -1148,7 +1151,7 @@ def ncsplit_progress(split_gui,text):
     split_gui.progress.grid(row=9,column=0,columnspan=6,sticky="W")
     split_gui.update()
 
-def nc_read_series(ncFullName,fixtimestepmethod=""):
+def nc_read_series(ncFullName,checktimestep=True,fixtimestepmethod=""):
     """
     Purpose:
      Reads a netCDF file and returns the meta-data and data in a DataStructure.
@@ -1225,12 +1228,13 @@ def nc_read_series(ncFullName,fixtimestepmethod=""):
     # round the Python datetime to the nearest second
     qcutils.round_datetime(ds,mode="nearest_second")
     # check the time step and fix it required
-    if qcutils.CheckTimeStep(ds):
-        qcutils.FixTimeStep(ds,fixtimestepmethod=fixtimestepmethod)
-        # update the Excel datetime from the Python datetime
-        qcutils.get_xldatefromdatetime(ds)
-        # update the Year, Month, Day etc from the Python datetime
-        qcutils.get_ymdhmsfromdatetime(ds)
+    if checktimestep:
+        if qcutils.CheckTimeStep(ds):
+            qcutils.FixTimeStep(ds,fixtimestepmethod=fixtimestepmethod)
+            # update the Excel datetime from the Python datetime
+            qcutils.get_xldatefromdatetime(ds)
+            # update the Year, Month, Day etc from the Python datetime
+            qcutils.get_ymdhmsfromdatetime(ds)
     # tell the user when the data starts and ends
     ldt = ds.series["DateTime"]["Data"]
     msg = " Got data from "+ldt[0].strftime("%Y-%m-%d %H:%M:%S")+" to "+ldt[-1].strftime("%Y-%m-%d %H:%M:%S")

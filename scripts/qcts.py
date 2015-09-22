@@ -637,6 +637,8 @@ def CalculateMeteorologicalVariables(ds,Ta_name='Ta',Tv_name='Tv_CSAT',ps_name='
             Cpm: specific heat of moist air, mf.specificheatmoistair(q)
             VPD: vapour pressure deficit, VPD = esat - e
         """
+    for item in [Ta_name,Tv_name,ps_name,Ah_name,Cc_name,q_name]:
+        if item not in ds.series.keys(): return
     log.info(' Adding standard met variables to database')
     # get the required data series
     Ta,f,a = qcutils.GetSeriesasMA(ds,Ta_name)

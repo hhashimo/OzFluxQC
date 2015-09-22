@@ -7,7 +7,7 @@
         in_filepath = ../../ACCESS/AdelaideRiver/Daily/
         in_filename = access_Adelaide_River_*.nc
         out_filepath = ../../Sites/AdelaideRiver/Data/ACCESS/
-        out_filename = AdelaideRiver_ACCESS.nc
+        out_filename = AdelaideRiver_ACCESS_Archive.nc
         interpolate = Yes
         site_name = "AdelaideRiver"
         site_timezone = Australia/Darwin
@@ -15,15 +15,15 @@
         in_filepath = ../../ACCESS/AliceSpringsMulga/Daily/
         in_filename = access_Alice_Springs_Mulga_*.nc
         out_filepath = ../../Sites/AliceSpringsMulga/Data/ACCESS/
-        out_filename = AliceSpringsMulga_ACCESS.nc
+        out_filename = AliceSpringsMulga_ACCESS_Archive.nc
         interpolate = Yes
         site_name = "AliceSpringsMulga"
         site_timezone = Australia/Darwin
     [[Arcturus]]
         in_filepath = ../../ACCESS/Arcturus/Daily/
         in_filename = access_Arcturus_*.nc
-        out_filepath = ../../Sites/Arcturus/Data/ACCESS/
-        out_filename = Arcturus_ACCESS.nc
+        out_filepath = ../../Sites/Emerald/Data/ACCESS/
+        out_filename = Emerald_ACCESS_Archive.nc
         interpolate = Yes
         site_name = "Arcturus"
         site_timezone = Australia/Brisbane
@@ -31,7 +31,7 @@
         in_filepath = ../../ACCESS/Calperum/Daily/
         in_filename = access_Calperum_*.nc
         out_filepath = ../../Sites/Calperum/Data/ACCESS/
-        out_filename = Calperum_ACCESS.nc
+        out_filename = Calperum_ACCESS_Archive.nc
         interpolate = Yes
         site_name = "Calperum"
         site_timezone = Australia/Adelaide
@@ -39,7 +39,7 @@
         in_filepath = ../../ACCESS/CapeTribulation/Daily/
         in_filename = access_Cape_Tribulation_*.nc
         out_filepath = ../../Sites/CapeTribulation/Data/ACCESS/
-        out_filename = CapeTribulation_ACCESS.nc
+        out_filename = CapeTribulation_ACCESS_Archive.nc
         interpolate = Yes
         site_name = "CapeTribulation"
         site_timezone = Australia/Brisbane
@@ -47,7 +47,7 @@
         in_filepath = ../../ACCESS/CumberlandPlains/Daily/
         in_filename = access_Cumberland_Plains_*.nc
         out_filepath = ../../Sites/CumberlandPlains/Data/ACCESS/
-        out_filename = CumberlandPlains_ACCESS.nc
+        out_filename = CumberlandPlains_ACCESS_Archive.nc
         interpolate = Yes
         site_name = "CumberlandPlains"
         site_timezone = Australia/Sydney
@@ -55,7 +55,7 @@
         in_filepath = ../../ACCESS/Daintree/Daily/
         in_filename = access_Daintree_*.nc
         out_filepath = ../../Sites/Daintree/Data/ACCESS/
-        out_filename = Daintree_ACCESS.nc
+        out_filename = Daintree_ACCESS_Archive.nc
         interpolate = Yes
         site_name = "Daintree"
         site_timezone = Australia/Brisbane
@@ -63,7 +63,7 @@
         in_filepath = ../../ACCESS/DalyPasture/Daily/
         in_filename = access_Daly_Pasture_*.nc
         out_filepath = ../../Sites/DalyPasture/Data/ACCESS/
-        out_filename = DalyPasture_ACCESS.nc
+        out_filename = DalyPasture_ACCESS_Archive.nc
         interpolate = Yes
         site_name = "DalyPasture"
         site_timezone = Australia/Darwin
@@ -71,7 +71,7 @@
         in_filepath = ../../ACCESS/DalyUncleared/Daily/
         in_filename = access_Daly_Uncleared_*.nc
         out_filepath = ../../Sites/DalyUncleared/Data/ACCESS/
-        out_filename = DalyUncleared_ACCESS.nc
+        out_filename = DalyUncleared_ACCESS_Archive.nc
         interpolate = Yes
         site_name = "DalyUncleared"
         site_timezone = Australia/Darwin
@@ -79,7 +79,7 @@
         in_filepath = ../../ACCESS/Darbalara/Daily/
         in_filename = access_Darbalara_*.nc
         out_filepath = ../../Sites/Darbalara/Data/ACCESS/
-        out_filename = Darbalara_ACCESS.nc
+        out_filename = Darbalara_ACCESS_Archive.nc
         interpolate = Yes
         site_name = "Darbalara"
         site_timezone = Australia/Brisbane
@@ -87,7 +87,7 @@
         in_filepath = ../../ACCESS/Dargo/Daily/
         in_filename = access_Dargo_*.nc
         out_filepath = ../../Sites/Dargo/Data/ACCESS/
-        out_filename = Dargo_ACCESS.nc
+        out_filename = Dargo_ACCESS_Archive.nc
         interpolate = Yes
         site_name = "Dargo"
         site_timezone = Australia/Melbourne
@@ -95,7 +95,7 @@
         in_filepath = ../../ACCESS/DryRiver/Daily/
         in_filename = access_Dry_River_*.nc
         out_filepath = ../../Sites/DryRiver/Data/ACCESS/
-        out_filename = DryRiver_ACCESS.nc
+        out_filename = DryRiver_ACCESS_Archive.nc
         interpolate = Yes
         site_name = "DryRiver"
         site_timezone = Australia/Darwin
@@ -103,7 +103,7 @@
         in_filepath = ../../ACCESS/Gingin/Daily/
         in_filename = access_Gingin_*.nc
         out_filepath = ../../Sites/Gingin/Data/ACCESS/
-        out_filename = Gingin_ACCESS.nc
+        out_filename = Gingin_ACCESS_Archive.nc
         interpolate = Yes
         site_name = "Gingin"
         site_timezone = Australia/Perth
@@ -111,7 +111,7 @@
         in_filepath = ../../ACCESS/GreatWesternWoodlands/Daily/
         in_filename = access_Great_Western_Woodlands_*.nc
         out_filepath = ../../Sites/GreatWesternWoodlands/Data/ACCESS/
-        out_filename = GreatWesternWoodlands_ACCESS.nc
+        out_filename = GreatWesternWoodlands_ACCESS_Archive.nc
         interpolate = Yes
         site_name = "GreatWesternWoodlands"
         site_timezone = Australia/Perth
@@ -119,7 +119,7 @@
         in_filepath = ../../ACCESS/HowardSprings/Daily/
         in_filename = access_Howard_Springs_*.nc
         out_filepath = ../../Sites/HowardSprings/Data/ACCESS/
-        out_filename = HowardSprings_ACCESS.nc
+        out_filename = HowardSprings_ACCESS_Archive.nc
         interpolate = Yes
         site_name = "HowardSprings"
         site_timezone = Australia/Darwin
@@ -127,7 +127,7 @@
         in_filepath = ../../ACCESS/Jaxa/Daily/
         in_filename = access_Jaxa_*.nc
         out_filepath = ../../Sites/Yanco/Data/ACCESS/
-        out_filename = Yanco_ACCESS.nc
+        out_filename = Yanco_ACCESS_Archive.nc
         interpolate = Yes
         site_name = "Yanco"
         site_timezone = Australia/Sydney
@@ -135,7 +135,7 @@
         in_filepath = ../../ACCESS/Litchfield/Daily/
         in_filename = access_Litchfield_*.nc
         out_filepath = ../../Sites/Litchfield/Data/ACCESS/
-        out_filename = Litchfield_ACCESS.nc
+        out_filename = Litchfield_ACCESS_Archive.nc
         interpolate = Yes
         site_name = "Litchfield"
         site_timezone = Australia/Darwin
@@ -143,7 +143,7 @@
         in_filepath = ../../ACCESS/Nimmo/Daily/
         in_filename = access_Nimmo_*.nc
         out_filepath = ../../Sites/Nimmo/Data/ACCESS/
-        out_filename = Nimmo_ACCESS.nc
+        out_filename = Nimmo_ACCESS_Archive.nc
         interpolate = Yes
         site_name = "Nimmo"
         site_timezone = Australia/Sydney
@@ -151,7 +151,7 @@
         in_filepath = ../../ACCESS/RedDirtMelonFarm/Daily/
         in_filename = access_Red_Dirt_Melon_Farm_*.nc
         out_filepath = ../../Sites/RedDirtMelonFarm/Data/ACCESS/
-        out_filename = RedDirtMelonFarm_ACCESS.nc
+        out_filename = RedDirtMelonFarm_ACCESS_Archive.nc
         interpolate = Yes
         site_name = "RedDirtMelonFarm"
         site_timezone = Australia/Darwin
@@ -159,7 +159,7 @@
         in_filepath = ../../ACCESS/RiggsCreek/Daily/
         in_filename = access_Riggs_Creek_*.nc
         out_filepath = ../../Sites/RiggsCreek/Data/ACCESS/
-        out_filename = RiggsCreek_ACCESS.nc
+        out_filename = RiggsCreek_ACCESS_Archive.nc
         interpolate = Yes
         site_name = "RiggsCreek"
         site_timezone = Australia/Melbourne
@@ -167,7 +167,7 @@
         in_filepath = ../../ACCESS/RobsonCreek/Daily/
         in_filename = access_Robson_Creek_*.nc
         out_filepath = ../../Sites/RobsonCreek/Data/ACCESS/
-        out_filename = RobsonCreek_ACCESS.nc
+        out_filename = RobsonCreek_ACCESS_Archive.nc
         interpolate = Yes
         site_name = "RobsonCreek"
         site_timezone = Australia/Brisbane
@@ -175,7 +175,7 @@
         in_filepath = ../../ACCESS/Samford/Daily/
         in_filename = access_Samford_*.nc
         out_filepath = ../../Sites/Samford/Data/ACCESS/
-        out_filename = Samford_ACCESS.nc
+        out_filename = Samford_ACCESS_Archive.nc
         interpolate = Yes
         site_name = "Samford"
         site_timezone = Australia/Brisbane
@@ -183,7 +183,7 @@
         in_filepath = ../../ACCESS/SturtPlains/Daily/
         in_filename = access_Sturt_Plains_*.nc
         out_filepath = ../../Sites/SturtPlains/Data/ACCESS/
-        out_filename = SturtPlains_ACCESS.nc
+        out_filename = SturtPlains_ACCESS_Archive.nc
         interpolate = Yes
         site_name = "SturtPlains"
         site_timezone = Australia/Darwin
@@ -191,7 +191,7 @@
         in_filepath = ../../ACCESS/TiTreeEast/Daily/
         in_filename = access_Ti_Tree_East_*.nc
         out_filepath = ../../Sites/TiTreeEast/Data/ACCESS/
-        out_filename = TiTreeEast_ACCESS.nc
+        out_filename = TiTreeEast_ACCESS_Archive.nc
         interpolate = Yes
         site_name = "TiTreeEast"
         site_timezone = Australia/Darwin
@@ -199,7 +199,7 @@
         in_filepath = ../../ACCESS/Tumbarumba/Daily/
         in_filename = access_Tumbarumba_*.nc
         out_filepath = ../../Sites/Tumbarumba/Data/ACCESS/
-        out_filename = Tumbarumba_ACCESS.nc
+        out_filename = Tumbarumba_ACCESS_Archive.nc
         interpolate = No
         site_name = "Tumbarumba"
         site_timezone = Australia/Sydney
@@ -207,7 +207,7 @@
         in_filepath = ../../ACCESS/WallabyCreek/Daily/
         in_filename = access_Wallaby_Creek_*.nc
         out_filepath = ../../Sites/WallabyCreek/Data/ACCESS/
-        out_filename = WallabyCreek_ACCESS.nc
+        out_filename = WallabyCreek_ACCESS_Archive.nc
         interpolate = Yes
         site_name = "WallabyCreek"
         site_timezone = Australia/Melbourne
@@ -215,7 +215,7 @@
         in_filepath = ../../ACCESS/Warra/Daily/
         in_filename = access_Warra_*.nc
         out_filepath = ../../Sites/Warra/Data/ACCESS/
-        out_filename = Warra_ACCESS.nc
+        out_filename = Warra_ACCESS_Archive.nc
         interpolate = Yes
         site_name = "Warra"
         site_timezone = Australia/Hobart
@@ -223,7 +223,7 @@
         in_filepath = ../../ACCESS/Whroo/Daily/
         in_filename = access_Whroo_*.nc
         out_filepath = ../../Sites/Whroo/Data/ACCESS/
-        out_filename = Whroo_ACCESS.nc
+        out_filename = Whroo_ACCESS_Archive.nc
         interpolate = Yes
         site_name = "Whroo"
         site_timezone = Australia/Melbourne
@@ -231,16 +231,12 @@
         in_filepath = ../../ACCESS/WombatStateForest/Daily/
         in_filename = access_Wombat_State_Forest_*.nc
         out_filepath = ../../Sites/WombatStateForest/Data/ACCESS/
-        out_filename = WombatStateForest_ACCESS.nc
+        out_filename = WombatStateForest_ACCESS_Archive.nc
         interpolate = Yes
         site_name = "WombatStateForest"
         site_timezone = Australia/Melbourne
 
 [Variables]
-    [[valid_date]]
-        access_name = valid_date
-    [[valid_time]]
-        access_name = valid_time
     [[Fsd]]
         access_name = av_swsfcdown
     [[Fn_sw]]
@@ -271,3 +267,5 @@
         access_name = sens_hflx
     [[Fe]]
         access_name = lat_hflx
+    [[Habl]]
+        access_name = abl_ht

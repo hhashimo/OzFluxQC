@@ -325,8 +325,11 @@ def do_rangecheck(cf,ds,section='',series='',code=2):
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',RangeCheck'
 
 def do_qcchecks(cf,ds,mode="verbose"):
-    level = ds.globalattributes['nc_level']
-    if mode!="quiet": log.info(' Doing the QC checks at level '+str(level))
+    if "nc_level" in ds.globalattributes:
+        level = str(ds.globalattributes["nc_level"])
+        if mode!="quiet": log.info(" Doing the QC checks at level "+str(level))
+    else:
+        if mode!="quiet": log.info(" Doing the QC checks")
     # get the series list from the control file
     series_list = []
     for item in ["Variables","Drivers","Fluxes"]:
