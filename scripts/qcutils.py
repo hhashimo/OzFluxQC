@@ -1526,12 +1526,17 @@ def round_datetime(ds,mode="nearest_timestep"):
     Author: PRI
     Date: February 2015
     """
-    # get the time step
-    ts = int(ds.globalattributes["time_step"])
     # local pointer to the datetime series
     ldt = ds.series["DateTime"]["Data"]
     # check which rounding option has been chosen
     if mode.lower()=="nearest_timestep":
+        # get the time step
+        if "time_step" in ds.globalattributes:
+            ts = int(ds.globalattributes["time_step"])
+        else:
+            ts = numpy.mean(get_timestep(ds)/60)
+            ts = roundtobase(ts,base=30)
+            ds.globalattributes["time_step"] = ts
         # round to the nearest time step
         rldt = [rounddttots(dt,ts=ts) for dt in ldt]
     elif mode.lower()=="nearest_second":
@@ -1543,6 +1548,9 @@ def round_datetime(ds,mode="nearest_timestep"):
         rldt = ds.series["DateTime"]["Data"]
     # replace the original datetime series with the rounded one
     ds.series["DateTime"]["Data"] = rldt
+
+def roundtobase(x,base=5):
+    return int(base*round(float(x)/base))
 
 def round2sig(x,sig=2):
     '''

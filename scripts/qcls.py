@@ -53,12 +53,12 @@ def l2qc(cf,ds1):
     qcck.do_qcchecks(cf,ds2)
     # do the CSAT diagnostic check
     qcck.do_CSATcheck(cf,ds2)
-    # do the LI-7500 diagnostic check
-    qcck.do_7500check(cf,ds2)
+    # do the IRGA diagnostic check
+    qcck.do_IRGAcheck(cf,ds2)
     # constrain albedo estimates to full sun angles
-    qcts.albedo(cf,ds2)
-    log.info(' Finished the albedo constraints')    # apply linear corrections to the data
-    log.info(' Applying linear corrections ...')
+    #qcts.albedo(cf,ds2)
+    #log.info(' Finished the albedo constraints')    # apply linear corrections to the data
+    #log.info(' Applying linear corrections ...')
     qcck.do_linear(cf,ds2)
     # write series statistics to file
     qcio.get_seriesstats(cf,ds2)
@@ -131,6 +131,8 @@ def l3qc(cf,ds2):
     qcts.CalculateMeteorologicalVariables(ds3)
     # check to see if the user wants to use the fluxes in the L2 file
     if not qcutils.cfoptionskeylogical(cf,Key="UseL2Fluxes",default=False):
+        # check the covariancve units and change if necessary
+        qcts.CheckCovarianceUnits(ds3)
         # do the 2D coordinate rotation
         qcts.CoordRotation2D(cf,ds3)
         # do the Massman frequency attenuation correction

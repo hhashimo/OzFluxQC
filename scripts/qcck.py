@@ -83,6 +83,39 @@ def CreateNewSeries(cf,ds):
         if 'AverageSeries' in cf['Variables'][ThisOne].keys():
             qcts.AverageSeriesByElements(cf,ds,ThisOne)
 
+def do_IRGAcheck(cf,ds):
+    """
+    Purpose:
+     Decide which IRGA check routine to use depending on the setting
+     of the "irga_type" key in the [Options] section of the control
+     file.  The default is Li7500.
+    Usage:
+    Author: PRI
+    Date: September 2015
+    """
+    irga_list = ["li7500","li7500a","ec155"]
+    # get the IRGA type from the control file
+    irga_type = qcutils.get_keyvaluefromcf(cf,["Options"],"irga_type", default="li7500")
+    # remove any hyphens or spaces
+    for item in ["-"," "]:
+        if item in irga_type: irga_type = irga_type.replace(item,"")
+    # check the IRGA type against the list of suppprted devices
+    if irga_type.lower() not in irga_list:
+        msg = " Unrecognised IRGA type "+irga_type+" given in control file, IRGA checks skipped ..."
+        log.error(msg)
+        return
+    # do the IRGA checks
+    if irga_type.lower()=="li7500" or irga_type.lower()=="li7500a":
+        ds.globalattributes["irga_type"] = irga_type
+        do_7500check(cf,ds)
+    elif irga_type.lower()=="ec155":
+        ds.globalattributes["irga_type"] = irga_type
+        do_EC155check(cf,ds)
+    else:
+        msg = " Unsupported IRGA type "+irga_type+", contact the devloper ..."
+        log.error(msg)
+        return
+
 def do_7500check(cf,ds):
     '''Rejects data values for series specified in LI75List for times when the Diag_7500
        flag is non-zero.  If the Diag_7500 flag is not present in the data structure passed
@@ -95,7 +128,8 @@ def do_7500check(cf,ds):
         log.warning(msg)
         return
     log.info(' Doing the 7500 check')
-    LI75List = ['Ah_7500_Av','Cc_7500_Av','AhAh','CcCc','UzA','UxA','UyA','UzC','UxC','UyC']
+    LI75List = ['Ah_7500_Av','Cc_7500_Av','Ah_7500_Sd','Cc_7500_Sd',
+                'UzA','UxA','UyA','UzC','UxC','UyC']
     index = numpy.where(ds.series['Diag_7500']['Flag']!=0)
     log.info('  7500Check: Diag_7500 ' + str(numpy.size(index)))
     LI75_dependents = []
@@ -118,6 +152,43 @@ def do_7500check(cf,ds):
             log.error('  qcck.do_7500check: series '+str(ThisOne)+' in LI75List not found in ds.series')
     if '7500Check' not in ds.globalattributes['Functions']:
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',7500Check'
+
+def do_EC155check(cf,ds):
+    """
+    Purpose:
+    Usage:
+    Author: PRI
+    Date: September 2015
+    """
+    # check to see if we have a Diag_IRGA series to work with
+    if "Diag_IRGA" not in ds.series.keys():
+        msg = " Diag_IRGA not found in data, skipping IRGA checks ..."
+        log.warning(msg)
+        return
+    # seems OK to continue
+    log.info(' Doing the EC155 check')
+    # list of series that depend on IRGA data quality
+    EC155_list = ['H2O_IRGA_Av','CO2_IRGA_Av','H2O_IRGA_Sd','CO2_IRGA_Sd',
+                 'UzH','UxH','UyH','UzC','UxC','UyC']
+    index = numpy.where(ds.series['Diag_IRGA']['Flag']!=0)
+    log.info('  EC155Check: Diag_IRGA rejects ' + str(numpy.size(index)))
+    EC155_dependents = []
+    for item in ['Signal_H2O','Signal_CO2','H2O_IRGA_Sd','CO2_IRGA_Sd']:
+        if item in ds.series.keys(): EC155_dependents.append(item)
+    for item in EC155_dependents:
+        index = numpy.where(ds.series[item]['Flag']!=0)
+        log.info('  EC155Check: '+item+' rejected '+str(numpy.size(index))+' points')
+        ds.series['Diag_IRGA']['Flag'] = ds.series['Diag_IRGA']['Flag'] + ds.series[item]['Flag']
+    index = numpy.where((ds.series['Diag_IRGA']['Flag']!=0))
+    log.info('  EC155Check: Total rejected ' + str(numpy.size(index)))
+    for ThisOne in EC155_list:
+        if ThisOne in ds.series.keys():
+            ds.series[ThisOne]['Data'][index] = numpy.float64(c.missing_value)
+            ds.series[ThisOne]['Flag'][index] = numpy.int32(4)
+        else:
+            log.error(' do_EC155check: series '+str(ThisOne)+' in EC155 list not found in data structure')
+    if 'EC155Check' not in ds.globalattributes['Functions']:
+        ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',EC155Check'
 
 def CoordinateAh7500AndFcGaps(cf,ds,Fcvar='Fc'):
     '''Cleans up Ah_7500_Av based upon Fc gaps to for QA check on Ah_7500_Av v Ah_HMP.'''
@@ -285,7 +356,6 @@ def do_excludehours(cf,ds,section='',series='',code=7):
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',ExcludeHours'
 
 def do_linear(cf,ds):
-    log.info(' Applying linear corrections ...')
     level = ds.globalattributes['nc_level']
     for ThisOne in cf['Variables'].keys():
         if qcutils.haskey(cf,ThisOne,'Linear'):

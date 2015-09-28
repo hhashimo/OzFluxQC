@@ -153,6 +153,27 @@ def h2o_mmolpmolfromgpm3(h_gpm3,T,p):
     if WasND: h_mmpm, WasMA = MAtoSeries(h_mmpm)
     return h_mmpm
 
+def h2o_gpm3frommmolpmol(h_mmpm,T,p):
+    """
+     Convert H2O concentration units of mmol/mol to g/m3.
+        Usage:
+         H2O_gpm3 = h2o_gpm3frommmolpmol(H2O_mmolpmol, T, p)
+         where
+         H2O_mmolpmol (input) - H2O concentration, mmol/mol
+         T (input) - air temperature, C
+         p (input) - air pressure, kPa
+        Returns the H2O concentration in g/m3.
+    """
+    # convert to masked arrays
+    h_mmpm, WasND = SeriestoMA(h_mmpm)
+    T, dummy = SeriestoMA(T)
+    p, dummy = SeriestoMA(p)
+    # do the job
+    h_gpm3 = (c.Mv*h_mmpm*p*1000)/(c.R*(T+273.15))
+    # convert to ndarray if input is not a masked array
+    if WasND: h_gpm3, WasMA = MAtoSeries(h_gpm3)
+    return h_gpm3
+
 def Lv(Ta):
     # Calculate Lv as a function of temperature, from Stull 1988
     #  Ta - air temperature, C
