@@ -514,7 +514,7 @@ class qcgui(tk.Tk):
 
     def do_l6qc(self):
         """
-            Call qcls.l6qc function to partition NEE into GPP and Fre.
+            Call qcls.l6qc function to partition NEE into GPP and ER.
         """
         cf = qcio.load_controlfile(path='controlfiles')
         if len(cf)==0: self.do_progress(text='Waiting for input ...'); return
@@ -848,17 +848,17 @@ class qcgui(tk.Tk):
         logging.info(' Quitting ...')
         self.quit()
 
-    def do_recousingSOLO(self):
+    def do_ERusingSOLO(self):
         """
-        Calls qcrp.RecoUsingSOLO
+        Calls qcrp.ERUsingSOLO
         """
         self.do_progress(text='Loading control file ...')
         cf = qcio.load_controlfile(path='controlfiles')
         if len(cf)==0: self.do_progress(text='Waiting for input ...'); return
-        self.do_progress(text='Estimating Reco using SOLO')
-        qcrp.RecoUsingSOLO(cf)
-        self.do_progress(text='Finished estimating Reco using SOLO')
-        logging.info(' Finished estimating Reco using SOLO')
+        self.do_progress(text='Estimating ER using SOLO')
+        qcrp.ERUsingSOLO(cf)
+        self.do_progress(text='Finished estimating ER using SOLO')
+        logging.info(' Finished estimating ER using SOLO')
 
     def do_savexL2(self):
         """

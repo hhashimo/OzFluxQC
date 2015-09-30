@@ -10,14 +10,14 @@ version_number = "V2.9.4"
 #            - implemented batch processing for L1 to L6 including climatology,
 #              CPD, conatenation
 #            - completed implementation of plot_path in control files
-#            - fixed bug that caused the units of NEE, NEP, GPP and Fre
+#            - fixed bug that caused the units of NEE, NEP, GPP and ER
 #              in the L6 output file to be gC/m2
 #            - fixed bug on gfalternate_matchstartendtimes
 # V2.9.2   - updates and bug fixes
 #            - implemented summary output to Excel file and plots at L6
 #            - implemented "ols_thru0", "rma" and "odr" fit types at L4
-#            - fixed bug in qcrp.GetFreFromFc that let gap filled Fc data
-#              through when estimating ecosystem respiration (Fre) from
+#            - fixed bug in qcrp.GetERFromFc that let gap filled Fc data
+#              through when estimating ecosystem respiration (ER) from
 #              u*-filtered, nocturnal Fc
 # V2.9.1   - hopefully completed the major re-write of the gap filling
 #            routines for L4 and L5
@@ -73,7 +73,7 @@ version_number = "V2.9.4"
 #            form (WPL80 Eqn 42a and 44) for Fe and Fc
 #          - implemented EddyPro method of calculating Fh from Fhv
 #          - rationalised use of densities and rho*Cp when calculating fluxes
-# V2.6.2 - implement Lloyd-Taylor Reco
+# V2.6.2 - implement Lloyd-Taylor ER
 # V2.6.1 - fix 2D coordinate rotation for momentum covariances
 # V2.6.0 - fix ConvertCO2 units bug
 # V2.5.2 - implement sofm/solo/seqsolo

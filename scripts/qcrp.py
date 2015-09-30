@@ -22,7 +22,7 @@ log = logging.getLogger('qc.rp')
 try:
     import ffnet
 except ImportError:
-    #log.error("FreUsingFFNET: Unable to import module ffnet")
+    #log.error("ERUsingFFNET: Unable to import module ffnet")
     pass
 
 def CalculateET(ds):
@@ -47,7 +47,7 @@ def CalculateET(ds):
 def CalculateNEE(cf,ds):
     """
     Purpose:
-     Calculate NEE from observed Fc and observed/modeled Fre.
+     Calculate NEE from observed Fc and observed/modeled ER.
      Input and output names are held in ds.nee.
     Usage:
      qcrp.CalculateNEE(cf,ds)
@@ -70,25 +70,25 @@ def CalculateNEE(cf,ds):
         Fsd[index] = Fsd_syn[index]
     ustar,ustar_flag,ustar_attr = qcutils.GetSeriesasMA(ds,"ustar")
     for label in ds.nee.keys():
-        if "Fc" not in ds.nee[label] and "Fre" not in ds.nee[label]: continue
+        if "Fc" not in ds.nee[label] and "ER" not in ds.nee[label]: continue
         Fc_label = ds.nee[label]["Fc"]
-        Fre_label = ds.nee[label]["Fre"]
+        ER_label = ds.nee[label]["ER"]
         output_label = ds.nee[label]["output"]
         Fc,Fc_flag,Fc_attr = qcutils.GetSeriesasMA(ds,Fc_label)
-        Fre,Fre_flag,Fre_attr = qcutils.GetSeriesasMA(ds,Fre_label)
+        ER,ER_flag,ER_attr = qcutils.GetSeriesasMA(ds,ER_label)
         # put the day time Fc into the NEE series
         index = numpy.ma.where(Fsd>=Fsd_threshold)[0]
         ds.series[output_label]["Data"][index] = Fc[index]
         ds.series[output_label]["Flag"][index] = Fc_flag[index]
-        # put the night time Fre into the NEE series
+        # put the night time ER into the NEE series
         index = numpy.ma.where(Fsd<Fsd_threshold)[0]
-        ds.series[output_label]["Data"][index] = Fre[index]
-        ds.series[output_label]["Flag"][index] = Fre_flag[index]
+        ds.series[output_label]["Data"][index] = ER[index]
+        ds.series[output_label]["Flag"][index] = ER_flag[index]
         # copy the attributes
         attr = ds.series[output_label]["Attr"]
         attr["units"] = Fc_attr["units"]
         attr["long_name"] = "Net Ecosystem Exchange calculated from "+Fc_label+" (Fc) "
-        attr["long_name"] = attr["long_name"]+" and "+Fre_label+" (Fre)"
+        attr["long_name"] = attr["long_name"]+" and "+ER_label+" (ER)"
         attr["comment1"] = "Fsd threshold used was "+str(Fsd_threshold)
     del ds.nee
 
@@ -112,12 +112,12 @@ def CalculateNEP(cf,ds):
         attr["long_name"] = "Net Ecosystem Productivity calculated as -1*NEE"
         qcutils.CreateSeries(ds,nep_name,nep,Flag=flag,Attr=attr)
 
-def FreUsingFFNET(cf,ds):
+def ERUsingFFNET(cf,ds):
     """
     Purpose:
      Estimate ecosystem respiration using the ffnet neural network.
     Usage:
-     qcrp.FreUsingFFNET(cf,ds)
+     qcrp.ERUsingFFNET(cf,ds)
       where cf is a control file object
             ds is a data structure
     Author: PRI
@@ -125,7 +125,7 @@ def FreUsingFFNET(cf,ds):
     """
     if "ffnet" not in dir(ds): return
     if "ffnet" not in sys.modules.keys():
-        log.error("FreUsingFFNET: I don't think ffnet is installed ...")
+        log.error("ERUsingFFNET: I don't think ffnet is installed ...")
         return
     # local pointer to the datetime series
     ldt = ds.series["DateTime"]["Data"]
@@ -150,7 +150,7 @@ def rpFFNET_gui(cf,ds,FFNET_info):
     ldt = ds.series["DateTime"]["Data"]
     # set up the GUI
     FFNET_gui = Tkinter.Toplevel()
-    FFNET_gui.wm_title("FFNET GUI (Reco)")
+    FFNET_gui.wm_title("FFNET GUI (ER)")
     FFNET_gui.grid()
     # top row
     nrow = 0
@@ -258,8 +258,8 @@ def rpFFNET_gui(cf,ds,FFNET_info):
 
     FFNET_gui.wait_window(FFNET_gui)
 
-def FreUsingLasslop(cf,ds):
-    log.info('Estimating Fre using Lasslop et al is not implemented yet, but we are working on it now ...')
+def ERUsingLasslop(cf,ds):
+    log.info('Estimating ER using Lasslop et al is not implemented yet, but we are working on it now ...')
     pass
     # get necessary data
     #  - PAR or Fsd
@@ -297,48 +297,48 @@ def FreUsingLasslop(cf,ds):
     #  rpLL_plot_fit_parameters(fit_dict)
     # interpolate phi, Aopt, k and rb values to daily time step
     #  fit_dict_daily = rpLL_interpolate_fit_parameters(fit_dict)
-    # calculate Fre_LL
-    #  rpLL_calculateFre()
+    # calculate ER_LL
+    #  rpLL_calculateER()
     # - replicate daily values of phi, Aopt, k and rb at data time step
-    # - calculate Fre from temperature, rb and E0
-    # - put Fre in data structure
+    # - calculate ER from temperature, rb and E0
+    # - put ER in data structure
 
-def FreUsingLloydTaylor(cf,ds):
-    log.info('Estimating Fre using Lloyd-Taylor is not implemented yet')
+def ERUsingLloydTaylor(cf,ds):
+    log.info('Estimating ER using Lloyd-Taylor is not implemented yet')
     pass
     ## need to check that all information required is in the control file
-    #section = qcutils.get_cfsection(cf,series='Reco',mode='quiet')
+    #section = qcutils.get_cfsection(cf,series='ER',mode='quiet')
     #if len(section)==0:
-        #log.error('Reco section not found in control file')
+        #log.error('ER section not found in control file')
         #return
-    #if 'LloydTaylor' not in cf[section]['Reco']:
+    #if 'LloydTaylor' not in cf[section]['ER']:
         #log.error('LloydTaylor section not found in control file')
         #return
     ## get the driver
-    #if 'drivers' not in cf[section]['Reco']['LloydTaylor']:
+    #if 'drivers' not in cf[section]['ER']['LloydTaylor']:
         #log.error('drivers key not found in LloydTaylor section of control file')
         #return
     #else:
-        #driver_list = eval(cf[section]['Reco']['LloydTaylor']['drivers'])
+        #driver_list = eval(cf[section]['ER']['LloydTaylor']['drivers'])
         #driver_label = driver_list[0]
     ## get the monthly values for the activation energy, E0
-    #if 'E0' not in cf[section]['Reco']['LloydTaylor']:
+    #if 'E0' not in cf[section]['ER']['LloydTaylor']:
         #log.error('E0 key not found in LloydTaylor section of control file')
         #return
     #else:
-        #E0_monthly = numpy.array(eval(cf[section]['Reco']['LloydTaylor']['E0']))
+        #E0_monthly = numpy.array(eval(cf[section]['ER']['LloydTaylor']['E0']))
     ## get the monthly values for the base respiration, rb
-    #if 'rb' not in cf[section]['Reco']['LloydTaylor']:
+    #if 'rb' not in cf[section]['ER']['LloydTaylor']:
         #log.error('rb key not found in LloydTaylor section of control file')
         #return
     #else:
-        #rb_monthly = numpy.array(eval(cf[section]['Reco']['LloydTaylor']['rb']))
+        #rb_monthly = numpy.array(eval(cf[section]['ER']['LloydTaylor']['rb']))
     ## get the output label
-    #if 'output' not in cf[section]['Reco']['LloydTaylor']:
+    #if 'output' not in cf[section]['ER']['LloydTaylor']:
         #log.error('output key not found in LloydTaylor section of control file')
         #return
     #else:
-        #out_label = cf[section]['Reco']['LloydTaylor']['output']
+        #out_label = cf[section]['ER']['LloydTaylor']['output']
     ## ... and make an array of values for each month
     #nRecs = int(ds.globalattributes['nc_nrecs'])
     #E0 = numpy.ma.ones(nRecs)
@@ -352,17 +352,17 @@ def FreUsingLloydTaylor(cf,ds):
         #rb[index] = rb_monthly[m-1]
     ## get the driver data
     #Ts,flag,attr = qcutils.GetSeriesasMA(ds,driver_label)
-    ## estimate Reco using the Lloyd-Taylor expression
+    ## estimate ER using the Lloyd-Taylor expression
     #t1 = 1/(c.Tref-c.T0)
     #t2 = 1/(Ts-c.T0)
-    #Reco = rb*numpy.exp(E0*(t1-t2))
-    ## put the estimated Reco into the data structure
+    #ER = rb*numpy.exp(E0*(t1-t2))
+    ## put the estimated ER into the data structure
     #units=qcutils.GetUnitsFromds(ds, 'Fc')
-    #attr = qcutils.MakeAttributeDictionary(long_name='Reco estimated using Lloyd-Taylor',units=units)
-    #qcutils.CreateSeries(ds,out_label,Reco,Flag=flag,Attr=attr)
+    #attr = qcutils.MakeAttributeDictionary(long_name='ER estimated using Lloyd-Taylor',units=units)
+    #qcutils.CreateSeries(ds,out_label,ER,Flag=flag,Attr=attr)
 
-def FreUsingSOLO(cf,ds):
-    """ Estimate Fre using SOLO. """
+def ERUsingSOLO(cf,ds):
+    """ Estimate ER using SOLO. """
     if "solo" not in dir(ds): return
     # local pointer to the datetime series
     ldt = ds.series["DateTime"]["Data"]
@@ -376,7 +376,7 @@ def FreUsingSOLO(cf,ds):
     solo_info["call_mode"]= call_mode
     if call_mode.lower()=="interactive": solo_info["show_plots"] = True
     if call_mode.lower()=="interactive":
-        # call the FreUsingSOLO GUI
+        # call the ERUsingSOLO GUI
         rpSOLO_gui(cf,ds,solo_info)
     else:
         if "GUI" in cf:
@@ -388,7 +388,7 @@ def rpSOLO_gui(cf,ds,solo_info):
     # use specific parameters are "Nodes", "Learning"
     # set up the GUI
     solo_gui = Tkinter.Toplevel()
-    solo_gui.wm_title("SOLO GUI (Fre)")
+    solo_gui.wm_title("SOLO GUI (ER)")
     solo_gui.grid()
     # top row
     nrow = 0
@@ -504,7 +504,7 @@ def rpSOLO_quit(ds,solo_gui):
     # put the return code in ds.returncodes
     ds.returncodes["solo"] = "quit"
 
-def GetFreFromFc(cf,ds):
+def GetERFromFc(cf,ds):
     """
     Purpose:
      Get the observed ecosystem respiration from measurements of Fc by
@@ -514,11 +514,11 @@ def GetFreFromFc(cf,ds):
      ustar threshold are set in the [Params] section of the L5 control
      file.
     Usage:
-     qcrp.GetFreFromFc(cf,ds)
+     qcrp.GetERFromFc(cf,ds)
      where cf is a control file object
            ds is a data structure
     Side effects:
-     A new series called "Fre" is created in the data structure.
+     A new series called "ER" is created in the data structure.
     Author: PRI
     Date: August 2014
     """
@@ -563,20 +563,20 @@ def GetFreFromFc(cf,ds):
     ustar,ustar_flag,attr = qcutils.GetSeriesasMA(ds,"ustar")
     Fc,Fc_flag,Fc_attr = qcutils.GetSeriesasMA(ds,"Fc")
     # get a copy of the Fc flag
-    Fre_flag = numpy.array(Fc_flag)
+    ER_flag = numpy.array(Fc_flag)
 
     # only accept Fc and ustar data when both have a QC flag value of 0
     ustar = numpy.ma.masked_where((ustar_flag!=0)|(Fc_flag!=0),ustar)
     Fc = numpy.ma.masked_where((ustar_flag!=0)|(Fc_flag!=0),Fc)
     index_notok = numpy.where((ustar_flag!=0)|(Fc_flag!=0))[0]
     #ustar_flag[index_notok] = numpy.int32(61)
-    Fre_flag[index_notok] = numpy.int32(61)
+    ER_flag[index_notok] = numpy.int32(61)
     # check for any missing data
     for item,label in zip([Fsd,Fsd_syn],["Fsd","Fsd_syn"]):
         index = numpy.where(numpy.ma.getmaskarray(item)==True)[0]
         if len(index)!=0:
-            log.error(" GetFreFromFc: missing data in series "+label)
-            raise Exception("GetFreFromFc: missing data in series "+label)
+            log.error(" GetERFromFc: missing data in series "+label)
+            raise Exception("GetERFromFc: missing data in series "+label)
 
     # apply the day/night filter
     # get the day/night filter type from the control file
@@ -584,37 +584,37 @@ def GetFreFromFc(cf,ds):
     # trap any types not implemented and set to Fsd
     if daynightfilter_type not in ["Fsd","sa"]: daynightfilter_type = "Fsd"
     # make the attribute dictionary first so we can add the ustar thresholds to it
-    Fre_attr = qcutils.MakeAttributeDictionary(long_name='Ecosystem respiration (observed)',units=Fc_attr["units"])
+    ER_attr = qcutils.MakeAttributeDictionary(long_name='Ecosystem respiration (observed)',units=Fc_attr["units"])
     Fsd_attr["long_name"] = "Incoming shortwave radiation, filtered"
     Fsd_attr["units"] = "W/m2"
 
     # apply the day/night filter
     if daynightfilter_type=="Fsd":
         # we are using Fsd and possibly Fsd_syn to define day/night
-        Fre_attr["Fsd_threshold"] = str(Fsd_threshold)
+        ER_attr["Fsd_threshold"] = str(Fsd_threshold)
         #Fsd_attr["Fsd_threshold"] = str(Fsd_threshold)
         if qcutils.cfoptionskeylogical(cf,Key='UseFsdsyn_threshold',default=False):
             # we are using Fsd and Fsd_syn
-            Fre1 = numpy.ma.masked_where((Fsd>Fsd_threshold)|(Fsd_syn>Fsd_threshold),Fc,copy=True)
+            ER1 = numpy.ma.masked_where((Fsd>Fsd_threshold)|(Fsd_syn>Fsd_threshold),Fc,copy=True)
             Fsd1 = numpy.ma.masked_where((Fsd>Fsd_threshold)|(Fsd_syn>Fsd_threshold),Fsd,copy=True)
             index_daynight = numpy.ma.where((Fsd>Fsd_threshold)|(Fsd_syn>Fsd_threshold))[0]
-            Fre_flag[index_daynight] = numpy.int32(62)
+            ER_flag[index_daynight] = numpy.int32(62)
         else:
             # we are only using Fsd
-            Fre1 = numpy.ma.masked_where(Fsd>Fsd_threshold,Fc,copy=True)
+            ER1 = numpy.ma.masked_where(Fsd>Fsd_threshold,Fc,copy=True)
             Fsd1 = numpy.ma.masked_where(Fsd>Fsd_threshold,Fsd,copy=True)
             index_daynight = numpy.ma.where(Fsd>Fsd_threshold)[0]
-            Fre_flag[index_daynight] = numpy.int32(62)
+            ER_flag[index_daynight] = numpy.int32(62)
     else:
         sa_threshold = int(qcutils.get_keyvaluefromcf(cf,["Options"],"sa_threshold",default="-5"))
-        Fre_attr["sa_threshold"] = str(sa_threshold)
+        ER_attr["sa_threshold"] = str(sa_threshold)
         Fsd_attr["sa_threshold"] = str(sa_threshold)
-        Fre1 = numpy.ma.masked_where(sa>sa_threshold,Fc,copy=True)
+        ER1 = numpy.ma.masked_where(sa>sa_threshold,Fc,copy=True)
         Fsd1 = numpy.ma.masked_where(sa>sa_threshold,Fsd,copy=True)
         index_daynight = numpy.ma.where(sa>sa_threshold)[0]
-        Fre_flag[index_daynight] = numpy.int32(63)
+        ER_flag[index_daynight] = numpy.int32(63)
     # get a copy of the day/night filtered data
-    Fre2 = numpy.ma.array(Fre1)
+    ER2 = numpy.ma.array(ER1)
     Fsd2 = numpy.ma.array(Fsd1)
 
     # loop over the list of ustar thresholds
@@ -635,47 +635,47 @@ def GetFreFromFc(cf,ds):
         # get the ustar threshold
         ustar_threshold = float(ustar_dict[year]["ustar_mean"])
         if ustar_threshold==float(c.missing_value): ustar_threshold = ustar_threshold_mean
-        Fre_attr["ustar_threshold_"+str(year)] = str(ustar_threshold)
+        ER_attr["ustar_threshold_"+str(year)] = str(ustar_threshold)
         # get the start and end datetime indices
         si = qcutils.GetDateIndex(ldt,start_date,ts=ts,default=0,match='exact')
         ei = qcutils.GetDateIndex(ldt,end_date,ts=ts,default=len(ldt),match='exact')
         # filter out the low ustar conditions
-        Fre2[si:ei] = numpy.ma.masked_where(ustar[si:ei]<ustar_threshold,Fre1[si:ei])
+        ER2[si:ei] = numpy.ma.masked_where(ustar[si:ei]<ustar_threshold,ER1[si:ei])
         Fsd2[si:ei] = numpy.ma.masked_where(ustar[si:ei]<ustar_threshold,Fsd1[si:ei])
         # set the QC flag
         index_lowustar = numpy.ma.where(ustar[si:ei]<ustar_threshold)[0]
-        Fre_flag[si:ei][index_lowustar] = numpy.int32(64)
+        ER_flag[si:ei][index_lowustar] = numpy.int32(64)
 
     # apply quantile filter
     if qcutils.cfoptionskeylogical(cf,Key='UseQuantileFilter',default=False):
-        Fre_attr["long_name"] = Fre_attr["long_name"]+", quantile filter not used"
+        ER_attr["long_name"] = ER_attr["long_name"]+", quantile filter not used"
         Fsd_attr["long_name"] = Fsd_attr["long_name"]+", quantile filter not used"
-        qcutils.CreateSeries(ds,"Fre_nqf",Fre2,Flag=Fre_flag,Attr=Fre_attr)
+        qcutils.CreateSeries(ds,"ER_nqf",ER2,Flag=ER_flag,Attr=ER_attr)
         qcutils.CreateSeries(ds,"Fsd_nqf",Fsd2,Flag=Fsd_flag,Attr=Fsd_attr)
         quantile_lower = float(qcutils.get_keyvaluefromcf(cf,["Options"],"QuantileValue",default="2.5"))
         quantile_upper = float(100) - quantile_lower
-        q = numpy.percentile(numpy.ma.compressed(Fre2),[quantile_lower,quantile_upper])
-        Fre2 = numpy.ma.masked_where((Fre2<q[0])|(Fre2>q[1]),Fre2)
-        Fsd2 = numpy.ma.masked_where((Fre2<q[0])|(Fre2>q[1]),Fsd2)
-        index_qf = numpy.ma.where((Fre2<q[0])|(Fre2>q[1]))[0]
-        Fre_flag[index_qf] = numpy.int32(65)
+        q = numpy.percentile(numpy.ma.compressed(ER2),[quantile_lower,quantile_upper])
+        ER2 = numpy.ma.masked_where((ER2<q[0])|(ER2>q[1]),ER2)
+        Fsd2 = numpy.ma.masked_where((ER2<q[0])|(ER2>q[1]),Fsd2)
+        index_qf = numpy.ma.where((ER2<q[0])|(ER2>q[1]))[0]
+        ER_flag[index_qf] = numpy.int32(65)
         Fsd_flag[index_qf] = numpy.int32(65)
-        Fre_attr["long_name"].replace(", quantile filter not used",", quantile filter used")
-        Fre_attr["Fre_quantile"] = str(quantile_lower)+","+str(quantile_upper)
+        ER_attr["long_name"].replace(", quantile filter not used",", quantile filter used")
+        ER_attr["ER_quantile"] = str(quantile_lower)+","+str(quantile_upper)
         Fsd_attr["long_name"].replace(", quantile filter not used",", quantile filter used")
-        Fsd_attr["Fre_quantile"] = str(quantile_lower)+","+str(quantile_upper)
+        Fsd_attr["ER_quantile"] = str(quantile_lower)+","+str(quantile_upper)
 
     # put the nocturnal, filtered Fc data into the data structure
-    qcutils.CreateSeries(ds,"Fre",Fre2,Flag=Fre_flag,Attr=Fre_attr)
+    qcutils.CreateSeries(ds,"ER",ER2,Flag=ER_flag,Attr=ER_attr)
     qcutils.CreateSeries(ds,"Fsd_filtered",Fsd2,Flag=Fsd_flag,Attr=Fsd_attr)
     return
 
-def GetFreIndicator(cf,ds):
+def GetERIndicator(cf,ds):
     """
     Purpose:
      Indicator values are:
-      - 1 OK to use Fc as Fre
-      - 0 not OK to use Fc as Fre
+      - 1 OK to use Fc as ER
+      - 0 not OK to use Fc as ER
     Useage:
     Author: PRI
     Date: August 2015
@@ -689,14 +689,14 @@ def GetFreIndicator(cf,ds):
     # get the turbulent/non-turbulent indicator
     # 1 ==> turbulent, 0 ==> non-turbulent
     turbulence_indicator = get_turbulence_indicator(cf,ds)
-    # get Fre indicator
-    # 1 ==> OK to use Fc as Fre, 0 ==> not OK to use Fc as Fre
-    Fre_indicator = daynight_indicator*evening_indicator*turbulence_indicator
+    # get ER indicator
+    # 1 ==> OK to use Fc as ER, 0 ==> not OK to use Fc as ER
+    ER_indicator = daynight_indicator*evening_indicator*turbulence_indicator
     # put the indicator series in the data structure
-    nRecs = len(Fre_indicator)
+    nRecs = len(ER_indicator)
     flag = numpy.zeros(nRecs,dtype=numpy.int32)
-    attr = qcutils.MakeAttributeDictionary(long_name="Fre indicator series")
-    qcutils.CreateSeries(ds,"Fre_indicator",Fre_indicator,Flag=flag,Attr=attr)
+    attr = qcutils.MakeAttributeDictionary(long_name="ER indicator series")
+    qcutils.CreateSeries(ds,"ER_indicator",ER_indicator,Flag=flag,Attr=attr)
 
 def get_daynight_indicator(cf,ds):
     # get the day/night indicator
@@ -732,7 +732,6 @@ def get_evening_indicator(cf,ds):
     if ("Fsd_syn" not in ds.series.keys() or
         "solar_altitude" not in ds.series.keys()): qcts.get_synthetic_fsd(ds)
     
-
 def get_turbulence_indicator(cf,ds):
     pass
 
@@ -843,11 +842,11 @@ def L6_summary_plotdaily(cf,ds,daily_dict):
     """
     type_list = []
     for item in daily_dict.keys():
-        if item[0:3]=="Fre": type_list.append(item[3:])
+        if item[0:2]=="ER": type_list.append(item[2:])
     for item in type_list:
         if "NEE"+item not in daily_dict or "GPP"+item not in daily_dict:
             type_list.remove(item)
-    # plot time series of NEE, GPP and Reco
+    # plot time series of NEE, GPP and ER
     sdate = daily_dict["DateTime"]["data"][0].strftime("%d-%m-%Y")
     edate = daily_dict["DateTime"]["data"][-1].strftime("%d-%m-%Y")
     site_name = ds.globalattributes["site_name"]
@@ -866,9 +865,9 @@ def L6_summary_plotdaily(cf,ds,daily_dict):
         plt.plot(daily_dict["DateTime"]["data"],daily_dict["GPP"+item]["data"],'g-',alpha=0.3)
         plt.plot(daily_dict["DateTime"]["data"],qcts.smooth(daily_dict["GPP"+item]["data"],window_len=30),
                  'g-',linewidth=2,label="GPP"+item+" (30 day filter)")
-        plt.plot(daily_dict["DateTime"]["data"],daily_dict["Fre"+item]["data"],'r-',alpha=0.3)
-        plt.plot(daily_dict["DateTime"]["data"],qcts.smooth(daily_dict["Fre"+item]["data"],window_len=30),
-                 'r-',linewidth=2,label="Fre"+item+" (30 day filter)")
+        plt.plot(daily_dict["DateTime"]["data"],daily_dict["ER"+item]["data"],'r-',alpha=0.3)
+        plt.plot(daily_dict["DateTime"]["data"],qcts.smooth(daily_dict["ER"+item]["data"],window_len=30),
+                 'r-',linewidth=2,label="ER"+item+" (30 day filter)")
         plt.axhline(0)
         plt.xlabel("Date")
         plt.ylabel(daily_dict["NEE"+item]["units"])
@@ -931,7 +930,7 @@ def L6_summary_plotcumulative(cf,ds,cumulative_dict):
     year_list.sort()
     type_list = []
     for item in cumulative_dict[year_list[0]].keys():
-        if item[0:3]=="Fre": type_list.append(item[3:])
+        if item[0:2]=="ER": type_list.append(item[2:])
     for item in type_list:
         if "NEE"+item not in cumulative_dict[year_list[0]] or "GPP"+item not in cumulative_dict[year_list[0]]:
             type_list.remove(item)
@@ -965,13 +964,13 @@ def L6_summary_plotcumulative(cf,ds,cumulative_dict):
             plt.ylabel(cumulative_dict[year]["GPP"+item]["units"])
             plt.legend(loc='lower right',prop={'size':8})
         plt.subplot(223)
-        plt.title("Fre: "+item.replace("_",""),fontsize=12)
+        plt.title("ER: "+item.replace("_",""),fontsize=12)
         for n,year in enumerate(year_list):
-            x = numpy.arange(0,len(cumulative_dict[year]["Fre"+item]["data"]))*ts/float(60)
-            plt.plot(x,cumulative_dict[year]["Fre"+item]["data"],color=color_list[numpy.mod(n,8)],
+            x = numpy.arange(0,len(cumulative_dict[year]["ER"+item]["data"]))*ts/float(60)
+            plt.plot(x,cumulative_dict[year]["ER"+item]["data"],color=color_list[numpy.mod(n,8)],
                      label=str(year))
             plt.xlabel("Hour of Year")
-            plt.ylabel(cumulative_dict[year]["Fre"+item]["units"])
+            plt.ylabel(cumulative_dict[year]["ER"+item]["units"])
             plt.legend(loc='lower right',prop={'size':8})
         plt.subplot(224)
         plt.title("ET & Precip",fontsize=12)
@@ -1014,11 +1013,11 @@ def L6_summary_createseriesdict(cf,ds):
     """
     ts = int(ds.globalattributes["time_step"])
     series_dict = {"daily":{},"annual":{},"cumulative":{},"lists":{}}
-    # adjust units of NEE, NEP, GPP and Fre
+    # adjust units of NEE, NEP, GPP and ER
     sdl = series_dict["lists"]
     sdl["nee"] = [item for item in cf["NEE"].keys() if "NEE" in item and item in ds.series.keys()]
     sdl["gpp"] = [item for item in cf["GPP"].keys() if "GPP" in item and item in ds.series.keys()]
-    sdl["fre"] = [item for item in cf["Fre"].keys() if "Fre" in item and item in ds.series.keys()]
+    sdl["fre"] = [item for item in cf["ER"].keys() if "ER" in item and item in ds.series.keys()]
     sdl["nep"] = [item.replace("NEE","NEP") for item in sdl["nee"]]
     sdl["co2"] = sdl["nee"]+sdl["nep"]+sdl["gpp"]+sdl["fre"]
     for item in sdl["co2"]:
@@ -1277,12 +1276,12 @@ def L6_summary_cumulative(ds,series_dict):
 def ParseL6ControlFile(cf,ds):
     """ Parse the L6 control file. """
     # start with the repiration section
-    if "Respiration" in cf.keys() and "Fre" not in cf.keys(): cf["Fre"] = cf["Respiration"]
-    if "Fre" in cf.keys():
-        for ThisOne in cf["Fre"].keys():
-            if "FreUsingSOLO" in cf["Fre"][ThisOne].keys():
+    if "Respiration" in cf.keys() and "ER" not in cf.keys(): cf["ER"] = cf["Respiration"]
+    if "ER" in cf.keys():
+        for ThisOne in cf["ER"].keys():
+            if "ERUsingSOLO" in cf["ER"][ThisOne].keys():
                 rpSOLO_createdict(cf,ds,ThisOne)      # create the SOLO dictionary in ds
-            if "FreUsingFFNET" in cf["Fre"][ThisOne].keys():
+            if "ERUsingFFNET" in cf["ER"][ThisOne].keys():
                 rpFFNET_createdict(cf,ds,ThisOne)     # create the FFNET dictionary in ds
     if "NEE" in cf.keys():
         for ThisOne in cf["NEE"].keys():
@@ -1294,7 +1293,7 @@ def ParseL6ControlFile(cf,ds):
 def PartitionNEE(cf,ds):
     """
     Purpose:
-     Partition NEE into GPP and Fre.
+     Partition NEE into GPP and ER.
      Input and output names are held in ds.nee.
     Usage:
      qcrp.PartitionNEE(cf,ds)
@@ -1315,24 +1314,24 @@ def PartitionNEE(cf,ds):
         index = numpy.where(numpy.ma.getmaskarray(Fsd)==True)[0]
         #index = numpy.ma.where(numpy.ma.getmaskarray(Fsd)==True)[0]
         Fsd[index] = Fsd_syn[index]
-    # calculate GPP from NEE and Fre
+    # calculate GPP from NEE and ER
     for label in ds.gpp.keys():
-        if "NEE" not in ds.gpp[label] and "Fre" not in ds.gpp[label]: continue
+        if "NEE" not in ds.gpp[label] and "ER" not in ds.gpp[label]: continue
         NEE_label = ds.gpp[label]["NEE"]
-        Fre_label = ds.gpp[label]["Fre"]
+        ER_label = ds.gpp[label]["ER"]
         output_label = ds.gpp[label]["output"]
         NEE,NEE_flag,NEE_attr = qcutils.GetSeriesasMA(ds,NEE_label)
-        Fre,Fre_flag,Fre_attr = qcutils.GetSeriesasMA(ds,Fre_label)
+        ER,ER_flag,ER_attr = qcutils.GetSeriesasMA(ds,ER_label)
         # calculate GPP
         # here we use the conventions from Chapin et al (2006)
         #  NEP = -1*NEE
-        #  GPP = NEP + Reco ==> GPP = -1*NEE + Reco
-        GPP = float(-1)*NEE + Fre
+        #  GPP = NEP + ER ==> GPP = -1*NEE + ER
+        GPP = float(-1)*NEE + ER
         # put the day time data into the GPP series
         index = numpy.ma.where(Fsd>=Fsd_threshold)[0]
         ds.series[output_label]["Data"][index] = GPP[index]
         ds.series[output_label]["Flag"][index] = NEE_flag[index]
-        # put the night time Fre into the NEE series
+        # put the night time ER into the NEE series
         # This force nocturnal GPP to be 0!  Not sure this is the right thing to do.
         index = numpy.ma.where(Fsd<Fsd_threshold)[0]
         ds.series[output_label]["Data"][index] = numpy.float64(0)
@@ -1340,8 +1339,8 @@ def PartitionNEE(cf,ds):
         # copy the attributes
         attr = ds.series[output_label]["Attr"]
         attr["units"] = NEE_attr["units"]
-        attr["long_name"] = "Gross Primary Productivity calculated from "+NEE_label+" as -NEE+Fre "
-        attr["long_name"] = attr["long_name"]+" and "+Fre_label+" (Fre)"
+        attr["long_name"] = "Gross Primary Productivity calculated from "+NEE_label+" as -NEE+ER "
+        attr["long_name"] = attr["long_name"]+" and "+ER_label+" (ER)"
 
 #def rp_getdiurnalstats(DecHour,Data,dt):
     #nInts = 24*int((60/dt)+0.5)
@@ -1391,15 +1390,15 @@ def rpFFNET_createdict(cf,ds,series):
     section = qcutils.get_cfsection(cf,series=series,mode="quiet")
     # return without doing anything if the series isn't in a control file section
     if len(section)==0:
-        log.error("FreUsingFFNET: Series "+series+" not found in control file, skipping ...")
+        log.error("ERUsingFFNET: Series "+series+" not found in control file, skipping ...")
         return
     # check that none of the drivers have missing data
-    driver_list = ast.literal_eval(cf[section][series]["FreUsingFFNET"]["drivers"])
-    target = cf[section][series]["FreUsingFFNET"]["target"]
+    driver_list = ast.literal_eval(cf[section][series]["ERUsingFFNET"]["drivers"])
+    target = cf[section][series]["ERUsingFFNET"]["target"]
     for label in driver_list:
         data,flag,attr = qcutils.GetSeriesasMA(ds,label)
         if numpy.ma.count_masked(data)!=0:
-            log.error("FreUsingFFNET: driver "+label+" contains missing data, skipping target "+target)
+            log.error("ERUsingFFNET: driver "+label+" contains missing data, skipping target "+target)
             return
     # create the ffnet directory in the data structure
     if "ffnet" not in dir(ds): ds.ffnet = {}
@@ -1408,11 +1407,11 @@ def rpFFNET_createdict(cf,ds,series):
     # site name
     ds.ffnet[series]["site_name"] = ds.globalattributes["site_name"]
     # target series name
-    ds.ffnet[series]["target"] = cf[section][series]["FreUsingFFNET"]["target"]
+    ds.ffnet[series]["target"] = cf[section][series]["ERUsingFFNET"]["target"]
     # list of drivers
-    ds.ffnet[series]["drivers"] = ast.literal_eval(cf[section][series]["FreUsingFFNET"]["drivers"])
+    ds.ffnet[series]["drivers"] = ast.literal_eval(cf[section][series]["ERUsingFFNET"]["drivers"])
     # name of ffnet output series in ds
-    ds.ffnet[series]["output"] = cf[section][series]["FreUsingFFNET"]["output"]
+    ds.ffnet[series]["output"] = cf[section][series]["ERUsingFFNET"]["output"]
     # results of best fit for plotting later on
     ds.ffnet[series]["results"] = {"startdate":[],"enddate":[],"No. points":[],"r":[],
                                   "Bias":[],"RMSE":[],"Frac Bias":[],"NMSE":[],
@@ -1457,11 +1456,11 @@ def rpFFNET_initplot(**kwargs):
 
 def rpFFNET_main(ds,rpFFNET_info):
     """
-    This is the main routine for running FFNET, an artifical neural network for estimating Reco.
+    This is the main routine for running FFNET, an artifical neural network for estimating ER.
     """
     startdate = rpFFNET_info["startdate"]
     enddate = rpFFNET_info["enddate"]
-    log.info(" Estimating Reco using FFNET: "+startdate+" to "+enddate)
+    log.info(" Estimating ER using FFNET: "+startdate+" to "+enddate)
     # read the control file again, this allows the contents of the control file to
     # be changed with the FFNET GUI still displayed
     cfname = ds.globalattributes["controlfile_name"]
@@ -1471,9 +1470,9 @@ def rpFFNET_main(ds,rpFFNET_info):
         section = qcutils.get_cfsection(cf,series=series,mode="quiet")
         if len(section)==0: continue
         if series not in ds.series.keys(): continue
-        ds.ffnet[series]["target"] = cf[section][series]["FreUsingFFNET"]["target"]
-        ds.ffnet[series]["drivers"] = ast.literal_eval(cf[section][series]["FreUsingFFNET"]["drivers"])
-        ds.ffnet[series]["output"] = cf[section][series]["FreUsingFFNET"]["output"]
+        ds.ffnet[series]["target"] = cf[section][series]["ERUsingFFNET"]["target"]
+        ds.ffnet[series]["drivers"] = ast.literal_eval(cf[section][series]["ERUsingFFNET"]["drivers"])
+        ds.ffnet[series]["output"] = cf[section][series]["ERUsingFFNET"]["output"]
     # get some useful things
     site_name = ds.globalattributes["site_name"]
     # get the time step and a local pointer to the datetime series
@@ -1485,10 +1484,10 @@ def rpFFNET_main(ds,rpFFNET_info):
     ei = qcutils.GetDateIndex(ldt,enddate,ts=ts,default=-1,match="exact")
     # check the start and end indices
     if si >= ei:
-        log.error(" FreUsingFFNET: end datetime index ("+str(ei)+") smaller that start ("+str(si)+")")
+        log.error(" ERUsingFFNET: end datetime index ("+str(ei)+") smaller that start ("+str(si)+")")
         return
     if si==0 and ei==-1:
-        log.error(" FreUsingFFNET: no start and end datetime specified, using all data")
+        log.error(" ERUsingFFNET: no start and end datetime specified, using all data")
         nRecs = int(ds.globalattributes["nc_nrecs"])
     else:
         nRecs = ei - si + 1
@@ -1520,19 +1519,19 @@ def rpFFNET_main(ds,rpFFNET_info):
         ndrivers = len(drivers)
         output = ds.ffnet[series]["output"]
         # prepare the input and target data for training
-        Reco,f,a = qcutils.GetSeriesasMA(ds,target,si=si,ei=ei)
-        mask = numpy.ma.getmask(Reco)
+        ER,f,a = qcutils.GetSeriesasMA(ds,target,si=si,ei=ei)
+        mask = numpy.ma.getmask(ER)
         for val in drivers:
             d,f,a = qcutils.GetSeriesasMA(ds,val,si=si,ei=ei)
             mask = numpy.ma.mask_or(mask,d.mask)
-        Reco.mask = mask
-        nRecs = numpy.ma.count(Reco)
+        ER.mask = mask
+        nRecs = numpy.ma.count(ER)
         data_nm = numpy.empty((nRecs,len(drivers)+1))
         for idx,val in enumerate(drivers):
             d,f,a = qcutils.GetSeriesasMA(ds,val,si=si,ei=ei)
             d.mask = mask
             data_nm[:,idx] = numpy.ma.compressed(d)
-        data_nm[:,idx+1] = numpy.ma.compressed(Reco)
+        data_nm[:,idx+1] = numpy.ma.compressed(ER)
         input_train = data_nm[:,0:idx+1]
         target_train = data_nm[:,idx+1]
         # design the network
@@ -1542,7 +1541,7 @@ def rpFFNET_main(ds,rpFFNET_info):
         elif len(hidden_layers)==2:
             arch = (ndrivers,int(hidden_layers[0]),int(hidden_layers[1]),1)
         else:
-            log.error("FreUsingFFNET: more than 2 hidden layers specified, using 1 ("+str(ndrivers)+")")
+            log.error("ERUsingFFNET: more than 2 hidden layers specified, using 1 ("+str(ndrivers)+")")
             arch = (ndrivers,ndrivers,1)
         if rpFFNET_info["connection"]=="standard":
             conec = ffnet.mlgraph(arch,biases=True)
@@ -1572,7 +1571,7 @@ def rpFFNET_main(ds,rpFFNET_info):
             raise Exception("rpFFNET: unrecognised FFNET training option")
         #output,regress=net.test(input_train,target_train)
         # get the predictions
-        input_predict = numpy.empty((len(Reco),len(drivers)))
+        input_predict = numpy.empty((len(ER),len(drivers)))
         for idx,val in enumerate(drivers):
             d,f,a = qcutils.GetSeries(ds,val,si=si,ei=ei)
             input_predict[:,idx] = d[:]
@@ -1595,8 +1594,8 @@ def rpFFNET_main(ds,rpFFNET_info):
         pd = rpFFNET_initplot(site_name=site_name,label=target,fig_num=fig_num,title=title,
                              nDrivers=len(drivers),startdate=startdate,enddate=enddate)
         rpFFNET_plot(pd,ds,series,drivers,target,output,rpFFNET_info,si=si,ei=ei)
-    if 'FreUsingFFNET' not in ds.globalattributes['Functions']:
-        ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', FreUsingFFNET'
+    if 'ERUsingFFNET' not in ds.globalattributes['Functions']:
+        ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', ERUsingFFNET'
 
 def rpFFNET_plot(pd,ds,series,driverlist,targetlabel,outputlabel,rpFFNET_info,si=0,ei=-1):
     """ Plot the results of the FFNET run. """
@@ -1763,7 +1762,7 @@ def rpFFNET_run_gui(ds,FFNET_gui,rpFFNET_info):
     rpFFNET_info["maxlags"] = int(float(12)*rpFFNET_info["nperhr"]+0.5)
     rpFFNET_info["tower"] = {}
     rpFFNET_info["access"] = {}
-    #log.info(" Estimating Reco using SOLO")
+    #log.info(" Estimating ER using SOLO")
     if FFNET_gui.peropt.get()==1:
         rpFFNET_progress(FFNET_gui,"Starting manual run ...")
         # get the start and end datetimes entered in the SOLO GUI
@@ -1951,8 +1950,8 @@ def rpGPP_createdict(cf,ds,series):
     if "NEE" in cf["GPP"][series].keys():
         ds.gpp[series]["NEE"] = cf["GPP"][series]["NEE"]
     # ecosystem respiration
-    if "Fre" in cf["GPP"][series].keys():
-        ds.gpp[series]["Fre"] = cf["GPP"][series]["Fre"]
+    if "ER" in cf["GPP"][series].keys():
+        ds.gpp[series]["ER"] = cf["GPP"][series]["ER"]
     # create an empty series in ds if the output series doesn't exist yet
     if ds.gpp[series]["output"] not in ds.series.keys():
         data,flag,attr = qcutils.MakeEmptySeries(ds,ds.gpp[series]["output"])
@@ -1995,8 +1994,8 @@ def rpNEE_createdict(cf,ds,series):
     if "Fc" in cf["NEE"][series].keys():
         ds.nee[series]["Fc"] = cf["NEE"][series]["Fc"]
     # ecosystem respiration
-    if "Fre" in cf["NEE"][series].keys():
-        ds.nee[series]["Fre"] = cf["NEE"][series]["Fre"]
+    if "ER" in cf["NEE"][series].keys():
+        ds.nee[series]["ER"] = cf["NEE"][series]["ER"]
     # create an empty series in ds if the output series doesn't exist yet
     if ds.nee[series]["output"] not in ds.series.keys():
         data,flag,attr = qcutils.MakeEmptySeries(ds,ds.nee[series]["output"])
@@ -2009,15 +2008,15 @@ def rpSOLO_createdict(cf,ds,series):
     section = qcutils.get_cfsection(cf,series=series,mode="quiet")
     # return without doing anything if the series isn't in a control file section
     if len(section)==0:
-        log.error("FreUsingSOLO: Series "+series+" not found in control file, skipping ...")
+        log.error("ERUsingSOLO: Series "+series+" not found in control file, skipping ...")
         return
     # check that none of the drivers have missing data
-    driver_list = ast.literal_eval(cf[section][series]["FreUsingSOLO"]["drivers"])
-    target = cf[section][series]["FreUsingSOLO"]["target"]
+    driver_list = ast.literal_eval(cf[section][series]["ERUsingSOLO"]["drivers"])
+    target = cf[section][series]["ERUsingSOLO"]["target"]
     for label in driver_list:
         data,flag,attr = qcutils.GetSeriesasMA(ds,label)
         if numpy.ma.count_masked(data)!=0:
-            log.error("FreUsingSOLO: driver "+label+" contains missing data, skipping target "+target)
+            log.error("ERUsingSOLO: driver "+label+" contains missing data, skipping target "+target)
             return
     # create the solo directory in the data structure
     if "solo" not in dir(ds): ds.solo = {}
@@ -2026,11 +2025,11 @@ def rpSOLO_createdict(cf,ds,series):
     # site name
     ds.solo[series]["site_name"] = ds.globalattributes["site_name"]
     # target series name
-    ds.solo[series]["target"] = cf[section][series]["FreUsingSOLO"]["target"]
+    ds.solo[series]["target"] = cf[section][series]["ERUsingSOLO"]["target"]
     # list of drivers
-    ds.solo[series]["drivers"] = ast.literal_eval(cf[section][series]["FreUsingSOLO"]["drivers"])
+    ds.solo[series]["drivers"] = ast.literal_eval(cf[section][series]["ERUsingSOLO"]["drivers"])
     # name of SOLO output series in ds
-    ds.solo[series]["output"] = cf[section][series]["FreUsingSOLO"]["output"]
+    ds.solo[series]["output"] = cf[section][series]["ERUsingSOLO"]["output"]
     # results of best fit for plotting later on
     ds.solo[series]["results"] = {"startdate":[],"enddate":[],"No. points":[],"r":[],
                                   "Bias":[],"RMSE":[],"Frac Bias":[],"NMSE":[],
@@ -2075,11 +2074,11 @@ def rpSOLO_initplot(**kwargs):
 
 def rpSOLO_main(ds,solo_info,SOLO_gui=None):
     """
-    This is the main routine for running SOLO, an artifical neural network for estimating Reco.
+    This is the main routine for running SOLO, an artifical neural network for estimating ER.
     """
     startdate = solo_info["startdate"]
     enddate = solo_info["enddate"]
-    log.info(" Estimating Reco using SOLO: "+startdate+" to "+enddate)
+    log.info(" Estimating ER using SOLO: "+startdate+" to "+enddate)
     # read the control file again, this allows the contents of the control file to
     # be changed with the SOLO GUI still displayed
     cfname = ds.globalattributes["controlfile_name"]
@@ -2089,9 +2088,9 @@ def rpSOLO_main(ds,solo_info,SOLO_gui=None):
         section = qcutils.get_cfsection(cf,series=series,mode="quiet")
         if len(section)==0: continue
         if series not in ds.series.keys(): continue
-        ds.solo[series]["target"] = cf[section][series]["FreUsingSOLO"]["target"]
-        ds.solo[series]["drivers"] = ast.literal_eval(cf[section][series]["FreUsingSOLO"]["drivers"])
-        ds.solo[series]["output"] = cf[section][series]["FreUsingSOLO"]["output"]
+        ds.solo[series]["target"] = cf[section][series]["ERUsingSOLO"]["target"]
+        ds.solo[series]["drivers"] = ast.literal_eval(cf[section][series]["ERUsingSOLO"]["drivers"])
+        ds.solo[series]["output"] = cf[section][series]["ERUsingSOLO"]["output"]
     # get some useful things
     site_name = ds.globalattributes["site_name"]
     # get the time step and a local pointer to the datetime series
@@ -2103,10 +2102,10 @@ def rpSOLO_main(ds,solo_info,SOLO_gui=None):
     ei = qcutils.GetDateIndex(ldt,enddate,ts=ts,default=-1,match="exact")
     # check the start and end indices
     if si >= ei:
-        log.error(" FreUsingSOLO: end datetime index ("+str(ei)+") smaller that start ("+str(si)+")")
+        log.error(" ERUsingSOLO: end datetime index ("+str(ei)+") smaller that start ("+str(si)+")")
         return
     if si==0 and ei==-1:
-        log.error(" FreUsingSOLO: no start and end datetime specified, using all data")
+        log.error(" ERUsingSOLO: no start and end datetime specified, using all data")
         nRecs = int(ds.globalattributes["nc_nrecs"])
     else:
         nRecs = ei - si + 1
@@ -2161,8 +2160,8 @@ def rpSOLO_main(ds,solo_info,SOLO_gui=None):
         # reset the nodesEntry in the SOLO_gui
         if solo_info["call_mode"].lower()=="interactive":
             if nodesAuto: rpSOLO_resetnodesEntry(SOLO_gui)
-    if 'FreUsingSOLO' not in ds.globalattributes['Functions']:
-        ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', FreUsingSOLO'
+    if 'ERUsingSOLO' not in ds.globalattributes['Functions']:
+        ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', ERUsingSOLO'
 
 def rpSOLO_plot(pd,ds,series,driverlist,targetlabel,outputlabel,solo_info,si=0,ei=-1):
     """ Plot the results of the SOLO run. """
@@ -2327,7 +2326,7 @@ def rpSOLO_run_gui(ds,SOLO_gui,solo_info):
     solo_info["maxlags"] = int(float(12)*solo_info["nperhr"]+0.5)
     solo_info["tower"] = {}
     solo_info["access"] = {}
-    #log.info(" Estimating Reco using SOLO")
+    #log.info(" Estimating ER using SOLO")
     if SOLO_gui.peropt.get()==1:
         # manual run using start and end datetime entered via GUI
         rpSOLO_progress(SOLO_gui,"Starting manual run ...")

@@ -316,26 +316,26 @@ def l6qc(cf,ds5):
     qcrp.ParseL6ControlFile(cf,ds6)
     # check to see if we have any imports
     qcgf.ImportSeries(cf,ds6)
-    # filter Fc for night time and ustar threshold, write to ds as "Fre"
-    #qcrp.GetFreIndicator(cf,ds6)
-    qcrp.GetFreFromFc(cf,ds6)
-    # estimate Reco using SOLO
-    qcrp.FreUsingSOLO(cf,ds6)
-    # estimate Reco using FFNET
-    qcrp.FreUsingFFNET(cf,ds6)
-    # estimate Reco using Lloyd-Taylor
-    qcrp.FreUsingLloydTaylor(cf,ds6)
-    # estimate Reco using Lasslop et al
-    qcrp.FreUsingLasslop(cf,ds6)
-    # merge the estimates of Reco with the observations
+    # filter Fc for night time and ustar threshold, write to ds as "ER"
+    #qcrp.GetERIndicator(cf,ds6)
+    qcrp.GetERFromFc(cf,ds6)
+    # estimate ER using SOLO
+    qcrp.ERUsingSOLO(cf,ds6)
+    # estimate ER using FFNET
+    qcrp.ERUsingFFNET(cf,ds6)
+    # estimate ER using Lloyd-Taylor
+    qcrp.ERUsingLloydTaylor(cf,ds6)
+    # estimate ER using Lasslop et al
+    qcrp.ERUsingLasslop(cf,ds6)
+    # merge the estimates of ER with the observations
     qcts.MergeSeriesUsingDict(ds6,merge_order="standard")
-    # calculate NEE from Fc and Fre
+    # calculate NEE from Fc and ER
     qcrp.CalculateNEE(cf,ds6)
     # calculate NEP from NEE
     qcrp.CalculateNEP(cf,ds6)
     # calculate ET from Fe
     qcrp.CalculateET(ds6)
-    # partition NEE into GPP and Reco
+    # partition NEE into GPP and ER
     qcrp.PartitionNEE(cf,ds6)
     # write the percentage of good data as a variable attribute
     qcutils.get_coverage_individual(ds6)
