@@ -1015,7 +1015,10 @@ def plot_setup(cf,nFig):
     p['ts_XAxLen'] = 0.6
     p['hr_XAxLen'] = 0.1
     p['ts_YAxLen'] = (0.85 - (p['nGraphs'] - 1)*0.02)/p['nGraphs']
-    p['yaxOrgOffset'] = (0.85 - p['ts_YAxLen'])/(p['nGraphs'] - 1)
+    if p['nGraphs']==1:
+        p['yaxOrgOffset'] = (0.85 - p['ts_YAxLen'])
+    else:
+        p['yaxOrgOffset'] = (0.85 - p['ts_YAxLen'])/(p['nGraphs'] - 1)
     p['hr1_XAxOrg'] = p['ts_XAxOrg']+p['ts_XAxLen']+0.07
     p['hr1_XAxLen'] = p['hr_XAxLen']
     p['hr2_XAxOrg'] = p['hr1_XAxOrg']+p['hr1_XAxLen']+0.05
@@ -1150,7 +1153,9 @@ def xyplot(x,y,sub=[1,1,1],regr=0,thru0=0,title=None,xlabel=None,ylabel=None,fna
     plt.subplot(sub[0],sub[1],sub[2])
     plt.plot(x,y,'b.')
     ax = plt.gca()
-    if xlabel is not None: plt.xlabel(xlabel)
+    if xlabel is not None:
+        plt.xlabel(xlabel)
+        hspace = 0.3
     if ylabel is not None:
         plt.ylabel(ylabel)
         wspace = 0.3

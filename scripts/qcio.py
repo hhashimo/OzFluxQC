@@ -278,9 +278,9 @@ def read_eddypro_full(csvname):
             Fc_flag_list.append(float(row[Fc_flag_col]))
         n = n + 1
     nRecs = len(adatetime)
-    adatetime = qcutils.round_datetime(ds,mode="nearest_timestep")
     ds.series['DateTime'] = {}
     ds.series['DateTime']['Data'] = adatetime
+    qcutils.round_datetime(ds,mode="nearest_timestep")
     ds.series['ustar'] = {}
     ds.series['ustar']['Data'] = numpy.array(us_data_list,dtype=numpy.float64)
     ds.series['ustar']['Flag'] = numpy.array(us_flag_list,dtype=numpy.int32)
@@ -477,6 +477,10 @@ def smap_writeheaders(cf,csvfile):
 def xl2nc(cf,InLevel):
     # get the data series from the Excel file
     in_filename = get_infilenamefromcf(cf)
+    if not qcutils.file_exists(in_filename,mode="quiet"):
+        msg = " Input file "+in_filename+" not found ..."
+        log.error(msg)
+        return
     file_name,file_extension = os.path.splitext(in_filename)
     if "csv" in file_extension.lower():
         ds = csv_read_series(cf)
@@ -506,8 +510,10 @@ def xl2nc(cf,InLevel):
         ds.globalattributes['start_date'] = str(ds.series['DateTime']['Data'][0])
     if 'end_date' not in ds.globalattributes.keys():
         ds.globalattributes['end_date'] = str(ds.series['DateTime']['Data'][-1])
-    # do any functions to create new series
-    qcts.do_functions(cf,ds)
+    # calculate variances from standard deviations and vice versa
+    qcts.CalculateStandardDeviations(cf,ds)
+    # create new variables using user defined functions
+    qcts.DoFunctions(cf,ds)
     # create a series of synthetic downwelling shortwave radiation
     qcts.get_synthetic_fsd(ds)
     # write the data to the netCDF file
@@ -1592,6 +1598,7 @@ def xl_read_series(cf):
     # Loop over the variables defined in the 'Variables' section of the
     # configuration file.
     for ThisOne in cf['Variables'].keys():
+        if "Function" in cf['Variables'][ThisOne].keys(): continue
         if 'xl' in cf['Variables'][ThisOne].keys():
             if 'sheet' in cf['Variables'][ThisOne]['xl'].keys():
                 xlsheet_name = cf['Variables'][ThisOne]['xl']['sheet']

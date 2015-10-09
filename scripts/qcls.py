@@ -53,12 +53,12 @@ def l2qc(cf,ds1):
     qcck.do_qcchecks(cf,ds2)
     # do the CSAT diagnostic check
     qcck.do_CSATcheck(cf,ds2)
-    # do the LI-7500 diagnostic check
-    qcck.do_7500check(cf,ds2)
+    # do the IRGA diagnostic check
+    qcck.do_IRGAcheck(cf,ds2)
     # constrain albedo estimates to full sun angles
-    qcts.albedo(cf,ds2)
-    log.info(' Finished the albedo constraints')    # apply linear corrections to the data
-    log.info(' Applying linear corrections ...')
+    #qcts.albedo(cf,ds2)
+    #log.info(' Finished the albedo constraints')    # apply linear corrections to the data
+    #log.info(' Applying linear corrections ...')
     qcck.do_linear(cf,ds2)
     # write series statistics to file
     qcio.get_seriesstats(cf,ds2)
@@ -131,6 +131,8 @@ def l3qc(cf,ds2):
     qcts.CalculateMeteorologicalVariables(ds3)
     # check to see if the user wants to use the fluxes in the L2 file
     if not qcutils.cfoptionskeylogical(cf,Key="UseL2Fluxes",default=False):
+        # check the covariancve units and change if necessary
+        qcts.CheckCovarianceUnits(ds3)
         # do the 2D coordinate rotation
         qcts.CoordRotation2D(cf,ds3)
         # do the Massman frequency attenuation correction
@@ -314,26 +316,27 @@ def l6qc(cf,ds5):
     qcrp.ParseL6ControlFile(cf,ds6)
     # check to see if we have any imports
     qcgf.ImportSeries(cf,ds6)
-    # filter Fc for night time and ustar threshold, write to ds as "Fre"
-    #qcrp.GetFreIndicator(cf,ds6)
-    qcrp.GetFreFromFc(cf,ds6)
-    # estimate Reco using SOLO
-    qcrp.FreUsingSOLO(cf,ds6)
-    # estimate Reco using FFNET
-    qcrp.FreUsingFFNET(cf,ds6)
-    # estimate Reco using Lloyd-Taylor
-    qcrp.FreUsingLloydTaylor(cf,ds6)
-    # estimate Reco using Lasslop et al
-    qcrp.FreUsingLasslop(cf,ds6)
-    # merge the estimates of Reco with the observations
+    # filter Fc for night time and ustar threshold, write to ds as "ER"
+    qcrp.GetERFromFc(cf,ds6)
+    result = qcrp.GetERFromFc2(cf,ds6)
+    if result==0: return
+    # estimate ER using SOLO
+    qcrp.ERUsingSOLO(cf,ds6)
+    # estimate ER using FFNET
+    qcrp.ERUsingFFNET(cf,ds6)
+    # estimate ER using Lloyd-Taylor
+    qcrp.ERUsingLloydTaylor(cf,ds6)
+    # estimate ER using Lasslop et al
+    qcrp.ERUsingLasslop(cf,ds6)
+    # merge the estimates of ER with the observations
     qcts.MergeSeriesUsingDict(ds6,merge_order="standard")
-    # calculate NEE from Fc and Fre
+    # calculate NEE from Fc and ER
     qcrp.CalculateNEE(cf,ds6)
     # calculate NEP from NEE
     qcrp.CalculateNEP(cf,ds6)
     # calculate ET from Fe
     qcrp.CalculateET(ds6)
-    # partition NEE into GPP and Reco
+    # partition NEE into GPP and ER
     qcrp.PartitionNEE(cf,ds6)
     # write the percentage of good data as a variable attribute
     qcutils.get_coverage_individual(ds6)

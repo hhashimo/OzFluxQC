@@ -7,11 +7,13 @@ import sys
 import ast
 import constants as c
 import datetime
+import inspect
 from matplotlib.dates import date2num
 import meteorologicalfunctions as mf
 import numpy
 import os
 import qcck
+import qcfunc
 import qcio
 import qcutils
 from scipy import interpolate, signal
@@ -77,8 +79,8 @@ def ApplyLinear(cf,ds,ThisOne):
         x: input/output variable in ds.  Example: 'Cc_7500_Av'
         """
     if ThisOne not in ds.series.keys(): return
-    log.info('  Applying linear correction to '+ThisOne)
     if qcutils.incf(cf,ThisOne) and qcutils.haskey(cf,ThisOne,'Linear'):
+        log.info('  Applying linear correction to '+ThisOne)
         data = numpy.ma.masked_where(ds.series[ThisOne]['Data']==float(c.missing_value),ds.series[ThisOne]['Data'])
         flag = ds.series[ThisOne]['Flag'].copy()
         ldt = ds.series['DateTime']['Data']
@@ -115,8 +117,9 @@ def ApplyLinearDrift(cf,ds,ThisOne):
         ds: data structure
         x: input/output variable in ds.  Example: 'Cc_7500_Av'
         """
-    log.info('  Applying linear drift correction to '+ThisOne)
+    if ThisOne not in ds.series.keys(): return
     if qcutils.incf(cf,ThisOne) and qcutils.haskey(cf,ThisOne,'Drift'):
+        log.info('  Applying linear drift correction to '+ThisOne)
         data = numpy.ma.masked_where(ds.series[ThisOne]['Data']==float(c.missing_value),ds.series[ThisOne]['Data'])
         flag = ds.series[ThisOne]['Flag']
         ldt = ds.series['DateTime']['Data']
@@ -158,8 +161,9 @@ def ApplyLinearDriftLocal(cf,ds,ThisOne):
         ds: data structure
         x: input/output variable in ds.  Example: 'Cc_7500_Av'
         """
-    log.info('  Applying linear drift correction to '+ThisOne)
+    if ThisOne not in ds.series.keys(): return
     if qcutils.incf(cf,ThisOne) and qcutils.haskey(cf,ThisOne,'LocalDrift'):
+        log.info('  Applying linear drift correction to '+ThisOne)
         data = numpy.ma.masked_where(ds.series[ThisOne]['Data']==float(c.missing_value),ds.series[ThisOne]['Data'])
         flag = ds.series[ThisOne]['Flag']
         ldt = ds.series['DateTime']['Data']
@@ -265,7 +269,7 @@ def CalculateAvailableEnergy(ds,Fa_out='Fa',Fn_in='Fn',Fg_in='Fg'):
             flag[idx] = numpy.int32(20)
         qcutils.CreateSeries(ds,Fa_out,Fa_exist,Flag=flag,Attr=attr)
 
-def CalculateFluxes(cf,ds,Ta_name='Ta',ps_name='ps',Ah_name='Ah',wT_in='wT',wA_in='wA',wC_in='wC',uw_in='uw',vw_in='vw',Fhv_out='Fhv',Fe_out='Fe',Fc_out='Fc',Fm_out='Fm',ustar_out='ustar'):
+def CalculateFluxes(cf,ds):
     """
         Calculate the fluxes from the rotated covariances.
         
@@ -276,79 +280,70 @@ def CalculateFluxes(cf,ds,Ta_name='Ta',ps_name='ps',Ah_name='Ah',wT_in='wT',wA_i
         
         Accepts meteorological constants or variables
         """
-    if qcutils.cfkeycheck(cf,Base='FunctionArgs',ThisOne='CF'):
-        args = ast.literal_eval(cf['FunctionArgs']['CF'])
-        Ta_name = args[0]
-        Ah_name = args[1]
-        ps_name = args[2]
-        wT_in = args[3]
-        wA_in = args[4]
-        wC_in = args[5]
-        uw_in = args[6]
-        vw_in = args[7]
-        Fh_out = args[8]
-        Fe_out = args[9]
-        Fc_out = args[10]
-        Fm_out = args[11]
-        ustar_out = args[12]
+    Ta,f,a = qcutils.GetSeriesasMA(ds,"Ta")
+    ps,f,a = qcutils.GetSeriesasMA(ds,"ps")
+    Ah,f,a = qcutils.GetSeriesasMA(ds,"Ah")
+    rhom,f,a = qcutils.GetSeriesasMA(ds,"rhom")
+    RhoCp,f,a = qcutils.GetSeriesasMA(ds,"RhoCp")
+    Lv,f,a = qcutils.GetSeriesasMA(ds,"Lv")
+
     long_name = ''
     if 'Massman' in ds.globalattributes['Functions']:
         long_name = ' and frequency response corrected'
-    Ta,f,a = qcutils.GetSeriesasMA(ds,Ta_name)
-    ps,f,a = qcutils.GetSeriesasMA(ds,ps_name)
-    Ah,f,a = qcutils.GetSeriesasMA(ds,Ah_name)
-    rhom,f,a = qcutils.GetSeriesasMA(ds,'rhom')
-    RhoCp,f,a = qcutils.GetSeriesasMA(ds,'RhoCp')
-    Lv,f,a = qcutils.GetSeriesasMA(ds,'Lv')
     
-    log.info(' Calculating fluxes from covariances')
-    if wT_in in ds.series.keys():
-        wT,f,a = qcutils.GetSeriesasMA(ds,wT_in)
-        Fhv = RhoCp * wT
-        attr = qcutils.MakeAttributeDictionary(long_name="Virtual heat flux, rotated to natural wind coordinates"+long_name,
-                                               units="W/m2")
-        if "height" in a: attr["height"] = a["height"]
-        qcutils.CreateSeries(ds,Fhv_out,Fhv,FList=[wT_in],Attr=attr)
-    else:
-        log.error('  CalculateFluxes: '+wT_in+' not found in ds.series, Fh not calculated')
-    if wA_in in ds.series.keys():
-        wA,f,a = qcutils.GetSeriesasMA(ds,wA_in)
-        Fe = Lv * wA / float(1000)
-        attr = qcutils.MakeAttributeDictionary(long_name="Latent heat flux, rotated to natural wind coordinates"+long_name,
-                                               standard_name="surface_upward_latent_heat_flux",
-                                               units="W/m2")
-        if "height" in a: attr["height"] = a["height"]
-        qcutils.CreateSeries(ds,Fe_out,Fe,FList=[wA_in],Attr=attr)
-    else:
-        log.error('  CalculateFluxes: '+wA_in+' not found in ds.series, Fe not calculated')
-    if wC_in in ds.series.keys():
-        wC,f,a = qcutils.GetSeriesasMA(ds,wC_in)
-        Fc = wC
-        attr = qcutils.MakeAttributeDictionary(long_name="CO2 flux, rotated to natural wind coordinates"+long_name,
-                                               units="mg/m2/s")
-        if "height" in a: attr["height"] = a["height"]
-        qcutils.CreateSeries(ds,Fc_out,Fc,FList=[wC_in],Attr=attr)
-    else:
-        log.error('  CalculateFluxes: '+wC_in+' not found in ds.series, Fc_raw not calculated')
-    if uw_in in ds.series.keys():
-        if vw_in in ds.series.keys():
-            uw,f,a = qcutils.GetSeriesasMA(ds,uw_in)
-            vw,f,a = qcutils.GetSeriesasMA(ds,vw_in)
-            vs = uw*uw + vw*vw
-            Fm = rhom * numpy.ma.sqrt(vs)
-            us = numpy.ma.sqrt(numpy.ma.sqrt(vs))
-            attr = qcutils.MakeAttributeDictionary(long_name='Momentum flux, rotated to natural wind coordinates'+long_name,
-                                                   units='kg/m/s2')
-            if "height" in a: attr["height"] = a["height"]
-            qcutils.CreateSeries(ds,Fm_out,Fm,FList=[uw_in,vw_in],Attr=attr)
-            attr = qcutils.MakeAttributeDictionary(long_name='Friction velocity, rotated to natural wind coordinates'+long_name,
-                                                   units='m/s')
-            if "height" in a: attr["height"] = a["height"]
-            qcutils.CreateSeries(ds,ustar_out,us,FList=[uw_in,vw_in],Attr=attr)
+    log.info(" Calculating fluxes from covariances")
+    if "wT" in ds.series.keys():
+        ok_units = ["mC/s","Cm/s"]
+        wT,flag,attr = qcutils.GetSeriesasMA(ds,"wT")
+        if attr["units"] in ok_units:
+            Fhv = RhoCp*wT
+            attr["long_name"] = "Virtual heat flux, rotated to natural wind coordinates"+long_name
+            attr["units"] = "W/m2"
+            qcutils.CreateSeries(ds,"Fhv",Fhv,Flag=flag,Attr=attr)
         else:
-            log.error('  CalculateFluxes: wy not found in ds.series, Fm and ustar not calculated')
+            log.error(" CalculateFluxes: Incorrect units for wA, Fe not calculated")
     else:
-        log.error('  CalculateFluxes: wx not found in ds.series, Fm and ustar not calculated')
+        log.error("  CalculateFluxes: wT not found, Fh not calculated")
+    if "wA" in ds.series.keys():
+        wA,flag,attr = qcutils.GetSeriesasMA(ds,"wA")
+        if attr["units"]=="g/m2/s":
+            Fe = Lv*wA/float(1000)
+            attr["long_name"] = "Latent heat flux, rotated to natural wind coordinates"+long_name
+            attr["standard_name"] = "surface_upward_latent_heat_flux"
+            attr["units"] = "W/m2"
+            qcutils.CreateSeries(ds,"Fe",Fe,Flag=flag,Attr=attr)
+        else:
+            log.error(" CalculateFluxes: Incorrect units for wA, Fe not calculated")
+    else:
+        log.error("  CalculateFluxes: wA not found, Fe not calculated")
+    if "wC" in ds.series.keys():
+        wC,flag,attr = qcutils.GetSeriesasMA(ds,"wC")
+        if attr["units"]=="mg/m2/s":
+            Fc = wC
+            attr["long_name"] = "CO2 flux, rotated to natural wind coordinates"+long_name
+            attr["units"] = "mg/m2/s"
+            qcutils.CreateSeries(ds,"Fc",Fc,Flag=flag,Attr=attr)
+        else:
+            log.error(" CalculateFluxes: Incorrect units for wC, Fc not calculated")
+    else:
+        log.error("  CalculateFluxes: wC not found, Fc not calculated")
+    if "uw" in ds.series.keys():
+        if "vw" in ds.series.keys():
+            uw,f,a = qcutils.GetSeriesasMA(ds,"uw")
+            vw,f,a = qcutils.GetSeriesasMA(ds,"vw")
+            vs = uw*uw + vw*vw
+            Fm = rhom*numpy.ma.sqrt(vs)
+            us = numpy.ma.sqrt(numpy.ma.sqrt(vs))
+            attr["long_name"] = "Momentum flux, rotated to natural wind coordinates"+long_name
+            attr["units"] = "kg/m/s2"
+            qcutils.CreateSeries(ds,"Fm",Fm,FList=["uw","vw"],Attr=attr)
+            attr["long_name"] = "Friction velocity, rotated to natural wind coordinates"+long_name
+            attr["units"] = "m/s"
+            qcutils.CreateSeries(ds,"ustar",us,FList=["uw","vw"],Attr=attr)
+        else:
+            log.error("  CalculateFluxes: vw not found, Fm and ustar not calculated")
+    else:
+        log.error("  CalculateFluxes: uw not found, Fm and ustar not calculated")
     if 'CalculateFluxes' not in ds.globalattributes['Functions']:
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', CalculateFluxes'
 
@@ -637,8 +632,12 @@ def CalculateMeteorologicalVariables(ds,Ta_name='Ta',Tv_name='Tv_CSAT',ps_name='
             Cpm: specific heat of moist air, mf.specificheatmoistair(q)
             VPD: vapour pressure deficit, VPD = esat - e
         """
-    for item in [Ta_name,Tv_name,ps_name,Ah_name,Cc_name,q_name]:
-        if item not in ds.series.keys(): return
+    for item in [Ta_name,ps_name,Ah_name,Cc_name,q_name]:
+        if item not in ds.series.keys():
+            msg = " CalculateMeteorologicalVariables: series "
+            msg = msg + item + " not found, returning ..."
+            log.warning(msg)
+            return
     log.info(' Adding standard met variables to database')
     # get the required data series
     Ta,f,a = qcutils.GetSeriesasMA(ds,Ta_name)
@@ -749,6 +748,36 @@ def CalculateNetRadiation(cf,ds,Fn_out='Fn',Fsd_in='Fsd',Fsu_in='Fsu',Fld_in='Fl
                              standard_name='surface_net_downwawrd_radiative_flux',units='W/m2')
         qcutils.CreateSeries(ds,Fn_out,Fn,Flag=flag,Attr=attr)
 
+def CheckCovarianceUnits(ds):
+    """
+    Purpose:
+    Usage:
+    Author: PRI
+    Date: September 2015
+    """
+    log.info(' Checking covariance units')
+    co2_list = ["UxC","UyC","UzC"]
+    h2o_list = ["UxA","UyA","UzA","UxH","UyH","UzH"]
+    for item in co2_list:
+        if item not in ds.series.keys(): continue
+        data,flag,attr = qcutils.GetSeriesasMA(ds,item)
+        if "umol" in attr["units"]:
+            Ta,f,a = qcutils.GetSeriesasMA(ds,"Ta")
+            ps,f,a = qcutils.GetSeriesasMA(ds,"ps")
+            data = mf.co2_mgpm3fromppm(data,Ta,ps)
+            attr["units"] = "mg/m2/s"
+            qcutils.CreateSeries(ds,item,data,Flag=flag,Attr=attr)
+    for item in h2o_list:
+        if item not in ds.series.keys(): continue
+        data,flag,attr = qcutils.GetSeriesasMA(ds,item)
+        if "mmol" in attr["units"]:
+            Ta,f,a = qcutils.GetSeriesasMA(ds,"Ta")
+            ps,f,a = qcutils.GetSeriesasMA(ds,"ps")
+            data = mf.h2o_gpm3frommmolpmol(data,Ta,ps)
+            attr["units"] = "g/m2/s"
+            if "H" in item: item = item.replace("H","A")
+            qcutils.CreateSeries(ds,item,data,Flag=flag,Attr=attr)
+
 def CoordRotation2D(cf,ds):
     """
         2D coordinate rotation to force v = w = 0.  Based on Lee et al, Chapter
@@ -793,7 +822,7 @@ def CoordRotation2D(cf,ds):
     if ('Options' in cf) and ('2DCoordRotation' in cf['Options'].keys()):
         if not cf['Options'].as_bool('2DCoordRotation'): rotate = False
     if rotate:
-        log.info(' Applying 2D coordinate rotation to wind components and covariances')
+        log.info(' Applying 2D coordinate rotation (components and covariances)')
         # get the 2D and 3D wind speeds
         ws2d = numpy.ma.sqrt(Ux**2 + Uy**2)
         ws3d = numpy.ma.sqrt(Ux**2 + Uy**2 + Uz**2)
@@ -908,7 +937,7 @@ def CoordRotation2D(cf,ds):
         if 'RelaxRotation' not in ds.globalattributes['Functions']:
             ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', RelaxRotation'
 
-def CalculateFcStorage(cf,ds,Fc_out='Fc_storage',CO2_in='Cc_7500_Av'):
+def CalculateFcStorage(cf,ds,Fc_out='Fc_storage',CO2_in='Cc'):
     """
     Calculate CO2 flux storage term in the air column beneath the CO2 instrument.  This
     routine assumes the air column between the sensor and the surface is well mixed.
@@ -924,7 +953,7 @@ def CalculateFcStorage(cf,ds,Fc_out='Fc_storage',CO2_in='Cc_7500_Av'):
     """
     if 'Fc_storage' not in ds.series.keys():
         if qcutils.cfkeycheck(cf,Base='General',ThisOne='zms'):
-            log.info(' Calculating Fc storage from single height concentration time series')
+            log.info(' Calculating Fc storage (single height)')
             nRecs = int(ds.globalattributes['nc_nrecs'])
             ts = int(ds.globalattributes['time_step'])
             zms = float(cf['General']['zms'])
@@ -1088,9 +1117,9 @@ def CorrectFgForStorage(cf,ds,Fg_out='Fg',Fg_in='Fg',Ts_in='Ts',Sws_in='Sws'):
     attr = qcutils.MakeAttributeDictionary(long_name='Soil heat flux uncorrected for storage',units='W/m2')
     qcutils.CreateSeries(ds,'Fg_Av',Fg,Flag=Fg_flag,Attr=attr)
     attr = qcutils.MakeAttributeDictionary(long_name='Soil heat flux storage',units='W/m2')
-    qcutils.CreateSeries(ds,'S',S,FList=[Ts_in,Sws_in],Attr=attr)
+    qcutils.CreateSeries(ds,'S',S,Flag=Fg_flag,Attr=attr)
     attr = qcutils.MakeAttributeDictionary(long_name='Specific heat capacity',units='J/m3/K')
-    qcutils.CreateSeries(ds,'Cs',Cs,FList=[Sws_in],Attr=attr)
+    qcutils.CreateSeries(ds,'Cs',Cs,Flag=Fg_flag,Attr=attr)
     if 'CorrectFgForStorage' not in ds.globalattributes['Functions']:
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', CorrectFgForStorage'
     if qcutils.cfoptionskeylogical(cf,Key='RelaxFgStorage'):
@@ -1304,7 +1333,33 @@ def do_attributes(cf,ds):
                 if "missing_value" not in ds.series[ThisOne]['Attr'].keys():
                     ds.series[ThisOne]['Attr']["missing_value"] = numpy.int32(c.missing_value)
 
-def do_functions(cf,ds):
+def DoFunctions(cf,ds):
+    """
+    Purpose:
+     Evaluate functions used in the L1 control file.
+    Usage:
+    Author: PRI
+    Date: September 2015
+    """
+    implemented_functions = [name for name,data in inspect.getmembers(qcfunc,inspect.isfunction)]
+    for var in cf["Variables"].keys():
+        if "Function" not in cf["Variables"][var].keys(): continue
+        if "func" not in cf["Variables"][var]["Function"].keys():
+            msg = " DoFunctions: 'func' keyword not found in [Functions] for "+var
+            log.error(msg)
+            continue
+        function_string = cf["Variables"][var]["Function"]["func"]
+        function_name = function_string.split("(")[0]
+        if function_name not in implemented_functions:
+            msg = " DoFunctions: Requested function "+function_name+" not imlemented, skipping ..."
+            log.error(msg)
+            continue
+        function_args = function_string.split("(")[1].replace(")","").split(",")
+        result = getattr(qcfunc,function_name)(ds,var,*function_args)
+        msg = " Completed function for "+var
+        log.info(msg)
+
+def CalculateStandardDeviations(cf,ds):
     log.info(' Getting variances from standard deviations & vice versa')
     if 'AhAh' in ds.series.keys() and 'Ah_7500_Sd' not in ds.series.keys():
         AhAh,flag,attr = qcutils.GetSeriesasMA(ds,'AhAh')
@@ -1412,7 +1467,7 @@ def Fc_WPL(cf,ds,Fc_wpl_out='Fc',Fc_raw_in='Fc',Fh_in='Fh',Fe_in='Fe',Ta_in='Ta'
         Accepts meteorological constants or variables
         """
     if 'DisableFcWPL' in cf['Options'] and cf['Options'].as_bool('DisableFcWPL'):
-        log.error(" qcts.Fc_WPL: WPL correction for Fc disabled in control file")
+        log.warning(" WPL correction for Fc disabled in control file")
         return
     log.info(' Applying WPL correction to Fc')
     Fc_raw,Fc_raw_flag,Fc_raw_attr = qcutils.GetSeriesasMA(ds,Fc_raw_in)
@@ -1467,7 +1522,7 @@ def Fe_WPL(cf,ds,Fe_wpl_out='Fe',Fe_raw_in='Fe',Fh_in='Fh',Ta_in='Ta',Ah_in='Ah'
         Accepts meteorological constants or variables
         """
     if 'DisableFeWPL' in cf['Options'] and cf['Options'].as_bool('DisableFeWPL'):
-        log.error(" qcts.Fe_WPL: WPL correction for Fe disabled in control file")
+        log.warning(" WPL correction for Fe disabled in control file")
         return
     log.info(' Applying WPL correction to Fe')
     if qcutils.cfkeycheck(cf,Base='FunctionArgs',ThisOne='EWPL'):
