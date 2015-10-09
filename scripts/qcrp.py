@@ -5,9 +5,11 @@ import datetime
 import dateutil
 import logging
 import matplotlib.pyplot as plt
+import meteorologicalfunctions as mf
 import numpy
 import os
 import qcio
+import qcrpLT
 import qcrpNN
 import qcts
 import qcutils
@@ -103,6 +105,41 @@ def CalculateNEP(cf,ds):
         attr["long_name"] = "Net Ecosystem Productivity calculated as -1*NEE"
         qcutils.CreateSeries(ds,nep_name,nep,Flag=flag,Attr=attr)
 
+def cleanup_ustar_dict(ldt,ustar_dict):
+    """
+    Purpose:
+     Clean up the ustar dictionary;
+      - make sure all years are included
+      - fill missing year values with the mean
+    Usage:
+    Author: PRI
+    Date: September 2015
+    """
+    start_year = ldt[0].year
+    end_year = ldt[-1].year
+    data_years = range(start_year,end_year+1)
+    ustar_years = ustar_dict.keys()
+    ustar_list = ustar_dict[ustar_years[0]]
+    for year in data_years:
+            if str(year) not in ustar_years:
+                ustar_dict[str(year)] = {}
+                for item in ustar_list:
+                    ustar_dict[str(year)][item] = float(c.missing_value)
+    # loop over the list of ustar thresholds
+    year_list = ustar_dict.keys()
+    year_list.sort()
+    # get the average of good ustar threshold values
+    good_values = []
+    for year in year_list:
+        ustar_threshold = float(ustar_dict[year]["ustar_mean"])
+        if ustar_threshold!=float(c.missing_value):
+            good_values.append(ustar_threshold)
+    ustar_threshold_mean = numpy.sum(numpy.array(good_values))/len(good_values)
+    # replace missing vaues with mean
+    for year in year_list:
+        if ustar_dict[year]["ustar_mean"]==float(c.missing_value):
+            ustar_dict[year]["ustar_mean"] = ustar_threshold_mean
+
 def ERUsingFFNET(cf,ds):
     """
     Purpose:
@@ -183,62 +220,163 @@ def ERUsingLasslop(cf,ds):
     # - put ER in data structure
 
 def ERUsingLloydTaylor(cf,ds):
-    log.info('Estimating ER using Lloyd-Taylor is not implemented yet')
-    pass
-    ## need to check that all information required is in the control file
-    #section = qcutils.get_cfsection(cf,series='ER',mode='quiet')
-    #if len(section)==0:
-        #log.error('ER section not found in control file')
-        #return
-    #if 'LloydTaylor' not in cf[section]['ER']:
-        #log.error('LloydTaylor section not found in control file')
-        #return
-    ## get the driver
-    #if 'drivers' not in cf[section]['ER']['LloydTaylor']:
-        #log.error('drivers key not found in LloydTaylor section of control file')
-        #return
-    #else:
-        #driver_list = eval(cf[section]['ER']['LloydTaylor']['drivers'])
-        #driver_label = driver_list[0]
-    ## get the monthly values for the activation energy, E0
-    #if 'E0' not in cf[section]['ER']['LloydTaylor']:
-        #log.error('E0 key not found in LloydTaylor section of control file')
-        #return
-    #else:
-        #E0_monthly = numpy.array(eval(cf[section]['ER']['LloydTaylor']['E0']))
-    ## get the monthly values for the base respiration, rb
-    #if 'rb' not in cf[section]['ER']['LloydTaylor']:
-        #log.error('rb key not found in LloydTaylor section of control file')
-        #return
-    #else:
-        #rb_monthly = numpy.array(eval(cf[section]['ER']['LloydTaylor']['rb']))
-    ## get the output label
-    #if 'output' not in cf[section]['ER']['LloydTaylor']:
-        #log.error('output key not found in LloydTaylor section of control file')
-        #return
-    #else:
-        #out_label = cf[section]['ER']['LloydTaylor']['output']
-    ## ... and make an array of values for each month
-    #nRecs = int(ds.globalattributes['nc_nrecs'])
-    #E0 = numpy.ma.ones(nRecs)
-    #rb = numpy.ma.zeros(nRecs)
-    #month = ds.series['Month']['Data']
-    #lwr = numpy.max(numpy.array([numpy.min(month),1]))
-    #upr = numpy.min(numpy.array([numpy.max(month),12]))
-    #for m in range(lwr,upr+1):
-        #index = numpy.where(month==m)[0]
-        #E0[index] = E0_monthly[m-1]
-        #rb[index] = rb_monthly[m-1]
-    ## get the driver data
-    #Ts,flag,attr = qcutils.GetSeriesasMA(ds,driver_label)
-    ## estimate ER using the Lloyd-Taylor expression
-    #t1 = 1/(c.Tref-c.T0)
-    #t2 = 1/(Ts-c.T0)
-    #ER = rb*numpy.exp(E0*(t1-t2))
-    ## put the estimated ER into the data structure
-    #units=qcutils.GetUnitsFromds(ds, 'Fc')
-    #attr = qcutils.MakeAttributeDictionary(long_name='ER estimated using Lloyd-Taylor',units=units)
-    #qcutils.CreateSeries(ds,out_label,ER,Flag=flag,Attr=attr)
+    """
+    Purpose:
+     Estimate ecosystem respiration using Lloyd-Taylor.
+     Ian McHugh wrote the LT code, PRI wrote the wrapper to integrate
+     this with OzFluxQC.
+    Usage:
+    Author: IMcH, PRI
+    Date: October 2015
+    """
+    if "rpLT" not in dir(ds): return
+    log.info(' Estimating ER using Lloyd-Taylor')
+    long_name = "Ecosystem respiration modelled by Lloyd-Taylor"
+    ER_attr = qcutils.MakeAttributeDictionary(long_name=long_name,units="umol/m2/s")
+    ts = int(ds.globalattributes["time_step"])
+    site_name = ds.globalattributes["site_name"]
+    ldt = ds.series["DateTime"]["Data"]
+    startdate = ldt[0]
+    enddate = ldt[-1]
+    nperhr = int(float(60)/ts+0.5)
+    nperday = int(float(24)*nperhr+0.5)
+    LT_info = {"file_startdate":startdate.strftime("%Y-%m-%d %H:%M"),
+               "file_enddate":enddate.strftime("%Y-%m-%d %H:%M"),
+               "plot_path":cf["Files"]["plot_path"],
+               "show_plots":True,"time_step":ts,"nperday":nperday}
+    #ustar_dict = get_ustarthreshold_from_cpdresults(cf)
+    #cleanup_ustar_dict(ldt,ustar_dict)
+    #ustar,f,a = qcutils.GetSeriesasMA(ds,"ustar")
+    #turbulence_indicator = get_turbulence_indicator_ustar(ldt,ustar,ustar_dict,ts,ER_attr)
+    if len(plt.get_fignums())==0:
+        fig_num = 0
+    else:
+        fig_num = plt.get_fignums()[-1]
+    for series in ds.rpLT.keys():
+        configs_dict = ds.rpLT[series]["configs_dict"]
+        configs_dict["measurement_interval"] = float(ts)/60.0
+        data_dict = qcrpLT.get_data_dict(ds,configs_dict)
+        #qcrpLT.apply_turbulence_filter(data_dict,turbulence_indicator)
+        # *** start of code taken from Ian McHugh's Partition_NEE.main ***
+        # If user wants individual window plots, check whether output directories
+        # are present, and create if not
+        if configs_dict['output_plots']:
+            output_path = configs_dict['output_path']
+            configs_dict['window_plot_output_path'] = output_path
+            if not os.path.isdir(output_path): os.makedirs(output_path)
+        # Get arrays of all datetimes, all dates and stepped dates original code
+        datetime_array = data_dict.pop('date_time')
+        (step_date_index_dict,
+         all_date_index_dict,
+         year_index_dict) = qcrpLT.get_dates(datetime_array, configs_dict)
+        date_array = numpy.array(all_date_index_dict.keys())
+        date_array.sort()
+        step_date_array = numpy.array(step_date_index_dict.keys())
+        step_date_array.sort()
+        # Create variable name lists for results output
+        series_rslt_list = ['Nocturnally derived Re', 'GPP from nocturnal derived Re',
+                            'Daytime derived Re', 'GPP from daytime derived Re']
+        new_param_list = ['Eo', 'rb_noct', 'rb_day', 'alpha_fixed_rb',
+                          'alpha_free_rb', 'beta_fixed_rb', 'beta_free_rb',
+                          'k_fixed_rb', 'k_free_rb', 'Eo error code',
+                          'Nocturnal rb error code',
+                          'Light response parameters + fixed rb error code',
+                          'Light response parameters + free rb error code']
+        # Create dictionaries for results
+        # First the parameter estimates and error codes...
+        empty_array = numpy.empty([len(date_array)])
+        empty_array[:] = numpy.nan
+        opt_params_dict = {var: empty_array.copy() for var in new_param_list}
+        opt_params_dict['date'] = date_array
+        # Then the time series estimation
+        empty_array = numpy.empty([len(datetime_array)])
+        empty_array[:] = numpy.nan
+        series_est_dict = {var: empty_array.copy() for var in series_rslt_list}
+        series_est_dict['date_time'] = datetime_array
+        # Create a dictionary containing initial guesses for each parameter
+        params_dict = qcrpLT.make_initial_guess_dict(data_dict)    
+        # *** start of annual estimates of E0 code ***
+        # this section could be a separate routine
+        # Get the annual estimates of Eo
+        log.info(" Optimising fit for Eo for each year")
+        Eo_dict, EoQC_dict = qcrpLT.optimise_annual_Eo(data_dict,params_dict,configs_dict,year_index_dict)
+        #print 'Done!'
+        # Write to result arrays
+        year_array = numpy.array([i.year for i in date_array])
+        for yr in year_array:
+            index = numpy.where(year_array == yr)
+            opt_params_dict['Eo'][index] = Eo_dict[yr]
+            opt_params_dict['Eo error code'][index] = EoQC_dict[yr]
+        # *** end of annual estimates of E0 code ***
+        # *** start of estimating rb code for each window ***
+        # this section could be a separate routine
+        # Rewrite the parameters dictionary so that there will be one set of 
+        # defaults for the free and one set of defaults for the fixed parameters
+        params_dict = {'fixed_rb': qcrpLT.make_initial_guess_dict(data_dict),
+                       'free_rb': qcrpLT.make_initial_guess_dict(data_dict)}
+        # Do nocturnal optimisation for each window
+        log.info(" Optimising fit for rb using nocturnal data")
+        for date in step_date_array:
+            # Get Eo for the relevant year and write to the parameters dictionary
+            param_index = numpy.where(date_array == date)
+            params_dict['fixed_rb']['Eo_default'] = opt_params_dict['Eo'][param_index]
+            # Subset the data and check length
+            sub_dict = qcrpLT.subset_window(data_dict, step_date_index_dict[date])
+            noct_dict = qcrpLT.subset_window(data_dict, step_date_index_dict[date])
+            # Subset again to remove daytime and then nan
+            #noct_dict = qcrpLT.subset_daynight(sub_dict, noct_flag = True)
+            len_all_noct = len(noct_dict['NEE'])
+            noct_dict = qcrpLT.subset_nan(noct_dict)
+            len_valid_noct = len(noct_dict['NEE'])
+            # Do optimisation only if data passes minimum threshold
+            if round(float(len_valid_noct) / len_all_noct * 100) > \
+            configs_dict['minimum_pct_noct_window']:
+                params, error_state = qcrpLT.optimise_rb(noct_dict,params_dict['fixed_rb'])
+            else:
+                params, error_state = [numpy.nan], 10                                                      
+            # Send data to the results dict
+            opt_params_dict['rb_noct'][param_index] = params
+            opt_params_dict['Nocturnal rb error code'][param_index] = error_state
+            # Estimate time series and plot if requested
+            if error_state == 0 and configs_dict['output_plots']:
+                this_params_dict = {'Eo': opt_params_dict['Eo'][param_index],
+                                    'rb': opt_params_dict['rb_noct'][param_index]}
+                est_series_dict = qcrpLT.estimate_Re_GPP(sub_dict, this_params_dict)
+                combine_dict = dict(sub_dict, **est_series_dict)
+                qcrpLT.plot_windows(combine_dict, configs_dict, date, noct_flag = True)
+        # Interpolate
+        opt_params_dict['rb_noct'] = qcrpLT.interp_params(opt_params_dict['rb_noct'])
+        #print 'Done!'
+        # *** end of estimating rb code for each window ***
+        # *** start of code to calculate ER from fit parameters
+        # this section could be a separate routine
+        E0 = numpy.zeros(len(ldt))
+        rb = numpy.zeros(len(ldt))
+        ldt_year = numpy.array([dt.year for dt in ldt])
+        ldt_month = numpy.array([dt.month for dt in ldt])
+        ldt_day = numpy.array([dt.day for dt in ldt])
+        for date,E0_val,rb_val in zip(opt_params_dict["date"],opt_params_dict["Eo"],opt_params_dict["rb_noct"]):
+            param_year = date.year
+            param_month = date.month
+            param_day = date.day
+            idx = numpy.where((ldt_year==param_year)&(ldt_month==param_month)&(ldt_day==param_day))[0]
+            E0[idx] = E0_val
+            rb[idx] = rb_val
+        T_label = configs_dict["drivers"]
+        T,T_flag,a = qcutils.GetSeriesasMA(ds,T_label)
+        ER_LT = qcrpLT.TRF(data_dict, E0, rb)
+        #ER_LT = qcrpLT.ER_LloydTaylor(T,E0,rb)
+        target = str(ds.rpLT[series]["target"])
+        drivers = str(configs_dict["drivers"])
+        output = str(configs_dict["output_label"])
+        ER_attr["comment1"] = "Drivers were "+drivers
+        qcutils.CreateSeries(ds,output,ER_LT,Flag=T_flag,Attr=ER_attr)
+        # plot the respiration estimated using Lloyd-Taylor
+        #fig_num = fig_num + 1
+        #title = site_name+" : "+series+" estimated using Lloyd-Taylor"
+        #pd = rpLT_initplot(site_name=site_name,label=target,fig_num=fig_num,title=title,
+                             #nDrivers=len(drivers),startdate=startdate,enddate=enddate)
+        #rpLT_plot(pd,ds,series,drivers,target,output,LT_info)
 
 def ERUsingSOLO(cf,ds):
     """ Estimate ER using SOLO. """
@@ -313,6 +451,7 @@ def GetERFromFc(cf,ds):
             ustar_dict[str(year)] = {}
             for item in ustar_list:
                 ustar_dict[str(year)][item] = float(c.missing_value)
+
     # get the data
     Fsd,Fsd_flag,Fsd_attr = qcutils.GetSeriesasMA(ds,"Fsd")
     if "Fsd_syn" not in ds.series.keys(): qcts.get_synthetic_fsd(ds)
@@ -428,70 +567,142 @@ def GetERFromFc(cf,ds):
     qcutils.CreateSeries(ds,"Fsd_filtered",Fsd2,Flag=Fsd_flag,Attr=Fsd_attr)
     return
 
-def GetERIndicator(cf,ds):
+def GetERFromFc2(cf,ds):
     """
     Purpose:
-     Indicator values are:
-      - 1 OK to use Fc as ER
-      - 0 not OK to use Fc as ER
-    Useage:
+     Get the observed ecosystem respiration from measurements of Fc by
+     filtering out daytime periods and periods when ustar is less than
+     a threshold value.
+     The Fsd threshold for determining day time and night time and the
+     ustar threshold are set in the [Params] section of the L5 control
+     file.
+     Re-write of the original penned in August 2014
+    Usage:
+     qcrp.GetERFromFc(cf,ds)
+     where cf is a control file object
+           ds is a data structure
+    Side effects:
+     A new series called "ER" is created in the data structure.
     Author: PRI
-    Date: August 2015
+    Date: October 2015
     """
-    # get the day/night indicator
-    # 1 ==> night, 0 ==> day
-    daynight_indicator = get_daynight_indicator(cf,ds)
-    # get the evening indicator
-    # 1 ==> within "evening" definition, 0 ==> outside "evening"
-    evening_indicator = get_evening_indicator(cf,ds)
-    # get the turbulent/non-turbulent indicator
-    # 1 ==> turbulent, 0 ==> non-turbulent
-    turbulence_indicator = get_turbulence_indicator(cf,ds)
-    # get ER indicator
-    # 1 ==> OK to use Fc as ER, 0 ==> not OK to use Fc as ER
-    ER_indicator = daynight_indicator*evening_indicator*turbulence_indicator
-    # put the indicator series in the data structure
-    nRecs = len(ER_indicator)
-    flag = numpy.zeros(nRecs,dtype=numpy.int32)
-    attr = qcutils.MakeAttributeDictionary(long_name="ER indicator series")
-    qcutils.CreateSeries(ds,"ER_indicator",ER_indicator,Flag=flag,Attr=attr)
+    ldt = ds.series["DateTime"]["Data"]
+    ts = int(ds.globalattributes["time_step"])
+    # get the ustar thresholds
+    ustar_dict = get_ustar_thresholds(cf,ldt)
+    # get the data
+    Fsd,Fsd_flag,Fsd_attr = qcutils.GetSeriesasMA(ds,"Fsd")
+    if "Fsd_syn" not in ds.series.keys(): qcts.get_synthetic_fsd(ds)
+    Fsd_syn,flag,attr = qcutils.GetSeriesasMA(ds,"Fsd_syn")
+    sa,flag,attr = qcutils.GetSeriesasMA(ds,"solar_altitude")
+    ustar,ustar_flag,attr = qcutils.GetSeriesasMA(ds,"ustar")
+    Fc,Fc_flag,Fc_attr = qcutils.GetSeriesasMA(ds,"Fc")
+    # get the Monin-Obukhov length
+    Ta,flag,attr = qcutils.GetSeriesasMA(ds,"Ta")
+    Ah,flag,attr = qcutils.GetSeriesasMA(ds,"Ah")
+    ps,flag,attr = qcutils.GetSeriesasMA(ds,"ps")
+    Fh,flag,attr = qcutils.GetSeriesasMA(ds,"Fh")
+    L = mf.molen(Ta,Ah,ps,ustar,Fh,fluxtype="sensible")
+    # get a copy of the Fc flag and make the attribute dictionary
+    ER_flag = numpy.array(Fc_flag)
+    long_name = "Ecosystem respiration (observed)"
+    units = Fc_attr["units"]
+    ER_attr = qcutils.MakeAttributeDictionary(long_name=long_name,units=units)
+    # check for any missing data
+    series_list = [Fsd,Fsd_syn,sa,ustar,Fc]
+    label_list = ["Fsd","Fsd_syn","sa","ustar","Fc"]
+    result = check_for_missing_data(series_list,label_list)
+    if result!=1: return 0
+    # only accept Fc and ustar data when both have a QC flag value of 0
+    ustar = numpy.ma.masked_where((ustar_flag!=0)|(Fc_flag!=0),ustar)
+    Fc = numpy.ma.masked_where((ustar_flag!=0)|(Fc_flag!=0),Fc)
+    index_notok = numpy.where((ustar_flag!=0)|(Fc_flag!=0))[0]
+    ER_flag[index_notok] = numpy.int32(61)
+    # get the indicator series
+    turbulence_indicator = get_turbulence_indicator(cf,ldt,ustar,L,ustar_dict,ts,ER_attr)
+    daynight_indicator = get_daynight_indicator(cf,Fsd,Fsd_syn,sa,ER_attr)
+    er_indicator = turbulence_indicator*daynight_indicator
+    # apply the filter to get ER from Fc
+    ER = numpy.ma.masked_where(er_indicator==0,Fc,copy=True)
+    qcutils.CreateSeries(ds,"ER2",ER,Flag=ER_flag,Attr=ER_attr)
 
-def get_daynight_indicator(cf,ds):
+    return 1
+
+def check_for_missing_data(series_list,label_list):
+    for item,label in zip(series_list,label_list):
+        index = numpy.where(numpy.ma.getmaskarray(item)==True)[0]
+        if len(index)!=0:
+            log.error(" GetERFromFc: missing data in series "+label)
+            return 0
+    return 1
+
+def get_ustar_thresholds(cf,ldt):
+    if "cpd_filename" in cf["Files"]:
+        ustar_dict = get_ustarthreshold_from_cpdresults(cf)
+    else:
+        msg = " CPD results filename not in control file"
+        log.warning(msg)
+        ustar_dict = get_ustarthreshold_from_cf(cf,ldt)
+    cleanup_ustar_dict(ldt,ustar_dict)
+    return ustar_dict
+
+def get_daynight_indicator(cf,Fsd,Fsd_syn,sa,ER_attr):
     # get the day/night indicator
-    nRecs = int(ds.globalattributes["nc_nrecs"])
-    daynight_indicator = numpy.ones(nRecs,dtype=numpy.int32)
+    nRecs = len(Fsd)
+    daynight_indicator = numpy.zeros(nRecs,dtype=numpy.int32)
     # get the filter type
     filter_type = qcutils.get_keyvaluefromcf(cf,["Options"],"DayNightFilter",default="Fsd")
     # get the indicator series
     if filter_type.lower()=="fsd":
-        # get the data
-        Fsd,Fsd_flag,Fsd_attr = qcutils.GetSeriesasMA(ds,"Fsd")
-        Fsd_syn,flag,attr = qcutils.GetSeriesasMA(ds,"Fsd_syn")
         # get the Fsd threshold
         Fsd_threshold = int(qcutils.get_keyvaluefromcf(cf,["Options"],"Fsd_threshold",default=10))
+        ER_attr["Fsd_threshold"] = str(Fsd_threshold)
         # we are using Fsd and Fsd_syn to define day/night
-        index = numpy.ma.where((Fsd>Fsd_threshold)|(Fsd_syn>Fsd_threshold))[0]
-        daynight_indicator[index] = numpy.int32(0)
+        index = numpy.ma.where((Fsd<Fsd_threshold)|(Fsd_syn<Fsd_threshold))[0]
+        daynight_indicator[index] = numpy.int32(1)
     elif filter_type.lower()=="sa":
-        # get the data
-        sa,flag,attr = qcutils.GetSeriesasMA(ds,"solar_altitude")
         # get the solar altitude threshold
         sa_threshold = int(qcutils.get_keyvaluefromcf(cf,["Options"],"sa_threshold",default="-5"))
+        ER_attr["sa_threshold"] = str(sa_threshold)
         # we are using solar altitude to define day/night
-        index = numpy.ma.where(sa>sa_threshold)[0]
-        daynight_indicator[index] = numpy.int32(0)
+        index = numpy.ma.where(sa<sa_threshold)[0]
+        daynight_indicator[index] = numpy.int32(1)
     else:
-        msg = "Unrecognised DayNightFilter option in L6 control file, no filter applied ..."
-        log.error(msg)
+        msg = "Unrecognised DayNightFilter option in L6 control file"
+        raise Exception(msg)
     return daynight_indicator
 
-def get_evening_indicator(cf,ds):
-    # make sure we have the synthetic downwelling shortwave and the solar altitude
-    if ("Fsd_syn" not in ds.series.keys() or
-        "solar_altitude" not in ds.series.keys()): qcts.get_synthetic_fsd(ds)
-    
-def get_turbulence_indicator(cf,ds):
-    pass
+def get_turbulence_indicator(cf,ldt,ustar,L,ustar_dict,ts,ER_attr):
+    opt = qcutils.get_keyvaluefromcf(cf,["Options"],"TurbulenceFilter",default="ustar")
+    if opt.lower()=="ustar":
+        turbulence_indicator = get_turbulence_indicator_ustar(ldt,ustar,ustar_dict,ts,ER_attr)
+    elif opt.lower()=="l":
+        msg = " Turbulence filter using L not implemented yet"
+        raise Exception(msg)
+    else:
+        msg = " Unrecognised TurbulenceFilter option in L6 control file"
+        raise Exception(msg)
+    return turbulence_indicator
+
+def get_turbulence_indicator_ustar(ldt,ustar,ustar_dict,ts,ER_attr):
+    year_list = ustar_dict.keys()
+    year_list.sort()
+    # now loop over the years in the data to apply the ustar threshold
+    turbulence_indicator = numpy.zeros(len(ldt),dtype=numpy.int32)
+    for year in year_list:
+        start_date = str(year)+"-01-01 00:30"
+        if ts==60: start_date = str(year)+"-01-01 01:00"
+        end_date = str(int(year)+1)+"-01-01 00:00"
+        # get the ustar threshold
+        ustar_threshold = float(ustar_dict[year]["ustar_mean"])
+        ER_attr["ustar_threshold_"+str(year)] = str(ustar_threshold)
+        # get the start and end datetime indices
+        si = qcutils.GetDateIndex(ldt,start_date,ts=ts,default=0,match='exact')
+        ei = qcutils.GetDateIndex(ldt,end_date,ts=ts,default=len(ldt),match='exact')
+        # set the QC flag
+        idx = numpy.ma.where(ustar[si:ei]>=ustar_threshold)[0]
+        turbulence_indicator[si:ei][idx] = numpy.int32(1)
+    return turbulence_indicator
 
 def get_ustarthreshold_from_cf(cf,ldt):
     """
@@ -1041,6 +1252,8 @@ def ParseL6ControlFile(cf,ds):
                 qcrpNN.rpSOLO_createdict(cf,ds,ThisOne)      # create the SOLO dictionary in ds
             if "ERUsingFFNET" in cf["ER"][ThisOne].keys():
                 qcrpNN.rpFFNET_createdict(cf,ds,ThisOne)     # create the FFNET dictionary in ds
+            if "ERUsingLloydTaylor" in cf["ER"][ThisOne].keys():
+                qcrpLT.rpLT_createdict(cf,ds,ThisOne)        # create the Lloyd-Taylor dictionary in ds
     if "NEE" in cf.keys():
         for ThisOne in cf["NEE"].keys():
             rpNEE_createdict(cf,ds,ThisOne)

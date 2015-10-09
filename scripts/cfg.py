@@ -1,5 +1,9 @@
 version_name = "OzFluxQC"
-version_number = "V2.9.4"
+version_number = "V2.9.5"
+# V2.9.5   - implementation of new respiration options
+#            - removed NN related code from qcrp.py and placed this
+#              in a stand-alone module qcrpNN.py.
+#            - implemented Ian McHugh's code for Lloyd-Taylor
 # V2.9.4   - major bug fix
 #            - a bug was introduced in V2.8.7 on 15/04/2015 that caused
 #              Fg corrected for heat storage in the layer above the
