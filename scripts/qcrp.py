@@ -365,12 +365,14 @@ def ERUsingLloydTaylor(cf,ds):
         T_label = configs_dict["drivers"]
         T,T_flag,a = qcutils.GetSeriesasMA(ds,T_label)
         ER_LT = qcrpLT.TRF(data_dict, E0, rb)
+        ER_LT_flag = numpy.empty(len(ER_LT),dtype=numpy.int32)
+        ER_LT_flag.fill(30)
         #ER_LT = qcrpLT.ER_LloydTaylor(T,E0,rb)
         target = str(ds.rpLT[series]["target"])
         drivers = str(configs_dict["drivers"])
         output = str(configs_dict["output_label"])
         ER_attr["comment1"] = "Drivers were "+drivers
-        qcutils.CreateSeries(ds,output,ER_LT,Flag=T_flag,Attr=ER_attr)
+        qcutils.CreateSeries(ds,output,ER_LT,Flag=ER_LT_flag,Attr=ER_attr)
         # plot the respiration estimated using Lloyd-Taylor
         #fig_num = fig_num + 1
         #title = site_name+" : "+series+" estimated using Lloyd-Taylor"
@@ -400,174 +402,151 @@ def ERUsingSOLO(cf,ds):
             if "SOLO" in cf["GUI"]:
                 qcrpNN.rpSOLO_run_nogui(cf,ds,solo_info)
 
+#def GetERFromFc(cf,ds):
+    #"""
+    #Purpose:
+     #Get the observed ecosystem respiration from measurements of Fc by
+     #filtering out daytime periods and periods when ustar is less than
+     #a threshold value.
+     #The Fsd threshold for determining day time and night time and the
+     #ustar threshold are set in the [Params] section of the L5 control
+     #file.
+    #Usage:
+     #qcrp.GetERFromFc(cf,ds)
+     #where cf is a control file object
+           #ds is a data structure
+    #Side effects:
+     #A new series called "ER" is created in the data structure.
+    #Author: PRI
+    #Date: August 2014
+    #"""
+    ## needs a fecking good refactor
+    #ts = int(ds.globalattributes["time_step"])
+    #ldt = ds.series['DateTime']['Data']
+    ## get the Fsd threshold
+    #if "Options" in cf.keys():
+        #if "Fsd_threshold" in cf["Options"].keys():
+            #Fsd_threshold = float(cf["Options"]["Fsd_threshold"])
+        #else:
+            #log.warning(" No Fsd threshold in [Options] section of control file")
+            #log.warning(" ... using default value of 10 W/m2")
+            #Fsd_threshold = float(10)
+    #else:
+        #log.warning(" No [Options] section of control file for Fsd threshold")
+        #log.warning(" ... using default value of 10 W/m2")
+        #Fsd_threshold = float(10)
+    ## get the ustar thresholds
+    #if "cpd_filename" in cf["Files"]:
+        #ustar_dict = get_ustarthreshold_from_cpdresults(cf)
+    #else:
+        #msg = " CPD results filename not in control file"
+        #log.warning(msg)
+        #ustar_dict = get_ustarthreshold_from_cf(cf,ldt)
+    ## make sure we have an entry in ustar_dict for all years
+    #start_year = ldt[0].year
+    #end_year = ldt[-1].year
+    #data_years = range(start_year,end_year+1)
+    #ustar_years = ustar_dict.keys()
+    #ustar_list = ustar_dict[ustar_years[0]]
+    #for year in data_years:
+        #if str(year) not in ustar_years:
+            #ustar_dict[str(year)] = {}
+            #for item in ustar_list:
+                #ustar_dict[str(year)][item] = float(c.missing_value)
+
+    ## get the data
+    #Fsd,Fsd_flag,Fsd_attr = qcutils.GetSeriesasMA(ds,"Fsd")
+    #if "solar_altitude" not in ds.series.keys(): qcts.get_synthetic_fsd(ds)
+    #sa,flag,attr = qcutils.GetSeriesasMA(ds,"solar_altitude")
+    #ustar,ustar_flag,attr = qcutils.GetSeriesasMA(ds,"ustar")
+    #Fc,Fc_flag,Fc_attr = qcutils.GetSeriesasMA(ds,"Fc")
+    ## get a copy of the Fc flag
+    #ER_flag = numpy.array(Fc_flag)
+
+    ## only accept Fc and ustar data when both have a QC flag value of 0
+    #ustar = numpy.ma.masked_where((ustar_flag!=0)|(Fc_flag!=0),ustar)
+    #Fc = numpy.ma.masked_where((ustar_flag!=0)|(Fc_flag!=0),Fc)
+    #index_notok = numpy.where((ustar_flag!=0)|(Fc_flag!=0))[0]
+    ##ustar_flag[index_notok] = numpy.int32(61)
+    #ER_flag[index_notok] = numpy.int32(61)
+    ## check for any missing data
+    #for item,label in zip([Fsd],["Fsd"]):
+        #index = numpy.where(numpy.ma.getmaskarray(item)==True)[0]
+        #if len(index)!=0:
+            #log.error(" GetERFromFc: missing data in series "+label)
+            #raise Exception("GetERFromFc: missing data in series "+label)
+
+    ## apply the day/night filter
+    ## get the day/night filter type from the control file
+    #daynightfilter_type = qcutils.get_keyvaluefromcf(cf,["Options"],"DayNightFilter",default="Fsd")
+    ## trap any types not implemented and set to Fsd
+    #if daynightfilter_type not in ["Fsd","sa"]: daynightfilter_type = "Fsd"
+    ## make the attribute dictionary first so we can add the ustar thresholds to it
+    #ER_attr = qcutils.MakeAttributeDictionary(long_name='Ecosystem respiration (observed)',units=Fc_attr["units"])
+
+    ## apply the day/night filter
+    #if daynightfilter_type=="Fsd":
+        ## we are using Fsd and possibly Fsd_syn to define day/night
+        #ER_attr["Fsd_threshold"] = str(Fsd_threshold)
+        ## we are only using Fsd
+        #ER1 = numpy.ma.masked_where(Fsd>Fsd_threshold,Fc,copy=True)
+        #index_daynight = numpy.ma.where(Fsd>Fsd_threshold)[0]
+        #ER_flag[index_daynight] = numpy.int32(62)
+    #else:
+        #sa_threshold = int(qcutils.get_keyvaluefromcf(cf,["Options"],"sa_threshold",default="-5"))
+        #ER_attr["sa_threshold"] = str(sa_threshold)
+        #ER1 = numpy.ma.masked_where(sa>sa_threshold,Fc,copy=True)
+        #index_daynight = numpy.ma.where(sa>sa_threshold)[0]
+        #ER_flag[index_daynight] = numpy.int32(63)
+    ## get a copy of the day/night filtered data
+    #ER2 = numpy.ma.array(ER1)
+
+    ## loop over the list of ustar thresholds
+    #year_list = ustar_dict.keys()
+    #year_list.sort()
+    ## get the average of good ustar threshold values
+    #good_values = []
+    #for year in year_list:
+        #ustar_threshold = float(ustar_dict[year]["ustar_mean"])
+        #if ustar_threshold!=float(c.missing_value):
+            #good_values.append(ustar_threshold)
+    #ustar_threshold_mean = numpy.sum(numpy.array(good_values))/len(good_values)
+    ## now loop over the years in the data to apply the ustar threshold
+    #for year in year_list:
+        #start_date = str(year)+"-01-01 00:30"
+        #if ts==60: start_date = str(year)+"-01-01 01:00"
+        #end_date = str(int(year)+1)+"-01-01 00:00"
+        ## get the ustar threshold
+        #ustar_threshold = float(ustar_dict[year]["ustar_mean"])
+        #if ustar_threshold==float(c.missing_value): ustar_threshold = ustar_threshold_mean
+        #ER_attr["ustar_threshold_"+str(year)] = str(ustar_threshold)
+        ## get the start and end datetime indices
+        #si = qcutils.GetDateIndex(ldt,start_date,ts=ts,default=0,match='exact')
+        #ei = qcutils.GetDateIndex(ldt,end_date,ts=ts,default=len(ldt),match='exact')
+        ## filter out the low ustar conditions
+        #ER2[si:ei] = numpy.ma.masked_where(ustar[si:ei]<ustar_threshold,ER1[si:ei])
+        ## set the QC flag
+        #index_lowustar = numpy.ma.where(ustar[si:ei]<ustar_threshold)[0]
+        #ER_flag[si:ei][index_lowustar] = numpy.int32(64)
+
+    ## apply quantile filter
+    #if qcutils.cfoptionskeylogical(cf,Key='UseQuantileFilter',default=False):
+        #ER_attr["long_name"] = ER_attr["long_name"]+", quantile filter not used"
+        #qcutils.CreateSeries(ds,"ER_nqf",ER2,Flag=ER_flag,Attr=ER_attr)
+        #quantile_lower = float(qcutils.get_keyvaluefromcf(cf,["Options"],"QuantileValue",default="2.5"))
+        #quantile_upper = float(100) - quantile_lower
+        #q = numpy.percentile(numpy.ma.compressed(ER2),[quantile_lower,quantile_upper])
+        #ER2 = numpy.ma.masked_where((ER2<q[0])|(ER2>q[1]),ER2)
+        #index_qf = numpy.ma.where((ER2<q[0])|(ER2>q[1]))[0]
+        #ER_flag[index_qf] = numpy.int32(65)
+        #ER_attr["long_name"].replace(", quantile filter not used",", quantile filter used")
+        #ER_attr["ER_quantile"] = str(quantile_lower)+","+str(quantile_upper)
+
+    ## put the nocturnal, filtered Fc data into the data structure
+    #qcutils.CreateSeries(ds,"ER",ER2,Flag=ER_flag,Attr=ER_attr)
+    #return
+
 def GetERFromFc(cf,ds):
-    """
-    Purpose:
-     Get the observed ecosystem respiration from measurements of Fc by
-     filtering out daytime periods and periods when ustar is less than
-     a threshold value.
-     The Fsd threshold for determining day time and night time and the
-     ustar threshold are set in the [Params] section of the L5 control
-     file.
-    Usage:
-     qcrp.GetERFromFc(cf,ds)
-     where cf is a control file object
-           ds is a data structure
-    Side effects:
-     A new series called "ER" is created in the data structure.
-    Author: PRI
-    Date: August 2014
-    """
-    # needs a fecking good refactor
-    ts = int(ds.globalattributes["time_step"])
-    ldt = ds.series['DateTime']['Data']
-    # get the Fsd threshold
-    if "Options" in cf.keys():
-        if "Fsd_threshold" in cf["Options"].keys():
-            Fsd_threshold = float(cf["Options"]["Fsd_threshold"])
-        else:
-            log.warning(" No Fsd threshold in [Options] section of control file")
-            log.warning(" ... using default value of 10 W/m2")
-            Fsd_threshold = float(10)
-    else:
-        log.warning(" No [Options] section of control file for Fsd threshold")
-        log.warning(" ... using default value of 10 W/m2")
-        Fsd_threshold = float(10)
-    # get the ustar thresholds
-    if "cpd_filename" in cf["Files"]:
-        ustar_dict = get_ustarthreshold_from_cpdresults(cf)
-    else:
-        msg = " CPD results filename not in control file"
-        log.warning(msg)
-        ustar_dict = get_ustarthreshold_from_cf(cf,ldt)
-    # make sure we have an entry in ustar_dict for all years
-    start_year = ldt[0].year
-    end_year = ldt[-1].year
-    data_years = range(start_year,end_year+1)
-    ustar_years = ustar_dict.keys()
-    ustar_list = ustar_dict[ustar_years[0]]
-    for year in data_years:
-        if str(year) not in ustar_years:
-            ustar_dict[str(year)] = {}
-            for item in ustar_list:
-                ustar_dict[str(year)][item] = float(c.missing_value)
-
-    # get the data
-    Fsd,Fsd_flag,Fsd_attr = qcutils.GetSeriesasMA(ds,"Fsd")
-    if "Fsd_syn" not in ds.series.keys(): qcts.get_synthetic_fsd(ds)
-    Fsd_syn,flag,attr = qcutils.GetSeriesasMA(ds,"Fsd_syn")
-    sa,flag,attr = qcutils.GetSeriesasMA(ds,"solar_altitude")
-    ustar,ustar_flag,attr = qcutils.GetSeriesasMA(ds,"ustar")
-    Fc,Fc_flag,Fc_attr = qcutils.GetSeriesasMA(ds,"Fc")
-    # get a copy of the Fc flag
-    ER_flag = numpy.array(Fc_flag)
-
-    # only accept Fc and ustar data when both have a QC flag value of 0
-    ustar = numpy.ma.masked_where((ustar_flag!=0)|(Fc_flag!=0),ustar)
-    Fc = numpy.ma.masked_where((ustar_flag!=0)|(Fc_flag!=0),Fc)
-    index_notok = numpy.where((ustar_flag!=0)|(Fc_flag!=0))[0]
-    #ustar_flag[index_notok] = numpy.int32(61)
-    ER_flag[index_notok] = numpy.int32(61)
-    # check for any missing data
-    for item,label in zip([Fsd,Fsd_syn],["Fsd","Fsd_syn"]):
-        index = numpy.where(numpy.ma.getmaskarray(item)==True)[0]
-        if len(index)!=0:
-            log.error(" GetERFromFc: missing data in series "+label)
-            raise Exception("GetERFromFc: missing data in series "+label)
-
-    # apply the day/night filter
-    # get the day/night filter type from the control file
-    daynightfilter_type = qcutils.get_keyvaluefromcf(cf,["Options"],"DayNightFilter",default="Fsd")
-    # trap any types not implemented and set to Fsd
-    if daynightfilter_type not in ["Fsd","sa"]: daynightfilter_type = "Fsd"
-    # make the attribute dictionary first so we can add the ustar thresholds to it
-    ER_attr = qcutils.MakeAttributeDictionary(long_name='Ecosystem respiration (observed)',units=Fc_attr["units"])
-    Fsd_attr["long_name"] = "Incoming shortwave radiation, filtered"
-    Fsd_attr["units"] = "W/m2"
-
-    # apply the day/night filter
-    if daynightfilter_type=="Fsd":
-        # we are using Fsd and possibly Fsd_syn to define day/night
-        ER_attr["Fsd_threshold"] = str(Fsd_threshold)
-        #Fsd_attr["Fsd_threshold"] = str(Fsd_threshold)
-        if qcutils.cfoptionskeylogical(cf,Key='UseFsdsyn_threshold',default=False):
-            # we are using Fsd and Fsd_syn
-            ER1 = numpy.ma.masked_where((Fsd>Fsd_threshold)|(Fsd_syn>Fsd_threshold),Fc,copy=True)
-            Fsd1 = numpy.ma.masked_where((Fsd>Fsd_threshold)|(Fsd_syn>Fsd_threshold),Fsd,copy=True)
-            index_daynight = numpy.ma.where((Fsd>Fsd_threshold)|(Fsd_syn>Fsd_threshold))[0]
-            ER_flag[index_daynight] = numpy.int32(62)
-        else:
-            # we are only using Fsd
-            ER1 = numpy.ma.masked_where(Fsd>Fsd_threshold,Fc,copy=True)
-            Fsd1 = numpy.ma.masked_where(Fsd>Fsd_threshold,Fsd,copy=True)
-            index_daynight = numpy.ma.where(Fsd>Fsd_threshold)[0]
-            ER_flag[index_daynight] = numpy.int32(62)
-    else:
-        sa_threshold = int(qcutils.get_keyvaluefromcf(cf,["Options"],"sa_threshold",default="-5"))
-        ER_attr["sa_threshold"] = str(sa_threshold)
-        Fsd_attr["sa_threshold"] = str(sa_threshold)
-        ER1 = numpy.ma.masked_where(sa>sa_threshold,Fc,copy=True)
-        Fsd1 = numpy.ma.masked_where(sa>sa_threshold,Fsd,copy=True)
-        index_daynight = numpy.ma.where(sa>sa_threshold)[0]
-        ER_flag[index_daynight] = numpy.int32(63)
-    # get a copy of the day/night filtered data
-    ER2 = numpy.ma.array(ER1)
-    Fsd2 = numpy.ma.array(Fsd1)
-
-    # loop over the list of ustar thresholds
-    year_list = ustar_dict.keys()
-    year_list.sort()
-    # get the average of good ustar threshold values
-    good_values = []
-    for year in year_list:
-        ustar_threshold = float(ustar_dict[year]["ustar_mean"])
-        if ustar_threshold!=float(c.missing_value):
-            good_values.append(ustar_threshold)
-    ustar_threshold_mean = numpy.sum(numpy.array(good_values))/len(good_values)
-    # now loop over the years in the data to apply the ustar threshold
-    for year in year_list:
-        start_date = str(year)+"-01-01 00:30"
-        if ts==60: start_date = str(year)+"-01-01 01:00"
-        end_date = str(int(year)+1)+"-01-01 00:00"
-        # get the ustar threshold
-        ustar_threshold = float(ustar_dict[year]["ustar_mean"])
-        if ustar_threshold==float(c.missing_value): ustar_threshold = ustar_threshold_mean
-        ER_attr["ustar_threshold_"+str(year)] = str(ustar_threshold)
-        # get the start and end datetime indices
-        si = qcutils.GetDateIndex(ldt,start_date,ts=ts,default=0,match='exact')
-        ei = qcutils.GetDateIndex(ldt,end_date,ts=ts,default=len(ldt),match='exact')
-        # filter out the low ustar conditions
-        ER2[si:ei] = numpy.ma.masked_where(ustar[si:ei]<ustar_threshold,ER1[si:ei])
-        Fsd2[si:ei] = numpy.ma.masked_where(ustar[si:ei]<ustar_threshold,Fsd1[si:ei])
-        # set the QC flag
-        index_lowustar = numpy.ma.where(ustar[si:ei]<ustar_threshold)[0]
-        ER_flag[si:ei][index_lowustar] = numpy.int32(64)
-
-    # apply quantile filter
-    if qcutils.cfoptionskeylogical(cf,Key='UseQuantileFilter',default=False):
-        ER_attr["long_name"] = ER_attr["long_name"]+", quantile filter not used"
-        Fsd_attr["long_name"] = Fsd_attr["long_name"]+", quantile filter not used"
-        qcutils.CreateSeries(ds,"ER_nqf",ER2,Flag=ER_flag,Attr=ER_attr)
-        qcutils.CreateSeries(ds,"Fsd_nqf",Fsd2,Flag=Fsd_flag,Attr=Fsd_attr)
-        quantile_lower = float(qcutils.get_keyvaluefromcf(cf,["Options"],"QuantileValue",default="2.5"))
-        quantile_upper = float(100) - quantile_lower
-        q = numpy.percentile(numpy.ma.compressed(ER2),[quantile_lower,quantile_upper])
-        ER2 = numpy.ma.masked_where((ER2<q[0])|(ER2>q[1]),ER2)
-        Fsd2 = numpy.ma.masked_where((ER2<q[0])|(ER2>q[1]),Fsd2)
-        index_qf = numpy.ma.where((ER2<q[0])|(ER2>q[1]))[0]
-        ER_flag[index_qf] = numpy.int32(65)
-        Fsd_flag[index_qf] = numpy.int32(65)
-        ER_attr["long_name"].replace(", quantile filter not used",", quantile filter used")
-        ER_attr["ER_quantile"] = str(quantile_lower)+","+str(quantile_upper)
-        Fsd_attr["long_name"].replace(", quantile filter not used",", quantile filter used")
-        Fsd_attr["ER_quantile"] = str(quantile_lower)+","+str(quantile_upper)
-
-    # put the nocturnal, filtered Fc data into the data structure
-    qcutils.CreateSeries(ds,"ER",ER2,Flag=ER_flag,Attr=ER_attr)
-    qcutils.CreateSeries(ds,"Fsd_filtered",Fsd2,Flag=Fsd_flag,Attr=Fsd_attr)
-    return
-
-def GetERFromFc2(cf,ds):
     """
     Purpose:
      Get the observed ecosystem respiration from measurements of Fc by
@@ -592,8 +571,7 @@ def GetERFromFc2(cf,ds):
     ustar_dict = get_ustar_thresholds(cf,ldt)
     # get the data
     Fsd,Fsd_flag,Fsd_attr = qcutils.GetSeriesasMA(ds,"Fsd")
-    if "Fsd_syn" not in ds.series.keys(): qcts.get_synthetic_fsd(ds)
-    Fsd_syn,flag,attr = qcutils.GetSeriesasMA(ds,"Fsd_syn")
+    if "solar_altitude" not in ds.series.keys(): qcts.get_synthetic_fsd(ds)
     sa,flag,attr = qcutils.GetSeriesasMA(ds,"solar_altitude")
     ustar,ustar_flag,attr = qcutils.GetSeriesasMA(ds,"ustar")
     Fc,Fc_flag,Fc_attr = qcutils.GetSeriesasMA(ds,"Fc")
@@ -609,8 +587,8 @@ def GetERFromFc2(cf,ds):
     units = Fc_attr["units"]
     ER_attr = qcutils.MakeAttributeDictionary(long_name=long_name,units=units)
     # check for any missing data
-    series_list = [Fsd,Fsd_syn,sa,ustar,Fc]
-    label_list = ["Fsd","Fsd_syn","sa","ustar","Fc"]
+    series_list = [Fsd,sa,ustar,Fc]
+    label_list = ["Fsd","sa","ustar","Fc"]
     result = check_for_missing_data(series_list,label_list)
     if result!=1: return 0
     # only accept Fc and ustar data when both have a QC flag value of 0
@@ -620,11 +598,15 @@ def GetERFromFc2(cf,ds):
     ER_flag[index_notok] = numpy.int32(61)
     # get the indicator series
     turbulence_indicator = get_turbulence_indicator(cf,ldt,ustar,L,ustar_dict,ts,ER_attr)
-    daynight_indicator = get_daynight_indicator(cf,Fsd,Fsd_syn,sa,ER_attr)
+    idx = numpy.where(turbulence_indicator==0)[0]
+    ER_flag[idx] = numpy.int32(64)
+    daynight_indicator = get_daynight_indicator(cf,Fsd,sa,ER_attr)
+    idx = numpy.where(daynight_indicator==0)[0]
+    ER_flag[idx] = numpy.int32(63)
     er_indicator = turbulence_indicator*daynight_indicator
     # apply the filter to get ER from Fc
     ER = numpy.ma.masked_where(er_indicator==0,Fc,copy=True)
-    qcutils.CreateSeries(ds,"ER2",ER,Flag=ER_flag,Attr=ER_attr)
+    qcutils.CreateSeries(ds,"ER",ER,Flag=ER_flag,Attr=ER_attr)
 
     return 1
 
@@ -646,7 +628,7 @@ def get_ustar_thresholds(cf,ldt):
     cleanup_ustar_dict(ldt,ustar_dict)
     return ustar_dict
 
-def get_daynight_indicator(cf,Fsd,Fsd_syn,sa,ER_attr):
+def get_daynight_indicator(cf,Fsd,sa,ER_attr):
     # get the day/night indicator
     nRecs = len(Fsd)
     daynight_indicator = numpy.zeros(nRecs,dtype=numpy.int32)
@@ -657,9 +639,9 @@ def get_daynight_indicator(cf,Fsd,Fsd_syn,sa,ER_attr):
         # get the Fsd threshold
         Fsd_threshold = int(qcutils.get_keyvaluefromcf(cf,["Options"],"Fsd_threshold",default=10))
         ER_attr["Fsd_threshold"] = str(Fsd_threshold)
-        # we are using Fsd and Fsd_syn to define day/night
-        index = numpy.ma.where((Fsd<Fsd_threshold)|(Fsd_syn<Fsd_threshold))[0]
-        daynight_indicator[index] = numpy.int32(1)
+        # we are using Fsd only to define day/night
+        idx = numpy.ma.where(Fsd<Fsd_threshold)[0]
+        daynight_indicator[idx] = numpy.int32(1)
     elif filter_type.lower()=="sa":
         # get the solar altitude threshold
         sa_threshold = int(qcutils.get_keyvaluefromcf(cf,["Options"],"sa_threshold",default="-5"))

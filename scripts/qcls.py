@@ -317,8 +317,8 @@ def l6qc(cf,ds5):
     # check to see if we have any imports
     qcgf.ImportSeries(cf,ds6)
     # filter Fc for night time and ustar threshold, write to ds as "ER"
-    qcrp.GetERFromFc(cf,ds6)
-    result = qcrp.GetERFromFc2(cf,ds6)
+    #qcrp.GetERFromFc(cf,ds6)
+    result = qcrp.GetERFromFc(cf,ds6)
     if result==0: return
     # estimate ER using SOLO
     qcrp.ERUsingSOLO(cf,ds6)

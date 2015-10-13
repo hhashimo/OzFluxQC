@@ -60,6 +60,10 @@ def get_configs_dict(cf,ds):
                                      default="False")
     configs_dict["output_plots"] = (opt=="True")
     opt = qcutils.get_keyvaluefromcf(cf,["ER","ER_LT","ERUsingLloydTaylor"],
+                                     "target",
+                                     default="ER")
+    configs_dict["target"] = str(opt)
+    opt = qcutils.get_keyvaluefromcf(cf,["ER","ER_LT","ERUsingLloydTaylor"],
                                      "drivers",
                                      default="['Ta']")
     configs_dict["drivers"] = ast.literal_eval(opt)[0]
@@ -79,7 +83,8 @@ def get_data_dict(ds,configs_dict):
     data = {}
     # NOTE: series are ndarrays not masked arrays
     Fc,Fc_flag,a = qcutils.GetSeries(ds,"Fc")
-    ER,ER_flag,a = qcutils.GetSeries(ds,"ER2")
+    target = configs_dict["target"]
+    ER,ER_flag,a = qcutils.GetSeries(ds,target)
     Fsd,Fsd_flag,a = qcutils.GetSeries(ds,"Fsd")
     T_label = configs_dict["drivers"]
     T,T_flag,a = qcutils.GetSeries(ds,T_label)
@@ -92,12 +97,12 @@ def get_data_dict(ds,configs_dict):
                         numpy.nan,ustar)
     ER = numpy.where((ER_flag!=0)|(ER==c.missing_value),
                      numpy.nan,ER)
-    Fsd = numpy.where((Fsd_flag!=0)|(Fsd==c.missing_value),
-                      numpy.nan,Fsd)
-    T = numpy.where((T_flag!=0)|(T==c.missing_value),
-                    numpy.nan,T)
-    VPD = numpy.where((VPD_flag!=0)|(VPD==c.missing_value),
-                      numpy.nan,VPD)
+    #Fsd = numpy.where((Fsd_flag!=0)|(Fsd==c.missing_value),
+                      #numpy.nan,Fsd)
+    #T = numpy.where((T_flag!=0)|(T==c.missing_value),
+                    #numpy.nan,T)
+    #VPD = numpy.where((VPD_flag!=0)|(VPD==c.missing_value),
+                      #numpy.nan,VPD)
     # put the data in the dictionary
     #data["NEE"] = Fc
     data["NEE"] = ER
