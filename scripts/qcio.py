@@ -297,6 +297,106 @@ def read_eddypro_full(csvname):
     ds.globalattributes["nc_nrecs"] = nRecs
     return ds
 
+def reddyproc_write_csv(cf):
+    # this needs to be re-written!
+    # get the file names
+    ncFileName = get_infilenamefromcf(cf)
+    csvFileName = get_outfilenamefromcf(cf)
+    # open the csv file
+    csvfile = open(csvFileName,'wb')
+    writer = csv.writer(csvfile,dialect='excel-tab')
+    # read the netCDF file
+    ds = nc_read_series(ncFileName)
+    # get the datetime series
+    dt = ds.series["DateTime"]["Data"]
+    ts = int(ds.globalattributes["time_step"])
+    # get the start and end indices for whole days
+    start_date = dt[0]
+    end_date = dt[-1]
+    si = qcutils.GetDateIndex(dt,str(start_date),ts=ts,default=0,match='startnextday')
+    ei = qcutils.GetDateIndex(dt,str(end_date),ts=ts,default=len(dt)-1,match='endpreviousday')
+    # get the date and time data
+    Year,flag,attr = qcutils.GetSeries(ds,'Year',si=si,ei=ei)
+    Ddd,flag,attr = qcutils.GetSeries(ds,'Ddd',si=si,ei=ei)
+    Hhh,flag,attr = qcutils.GetSeries(ds,'Hdh',si=si,ei=ei)
+    # get the data
+    data = {}
+    series_list = cf["Variables"].keys()
+    for series in series_list:
+        data[series] = {}
+        ncname = cf["Variables"][series]["ncname"]
+        if ncname not in ds.series.keys():
+            log.error("Series "+ncname+" not in netCDF file, skipping ...")
+            series_list.remove(series)
+            continue
+        d,f,a = qcutils.GetSeries(ds,ncname,si=si,ei=ei)
+        data[series]["Data"] = d
+        data[series]["Flag"] = f
+        data[series]["Attr"] = a
+        fmt = cf["Variables"][series]["format"]
+        if "." in fmt:
+            numdec = len(fmt) - (fmt.index(".") + 1)
+            strfmt = "{0:."+str(numdec)+"f}"
+        else:
+            strfmt = "{0:d}"
+        data[series]["fmt"] = strfmt
+    # adjust units as required
+    # this could be done better, pete!
+    for series in series_list:
+        if series=="NEE":
+            if data[series]["Attr"]["units"]=='mg/m2/s':
+                data[series]["Data"] = mf.Fc_umolpm2psfrommgpm2ps(data[series]["Data"])
+                data[series]["Attr"]["units"] = "umolm-2s-1"
+            elif data[series]["Attr"]["units"]=='umol/m2/s':
+                data[series]["Attr"]["units"] = "umolm-2s-1"
+            else:
+                msg = " reddyproc_write_csv: unrecognised units for "+series+", returning ..."
+                return 0
+        if series=="LE" or series=="H" or series=="Rg":
+            if data[series]["Attr"]["units"]=='W/m2':
+                data[series]["Attr"]["units"] = "Wm-2"
+            else:
+                msg = " reddyproc_write_csv: unrecognised units for "+series+", returning ..."
+                return 0
+        if series=="Tair" or series=="Tsoil":
+            if data[series]["Attr"]["units"]=='C':
+                data[series]["Attr"]["units"] = "degC"
+            else:
+                msg = " reddyproc_write_csv: unrecognised units for "+series+", returning ..."
+                return 0            
+        if series=="rH" and data[series]["Attr"]["units"] in ["fraction","frac"]:
+            data[series]["Data"] = float(100)*data[series]["Data"]
+            data[series]["Attr"]["units"] = "%"
+        if series=="VPD" and data[series]["Attr"]["units"]=="kPa":
+            data[series]["Data"] = float(10)*data[series]["Data"]
+            data[series]["Attr"]["units"] = "hPa"
+        if series=="Ustar":
+            if data[series]["Attr"]["units"]=="m/s":
+                data[series]["Attr"]["units"] = "ms-1"
+    # write the variable names to the csv file
+    row_list = ['Year','DoY','Hour']
+    for item in series_list:
+        row_list.append(item)
+    writer.writerow(row_list)
+    # write the units line to the csv file
+    units_list = ["-","-","-"]
+    for item in series_list:
+        units_list.append(data[item]["Attr"]["units"])
+    writer.writerow(units_list)
+    # now write the data
+    for i in range(len(Year)):
+        data_list = ['%d'%(Year[i]),'%d'%(int(Ddd[i])),'%.1f'%(Hhh[i])]
+        for series in series_list:
+            strfmt = data[series]["fmt"]
+            if "d" in strfmt:
+                data_list.append(strfmt.format(int(round(data[series]["Data"][i]))))
+            else:
+                data_list.append(strfmt.format(data[series]["Data"][i]))
+        writer.writerow(data_list)
+    # close the csv file
+    csvfile.close()
+    return
+
 def smap_datetodatadictionary(ds,data_dict,nperday,ndays,si,ei):
     ldt = ds.series["DateTime"]["Data"][si:ei+1]
     # do the months

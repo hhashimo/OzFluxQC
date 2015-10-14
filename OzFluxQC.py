@@ -131,8 +131,9 @@ class qcgui(tk.Tk):
         filemenu.add_command(label="Split netCDF",command=self.do_ncsplit)
         filemenu.add_command(label="List netCDF contents",command=self.option_not_implemented)
         fileconvertmenu = tk.Menu(menubar,tearoff=0)
-        fileconvertmenu.add_command(label="V2.7 to V2.8",command=self.do_v27tov28)
+        #fileconvertmenu.add_command(label="V2.7 to V2.8",command=self.do_v27tov28)
         fileconvertmenu.add_command(label="nc to FluxNet",command=self.do_nc2fn)
+        fileconvertmenu.add_command(label="nc to REddyProc",command=self.do_nc2reddyproc)
         fileconvertmenu.add_command(label="nc to SMAP",command=self.do_nc2smap)
         fileconvertmenu.add_command(label="nc to xls",command=self.do_nc2xls)
         fileconvertmenu.add_command(label="xls to nc",command=self.option_not_implemented)
@@ -549,6 +550,16 @@ class qcgui(tk.Tk):
         if len(self.cf)==0: self.do_progress(text='Waiting for input ...'); return
         self.do_progress(text='Converting nc to FluxNet CSV ...')
         qcio.fn_write_csv(self.cf)
+        logging.info(' Finished conversion')
+        self.do_progress(text='Finished conversion')
+
+    def do_nc2reddyproc(self):
+        """ Calls qcio.reddyproc_write_csv."""
+        self.do_progress(text='Load control file ...')
+        cf = qcio.load_controlfile(path='controlfiles')
+        if len(cf)==0: self.do_progress(text='Waiting for input ...'); return
+        self.do_progress(text='Converting nc to REddyProc CSV ...')
+        qcio.reddyproc_write_csv(cf)
         logging.info(' Finished conversion')
         self.do_progress(text='Finished conversion')
 
