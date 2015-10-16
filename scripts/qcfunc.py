@@ -1,4 +1,6 @@
+import datetime
 import meteorologicalfunctions as mf
+import numpy
 import qcutils
 
 def AhfromRH(ds,Ah_out,RH_in,Ta_in):
@@ -65,6 +67,21 @@ def AhfromMR(ds,Ah_out,MR_in,Ta_in,ps_in):
                                               height=MR_attr["height"],
                                               units="g/m3")
     qcutils.CreateSeries(ds,Ah_out,Ah_data,FList=[MR_in,Ta_in,ps_in],Attr=Ah_attr)
+    return 1
+
+def DateTimeFromDoY(ds,Year_in,DoY_in,Hdh_in):
+    nRecs = int(ds.globalattributes["nc_nrecs"])
+    year,f,a = qcutils.GetSeries(ds,Year_in)
+    doy,f,a = qcutils.GetSeries(ds,DoY_in)
+    hdh,f,a = qcutils.GetSeries(ds,Hdh_in)
+    hour = numpy.array(hdh,dtype=numpy.integer)
+    minute = numpy.array((hdh-hour)*60,dtype=numpy.integer)
+    dt = [datetime.datetime(int(y),1,1,h,m)+datetime.timedelta(int(d)-1) for y,d,h,m in zip(year,doy,hour,minute)]
+    ds.series["DateTime"]["Data"] = dt
+    ds.series["DateTime"]["Flag"] = numpy.zeros(nRecs,dtype=numpy.int32)
+    ds.series["DateTime"]["Attr"] = {}
+    ds.series["DateTime"]["Attr"]["long_name"] = "Datetime in local timezone"
+    ds.series["DateTime"]["Attr"]["units"] = "None"
     return 1
 
 def test(arg1,arg2):

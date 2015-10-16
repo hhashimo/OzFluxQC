@@ -1,11 +1,11 @@
 [Options]
     NumberOfDimensions = 3                       # number of dimensions for output netCDF file
     MaxGapInterpolate  = 3                       # maximum gap length (hours) for filling by interpolation
-    FixTimeStepMethod  = interpolate             # interpolate/round
+    FixTimeStepMethod  = round                   # interpolate/round
 
 [Files]
     [[Out]]
-        ncFileName = ../Sites/<site_name>/Data/Processed/all/<site_name>_<start_year>_to_<end_year>_L3.nc
+        ncFileName = ../Sites/<site_name>/Data/Processed/all/<site_name>_L3.nc
     [[In]]
         0 = ../Sites/<site_name>/Data/Processed/2001/<site_name>_2001_L3.nc
         1 = ../Sites/<site_name>/Data/Processed/2002/<site_name>_2002_L3.nc

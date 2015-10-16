@@ -143,7 +143,7 @@ class qcgui(tk.Tk):
         menubar.add_cascade(label="File",menu=filemenu)
         # now the "Run" menu
         runmenu = tk.Menu(menubar,tearoff=0)
-        runmenu.add_command(label="Read L1 Excel file",command=self.do_xl2ncL1)
+        runmenu.add_command(label="Read L1 file",command=self.do_xl2ncL1)
         runmenu.add_command(label="Do L2 QA/QC",command=self.do_l2qc)
         runmenu.add_command(label="Do L3 processing",command=self.do_l3qc)
         runmenu.add_command(label="Do L4 gap fill (drivers)",command=self.do_l4qc)

@@ -24,6 +24,7 @@ import cfg
 import constants as c
 import meteorologicalfunctions as mf
 import qcck
+import qcfunc
 import qcts
 import qcutils
 
@@ -141,6 +142,87 @@ def copy_datastructure(cf,ds_in):
                         pass
     return ds_out
 
+#def csv_read_series(cf):
+    #"""
+    #Purpose:
+     #Reads a CSV file and returns the data in a data structure.
+     #The CSV file must conform to the following rules:
+      #1) the first line of the CSV file is a header line that contains
+         #the variable names for each column
+      #2) the second and all subsequent lines must contain data
+      #3) the first colume must contain a string representation
+         #of the datetime
+      #4) missing data in the CSV file is represented by a blank
+         #or by "NA".
+    #Usage:
+     #ds = csv_read_series(cf)
+     #where cf is a control file
+           #ds is a data structure
+    #Author: PRI
+    #Date: September 2015
+    #"""
+    #ds = DataStructure()
+    ## get the filename
+    #csv_name = get_infilenamefromcf(cf)
+    #if len(csv_name)==0:
+        #log.error(' in_filename not found in control file')
+        #return ds
+    #if not os.path.exists(csv_name):
+        #log.error(' Input file '+csv_name+' specified in control file not found')
+        #return ds
+    ## get the header and first data rows
+    #FirstDataRow = int(qcutils.get_keyvaluefromcf(cf,["Files"],"in_firstdatarow")) - 1
+    #header_row = int(qcutils.get_keyvaluefromcf(cf,["Files"],"in_headerrow")) - 1
+    ## get the CSV workbook object
+    #log.info(" Opening and reading CSV file "+csv_name)
+    ## get the header line from the CSV file
+    #csv_file = open(csv_name,'rb')
+    #csv_reader = csv.reader(csv_file, delimiter=',')
+    #header = csv_reader.next()
+    ## construct the dtype list for use in numpy.genfromtxt
+    #dtype = [(header[0],'object')]+[(a,'f') for a in header[1:]]    
+    ## converter function for datetimes
+    #convert_datetime = lambda x: dateutil.parser.parse(x)
+    ## read the CSV file
+    #missing_values = "NA,NAN"
+    #data = numpy.genfromtxt(csv_name,delimiter=",",skip_header=0,names=True,converters={0:convert_datetime},
+                            #dtype=dtype,missing_values="NA",filling_values=float(-9999))
+    ## set some global attributes
+    #nRecs = len(data[header[0]])
+    #ds.globalattributes["nc_nrecs"] = str(nRecs)
+    #ds.globalattributes['featureType'] = 'timeseries'
+    #ds.globalattributes['csv_filename'] = csv_name
+    #ds.globalattributes['xl_datemode'] = str(0)
+    #s = os.stat(csv_name)
+    #t = time.localtime(s.st_mtime)
+    #ds.globalattributes['csv_moddatetime'] = str(datetime.datetime(t[0],t[1],t[2],t[3],t[4],t[5]))
+    ## get the datetime
+    #ds.series["DateTime"] = {}
+    #ds.series["DateTime"]["Data"] = list(data["TIMESTAMP"])
+    #ds.series["DateTime"]["Flag"] = numpy.zeros(nRecs,dtype=numpy.int32)
+    #ds.series["DateTime"]["Attr"] = {}
+    #ds.series["DateTime"]["Attr"]["long_name"] = "Datetime in local timezone"
+    #ds.series["DateTime"]["Attr"]["units"] = "None"
+    ## get the variables
+    #var_list = cf["Variables"].keys()
+    #if "xlDateTime" in var_list: var_list.remove("xlDateTime")
+    #for var in var_list:
+        #if "csv" in cf["Variables"][var]:
+            #csv_var_name = cf["Variables"][var]["csv"]["name"]
+        #elif "xl" in cf["Variables"][var]:
+            #csv_var_name = cf["Variables"][var]["xl"]["name"]
+        #else:
+            #log.error(" No csv or xl section found in control file for "+var+", skipping ...")
+            #continue
+        #csv_var_name = csv_var_name.replace(".","")
+        #if csv_var_name not in data.dtype.names:
+            #log.warning("Requested variable "+csv_var_name+" not found in CSV file, skipping ...")
+            #continue
+        #ds.series[var] = {}
+        #ds.series[var]["Data"] = data[csv_var_name]
+        #ds.series[var]["Flag"] = numpy.zeros(nRecs,dtype=numpy.int32)
+    #return ds
+
 def csv_read_series(cf):
     """
     Purpose:
@@ -160,66 +242,98 @@ def csv_read_series(cf):
     Author: PRI
     Date: September 2015
     """
-    ds = DataStructure()
     # get the filename
-    csv_name = get_infilenamefromcf(cf)
-    if len(csv_name)==0:
+    csv_filename = get_infilenamefromcf(cf)
+    if len(csv_filename)==0:
         log.error(' in_filename not found in control file')
         return ds
-    if not os.path.exists(csv_name):
-        log.error(' Input file '+csv_name+' specified in control file not found')
+    if not os.path.exists(csv_filename):
+        log.error(' Input file '+csv_filename+' specified in control file not found')
         return ds
     # get the header and first data rows
-    FirstDataRow = int(qcutils.get_keyvaluefromcf(cf,["Files"],"in_firstdatarow")) - 1
-    header_row = int(qcutils.get_keyvaluefromcf(cf,["Files"],"in_headerrow")) - 1
-    # get the CSV workbook object
-    log.info(" Opening and reading CSV file "+csv_name)
-    # get the header line from the CSV file
-    csv_file = open(csv_name,'rb')
-    csv_reader = csv.reader(csv_file, delimiter=',')
-    header = csv_reader.next()
-    # construct the dtype list for use in numpy.genfromtxt
-    dtype = [(header[0],'object')]+[(a,'f') for a in header[1:]]    
-    # converter function for datetimes
-    convert_datetime = lambda x: dateutil.parser.parse(x)
-    # read the CSV file
-    missing_values = "NA,NAN"
-    data = numpy.genfromtxt(csv_name,delimiter=",",skip_header=0,names=True,converters={0:convert_datetime},
-                            dtype=dtype,missing_values="NA",filling_values=float(-9999))
+    opt = qcutils.get_keyvaluefromcf(cf,["Files"],"in_firstdatarow",default=2)
+    first_data_row = int(opt)
+    opt = qcutils.get_keyvaluefromcf(cf,["Files"],"in_headerrow",default=1)
+    header_row = int(opt)
+    opt = qcutils.get_keyvaluefromcf(cf,["Files"],"in_unitsrow",default=-1)
+    units_row = int(opt)
+    # sniff the file to find out the dialect and the delimiter
+    csv_file = open(csv_filename,'rb')
+    dialect = csv.Sniffer().sniff(csv_file.readline(), [' ',',','\t'])
+    csv_file.seek(0)
+    csv_reader = csv.reader(csv_file,dialect)
+    # get the header and units lines
+    for i in range(1,first_data_row):
+        line = csv_reader.next()
+        if i==header_row: header = line
+        if units_row!=-1:
+            if i==units_row: units = line
+    csv_file.close()
+    # get a list of series to be read from CSV file and check
+    # to make sure the requested variables are in the csv file,
+    # dump them if they aren't
+    csv_varnames = {}
+    for item in cf["Variables"].keys():
+        if "csv" in cf["Variables"][item].keys():
+            opt = qcutils.get_keyvaluefromcf(cf,["Variables",item,"csv"],"name",default="")
+            if opt in header:
+                csv_varnames[item] = str(opt)
+        elif "xl" in cf["Variables"][item].keys():
+            opt = qcutils.get_keyvaluefromcf(cf,["Variables",item,"xl"],"name",default="")
+            if csv_varname in header:
+                csv_varnames[item] = str(opt)
+        elif "Function" not in cf["Variables"][item].keys():
+            msg = " No csv, xl or Function section in control file for "+item
+            log.info(msg)
+    var_list = csv_varnames.keys()
+    csv_list = [csv_varnames[x] for x in var_list]
+    # read the csv file using numpy's genfromtxt
+    log.info(" Reading from "+csv_filename)
+    skip = first_data_row-1
+    data = numpy.genfromtxt(csv_filename,delimiter=dialect.delimiter,skip_header=skip,
+                            names=header,usecols=csv_list,filling_values=float(-9999),
+                            dtype=None)
+    # get a data structure
+    ds = DataStructure()
     # set some global attributes
     nRecs = len(data[header[0]])
     ds.globalattributes["nc_nrecs"] = str(nRecs)
     ds.globalattributes['featureType'] = 'timeseries'
-    ds.globalattributes['csv_filename'] = csv_name
+    ds.globalattributes['csv_filename'] = csv_filename
     ds.globalattributes['xl_datemode'] = str(0)
-    s = os.stat(csv_name)
+    s = os.stat(csv_filename)
     t = time.localtime(s.st_mtime)
     ds.globalattributes['csv_moddatetime'] = str(datetime.datetime(t[0],t[1],t[2],t[3],t[4],t[5]))
-    # get the datetime
-    ds.series["DateTime"] = {}
-    ds.series["DateTime"]["Data"] = list(data["TIMESTAMP"])
-    ds.series["DateTime"]["Flag"] = numpy.zeros(nRecs,dtype=numpy.int32)
-    ds.series["DateTime"]["Attr"] = {}
-    ds.series["DateTime"]["Attr"]["long_name"] = "Datetime in local timezone"
-    ds.series["DateTime"]["Attr"]["units"] = "None"
-    # get the variables
-    var_list = cf["Variables"].keys()
-    if "xlDateTime" in var_list: var_list.remove("xlDateTime")
+    # get the variables and put them into the data structure
+    # we'll deal with DateTime and xlDateTime separately
+    for item in ["xlDateTime","DateTime"]:
+        if item in var_list: var_list.remove(item)
     for var in var_list:
-        if "csv" in cf["Variables"][var]:
-            csv_var_name = cf["Variables"][var]["csv"]["name"]
-        elif "xl" in cf["Variables"][var]:
-            csv_var_name = cf["Variables"][var]["xl"]["name"]
-        else:
-            log.error(" No csv or xl section found in control file for "+var+", skipping ...")
-            continue
-        csv_var_name = csv_var_name.replace(".","")
-        if csv_var_name not in data.dtype.names:
-            log.warning("Requested variable "+csv_var_name+" not found in CSV file, skipping ...")
-            continue
         ds.series[var] = {}
-        ds.series[var]["Data"] = data[csv_var_name]
+        ds.series[var]["Data"] = data[csv_varnames[var]]
         ds.series[var]["Flag"] = numpy.zeros(nRecs,dtype=numpy.int32)
+    # now deal with the datetime
+    if "DateTime" not in cf["Variables"]:
+        msg = "No [[DateTime]] section in control file ..."
+        raise Exception(msg)
+    ds.series["DateTime"] = {}
+    if "Function" in cf["Variables"]["DateTime"]:
+        function_string = cf["Variables"]["DateTime"]["Function"]["func"]
+        function_name = function_string.split("(")[0]
+        function_args = function_string.split("(")[1].replace(")","").split(",")
+        result = getattr(qcfunc,function_name)(ds,*function_args)
+    else:
+        try:
+            dt = [dateutil.parser.parse(x) for x in data[header[0]]]
+            ds.series["DateTime"]["Data"] = dt
+            ds.series["DateTime"]["Flag"] = numpy.zeros(nRecs,dtype=numpy.int32)
+            ds.series["DateTime"]["Attr"] = {}
+            ds.series["DateTime"]["Attr"]["long_name"] = "Datetime in local timezone"
+            ds.series["DateTime"]["Attr"]["units"] = "None"
+        except:
+            msg = "Unable to parse the first column in CSV file as a datetime string"
+            raise Exception(msg)
+
     return ds
 
 def nc_2xls(ncfilename,outputlist=None):
@@ -616,7 +730,7 @@ def xl2nc(cf,InLevel):
     # create new variables using user defined functions
     qcts.DoFunctions(cf,ds)
     # create a series of synthetic downwelling shortwave radiation
-    qcts.get_synthetic_fsd(ds)
+    #qcts.get_synthetic_fsd(ds)
     # write the data to the netCDF file
     outfilename = get_outfilenamefromcf(cf)
     ncFile = nc_open_write(outfilename)

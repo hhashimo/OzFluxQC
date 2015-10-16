@@ -1343,6 +1343,8 @@ def DoFunctions(cf,ds):
     """
     implemented_functions = [name for name,data in inspect.getmembers(qcfunc,inspect.isfunction)]
     for var in cf["Variables"].keys():
+        # datetime functions handled elsewhere for now
+        if var=="DateTime": continue
         if "Function" not in cf["Variables"][var].keys(): continue
         if "func" not in cf["Variables"][var]["Function"].keys():
             msg = " DoFunctions: 'func' keyword not found in [Functions] for "+var
