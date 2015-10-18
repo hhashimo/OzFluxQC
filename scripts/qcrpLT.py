@@ -411,19 +411,22 @@ def rpLT_initplot(**kwargs):
     pd["ts_height"] = (1.0 - pd["margin_top"] - pd["ts_bottom"])/float(pd["nDrivers"]+1)
     return pd
 
-def rpLT_plot(pd,ds,series,driverlist,targetlabel,outputlabel,solo_info,si=0,ei=-1):
+def rpLT_plot(pd,ds,series,driverlist,targetlabel,outputlabel,LT_info,si=0,ei=-1):
     """ Plot the results of the Lloyd-Taylor run. """
     # get the time step
     ts = int(ds.globalattributes['time_step'])
     # get a local copy of the datetime series
-    dt = ds.series['DateTime']['Data'][si:ei+1]
+    if ei==-1:
+        dt = ds.series['DateTime']['Data'][si:]
+    else:
+        dt = ds.series['DateTime']['Data'][si:ei+1]
     xdt = numpy.array(dt)
     Hdh,f,a = qcutils.GetSeriesasMA(ds,'Hdh',si=si,ei=ei)
     # get the observed and modelled values
     obs,f,a = qcutils.GetSeriesasMA(ds,targetlabel,si=si,ei=ei)
     mod,f,a = qcutils.GetSeriesasMA(ds,outputlabel,si=si,ei=ei)
     # make the figure
-    if solo_info["show_plots"]:
+    if LT_info["show_plots"]:
         plt.ion()
     else:
         plt.ioff()
@@ -437,13 +440,13 @@ def rpLT_plot(pd,ds,series,driverlist,targetlabel,outputlabel,solo_info,si=0,ei=
     # get the diurnal stats of the observations
     mask = numpy.ma.mask_or(obs.mask,mod.mask)
     obs_mor = numpy.ma.array(obs,mask=mask)
-    dstats = rp_getdiurnalstats(dt,obs_mor,solo_info)
+    dstats = qcutils.get_diurnalstats(dt,obs_mor,LT_info)
     ax1.plot(dstats["Hr"],dstats["Av"],'b-',label="Obs")
     # get the diurnal stats of all SOLO predictions
-    dstats = rp_getdiurnalstats(dt,mod,solo_info)
+    dstats = qcutils.get_diurnalstats(dt,mod,LT_info)
     ax1.plot(dstats["Hr"],dstats["Av"],'r-',label="LT(all)")
     mod_mor = numpy.ma.masked_where(numpy.ma.getmaskarray(obs)==True,mod,copy=True)
-    dstats = rp_getdiurnalstats(dt,mod_mor,solo_info)
+    dstats = qcutils.get_diurnalstats(dt,mod_mor,LT_info)
     ax1.plot(dstats["Hr"],dstats["Av"],'g-',label="LT(obs)")
     plt.xlim(0,24)
     plt.xticks([0,6,12,18,24])
@@ -469,44 +472,32 @@ def rpLT_plot(pd,ds,series,driverlist,targetlabel,outputlabel,solo_info,si=0,ei=
     numfilled = numpy.ma.count(mod)-numpy.ma.count(obs)
     diff = mod - obs
     bias = numpy.ma.average(diff)
-    ds.solo[series]["results"]["Bias"].append(bias)
+    ds.rpLT[series]["results"]["Bias"].append(bias)
     rmse = numpy.ma.sqrt(numpy.ma.mean((obs-mod)*(obs-mod)))
-    plt.figtext(0.65,0.225,'No. points')
-    plt.figtext(0.75,0.225,str(numpoints))
-    ds.solo[series]["results"]["No. points"].append(numpoints)
-    
-    plt.figtext(0.65,0.200,'Nodes')
-    plt.figtext(0.75,0.200,str(solo_info["nodes"]))
-    plt.figtext(0.65,0.175,'Training')
-    plt.figtext(0.75,0.175,str(solo_info["training"]))
-    plt.figtext(0.65,0.150,'Nda factor')
-    plt.figtext(0.75,0.150,str(solo_info["nda_factor"]))
-    plt.figtext(0.65,0.125,'Learning rate')
-    plt.figtext(0.75,0.125,str(solo_info["learningrate"]))
-    plt.figtext(0.65,0.100,'Iterations')
-    plt.figtext(0.75,0.100,str(solo_info["iterations"]))
-    
-    plt.figtext(0.815,0.225,'No. filled')
-    plt.figtext(0.915,0.225,str(numfilled))
-    plt.figtext(0.815,0.200,'Slope')
-    plt.figtext(0.915,0.200,str(qcutils.round2sig(coefs[0],sig=4)))
-    ds.solo[series]["results"]["m_ols"].append(coefs[0])
-    plt.figtext(0.815,0.175,'Offset')
-    plt.figtext(0.915,0.175,str(qcutils.round2sig(coefs[1],sig=4)))
-    ds.solo[series]["results"]["b_ols"].append(coefs[1])
-    plt.figtext(0.815,0.150,'r')
-    plt.figtext(0.915,0.150,str(qcutils.round2sig(r[0][1],sig=4)))
-    ds.solo[series]["results"]["r"].append(r[0][1])
-    plt.figtext(0.815,0.125,'RMSE')
-    plt.figtext(0.915,0.125,str(qcutils.round2sig(rmse,sig=4)))
-    ds.solo[series]["results"]["RMSE"].append(rmse)
+    plt.figtext(0.725,0.225,'No. points')
+    plt.figtext(0.825,0.225,str(numpoints))
+    ds.rpLT[series]["results"]["No. points"].append(numpoints)
+    plt.figtext(0.725,0.200,'No. filled')
+    plt.figtext(0.825,0.200,str(numfilled))
+    plt.figtext(0.725,0.175,'Slope')
+    plt.figtext(0.825,0.175,str(qcutils.round2sig(coefs[0],sig=4)))
+    ds.rpLT[series]["results"]["m_ols"].append(coefs[0])
+    plt.figtext(0.725,0.150,'Offset')
+    plt.figtext(0.825,0.150,str(qcutils.round2sig(coefs[1],sig=4)))
+    ds.rpLT[series]["results"]["b_ols"].append(coefs[1])
+    plt.figtext(0.725,0.125,'r')
+    plt.figtext(0.825,0.125,str(qcutils.round2sig(r[0][1],sig=4)))
+    ds.rpLT[series]["results"]["r"].append(r[0][1])
+    plt.figtext(0.725,0.100,'RMSE')
+    plt.figtext(0.825,0.100,str(qcutils.round2sig(rmse,sig=4)))
+    ds.rpLT[series]["results"]["RMSE"].append(rmse)
     var_obs = numpy.ma.var(obs)
-    ds.solo[series]["results"]["Var (obs)"].append(var_obs)
+    ds.rpLT[series]["results"]["Var (obs)"].append(var_obs)
     var_mod = numpy.ma.var(mod)
-    ds.solo[series]["results"]["Var (LT)"].append(var_mod)
-    ds.solo[series]["results"]["Var ratio"].append(var_obs/var_mod)
-    ds.solo[series]["results"]["Avg (obs)"].append(numpy.ma.average(obs))
-    ds.solo[series]["results"]["Avg (LT)"].append(numpy.ma.average(mod))    
+    ds.rpLT[series]["results"]["Var (LT)"].append(var_mod)
+    ds.rpLT[series]["results"]["Var ratio"].append(var_obs/var_mod)
+    ds.rpLT[series]["results"]["Avg (obs)"].append(numpy.ma.average(obs))
+    ds.rpLT[series]["results"]["Avg (LT)"].append(numpy.ma.average(mod))    
     # time series of drivers and target
     ts_axes = []
     rect = [pd["margin_left"],pd["ts_bottom"],pd["ts_width"],pd["ts_height"]]
@@ -535,13 +526,13 @@ def rpLT_plot(pd,ds,series,driverlist,targetlabel,outputlabel,solo_info,si=0,ei=
     # save a hard copy of the plot
     sdt = xdt[0].strftime("%Y%m%d")
     edt = xdt[-1].strftime("%Y%m%d")
-    plot_path = solo_info["plot_path"]+"L6/"
+    plot_path = LT_info["plot_path"]+"L6/"
     if not os.path.exists(plot_path): os.makedirs(plot_path)
     figname = plot_path+pd["site_name"].replace(" ","")+"_LT_"+pd["label"]
     figname = figname+"_"+sdt+"_"+edt+'.png'
     fig.savefig(figname,format='png')
     # draw the plot on the screen
-    if solo_info["show_plots"]:
+    if LT_info["show_plots"]:
         plt.draw()
         plt.ioff()
     else:

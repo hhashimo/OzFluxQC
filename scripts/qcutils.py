@@ -1079,6 +1079,26 @@ def get_datetimefromymdhms(ds):
     ds.series['DateTime']['Attr']['long_name'] = 'Date-time object'
     ds.series['DateTime']['Attr']['units'] = 'None'
 
+def get_diurnalstats(dt,data,info):
+    ts = info["time_step"]
+    nperday = info["nperday"]
+    si = 0
+    while abs(dt[si].hour+float(dt[si].minute)/60-float(ts)/60)>c.eps:
+        si = si + 1
+    ei = len(dt)-1
+    while abs(dt[ei].hour+float(dt[ei].minute)/60)>c.eps:
+        ei = ei - 1
+    data_wholedays = data[si:ei+1]
+    ndays = len(data_wholedays)/nperday
+    data_2d = numpy.ma.reshape(data_wholedays,[ndays,nperday])
+    diel_stats = {}
+    diel_stats["Hr"] = numpy.ma.array([i*ts/float(60) for i in range(0,nperday)])
+    diel_stats["Av"] = numpy.ma.average(data_2d,axis=0)
+    diel_stats["Sd"] = numpy.ma.std(data_2d,axis=0)
+    diel_stats["Mx"] = numpy.ma.max(data_2d,axis=0)
+    diel_stats["Mn"] = numpy.ma.min(data_2d,axis=0)
+    return diel_stats
+
 def get_keyvaluefromcf(cf,sections,key,default=None,mode="quiet"):
     """
     Purpose:
@@ -1163,6 +1183,15 @@ def get_missingingapfilledseries(ds):
             #msg = " The first 10 missing data is at datetimes "+str(ldt_missing[0:9])
             #log.error(msg)
 
+def get_number_from_heightstring(height):
+    z = str(height)
+    if "m" in z: z = z.replace("m","")
+    try:
+        z = float(z)
+    except:
+        z = 0.0
+    return z
+    
 def get_nrecs(ds):
     if 'nc_nrecs' in ds.globalattributes.keys():
         nRecs = int(ds.globalattributes['nc_nrecs'])

@@ -244,10 +244,7 @@ def ERUsingLloydTaylor(cf,ds):
                "file_enddate":enddate.strftime("%Y-%m-%d %H:%M"),
                "plot_path":cf["Files"]["plot_path"],
                "show_plots":True,"time_step":ts,"nperday":nperday}
-    #ustar_dict = get_ustarthreshold_from_cpdresults(cf)
-    #cleanup_ustar_dict(ldt,ustar_dict)
-    #ustar,f,a = qcutils.GetSeriesasMA(ds,"ustar")
-    #turbulence_indicator = get_turbulence_indicator_ustar(ldt,ustar,ustar_dict,ts,ER_attr)
+    # set the figure number
     if len(plt.get_fignums())==0:
         fig_num = 0
     else:
@@ -256,7 +253,6 @@ def ERUsingLloydTaylor(cf,ds):
         configs_dict = ds.rpLT[series]["configs_dict"]
         configs_dict["measurement_interval"] = float(ts)/60.0
         data_dict = qcrpLT.get_data_dict(ds,configs_dict)
-        #qcrpLT.apply_turbulence_filter(data_dict,turbulence_indicator)
         # *** start of code taken from Ian McHugh's Partition_NEE.main ***
         # If user wants individual window plots, check whether output directories
         # are present, and create if not
@@ -369,16 +365,17 @@ def ERUsingLloydTaylor(cf,ds):
         ER_LT_flag.fill(30)
         #ER_LT = qcrpLT.ER_LloydTaylor(T,E0,rb)
         target = str(ds.rpLT[series]["target"])
-        drivers = str(configs_dict["drivers"])
+        #drivers = str(configs_dict["drivers"])
+        drivers = ds.rpLT[series]["drivers"]
         output = str(configs_dict["output_label"])
-        ER_attr["comment1"] = "Drivers were "+drivers
+        ER_attr["comment1"] = "Drivers were "+str(drivers)
         qcutils.CreateSeries(ds,output,ER_LT,Flag=ER_LT_flag,Attr=ER_attr)
         # plot the respiration estimated using Lloyd-Taylor
-        #fig_num = fig_num + 1
-        #title = site_name+" : "+series+" estimated using Lloyd-Taylor"
-        #pd = rpLT_initplot(site_name=site_name,label=target,fig_num=fig_num,title=title,
-                             #nDrivers=len(drivers),startdate=startdate,enddate=enddate)
-        #rpLT_plot(pd,ds,series,drivers,target,output,LT_info)
+        fig_num = fig_num + 1
+        title = site_name+" : "+series+" estimated using Lloyd-Taylor"
+        pd = qcrpLT.rpLT_initplot(site_name=site_name,label=target,fig_num=fig_num,title=title,
+                             nDrivers=len(drivers),startdate=str(startdate),enddate=str(enddate))
+        qcrpLT.rpLT_plot(pd,ds,series,drivers,target,output,LT_info)
 
 def ERUsingSOLO(cf,ds):
     """ Estimate ER using SOLO. """
@@ -573,13 +570,13 @@ def GetERFromFc(cf,ds):
     Fsd,Fsd_flag,Fsd_attr = qcutils.GetSeriesasMA(ds,"Fsd")
     if "solar_altitude" not in ds.series.keys(): qcts.get_synthetic_fsd(ds)
     sa,flag,attr = qcutils.GetSeriesasMA(ds,"solar_altitude")
-    ustar,ustar_flag,attr = qcutils.GetSeriesasMA(ds,"ustar")
+    ustar,ustar_flag,ustar_attr = qcutils.GetSeriesasMA(ds,"ustar")
     Fc,Fc_flag,Fc_attr = qcutils.GetSeriesasMA(ds,"Fc")
     # get the Monin-Obukhov length
     Ta,flag,attr = qcutils.GetSeriesasMA(ds,"Ta")
     Ah,flag,attr = qcutils.GetSeriesasMA(ds,"Ah")
     ps,flag,attr = qcutils.GetSeriesasMA(ds,"ps")
-    Fh,flag,attr = qcutils.GetSeriesasMA(ds,"Fh")
+    Fh,flag,Fh_attr = qcutils.GetSeriesasMA(ds,"Fh")
     L = mf.molen(Ta,Ah,ps,ustar,Fh,fluxtype="sensible")
     # get a copy of the Fc flag and make the attribute dictionary
     ER_flag = numpy.array(Fc_flag)
@@ -659,11 +656,19 @@ def get_turbulence_indicator(cf,ldt,ustar,L,ustar_dict,ts,ER_attr):
     if opt.lower()=="ustar":
         turbulence_indicator = get_turbulence_indicator_ustar(ldt,ustar,ustar_dict,ts,ER_attr)
     elif opt.lower()=="l":
-        msg = " Turbulence filter using L not implemented yet"
-        raise Exception(msg)
+        msg = " GetERfromFc: use of L as turbulence indicator not implemented yet"
+        log.warning(msg)
+        #turbulence_indicator = get_turbulence_indicator_l(ldt,L,z,d,zmdonL_threshold)
     else:
         msg = " Unrecognised TurbulenceFilter option in L6 control file"
         raise Exception(msg)
+    return turbulence_indicator
+
+def get_turbulence_indicator_l(ldt,L,z,d,zmdonL_threshold):
+    turbulence_indicator = numpy.zeros(len(ldt),dtype=numpy.int32)
+    zmdonL = (z-d)/L
+    idx = numpy.ma.where(zmdonL<=zmdonL_threshold)[0]
+    turbulence_indicator[idx] = numpy.int32(1)
     return turbulence_indicator
 
 def get_turbulence_indicator_ustar(ldt,ustar,ustar_dict,ts,ER_attr):
