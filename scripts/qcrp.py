@@ -341,7 +341,7 @@ def ERUsingLloydTaylor(cf,ds):
                 combine_dict = dict(sub_dict, **est_series_dict)
                 qcrpLT.plot_windows(combine_dict, configs_dict, date, noct_flag = True)
         # get a copy of the rb data before interpolation
-        LT_results["rb"] = {}
+        #LT_results["rb"] = {}
         # Interpolate
         opt_params_dict['rb_noct'] = qcrpLT.interp_params(opt_params_dict['rb_noct'])
         #print 'Done!'
