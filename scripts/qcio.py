@@ -1929,7 +1929,7 @@ def xl_write_SOLOStats(ds):
             xlCol = xlCol + 1
     xlfile.save(xl_filename)
 
-def xl_write_data(xl_sheet,data):
+def xl_write_data(xl_sheet,data,xlCol=0):
     """
     Purpose:
      Writes a dictionary to a worksheet in an Excel workbook.
@@ -1956,7 +1956,7 @@ def xl_write_data(xl_sheet,data):
     Author: PRI
     Date: June 2015
     """
-    xlCol = 0
+    #xlCol = 0
     # write the data to the xl file
     series_list = data.keys()
     xl_sheet.write(1,xlCol,data["DateTime"]["units"])

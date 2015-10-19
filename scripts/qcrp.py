@@ -249,7 +249,21 @@ def ERUsingLloydTaylor(cf,ds):
         fig_num = 0
     else:
         fig_num = plt.get_fignums()[-1]
+    # open the Excel file
+    nc_name = qcio.get_outfilenamefromcf(cf)
+    xl_name = nc_name.replace(".nc","_L&T.xls")
+    xl_file = qcio.xl_open_write(xl_name)
+    if xl_file=='':
+        log.error("ERUsingLloydTaylor: error opening Excel file "+xl_name)
+        return
+    # loop over the series
     for series in ds.rpLT.keys():
+        # create dictionaries for the results
+        E0_results = {}
+        rb_results = {}
+        # add a sheet for this series
+        xl_sheet = xl_file.add_sheet(series)
+        # get a local copy of the config dictionary
         configs_dict = ds.rpLT[series]["configs_dict"]
         configs_dict["measurement_interval"] = float(ts)/60.0
         data_dict = qcrpLT.get_data_dict(ds,configs_dict)
@@ -303,6 +317,12 @@ def ERUsingLloydTaylor(cf,ds):
             index = numpy.where(year_array == yr)
             opt_params_dict['Eo'][index] = Eo_dict[yr]
             opt_params_dict['Eo error code'][index] = EoQC_dict[yr]
+        E0_results["DateTime"] = {"data":[datetime.datetime(int(yr),1,1) for yr in Eo_dict.keys()],
+                                  "units":"Year","format":"yyyy"}
+        E0_results["E0"] = {"data":[float(Eo_dict[yr]) for yr in Eo_dict.keys()],
+                            "units":"none","format":"0"}
+        # write the E0 values to the Excel file
+        qcio.xl_write_data(xl_sheet,E0_results,xlCol=0)
         # *** end of annual estimates of E0 code ***
         # *** start of estimating rb code for each window ***
         # this section could be a separate routine
@@ -340,8 +360,19 @@ def ERUsingLloydTaylor(cf,ds):
                 est_series_dict = qcrpLT.estimate_Re_GPP(sub_dict, this_params_dict)
                 combine_dict = dict(sub_dict, **est_series_dict)
                 qcrpLT.plot_windows(combine_dict, configs_dict, date, noct_flag = True)
-        # get a copy of the rb data before interpolation
-        #LT_results["rb"] = {}
+        # get a copy of the rb data before interpolation so we can write it to file
+        rb_date = opt_params_dict["date"]
+        rb_data = opt_params_dict["rb_noct"]
+        # get the indices of non-NaN elements
+        idx = numpy.where(numpy.isnan(rb_data)!=True)[0]
+        # get the datetime dictionary
+        rb_results["DateTime"] = {"data":rb_date[idx],
+                                  "units":"Date","format":"dd/mm/yyyy"}
+        # get the rb values
+        rb_results["rb_noct"] = {"data":rb_data[idx],
+                            "units":"none","format":"0.00"}
+        # write to the Excel file
+        qcio.xl_write_data(xl_sheet,rb_results,xlCol=2)
         # Interpolate
         opt_params_dict['rb_noct'] = qcrpLT.interp_params(opt_params_dict['rb_noct'])
         #print 'Done!'
@@ -378,6 +409,8 @@ def ERUsingLloydTaylor(cf,ds):
         pd = qcrpLT.rpLT_initplot(site_name=site_name,label=target,fig_num=fig_num,title=title,
                              nDrivers=len(drivers),startdate=str(startdate),enddate=str(enddate))
         qcrpLT.rpLT_plot(pd,ds,series,drivers,target,output,LT_info)
+    # close the Excel workbook
+    xl_file.save(xl_name)
 
 def ERUsingSOLO(cf,ds):
     """ Estimate ER using SOLO. """
