@@ -32,44 +32,35 @@ def get_configs_dict(cf,ds):
     configs_dict = {}
     configs_dict["nan_value"] = int(c.missing_value)
     opt = qcutils.get_keyvaluefromcf(cf,["ER","ER_LT","ERUsingLloydTaylor"],
-                                     "minimum_temperature_spread",
-                                     default=5)
+                                     "minimum_temperature_spread",default=5)
     configs_dict["minimum_temperature_spread"] = int(opt)
     opt = qcutils.get_keyvaluefromcf(cf,["ER","ER_LT","ERUsingLloydTaylor"],
-                                     "step_size_days",
-                                     default=5)
+                                     "step_size_days",default=5)
     configs_dict["step_size_days"] = int(opt)
     opt = qcutils.get_keyvaluefromcf(cf,["ER","ER_LT","ERUsingLloydTaylor"],
-                                     "window_size_days",
-                                     default=15)
+                                     "window_size_days",default=15)
     configs_dict["window_size_days"] = int(opt)
     opt = qcutils.get_keyvaluefromcf(cf,["ER","ER_LT","ERUsingLloydTaylor"],
-                                     "minimum_percent_annual",
-                                     default=30)
+                                     "minimum_percent_annual",default=30)
     configs_dict["minimum_pct_annual"] = int(opt)
     opt = qcutils.get_keyvaluefromcf(cf,["ER","ER_LT","ERUsingLloydTaylor"],
-                                     "minimum_percent_noct_window",
-                                     default=20)
+                                     "minimum_percent_noct_window",default=20)
     configs_dict["minimum_pct_noct_window"] = int(opt)
+    #opt = qcutils.get_keyvaluefromcf(cf,["ER","ER_LT","ERUsingLloydTaylor"],
+                                     #"minimum_percent_day_window",
+                                     #default=50)
+    #configs_dict["minimum_pct_day_window"] = int(opt)
     opt = qcutils.get_keyvaluefromcf(cf,["ER","ER_LT","ERUsingLloydTaylor"],
-                                     "minimum_percent_day_window",
-                                     default=50)
-    configs_dict["minimum_pct_day_window"] = int(opt)
-    opt = qcutils.get_keyvaluefromcf(cf,["ER","ER_LT","ERUsingLloydTaylor"],
-                                     "output_plots",
-                                     default="False")
+                                     "output_plots",default="False")
     configs_dict["output_plots"] = (opt=="True")
     opt = qcutils.get_keyvaluefromcf(cf,["ER","ER_LT","ERUsingLloydTaylor"],
-                                     "target",
-                                     default="ER")
+                                     "target",default="ER")
     configs_dict["target"] = str(opt)
     opt = qcutils.get_keyvaluefromcf(cf,["ER","ER_LT","ERUsingLloydTaylor"],
-                                     "drivers",
-                                     default="['Ta']")
+                                     "drivers",default="['Ta']")
     configs_dict["drivers"] = ast.literal_eval(opt)[0]
     opt = qcutils.get_keyvaluefromcf(cf,["ER","ER_LT","ERUsingLloydTaylor"],
-                                     "output",
-                                     default="ER_LT_all")
+                                     "output",default="ER_LT_all")
     configs_dict["output_label"] = opt
     configs_dict["output_results"] = True
     ts = int(ds.globalattributes["time_step"])
@@ -183,7 +174,9 @@ def get_dates(datetime_array, configs_dict):
         date_time = (datetime.datetime.combine(date, datetime.datetime.min.time()) 
                      + datetime.timedelta(hours = 12))
         start_date = date_time - datetime.timedelta(window / 2.0)
+        start_date = max(start_date,datetime_array[0])
         end_date = date_time + datetime.timedelta(window / 2.0)
+        end_date = min(end_date,datetime_array[-1])
         start_ind = numpy.where(datetime_array == start_date)[0].item() + 1
         end_ind = numpy.where(datetime_array == end_date)[0].item()
         step_dates_index_dict[date] = [start_ind, end_ind]
@@ -196,11 +189,14 @@ def get_dates(datetime_array, configs_dict):
             start_ind = 0
         else:
             start_date = date_time + datetime.timedelta(hours = configs_dict['measurement_interval'])
+            start_date = max(start_date,datetime_array[0])
+            if start_date>datetime_array[-1]: break
             start_ind = numpy.where(datetime_array == start_date)[0].item()
-        if date == all_dates_array[-1]:
+        if date >= all_dates_array[-1]:
             end_ind = len(datetime_array)
         else:
             end_date = date_time + datetime.timedelta(1)
+            end_date = min(end_date,datetime_array[-1])
             end_ind = numpy.where(datetime_array == end_date)[0].item()
         all_dates_index_dict[date] = [start_ind, end_ind]
     

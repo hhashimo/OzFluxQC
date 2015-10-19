@@ -51,9 +51,8 @@ Fund."""
             minimum_temperature_spread = 5
             step_size_days = 5
             window_size_days = 15
-            minimum_pct_annual = 25
-            minimum_pct_noct_window = 20
-            minimum_pct_day_window = 50
+            minimum_percent_annual = 25
+            minimum_percent_noct_window = 20
             output_plots = False
         [[[MergeSeries]]]
             Source = "['ER','ER_LT_all']"
