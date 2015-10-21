@@ -1240,9 +1240,9 @@ def CorrectWindDirection(cf,ds,Wd_in):
     log.info(' Correcting wind direction')
     Wd,f,a = qcutils.GetSeriesasMA(ds,Wd_in)
     ldt = ds.series['DateTime']['Data']
-    KeyList = cf['Variables'][Wd_in]['Correction'].keys()
+    KeyList = cf['Variables'][Wd_in]['CorrectWindDirection'].keys()
     for i in range(len(KeyList)):
-        ItemList = ast.literal_eval(cf['Variables'][Wd_in]['Correction'][str(i)])
+        ItemList = ast.literal_eval(cf['Variables'][Wd_in]['CorrectWindDirection'][str(i)])
         try:
             si = ldt.index(datetime.datetime.strptime(ItemList[0],'%Y-%m-%d %H:%M'))
         except ValueError:

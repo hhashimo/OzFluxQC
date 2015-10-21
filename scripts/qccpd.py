@@ -209,7 +209,6 @@ def cpd_main(cf):
     # Bootstrap the data and run the CPD algorithm
     #for i in xrange(d['num_bootstraps']):
     for i in range(d['num_bootstraps']):
-
         # Bootstrap the data for each year
         bootstrap_flag = (False if i == 0 else True)
         if bootstrap_flag == False:
@@ -217,7 +216,7 @@ def cpd_main(cf):
             log.info(' Analysing observational data for first pass')
         else:
             df = pd.concat([bootstrap(master_df.loc[str(j)]) for j in years_index])
-            log.info(' Analysing bootstrap '+str(i))
+            if i==1: log.info(' Analysing '+str(d['num_bootstraps'])+' bootstraps')
         
         # Create nocturnal dataframe (drop all records where any one of the variables is NaN)
         temp_df = df[['Fc','Ta','ustar']][df['Fsd'] < d['radiation_threshold']].dropna(how = 'any',axis=0)        
@@ -225,10 +224,10 @@ def cpd_main(cf):
         # Arrange data into seasons 
         # try: may be insufficient data, needs to be handled; if insufficient on first pass then return empty,otherwise next pass
         # this will be a marginal case, will almost always be enough data in bootstraps if enough in obs data
-        years_df, seasons_df, results_df = sort(temp_df, d['flux_period'], years_index)
+        years_df, seasons_df, results_df = sort(temp_df, d['flux_period'], years_index, i)
         
         # Use the results df index as an iterator to run the CPD algorithm on the year/season/temperature strata
-        log.info(' Finding change points...')
+        #if i==1: log.info(' Finding change points...')
         cols = ['bMod_threshold','bMod_f_max','b0','b1','bMod_CP',
                 'aMod_threshold','aMod_f_max','a0','a1','a2','norm_a1','norm_a2','aMod_CP','a1p','a2p']
         lst = []
@@ -243,7 +242,7 @@ def cpd_main(cf):
         results_df['aMod_CP'] = results_df['aMod_CP'].astype(int)
 
         # QC the results
-        log.info(' Doing within-sample QC...')
+        #if i==1: log.info(' Doing within-sample QC...')
         results_df = QC1(results_df)
         #print 'Done!' 
 
@@ -256,7 +255,7 @@ def cpd_main(cf):
                 #print 'Doing plotting for observational data'
                 #for j in results_df.index:
                     #plot_fits(seasons_df.loc[j], results_df.loc[j], d['plot_path'])
-            log.info('Outputting results for all years / seasons / T classes in observational dataset')
+            log.info(' Outputting results for observational dataset')
             xlwriter = pd.ExcelWriter(d['file_out'])
             xlsheet = "T class"
             results_df.to_excel(xlwriter,sheet_name=xlsheet)
@@ -274,8 +273,11 @@ def cpd_main(cf):
             all_results_df = pd.concat([all_results_df, results_df])
         
         # Iterate counters for each year for each bootstrap
-        for i in years_df.index:
-            counts_df.loc[i, 'Total'] = counts_df.loc[i, 'Total'] + years_df.loc[i, 'seasons'] * 4
+        for j in years_df.index:
+            counts_df.loc[j, 'Total'] = counts_df.loc[j, 'Total'] + years_df.loc[j, 'seasons'] * 4
+        if bootstrap_flag:
+            progress = float(i)/float(d['num_bootstraps']-1)
+            qcutils.update_progress(progress)
 
     log.info(' Finished change point detection for all bootstraps')
     log.info(' Starting QC')
@@ -302,12 +304,20 @@ def cpd_main(cf):
     #                             2) normalised a1 and a2 values
     if 'plot_path' in d.keys():
         log.info(' Plotting u* histograms for all valid b model thresholds for all valid years')
-        [plot_hist(all_results_df.loc[j, 'bMod_threshold'][all_results_df.loc[j, 'b_valid'] == True],
-                   output_stats_df.loc[j, 'ustar_mean'],
-                   output_stats_df.loc[j, 'ustar_sig'],
-                   output_stats_df.loc[j, 'crit_t'],
-                   j, d)
-         for j in output_stats_df.index]
+        for j in output_stats_df.index:
+            if j in all_results_df.index:
+                plot_hist(all_results_df.loc[j, 'bMod_threshold'][all_results_df.loc[j, 'b_valid'] == True],
+                                   output_stats_df.loc[j, 'ustar_mean'],
+                                   output_stats_df.loc[j, 'ustar_sig'],
+                                   output_stats_df.loc[j, 'crit_t'],
+                                   j, d)                
+
+        #[plot_hist(all_results_df.loc[j, 'bMod_threshold'][all_results_df.loc[j, 'b_valid'] == True],
+                   #output_stats_df.loc[j, 'ustar_mean'],
+                   #output_stats_df.loc[j, 'ustar_sig'],
+                   #output_stats_df.loc[j, 'crit_t'],
+                   #j, d)
+         #for j in output_stats_df.index]
         
         log.info(' Plotting normalised median slope parameters for all valid a model thresholds for all valid years')
         plot_slopes(output_stats_df[['norm_a1_median', 'norm_a2_median']], d)
@@ -600,12 +610,15 @@ def QC2(df,output_df,bootstrap_n):
     
     # Identify years where either diagnostic or operational model did not find enough good data for robust estimate
     output_df['a_valid']=(~(np.isnan(output_df['norm_a1_median']))&(~np.isnan(output_df['norm_a2_median'])))
-    output_df['b_valid']=(output_df['QCpass']>(4*bootstrap_n))&(output_df['QCpass_prop']>0.2)
+    #output_df['b_valid']=(output_df['QCpass']>(4*bootstrap_n))&(output_df['QCpass_prop']>0.2)
+    output_df['b_valid']=(output_df['QCpass']>=bootstrap_n)&(output_df['QCpass_prop']>=0.2)
     for i in output_df.index:
         if output_df['a_valid'].loc[i]==False: 
-            log.info(' Insufficient valid cases for robust diagnostic (a model) u* determination in year '+str(i))
-        if output_df['b_valid'].loc[i]==False: 
-            log.info(' Insufficient valid cases for robust operational (b model) u* determination in year '+str(i))
+            #log.info(' Insufficient valid cases for robust diagnostic (a model) u* determination in year '+str(i))
+            log.warning(' Insufficient valid cases for '+str(i)+' (a model)')
+        if output_df['b_valid'].loc[i]==False:
+            #log.info(' Insufficient valid cases for robust operational (b model) u* determination in year '+str(i))
+            log.warning(' Insufficient valid cases for '+str(i)+' (b model)')
  
     return output_df    
     
@@ -614,7 +627,7 @@ def QC2(df,output_df,bootstrap_n):
 
 
 #------------------------------------------------------------------------------
-def sort(df, flux_period, years_index):
+def sort(df, flux_period, years_index, i):
     
     # Set the bin size on the basis of the flux measurement frequency
     if flux_period == 30:
@@ -635,7 +648,9 @@ def sort(df, flux_period, years_index):
     elif np.any(years_df['seasons'] <= 0):
         exclude_years_list = years_df[years_df['seasons'] <= 0].index.tolist()
         exclude_years_str= ','.join(map(str, exclude_years_list))
-        log.info(' Insufficient data for evaluation in the following years: ' + exclude_years_str + ' (excluded from analysis)')
+        #log.info(' Insufficient data for evaluation in the following years: ' + exclude_years_str + ' (excluded from analysis)')
+        if i==1 or i==d['num_bootstraps']-1:
+            log.warning(' '+exclude_years_str + ' excluded from analysis (insufficient data)')
         years_df = years_df[years_df['seasons'] > 0]
     
     # Extract overlapping series, sort by temperature and concatenate

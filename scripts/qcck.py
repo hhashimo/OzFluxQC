@@ -445,5 +445,11 @@ def do_qcchecks_oneseries(cf,ds,section='',series=''):
     do_excludedates(cf,ds,section=section,series=series,code=6)
     # do exclude hours
     do_excludehours(cf,ds,section=section,series=series,code=7)
+    # do wind direction corrections
+    do_winddirectioncorrection(cf,ds,section=section,series=series)
     if 'do_qcchecks' not in ds.globalattributes['Functions']:
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',do_qcchecks'
+
+def do_winddirectioncorrection(cf,ds,section=section,series=series):
+    if 'CorrectWindDirection' not in cf[section][series].keys(): return
+    qcts.CorrectWindDirection(cf,ds,series)

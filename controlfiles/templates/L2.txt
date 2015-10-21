@@ -164,13 +164,13 @@
 #         5) the format for the dates is YYYY-MM-DD HH:mm where YYYY is the 4 digit year,
 #            MM is the 2 digit month, DD is the 2 digit day of the month, HH is the 2 digit
 #            hour (24 hour format) and mm is the 2 digit minute
-# [[Correction]]
+# [[CorrectWindDirection]]
 #     Purpose:
 #        Apply an offset to a wind direction measurement to correct for alignment.
 #        Multiple ranges can be specified on separate lines but the lines must be numbered
 #        sequentially from 0 (eg 0, 1, 2, etc)
 #     Example
-#        [[[Correction]]]
+#        [[[CorrectWindDirection]]]
 #            0 = "['2010-01-01 00:00','2011-01-01 00:00',180]"
 #     Syntax rules for [[Correction]]:
 #         1) each wind direction correction must be on a separate line and must have a unique

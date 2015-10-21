@@ -1,8 +1,10 @@
 import ast
+import datetime
 import logging
 import os
 import sys
 sys.path.append('scripts')
+import time
 import qcclim
 import qccpd
 import qcio
@@ -10,7 +12,13 @@ import qcls
 import qcutils
 
 #log = qcutils.startlog('batch','logfiles/batch.log')
-logging.basicConfig(filename='logfiles/batchprocess.log',level=logging.DEBUG)
+t = time.localtime()
+rundatetime = str(datetime.datetime(t[0],t[1],t[2],t[3],t[4],t[5]))
+log_filename = 'logfiles/batchprocess_'+rundatetime+'.log'
+logging.basicConfig(filename=log_filename,
+                    format='%(asctime)s %(levelname)s %(message)s',
+                    datefmt = '%H:%M:%S',
+                    level=logging.DEBUG)
 console = logging.StreamHandler()
 formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s', '%H:%M:%S')
 console.setFormatter(formatter)

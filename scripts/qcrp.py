@@ -243,7 +243,10 @@ def ERUsingLloydTaylor(cf,ds):
     LT_info = {"file_startdate":startdate.strftime("%Y-%m-%d %H:%M"),
                "file_enddate":enddate.strftime("%Y-%m-%d %H:%M"),
                "plot_path":cf["Files"]["plot_path"],
-               "show_plots":True,"time_step":ts,"nperday":nperday}
+               "show_plots":False,"time_step":ts,"nperday":nperday}
+    call_mode = qcutils.get_keyvaluefromcf(cf,["Options"],"call_mode",default="interactive")
+    LT_info["call_mode"]= call_mode
+    if call_mode.lower()=="interactive": LT_info["show_plots"] = True
     # set the figure number
     if len(plt.get_fignums())==0:
         fig_num = 0
@@ -660,6 +663,17 @@ def get_ustar_thresholds(cf,ldt):
     cleanup_ustar_dict(ldt,ustar_dict)
     return ustar_dict
 
+def get_ustar_thresholds2(cf,ldt):
+    ustar_dict = get_ustarthreshold_from_cpdresults(cf)
+
+    msg = " CPD results filename not in control file"
+    log.warning(msg)
+    ustar_dict = get_ustarthreshold_from_cf(cf,ldt)
+
+    cleanup_ustar_dict(ldt,ustar_dict)
+
+    return ustar_dict
+
 def get_daynight_indicator(cf,Fsd,sa,ER_attr):
     # get the day/night indicator
     nRecs = len(Fsd)
@@ -764,13 +778,18 @@ def get_ustarthreshold_from_cf(cf,ldt):
 
 def get_ustarthreshold_from_cpdresults(cf):
     # do some stuff
+    ustar_dict = collections.OrderedDict()
+    if "cpd_filename" not in cf["Files"]:
+        msg = " CPD results filename not in control file"
+        log.warning(msg)
+        return ustar_dict
+    
     cpd_path = cf["Files"]["file_path"]
     cpd_name = cpd_path+cf["Files"]["cpd_filename"]
     cpd_wb = xlrd.open_workbook(cpd_name)
     annual_ws = cpd_wb.sheet_by_name("Annual")
     header_list = [x for x in annual_ws.row_values(0)]
     year_list = [str(int(x)) for x in annual_ws.col_values(0)[1:]]
-    ustar_dict = collections.OrderedDict()
     for i,year in enumerate(year_list):
         ustar_dict[year] = collections.OrderedDict()
         for item in header_list:
