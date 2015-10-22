@@ -450,6 +450,6 @@ def do_qcchecks_oneseries(cf,ds,section='',series=''):
     if 'do_qcchecks' not in ds.globalattributes['Functions']:
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',do_qcchecks'
 
-def do_winddirectioncorrection(cf,ds,section=section,series=series):
+def do_winddirectioncorrection(cf,ds,section='',series=''):
     if 'CorrectWindDirection' not in cf[section][series].keys(): return
     qcts.CorrectWindDirection(cf,ds,series)
