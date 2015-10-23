@@ -731,7 +731,7 @@ def gfalternate_createdict(cf,ds,series,ds_alt):
             ds.alternate[output]["file_name"] = cf[section][series]["GapFillFromAlternate"][output]["file_name"]
         # if the file has not already been read, do it now
         if ds.alternate[output]["file_name"] not in ds_alt:
-            ds_alternate = qcio.nc_read_series(ds.alternate[output]["file_name"])
+            ds_alternate = qcio.nc_read_series(ds.alternate[output]["file_name"],fixtimestepmethod="round")
             gfalternate_matchstartendtimes(ds,ds_alternate)
             ds_alt[ds.alternate[output]["file_name"]] = ds_alternate
         # get the type of fit

@@ -649,7 +649,7 @@ def sort(df, flux_period, years_index, i):
         exclude_years_list = years_df[years_df['seasons'] <= 0].index.tolist()
         exclude_years_str= ','.join(map(str, exclude_years_list))
         #log.info(' Insufficient data for evaluation in the following years: ' + exclude_years_str + ' (excluded from analysis)')
-        if i==1 or i==d['num_bootstraps']-1:
+        if i==1:
             log.warning(' '+exclude_years_str + ' excluded from analysis (insufficient data)')
         years_df = years_df[years_df['seasons'] > 0]
     
