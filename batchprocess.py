@@ -13,7 +13,7 @@ import qcutils
 
 #log = qcutils.startlog('batch','logfiles/batch.log')
 t = time.localtime()
-rundatetime = str(datetime.datetime(t[0],t[1],t[2],t[3],t[4],t[5]))
+rundatetime = datetime.datetime(t[0],t[1],t[2],t[3],t[4],t[5]).strftime("%Y%m%d%H%M")
 log_filename = 'logfiles/batchprocess_'+rundatetime+'.log'
 logging.basicConfig(filename=log_filename,
                     format='%(asctime)s %(levelname)s %(message)s',

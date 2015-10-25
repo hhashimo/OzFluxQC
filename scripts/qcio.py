@@ -1090,7 +1090,7 @@ def nc_concatenate(cf):
     # check that we have 'Ws' and 'Wd' series
     if "Ws" not in ds_n.series.keys():
         if "Ws_CSAT" in ds_n.series.keys():
-            msg = "Ws not found, copying series Ws_CSAT to Ws"
+            msg = " Ws not found, copying series Ws_CSAT to Ws"
             log.info(msg)
             ds_n.series["Ws"] = ds_n.series["Ws_CSAT"].copy()
         else:
@@ -1098,7 +1098,7 @@ def nc_concatenate(cf):
             log.warning(msg)
     if "Wd" not in ds_n.series.keys():
         if "Wd_CSAT" in ds_n.series.keys():
-            msg = "Wd not found, copying series Wd_CSAT to Wd"
+            msg = " Wd not found, copying series Wd_CSAT to Wd"
             log.info(msg)
             ds_n.series["Wd"] = ds_n.series["Wd_CSAT"].copy()
         else:
@@ -1137,19 +1137,19 @@ def nc_concatenate(cf):
         # check that we have 'Ws' and 'Wd' series
         if "Ws" not in ds_n.series.keys():
             if "Ws_CSAT" in ds_n.series.keys():
-                msg = "Ws not found, copying series Ws_CSAT to Ws"
+                msg = " Ws not found, copying series Ws_CSAT to Ws"
                 log.info(msg)
                 ds_n.series["Ws"] = ds_n.series["Ws_CSAT"].copy()
             else:
-                msg = "Both Ws and Ws_CSAT missing from file"
+                msg = " Both Ws and Ws_CSAT missing from file"
                 log.warning(msg)
         if "Wd" not in ds_n.series.keys():
             if "Wd_CSAT" in ds_n.series.keys():
-                msg = "Wd not found, copying series Wd_CSAT to Wd"
+                msg = " Wd not found, copying series Wd_CSAT to Wd"
                 log.info(msg)
                 ds_n.series["Wd"] = ds_n.series["Wd_CSAT"].copy()
             else:
-                msg = "Both Wd and Wd_CSAT missing from file"
+                msg = " Both Wd and Wd_CSAT missing from file"
                 log.warning(msg)
         #print ds.series['DateTime']['Data'][-1],ds_n.series['DateTime']['Data'][-1]
         #print dt[-1],dt[-1]+datetime.timedelta(minutes=ts),dt_n[0]

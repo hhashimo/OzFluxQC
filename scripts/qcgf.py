@@ -749,8 +749,8 @@ def gfalternate_createdict(cf,ds,series,ds_alt):
             else:
                 log.info("gfAlternate: unrecognised lag option for series "+output)
         # choose specific alternate variable?
-        if "usegrids" in cf[section][series]["GapFillFromAlternate"][output]:
-            ds.alternate[output]["usegrids"] = ast.literal_eval(cf[section][series]["GapFillFromAlternate"][output]["usegrids"])
+        if "usevars" in cf[section][series]["GapFillFromAlternate"][output]:
+            ds.alternate[output]["usevars"] = ast.literal_eval(cf[section][series]["GapFillFromAlternate"][output]["usevars"])
         # alternate data variable name if different from name used in control file
         if "alternate_name" in cf[section][series]["GapFillFromAlternate"][output]:
             ds.alternate[output]["alternate_name"] = cf[section][series]["GapFillFromAlternate"][output]["alternate_name"]
@@ -814,10 +814,10 @@ def gfalternate_getalternatevaratmaxr(ds_tower,ds_alternate,alternate_info,mode=
     si_alternate = qcutils.GetDateIndex(ldt_alternate,startdate,ts=ts)
     ei_alternate = qcutils.GetDateIndex(ldt_alternate,enddate,ts=ts)
     # create an array for the correlations and a list for the alternate variables in order of decreasing correlation
-    if "usegrids" not in ds_tower.alternate[label_output]:
+    if "usevars" not in ds_tower.alternate[label_output]:
         altvar_list = gfalternate_getalternatevarlist(ds_alternate,label_tower)
     else:
-        altvar_list = ds_tower.alternate[label_output]["usegrids"]
+        altvar_list = ds_tower.alternate[label_output]["usevars"]
     r = numpy.zeros(len(altvar_list))
     # loop over the variables in the alternate file
     for idx,var in enumerate(altvar_list):
