@@ -49,6 +49,7 @@ for level in level_list:
             cf = qcio.get_controlfilecontents(cfname)
             qcio.xl2nc(cf,'L1')
             logging.info('Finished L1 processing with '+cfname)
+            logging.info('')
     elif level.lower()=="l2":
         # L2 processing
         for i in cf_batch["Levels"][level].keys():
@@ -62,6 +63,7 @@ for level in level_list:
             ncFile = qcio.nc_open_write(outfilename)
             qcio.nc_write_series(ncFile,ds2)
             logging.info('Finished L2 processing with '+cfname)
+            logging.info('')
     elif level.lower()=="l3":
         # L3 processing
         for i in cf_batch["Levels"][level].keys():
@@ -76,6 +78,7 @@ for level in level_list:
             ncFile = qcio.nc_open_write(outfilename)
             qcio.nc_write_series(ncFile,ds3,outputlist=outputlist)
             logging.info('Finished L3 processing with '+cfname)
+            logging.info('')
     elif level.lower()=="fluxnet":
         # convert netCDF files to FluxNet CSV files
         for i in cf_batch["Levels"][level].keys():
@@ -84,6 +87,7 @@ for level in level_list:
             cf = qcio.get_controlfilecontents(cfname)
             qcio.fn_write_csv(cf)
             logging.info('Finished FluxNet output with '+cfname)
+            logging.info('')
     elif level.lower()=="concatenate":
         # concatenate netCDF files
         for i in cf_batch["Levels"][level].keys():
@@ -92,6 +96,7 @@ for level in level_list:
             cf = qcio.get_controlfilecontents(cfname)
             qcio.nc_concatenate(cf)
             logging.info('Finished concatenation with '+cfname)
+            logging.info('')
     elif level.lower()=="climatology":
         # climatology
         for i in cf_batch["Levels"][level].keys():
@@ -100,6 +105,7 @@ for level in level_list:
             cf = qcio.get_controlfilecontents(cfname)
             qcclim.climatology(cf)
             logging.info('Finished climatology with '+cfname)
+            logging.info('')
     elif level.lower()=="cpd":
         # ustar threshold from change point detection
         for i in cf_batch["Levels"][level].keys():
@@ -111,6 +117,7 @@ for level in level_list:
             cf["Options"]["show_plots"] = False
             qccpd.cpd_main(cf)
             logging.info('Finished CPD with '+cfname)
+            logging.info('')
     elif level.lower()=="l4":
         # L4 processing
         for i in cf_batch["Levels"][level].keys():
@@ -128,6 +135,7 @@ for level in level_list:
             ncFile = qcio.nc_open_write(outfilename)
             qcio.nc_write_series(ncFile,ds4,outputlist=outputlist)
             logging.info('Finished L4 processing with '+cfname)
+            logging.info('')
     elif level.lower()=="l5":
         # L5 processing
         for i in cf_batch["Levels"][level].keys():
@@ -145,6 +153,7 @@ for level in level_list:
             ncFile = qcio.nc_open_write(outfilename)
             qcio.nc_write_series(ncFile,ds5,outputlist=outputlist)
             logging.info('Finished L5 processing with '+cfname)
+            logging.info('')
     elif level.lower()=="l6":
         # L6 processing
         for i in cf_batch["Levels"][level].keys():
@@ -162,3 +171,4 @@ for level in level_list:
             ncFile = qcio.nc_open_write(outfilename)
             qcio.nc_write_series(ncFile,ds6,outputlist=outputlist)
             logging.info('Finished L6 processing with '+cfname)
+            logging.info('')

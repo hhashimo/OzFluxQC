@@ -741,13 +741,6 @@ def gfalternate_createdict(cf,ds,series,ds_alt):
                 ds.alternate[output]["fit_type"] = cf[section][series]["GapFillFromAlternate"][output]["fit"]
             else:
                 log.info("gfAlternate: unrecognised fit option for series "+output+", used OLS")
-        # force the fit through the origin
-        #ds.alternate[output]["thru0"] = "no"
-        #if "thru0" in cf[section][series]["GapFillFromAlternate"][output]:
-            #if cf[section][series]["GapFillFromAlternate"][output]["thru0"].lower() in ["yes","true"]:
-                #ds.alternate[output]["thru0"] = "yes"
-            #else:
-                #log.info("gfAlternate: unrecognised thru0 option for series "+output)
         # correct for lag?
         ds.alternate[output]["lag"] = "yes"
         if "lag" in cf[section][series]["GapFillFromAlternate"][output]:
@@ -755,6 +748,9 @@ def gfalternate_createdict(cf,ds,series,ds_alt):
                 ds.alternate[output]["lag"] = "no"
             else:
                 log.info("gfAlternate: unrecognised lag option for series "+output)
+        # choose specific alternate variable?
+        if "usegrids" in cf[section][series]["GapFillFromAlternate"][output]:
+            ds.alternate[output]["usegrids"] = ast.literal_eval(cf[section][series]["GapFillFromAlternate"][output]["usegrids"])
         # alternate data variable name if different from name used in control file
         if "alternate_name" in cf[section][series]["GapFillFromAlternate"][output]:
             ds.alternate[output]["alternate_name"] = cf[section][series]["GapFillFromAlternate"][output]["alternate_name"]
@@ -818,7 +814,10 @@ def gfalternate_getalternatevaratmaxr(ds_tower,ds_alternate,alternate_info,mode=
     si_alternate = qcutils.GetDateIndex(ldt_alternate,startdate,ts=ts)
     ei_alternate = qcutils.GetDateIndex(ldt_alternate,enddate,ts=ts)
     # create an array for the correlations and a list for the alternate variables in order of decreasing correlation
-    altvar_list = gfalternate_getalternatevarlist(ds_alternate,label_tower)
+    if "usegrids" not in ds_tower.alternate[label_output]:
+        altvar_list = gfalternate_getalternatevarlist(ds_alternate,label_tower)
+    else:
+        altvar_list = ds_tower.alternate[label_output]["usegrids"]
     r = numpy.zeros(len(altvar_list))
     # loop over the variables in the alternate file
     for idx,var in enumerate(altvar_list):
@@ -1007,7 +1006,8 @@ def gfalternate_getlagcorrecteddata(ds_alternate, data_dict,stat_dict,alternate_
         minpoints = alternate_info["min_points"]
         lags,corr = qcts.get_laggedcorrelation(data_tower,data_alternate,maxlags)
         nLags = numpy.argmax(corr) - alternate_info["max_lags"]
-        if nLags>alternate_info["nperhr"]*6: log.error("getlagcorrecteddata: lag is more than 6 hours")
+        if nLags>alternate_info["nperhr"]*6:
+            log.error("getlagcorrecteddata: lag is more than 6 hours for "+label_tower)
         si_alternate = si_alternate - nLags
         ei_alternate = ei_alternate - nLags
         data_alternate,flag_alternate,attr_alternate = qcutils.GetSeriesasMA(ds_alternate,label_alternate,si=si_alternate,ei=ei_alternate,mode="mirror")

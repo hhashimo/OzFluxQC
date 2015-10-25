@@ -225,7 +225,17 @@ def plot_fingerprint(cf):
             # only plot the colourbar if there is data to plot
             if numpy.ma.count(data)!=0:
                 cb = plt.colorbar(orientation='horizontal',fraction=0.02,pad=0.075)
-                cb.set_ticks(numpy.linspace(numpy.min(data),numpy.max(data),4))
+                if numpy.min(data)==numpy.max(data):
+                    if numpy.min(data)!=0:
+                        data_min = numpy.min(data)-0.01*numpy.min(data)
+                        data_max = numpy.max(data)+0.01*numpy.max(data)
+                    else:
+                        data_min = -1.0
+                        data_max = 1.0
+                else:
+                    data_min = numpy.min(data)
+                    data_max = numpy.max(data)
+                cb.set_ticks(numpy.linspace(data_min,data_max,4))
             plt.xticks([0,6,12,18,24])
             plt.xlabel(label)
             if n!= 0: plt.setp(ax.get_yticklabels(), visible=False)
