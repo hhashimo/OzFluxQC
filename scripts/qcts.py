@@ -255,6 +255,12 @@ def CalculateAvailableEnergy(ds,Fa_out='Fa',Fn_in='Fn',Fg_in='Fg'):
         Fg_in: input ground heat flux in ds.  Example: 'Fg'
         """
     log.info(' Calculating available energy from Fn and Fg')
+    if Fn_in not in ds.series.keys():
+        log.warning(" Series "+Fn_in+" not found in data file")
+        return
+    if Fg_in not in ds.series.keys():
+        log.warning(" Series "+Fg_in+" not found in data file")
+        return
     Fn,f,a = qcutils.GetSeriesasMA(ds,Fn_in)
     Fg,f,a = qcutils.GetSeriesasMA(ds,Fg_in)
     Fa_calc = Fn - Fg

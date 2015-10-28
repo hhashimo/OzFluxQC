@@ -258,7 +258,9 @@ def optimise_annual_Eo(data_dict, params_dict, configs_dict, year_index_dict):
     
     # Get Eo for each year and compile dictionary
     yearsEo_dict = {}
+    yearsEo_raw_dict = {}
     yearsQC_dict = {}
+    yearsQC_raw_dict = {}
     Eo_pass_keys = []
     Eo_range_fail_keys = []
     Eo_nan_fail_keys = []
@@ -291,7 +293,9 @@ def optimise_annual_Eo(data_dict, params_dict, configs_dict, year_index_dict):
         # Assign year to pass, range_fail or nan_fail list for subsequent QC and fill
         Eo = params[0]
         yearsEo_dict[yr] = Eo
+        yearsEo_raw_dict[yr] = Eo
         yearsQC_dict[yr] = error_code
+        yearsQC_raw_dict[yr] = error_code
         if numpy.isnan(Eo):
             Eo_nan_fail_keys.append(yr)
         elif ((Eo < 50) | (Eo > 400)):
@@ -331,7 +335,7 @@ def optimise_annual_Eo(data_dict, params_dict, configs_dict, year_index_dict):
     else:
         log.info(" Eo estimates passed QC for all years")
         
-    return yearsEo_dict, yearsQC_dict
+    return yearsEo_dict, yearsQC_dict, yearsEo_raw_dict, yearsQC_raw_dict
 
 def rpLT_createdict(cf,ds,series):
     """

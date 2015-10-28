@@ -242,7 +242,7 @@ def climatology(cf):
         if "Fn" in ds.series.keys() and "Fg" in ds.series.keys():
             qcts.CalculateAvailableEnergy(ds,Fa_out='Fa',Fn_in='Fn',Fg_in='Fg')
         else:
-            log.error(" Climatology: Fn or Fg not in data struicture")
+            log.warning(" Climatology: Fn or Fg not in data struicture")
     # get the time step
     ts = int(ds.globalattributes['time_step'])
     # get the site name
@@ -405,7 +405,7 @@ def climatology(cf):
             xlSheet = xlFile.add_sheet('WUEi(day)')
             write_data_1columnpertimestep(xlSheet, WUEi, ts, startdate=ldt[0], format_string='0.00000')
         else:
-            log.error(" qcclim.climatology: requested variable "+ThisOne+" not in data structure")
+            log.warning(" qcclim.climatology: requested variable "+ThisOne+" not in data structure")
             continue
     log.info(" Saving Excel file "+xl_filename)
     xlFile.save(xl_filename)

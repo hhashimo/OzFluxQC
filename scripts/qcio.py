@@ -287,12 +287,21 @@ def csv_read_series(cf):
             log.info(msg)
     var_list = csv_varnames.keys()
     csv_list = [csv_varnames[x] for x in var_list]
+    col_list = [header.index(item) for item in csv_list]
     # read the csv file using numpy's genfromtxt
     log.info(" Reading from "+csv_filename)
     skip = first_data_row-1
+    missing_values = {}
+    filling_values = {}
+    for item in col_list:
+        missing_values[item] = ["NA","N/A"]
+        filling_values[item] = c.missing_value
     data = numpy.genfromtxt(csv_filename,delimiter=dialect.delimiter,skip_header=skip,
-                            names=header,usecols=csv_list,filling_values=float(-9999),
-                            dtype=None)
+                            names=header,usecols=col_list,missing_values=missing_values,
+                            filling_values=filling_values,dtype=None)
+    #data = numpy.genfromtxt(csv_filename,delimiter=dialect.delimiter,skip_header=skip,
+                            #names=header,usecols=col_list,filling_values=float(-9999),
+                            #dtype=None)
     # get a data structure
     ds = DataStructure()
     # set some global attributes
@@ -411,11 +420,11 @@ def read_eddypro_full(csvname):
     ds.globalattributes["nc_nrecs"] = nRecs
     return ds
 
-def reddyproc_write_csv(cf):
+def reddyproc_write_csv(ncFileName):
     # this needs to be re-written!
     # get the file names
-    ncFileName = get_infilenamefromcf(cf)
-    csvFileName = get_outfilenamefromcf(cf)
+    #ncFileName = get_infilenamefromcf(cf)
+    csvFileName = ncFileName.replace(".nc","_REddyProc.csv")
     # open the csv file
     csvfile = open(csvFileName,'wb')
     writer = csv.writer(csvfile,dialect='excel-tab')
@@ -434,11 +443,20 @@ def reddyproc_write_csv(cf):
     Ddd,flag,attr = qcutils.GetSeries(ds,'Ddd',si=si,ei=ei)
     Hhh,flag,attr = qcutils.GetSeries(ds,'Hdh',si=si,ei=ei)
     # get the data
-    data = {}
-    series_list = cf["Variables"].keys()
+    data = OrderedDict()
+    data["NEE"] = {"ncname":"Fc","format":"0.00"}
+    data["LE"] = {"ncname":"Fe","format":"0"}
+    data["H"] = {"ncname":"Fh","format":"0"}
+    data["Rg"] = {"ncname":"Fsd","format":"0"}
+    data["Tair"] = {"ncname":"Ta","format":"0.00"}
+    data["Tsoil"] = {"ncname":"Ts","format":"0.00"}
+    data["rH"] = {"ncname":"RH","format":"0"}
+    data["VPD"] = {"ncname":"VPD","format":"0.0"}
+    data["Ustar"] = {"ncname":"ustar","format":"0.00"}
+    #series_list = cf["Variables"].keys()
+    series_list = data.keys()
     for series in series_list:
-        data[series] = {}
-        ncname = cf["Variables"][series]["ncname"]
+        ncname = data[series]["ncname"]
         if ncname not in ds.series.keys():
             log.error("Series "+ncname+" not in netCDF file, skipping ...")
             series_list.remove(series)
@@ -447,7 +465,7 @@ def reddyproc_write_csv(cf):
         data[series]["Data"] = d
         data[series]["Flag"] = f
         data[series]["Attr"] = a
-        fmt = cf["Variables"][series]["format"]
+        fmt = data[series]["format"]
         if "." in fmt:
             numdec = len(fmt) - (fmt.index(".") + 1)
             strfmt = "{0:."+str(numdec)+"f}"
@@ -465,24 +483,19 @@ def reddyproc_write_csv(cf):
                 data[series]["Attr"]["units"] = "umolm-2s-1"
             else:
                 msg = " reddyproc_write_csv: unrecognised units for "+series+", returning ..."
+                log.error(msg)
                 return 0
         if series=="LE" or series=="H" or series=="Rg":
-            if data[series]["Attr"]["units"]=='W/m2':
-                data[series]["Attr"]["units"] = "Wm-2"
-            else:
-                msg = " reddyproc_write_csv: unrecognised units for "+series+", returning ..."
-                return 0
+            data[series]["Attr"]["units"] = "Wm-2"
         if series=="Tair" or series=="Tsoil":
-            if data[series]["Attr"]["units"]=='C':
-                data[series]["Attr"]["units"] = "degC"
-            else:
-                msg = " reddyproc_write_csv: unrecognised units for "+series+", returning ..."
-                return 0            
+            data[series]["Attr"]["units"] = "degC"
         if series=="rH" and data[series]["Attr"]["units"] in ["fraction","frac"]:
-            data[series]["Data"] = float(100)*data[series]["Data"]
+            idx = numpy.where(data[series]["Data"]!=c.missing_value)[0]
+            data[series]["Data"][idx] = float(100)*data[series]["Data"][idx]
             data[series]["Attr"]["units"] = "%"
         if series=="VPD" and data[series]["Attr"]["units"]=="kPa":
-            data[series]["Data"] = float(10)*data[series]["Data"]
+            idx = numpy.where(data[series]["Data"]!=c.missing_value)[0]
+            data[series]["Data"][idx] = float(10)*data[series]["Data"][idx]
             data[series]["Attr"]["units"] = "hPa"
         if series=="Ustar":
             if data[series]["Attr"]["units"]=="m/s":
@@ -1660,6 +1673,8 @@ def nc_write_series(ncFile,ds,outputlist=None,ndims=3):
     setattr(ncVar,"calendar","gregorian")
     if "time" in outputlist: outputlist.remove("time")
     # now write the latitude and longitude variables
+    if "latitude" not in ds.globalattributes: ndims = 1
+    if "longitude" not in ds.globalattributes: ndims = 1
     if ndims==3:
         if "latitude" not in outputlist:
             ncVar = ncFile.createVariable("latitude","d",("latitude",))

@@ -196,6 +196,7 @@ class qcgui(tk.Tk):
         """
         Calls qcclim.climatology
         """
+        logging.info(' Starting climatology')
         self.do_progress(text='Doing climatology ...')
         if mode=="standard":
             stdname = "controlfiles/standard/climatology.txt"
@@ -222,6 +223,7 @@ class qcgui(tk.Tk):
         qcclim.climatology(cf)
         self.do_progress(text='Finished climatology')
         logging.info(' Finished climatology')
+        logging.info("")
 
     def do_closeplotwindows(self):
         """
@@ -252,7 +254,8 @@ class qcgui(tk.Tk):
         Calls qccpd.cpd_main
         Compares the results OzFluxQC (L3) with those from EddyPro (full output).
         """
-        self.do_progress(text='Estimating u* threshold using Barr et al ...')
+        logging.info(' Starting estimation u* threshold using CPD')
+        self.do_progress(text='Estimating u* threshold using CPD ...')
         stdname = "controlfiles/standard/cpd.txt"
         if os.path.exists(stdname):
             cf = qcio.get_controlfilecontents(stdname)
@@ -269,6 +272,7 @@ class qcgui(tk.Tk):
         qccpd.cpd_main(cf)
         self.do_progress(text='Finished estimating u* threshold')
         logging.info(' Finished estimating u* threshold')
+        logging.info("") 
 
     def do_helpcontents(self):
         tkMessageBox.showinfo("Obi Wan says ...","Read the source, Luke!")
@@ -300,6 +304,7 @@ class qcgui(tk.Tk):
                 [Plots]:
                     Variable lists for plot generation
             """
+        logging.info(" Starting L2 processing ...")
         self.do_progress(text='Load L2 Control File ...')
         self.cf = qcio.load_controlfile(path='controlfiles')
         if len(self.cf)==0:
@@ -323,6 +328,7 @@ class qcgui(tk.Tk):
         qcio.nc_write_series(ncFile,self.ds2)                                  # save the L2 data
         self.do_progress(text='Finished saving L2 QC data')              # tdo_progressell the user we are done
         logging.info(' Finished saving L2 QC data')
+        logging.info("") 
 
     def do_l3qc(self):
         """
@@ -394,6 +400,7 @@ class qcgui(tk.Tk):
                 [Plots]:
                     Variable lists for plot generation
             """
+        logging.info(" Starting L3 processing ...")
         self.cf = qcio.load_controlfile(path='controlfiles')
         if len(self.cf)==0:
             logging.info( " L3: no control file chosen")            
@@ -419,6 +426,7 @@ class qcgui(tk.Tk):
         qcio.nc_write_series(ncFile,self.ds3,outputlist=outputlist)             # save the L3 data
         self.do_progress(text='Finished saving L3 QC & Corrected NetCDF data')  # tell the user we are done
         logging.info(' Finished saving L3 QC & Corrected NetCDF data')
+        logging.info("") 
 
     def do_l4qc(self):
         """
@@ -449,6 +457,7 @@ class qcgui(tk.Tk):
                     Variable subset list for OzFlux output file (where
                         available)
             """
+        logging.info(" Starting L4 processing ...")
         cf = qcio.load_controlfile(path='controlfiles')
         if len(cf)==0: self.do_progress(text='Waiting for input ...'); return
         infilename = qcio.get_infilenamefromcf(cf)
@@ -478,11 +487,13 @@ class qcgui(tk.Tk):
             qcio.nc_write_series(ncFile,ds4,outputlist=outputlist)         # save the L4 data
             self.do_progress(text='Finished saving L4 gap filled data')    # tell the user we are done
             logging.info(' Finished saving L4 gap filled data')
+        logging.info("")        
 
     def do_l5qc(self):
         """
             Call qcls.l5qc function to gap fill the fluxes.
         """
+        logging.info(" Starting L5 processing ...")
         cf = qcio.load_controlfile(path='controlfiles')
         if len(cf)==0: self.do_progress(text='Waiting for input ...'); return
         infilename = qcio.get_infilenamefromcf(cf)
@@ -512,11 +523,13 @@ class qcgui(tk.Tk):
             qcio.nc_write_series(ncFile,ds5,outputlist=outputlist)           # save the L5 data
             self.do_progress(text='Finished saving L5 gap filled data')      # tell the user we are done
             logging.info(' Finished saving L5 gap filled data')
+        logging.info("")
 
     def do_l6qc(self):
         """
             Call qcls.l6qc function to partition NEE into GPP and ER.
         """
+        logging.info(" Starting L6 processing ...")
         cf = qcio.load_controlfile(path='controlfiles')
         if len(cf)==0: self.do_progress(text='Waiting for input ...'); return
         infilename = qcio.get_infilenamefromcf(cf)
@@ -542,9 +555,11 @@ class qcgui(tk.Tk):
         qcio.nc_write_series(ncFile,ds6,outputlist=outputlist)             # save the L6 data
         self.do_progress(text='Finished saving L6 partitioned data')      # tell the user we are done
         logging.info(' Finished saving L6 partitioned data')
+        logging.info("")
 
     def do_nc2fn(self):
         """ Calls qcio.fn_write_csv. """
+        logging.info(' Starting conversion to FluxNet CSV file')
         self.do_progress(text='Load control file ...')
         self.cf = qcio.load_controlfile(path='controlfiles')
         if len(self.cf)==0: self.do_progress(text='Waiting for input ...'); return
@@ -552,19 +567,23 @@ class qcgui(tk.Tk):
         qcio.fn_write_csv(self.cf)
         logging.info(' Finished conversion')
         self.do_progress(text='Finished conversion')
+        logging.info("")
 
     def do_nc2reddyproc(self):
         """ Calls qcio.reddyproc_write_csv."""
-        self.do_progress(text='Load control file ...')
-        cf = qcio.load_controlfile(path='controlfiles')
-        if len(cf)==0: self.do_progress(text='Waiting for input ...'); return
+        logging.info(' Starting conversion to REddyProc CSV file')
+        self.do_progress(text="Choosing netCDF file ...")
+        ncfilename = qcio.get_filename_dialog(path="../Sites",title="Choose a netCDF file")
+        if len(ncfilename)==0: self.do_progress(text="Waiting for input ..."); return
         self.do_progress(text='Converting nc to REddyProc CSV ...')
-        qcio.reddyproc_write_csv(cf)
+        qcio.reddyproc_write_csv(ncfilename)
         logging.info(' Finished conversion')
         self.do_progress(text='Finished conversion')
+        logging.info("")
 
     def do_nc2smap(self):
         """ Calls qcio.smap_write_csv. """
+        logging.info(' Starting conversion to SMAP CSV file')
         self.do_progress(text='Load control file ...')
         self.cf = qcio.load_controlfile(path='controlfiles')
         if len(self.cf)==0: self.do_progress(text='Waiting for input ...'); return
@@ -572,9 +591,11 @@ class qcgui(tk.Tk):
         qcio.smap_write_csv(self.cf)
         logging.info(' Finished conversion')
         self.do_progress(text='Finished conversion')
+        logging.info("")
 
     def do_nc2xls(self):
         """ Calls qcio.nc_2xls. """
+        logging.info(" Starting conversion to Excel file")
         self.do_progress(text="Choosing netCDF file ...")
         ncfilename = qcio.get_filename_dialog(path="../Sites",title="Choose a netCDF file")
         if len(ncfilename)==0: self.do_progress(text="Waiting for input ..."); return
@@ -582,11 +603,13 @@ class qcgui(tk.Tk):
         qcio.nc_2xls(ncfilename,outputlist=None)
         self.do_progress(text="Finished converting netCDF file")
         logging.info(" Finished converting netCDF file")
+        logging.info("")
 
     def do_ncconcat(self):
         """
         Calls qcio.nc_concatenate
         """
+        logging.info(' Starting concatenation of netCDF files')
         self.do_progress(text='Loading control file ...')
         cf = qcio.load_controlfile(path='controlfiles')
         if len(cf)==0: self.do_progress(text='Waiting for input ...'); return
@@ -594,21 +617,22 @@ class qcgui(tk.Tk):
         qcio.nc_concatenate(cf)
         self.do_progress(text='Finished concatenating files')
         logging.info(' Finished concatenating files')
+        logging.info("")
 
     def do_ncsplit(self):
         """
         Calls qcio.nc_split
         """
-        #self.do_progress(text='Loading control file ...')
-        #cf = qcio.load_controlfile(path='controlfiles')
-        #if len(cf)==0: self.do_progress(text='Waiting for input ...'); return
+        logging.info(' Starting split of netCDF file')
         self.do_progress(text='Splitting file')
         qcio.nc_split()
         self.do_progress(text='Finished splitting file')
         logging.info(' Finished splitting file')
+        logging.info("")
 
     def do_plotfingerprint(self,mode="standard"):
         """ Plot fingerprint"""
+        logging.info(' Starting fingerprint plot')
         self.do_progress(text='Doing fingerprint plot ...')
         if mode=="standard":
             stdname = "controlfiles/standard/fingerprint.txt"
@@ -631,6 +655,7 @@ class qcgui(tk.Tk):
         qcplot.plot_fingerprint(cf)
         self.do_progress(text='Finished plotting fingerprint')
         logging.info(' Finished plotting fingerprint')
+        logging.info("")
 
     def do_plotfluxnet(self,mode="standard"):
         """ Plot FluxNet style time series of data."""
@@ -982,6 +1007,7 @@ class qcgui(tk.Tk):
         """
         Calls qcio.xl2nc
         """
+        logging.info(" Starting L1 processing ...")
         self.do_progress(text='Loading control file ...')
         self.cf = qcio.load_controlfile(path='controlfiles')
         if len(self.cf)==0: self.do_progress(text='Waiting for input ...'); return

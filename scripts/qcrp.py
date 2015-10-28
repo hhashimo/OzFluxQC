@@ -263,6 +263,7 @@ def ERUsingLloydTaylor(cf,ds):
     for series in ds.rpLT.keys():
         # create dictionaries for the results
         E0_results = {}
+        E0_raw_results = {}
         rb_results = {}
         # add a sheet for this series
         xl_sheet = xl_file.add_sheet(series)
@@ -312,7 +313,7 @@ def ERUsingLloydTaylor(cf,ds):
         # this section could be a separate routine
         # Get the annual estimates of Eo
         log.info(" Optimising fit for Eo for each year")
-        Eo_dict, EoQC_dict = qcrpLT.optimise_annual_Eo(data_dict,params_dict,configs_dict,year_index_dict)
+        Eo_dict, EoQC_dict, Eo_raw_dict, EoQC_raw_dict = qcrpLT.optimise_annual_Eo(data_dict,params_dict,configs_dict,year_index_dict)
         #print 'Done!'
         # Write to result arrays
         year_array = numpy.array([i.year for i in date_array])
@@ -324,8 +325,13 @@ def ERUsingLloydTaylor(cf,ds):
                                   "units":"Year","format":"yyyy"}
         E0_results["E0"] = {"data":[float(Eo_dict[yr]) for yr in Eo_dict.keys()],
                             "units":"none","format":"0"}
+        E0_raw_results["DateTime"] = {"data":[datetime.datetime(int(yr),1,1) for yr in Eo_raw_dict.keys()],
+                                  "units":"Year","format":"yyyy"}
+        E0_raw_results["E0"] = {"data":[float(Eo_raw_dict[yr]) for yr in Eo_raw_dict.keys()],
+                            "units":"none","format":"0"}
         # write the E0 values to the Excel file
-        qcio.xl_write_data(xl_sheet,E0_results,xlCol=0)
+        qcio.xl_write_data(xl_sheet,E0_raw_results,xlCol=0)
+        qcio.xl_write_data(xl_sheet,E0_results,xlCol=2)
         # *** end of annual estimates of E0 code ***
         # *** start of estimating rb code for each window ***
         # this section could be a separate routine
@@ -375,7 +381,7 @@ def ERUsingLloydTaylor(cf,ds):
         rb_results["rb_noct"] = {"data":rb_data[idx],
                             "units":"none","format":"0.00"}
         # write to the Excel file
-        qcio.xl_write_data(xl_sheet,rb_results,xlCol=2)
+        qcio.xl_write_data(xl_sheet,rb_results,xlCol=4)
         # Interpolate
         opt_params_dict['rb_noct'] = qcrpLT.interp_params(opt_params_dict['rb_noct'])
         #print 'Done!'
