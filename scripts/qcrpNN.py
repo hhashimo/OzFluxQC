@@ -350,7 +350,7 @@ def rpFFNET_main(ds,rpFFNET_info):
     """
     startdate = rpFFNET_info["startdate"]
     enddate = rpFFNET_info["enddate"]
-    log.info(" Estimating ER using FFNET: "+startdate+" to "+enddate)
+    log.info(" Estimating ER using FFNET")
     # read the control file again, this allows the contents of the control file to
     # be changed with the FFNET GUI still displayed
     cfname = ds.globalattributes["controlfile_name"]
@@ -905,7 +905,7 @@ def rpSOLO_main(ds,solo_info,SOLO_gui=None):
     """
     startdate = solo_info["startdate"]
     enddate = solo_info["enddate"]
-    log.info(" Estimating ER using SOLO: "+startdate+" to "+enddate)
+    log.info(" Estimating ER using SOLO")
     # read the control file again, this allows the contents of the control file to
     # be changed with the SOLO GUI still displayed
     cfname = ds.globalattributes["controlfile_name"]
