@@ -81,7 +81,7 @@ class qcgui(tk.Tk):
         L3Label = tk.Label(self.org_frame,text='L3: Process')
         L3Label.grid(row=0,column=4,columnspan=2)
         # things in the second row of the GUI
-        doL1Button = tk.Button (self.org_frame, text="Read L1 file", command=self.do_xl2ncL1 )
+        doL1Button = tk.Button (self.org_frame, text="Read L1 file", command=self.do_xl2nc )
         doL1Button.grid(row=1,column=0,columnspan=2)
         doL2Button = tk.Button (self.org_frame, text="Do L2 QA/QC", command=self.do_l2qc )
         doL2Button.grid(row=1,column=2,columnspan=2)
@@ -143,7 +143,7 @@ class qcgui(tk.Tk):
         menubar.add_cascade(label="File",menu=filemenu)
         # now the "Run" menu
         runmenu = tk.Menu(menubar,tearoff=0)
-        runmenu.add_command(label="Read L1 file",command=self.do_xl2ncL1)
+        runmenu.add_command(label="Read L1 file",command=self.do_xl2nc)
         runmenu.add_command(label="Do L2 QA/QC",command=self.do_l2qc)
         runmenu.add_command(label="Do L3 processing",command=self.do_l3qc)
         runmenu.add_command(label="Do L4 gap fill (drivers)",command=self.do_l4qc)
@@ -819,31 +819,6 @@ class qcgui(tk.Tk):
             Plot L4 (Gap filled) and L5 (Partitioned) data.
             """
         pass
-        #if 'ds3' not in dir(self) or 'ds4' not in dir(self):
-            #self.cf = qcio.load_controlfile(path='controlfiles')
-            #if len(self.cf)==0:
-                #self.do_progress(text='Waiting for input ...')
-                #return
-            #l3filename = qcio.get_infilenamefromcf(self.cf)
-            #if len(l3filename)==0: self.do_progress(text='An error occurred, check the console ...'); return
-            #self.ds3 = qcio.nc_read_series(l3filename)
-            #if len(self.ds3.series.keys())==0: self.do_progress(text='An error occurred, check the console ...'); del self.ds3; return
-            #l4filename = qcio.get_outfilenamefromcf(self.cf)
-            #self.ds4 = qcio.nc_read_series(l4filename)
-            #if len(self.ds4.series.keys())==0: self.do_progress(text='An error occurred, check the console ...'); del self.ds4; return
-            #self.update_startenddate(str(self.ds3.series['DateTime']['Data'][0]),
-                                     #str(self.ds3.series['DateTime']['Data'][-1]))
-        #self.do_progress(text='Plotting L3 and L4 QC ...')
-        #cfname = self.ds4.globalattributes['controlfile_name']
-        #self.cf = qcio.get_controlfilecontents(cfname)
-        #for nFig in self.cf['Plots'].keys():
-            #si = qcutils.GetDateIndex(self.ds3.series['DateTime']['Data'],self.plotstartEntry.get(),
-                                      #ts=self.ds3.globalattributes['time_step'],default=0,match='exact')
-            #ei = qcutils.GetDateIndex(self.ds3.series['DateTime']['Data'],self.plotendEntry.get(),
-                                      #ts=self.ds3.globalattributes['time_step'],default=-1,match='exact')
-            #qcplot.plottimeseries(self.cf,nFig,self.ds3,self.ds4,si,ei)
-        #self.do_progress(text='Finished plotting L4')
-        #logging.info(' Finished plotting L4, check the GUI')
 
     def do_plotL6_summary(self):
         """
@@ -884,18 +859,6 @@ class qcgui(tk.Tk):
         logging.info(' Quitting ...')
         self.quit()
 
-    def do_ERusingSOLO(self):
-        """
-        Calls qcrp.ERUsingSOLO
-        """
-        self.do_progress(text='Loading control file ...')
-        cf = qcio.load_controlfile(path='controlfiles')
-        if len(cf)==0: self.do_progress(text='Waiting for input ...'); return
-        self.do_progress(text='Estimating ER using SOLO')
-        qcrp.ERUsingSOLO(cf)
-        self.do_progress(text='Finished estimating ER using SOLO')
-        logging.info(' Finished estimating ER using SOLO')
-
     def do_savexL2(self):
         """
             Call nc2xl function
@@ -928,81 +891,6 @@ class qcgui(tk.Tk):
         self.do_progress(text='Finished L3 Data Export')              # tell the user we are done
         logging.info(' Finished saving L3 data')
 
-    def do_savexL4(self):
-        """
-            Call nc2xl function
-            Exports excel data from NetCDF file
-            
-            Outputs L4 Excel file containing Data and Flag worksheets
-            """
-        self.do_progress(text='Exporting L4 NetCDF -> Xcel ...')                     # put up the progress message
-        # get the output filename
-        outfilename = qcio.get_outfilenamefromcf(self.cf)
-        # get the output list
-        outputlist = qcio.get_outputlistfromcf(self.cf,'xl')
-        qcio.nc_2xls(outfilename,outputlist=outputlist)
-        self.do_progress(text='Finished L4 Data Export')              # tell the user we are done
-        logging.info(' Finished saving L4 data')
-
-    def do_savexL5(self):
-        """
-            Call nc2xl function
-            Exports excel data from NetCDF file
-            
-            Outputs L5 Excel file containing Data and Flag worksheets
-            """
-        self.do_progress(text='Exporting L5 NetCDF -> Xcel ...')                     # put up the progress message
-        # get the output filename
-        outfilename = qcio.get_outfilenamefromcf(self.cf)
-        # get the output list
-        outputlist = qcio.get_outputlistfromcf(self.cf,'xl')
-        qcio.nc_2xls(outfilename,outputlist=outputlist)
-        self.do_progress(text='Finished L5 Data Export')              # tell the user we are done
-        logging.info(' Finished saving L5 data')
-
-    def do_v27tov28(self):
-        """ Conversy from V2.7 format (1D) to V2.8 (3D). """
-        self.do_progress(text='Converting V2.7 to V2.8 ...')
-        qcio.convert_v27tov28()
-        logging.info(' Finished conversion')
-        self.do_progress(text='Finished conversion')
-        
-    def do_xl2ncL1(self):
-        """
-        Calls do_xl2nc with in_level set to L1
-            Level 1:
-                Read L1 Excel workbook
-                Generate flags for missing observations
-                Output L1 netCDF file to ncData folder
-                Control file: L1.txt
-        """
-        self.in_level = 'L1'
-        self.do_xl2nc()
-    
-    def do_xl2ncL3(self):
-        """
-        Calls do_xl2nc with in_level set to L3
-            Level 3:
-                Ingest excel database with QA/QC and corrected fluxes
-                Ingest flags generated in L3
-                Outputs L3 netCDF file to ncData folder
-                Control file: L3a_xl2nc_corrected
-        """
-        self.in_level = 'L3'
-        self.do_xl2nc()
-
-    def do_xl2ncL4(self):
-        """
-        Calls do_xl2nc with in_level set to L4
-            Level 4:
-                Ingest excel database with Gap Filled fluxes
-                Ingest flags generated in L3 & L4
-                Outputs L4 netCDF file to ncData folder
-                Control file: L4a_xl2nc_gapfilled
-        """
-        self.in_level = 'L4'
-        self.do_xl2nc()
-
     def do_xl2nc(self):
         """
         Calls qcio.xl2nc
@@ -1012,8 +900,8 @@ class qcgui(tk.Tk):
         self.cf = qcio.load_controlfile(path='controlfiles')
         if len(self.cf)==0: self.do_progress(text='Waiting for input ...'); return
         self.do_progress(text='Reading Excel file & writing to netCDF')
-        rcode = qcio.xl2nc(self.cf,self.in_level)
-        if rcode==0:
+        rcode = qcio.xl2nc(self.cf,"L1")
+        if rcode==1:
             self.do_progress(text='Finished writing to netCDF ...')
             logging.info(' Finished writing to netCDF ...')
         else:

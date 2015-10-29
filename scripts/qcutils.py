@@ -822,7 +822,10 @@ def GetPlotVariableNamesFromCF(cf, n):
 def GetSeries(ds,ThisOne,si=0,ei=-1,mode="truncate"):
     """ Returns the data, QC flag and attributes of a series from the data structure."""
     # number of records
-    nRecs = int(ds.globalattributes["nc_nrecs"])
+    if "nc_nrecs" in ds.globalattributes:
+        nRecs = int(ds.globalattributes["nc_nrecs"])
+    else:
+        nRecs = len(ds.series[ThisOne]["Data"])
     # check the series requested is in the data structure
     if ThisOne in ds.series.keys():
         # series is in the data structure

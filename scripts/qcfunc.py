@@ -1,4 +1,5 @@
 import datetime
+import dateutil
 import meteorologicalfunctions as mf
 import numpy
 import qcutils
@@ -70,20 +71,60 @@ def AhfromMR(ds,Ah_out,MR_in,Ta_in,ps_in):
     return 1
 
 def DateTimeFromDoY(ds,Year_in,DoY_in,Hdh_in):
-    nRecs = int(ds.globalattributes["nc_nrecs"])
-    year,f,a = qcutils.GetSeries(ds,Year_in)
-    doy,f,a = qcutils.GetSeries(ds,DoY_in)
-    hdh,f,a = qcutils.GetSeries(ds,Hdh_in)
+    year,f,a = qcutils.GetSeriesasMA(ds,Year_in)
+    doy,f,a = qcutils.GetSeriesasMA(ds,DoY_in)
+    hdh,f,a = qcutils.GetSeriesasMA(ds,Hdh_in)
+    idx = numpy.ma.where((numpy.ma.getmaskarray(year)==False)&
+                         (numpy.ma.getmaskarray(doy)==False)&
+                         (numpy.ma.getmaskarray(hdh)==False))[0]
+    year = year[idx]
+    doy = doy[idx]
+    hdh = hdh[idx]
     hour = numpy.array(hdh,dtype=numpy.integer)
     minute = numpy.array((hdh-hour)*60,dtype=numpy.integer)
     dt = [datetime.datetime(int(y),1,1,h,m)+datetime.timedelta(int(d)-1) for y,d,h,m in zip(year,doy,hour,minute)]
+    nRecs = len(dt)
+    ds.series["DateTime"] = {}
     ds.series["DateTime"]["Data"] = dt
-    ds.series["DateTime"]["Flag"] = numpy.zeros(nRecs,dtype=numpy.int32)
+    ds.series["DateTime"]["Flag"] = numpy.zeros(len(dt),dtype=numpy.int32)
     ds.series["DateTime"]["Attr"] = {}
     ds.series["DateTime"]["Attr"]["long_name"] = "Datetime in local timezone"
     ds.series["DateTime"]["Attr"]["units"] = "None"
+    # now remove any "data"" from empty lines
+    series_list = ds.series.keys()
+    if "DateTime" in series_list: series_list.remove("DateTime")
+    for item in series_list:
+        ds.series[item]["Data"] = ds.series[item]["Data"][idx]
+        ds.series[item]["Flag"] = ds.series[item]["Flag"][idx]
+    ds.globalattributes["nc_nrecs"] = nRecs
     return 1
 
+def DateTimeFromTimeStamp(ds,TimeStamp_in):
+    if TimeStamp_in not in ds.series.keys():
+        log.error(" Required series "+TimeStamp_in+" not found")
+        return 0
+    TimeStamp = ds.series[TimeStamp_in]["Data"]
+    # guard against empty fields in what we assume is the datetime
+    idx = [i for i in range(len(TimeStamp)) if len(TimeStamp[i])>0]
+    dt = [dateutil.parser.parse(TimeStamp[i]) for i in idx]
+    # we have finished with the timestamp so delete it from the data structure
+    del ds.series[TimeStamp_in]
+    nRecs = len(dt)
+    ds.series["DateTime"] = {}
+    ds.series["DateTime"]["Data"] = dt
+    ds.series["DateTime"]["Flag"] = numpy.zeros(len(dt),dtype=numpy.int32)
+    ds.series["DateTime"]["Attr"] = {}
+    ds.series["DateTime"]["Attr"]["long_name"] = "Datetime in local timezone"
+    ds.series["DateTime"]["Attr"]["units"] = "None"
+    # now remove any "data"" from empty lines
+    series_list = ds.series.keys()
+    if "DateTime" in series_list: series_list.remove("DateTime")
+    for item in series_list:
+        ds.series[item]["Data"] = ds.series[item]["Data"][idx]
+        ds.series[item]["Flag"] = ds.series[item]["Flag"][idx]
+    ds.globalattributes["nc_nrecs"] = nRecs
+    return 1
+    
 def test(arg1,arg2):
     print "got args:",arg1,arg2
     return "that worked"
