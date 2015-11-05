@@ -639,7 +639,8 @@ class qcgui(tk.Tk):
             if os.path.exists(stdname):
                 cf = qcio.get_controlfilecontents(stdname)
                 filename = qcio.get_filename_dialog(path='../Sites',title='Choose a netCDF file')
-                if len(filename)==0: self.do_progress(text='Waiting for input ...'); return
+                if len(filename)==0 or not os.path.exists(filename):
+                    self.do_progress(text='Waiting for input ...'); return
                 if "Files" not in dir(cf): cf["Files"] = {}
                 cf["Files"]["file_path"] = ntpath.split(filename)[0]+"/"
                 cf["Files"]["in_filename"] = ntpath.split(filename)[1]

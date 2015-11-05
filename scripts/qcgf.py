@@ -353,8 +353,13 @@ def GapFillFromAlternate(cf,ds4,ds_alt):
         # call the GapFillFromAlternate GUI
         gfalternate_gui(cf,ds4,ds_alt,alternate_info)
     else:
-        if "GUI" in cf["Options"]:
-            gfalternate_run_nogui(cf,ds4,ds_alt,alternate_info)
+        if "GUI" in cf:
+            if "Alternate" in cf["GUI"]:
+                gfalternate_run_nogui(cf,ds4,ds_alt,alternate_info)
+            else:
+                log.warning(" No GUI sub-section found in Options section of control file")
+                gfalternate_plotcoveragelines(ds4,alternate_info)
+                gfalternate_gui(cf,ds4,ds_alt,alternate_info)
         else:
             log.warning(" No GUI sub-section found in Options section of control file")
             gfalternate_plotcoveragelines(ds4,alternate_info)
@@ -2156,6 +2161,32 @@ def gfalternate_update_alternate_info(ds_tower,alternate_info):
         alternate_info["fit_type"] = "replace"
         alternate_info["lag"] = "no"
 
+# functions for GapFillUsingInterpolation
+def GapFillUsingInterpolation(cf,ds):
+    if "Drivers" in cf:
+        section_name = "Drivers"
+        series_list = cf[section_name].keys()
+    elif "Fluxes" in cf:
+        section_name = "Fluxes"
+        series_list = cf[section_name].keys()
+    else:
+        msg = " No [Drivers] or [Fluxes] section in control file"
+        log.error(msg)
+        return
+    maxlen = int(qcutils.get_keyvaluefromcf(cf,["Options"],"MaxGapInterpolate",default=3))
+    if maxlen==0:
+        msg = " Gap fill by interpolation disabled in control file"
+        log.info(msg)
+        return
+    for ThisOne in series_list:
+        if "MaxGapInterpolate" in cf[section_name][ThisOne]:
+            maxlen = int(qcutils.get_keyvaluefromcf(cf,[section_name,ThisOne],"MaxGapInterpolate",default=3))
+            if maxlen==0:
+                msg = " Gap fill by interpolation disabled for "+ThisOne
+                log.info(msg)
+                continue
+        qcts.InterpolateOverMissing(ds,series=ThisOne,maxlen=3)
+    
 # functions for GapFillUsingSOLO
 def GapFillUsingSOLO(cf,dsa,dsb):
     '''
@@ -2188,8 +2219,13 @@ def GapFillUsingSOLO(cf,dsa,dsb):
         # call the GapFillUsingSOLO GUI
         gfSOLO_gui(cf,dsa,dsb,solo_info)
     else:
-        if "GUI" in cf["Options"]:
-            gfSOLO_run_nogui(cf,dsa,dsb,solo_info)
+        if "GUI" in cf:
+            if "SOLO" in cf["GUI"]:
+                gfSOLO_run_nogui(cf,dsa,dsb,solo_info)
+            else:
+                log.warning(" No GUI sub-section found in Options section of control file")
+                gfSOLO_plotcoveragelines(dsb,solo_info)
+                gfSOLO_gui(cf,dsa,dsb,solo_info)
         else:
             log.warning(" No GUI sub-section found in Options section of control file")
             gfSOLO_plotcoveragelines(dsb,solo_info)

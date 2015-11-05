@@ -228,11 +228,11 @@ def l4qc(cf,ds3):
     # now do the meteorological driver gap filling
     for ThisOne in cf["Drivers"].keys():
         if ThisOne not in ds4.series.keys(): log.error("Series "+ThisOne+" not in data structure"); continue
-        # interpolate over short gaps
-        qcts.InterpolateOverMissing(ds4,series=ThisOne,maxlen=3)
         # parse the control file for information on how the user wants to do the gap filling
         qcgf.GapFillParseControlFile(cf,ds4,ThisOne,ds_alt)
     # *** start of the section that does the gap filling of the drivers ***
+    # fill short gaps using interpolation
+    qcgf.GapFillUsingInterpolation(cf,ds4)
     # do the gap filling using the ACCESS output
     qcgf.GapFillFromAlternate(cf,ds4,ds_alt)
     if ds4.returncodes["alternate"]=="quit": return ds4
@@ -282,11 +282,11 @@ def l5qc(cf,ds4):
     qcck.do_qcchecks(cf,ds5)
     # now do the flux gap filling methods
     for ThisOne in cf["Fluxes"].keys():
-        # interpolate over any gaps up to 1 hour in length
-        qcts.InterpolateOverMissing(ds5,series=ThisOne,maxlen=3)
         # parse the control file for information on how the user wants to do the gap filling
         qcgf.GapFillParseControlFile(cf,ds5,ThisOne,ds_alt)
     # *** start of the section that does the gap filling of the fluxes ***
+    # fill short gaps using interpolation
+    qcgf.GapFillUsingInterpolation(cf,ds5)
     # do the gap filling using SOLO
     qcgf.GapFillUsingSOLO(cf,ds4,ds5)
     if ds5.returncodes["solo"]=="quit": return ds5
