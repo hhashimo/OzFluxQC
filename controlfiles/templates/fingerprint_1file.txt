@@ -93,6 +93,10 @@
         nc_varname = "Fn"
         Lower = -200
         Upper = 1000
+    [[Fa]]
+        nc_varname = "Fa"
+        Lower = -200
+        Upper = 1000
     [[H2O]]
         nc_varname = "Ah"
         Lower = 0

@@ -666,7 +666,8 @@ class qcgui(tk.Tk):
             if os.path.exists(stdname):
                 cf = qcio.get_controlfilecontents(stdname)
                 filename = qcio.get_filename_dialog(path='../Sites',title='Choose a netCDF file')
-                if len(filename)==0: self.do_progress(text='Waiting for input ...'); return
+                if len(filename)==0 or not os.path.exists(filename):
+                    self.do_progress(text='Waiting for input ...'); return
                 if "Files" not in dir(cf): cf["Files"] = {}
                 cf["Files"]["file_path"] = ntpath.split(filename)[0]+"/"
                 cf["Files"]["in_filename"] = ntpath.split(filename)[1]
@@ -829,6 +830,8 @@ class qcgui(tk.Tk):
         if len(cf)==0:
             self.do_progress(text='Waiting for input ...')
             return
+        if "Options" not in cf: cf["Options"]={}
+        cf["Options"]["call_mode"] = "interactive"
         l6filename = qcio.get_outfilenamefromcf(cf)
         if not qcutils.file_exists(l6filename): self.do_progress(text='An error occurred, check the console ...'); return
         ds6 = qcio.nc_read_series(l6filename)
