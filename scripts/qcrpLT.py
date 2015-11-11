@@ -325,7 +325,10 @@ def optimise_annual_Eo(data_dict, params_dict, configs_dict, year_index_dict):
         else:
             for i in Eo_range_fail_keys:
                 yearsEo_dict[i] == 50 if yearsEo_dict[i] < 50 else 400
-            Eo_mean = [yearsEo_dict[i] for i in Eo_range_fail_keys].mean()
+            if len(Eo_range_fail_keys)<=1:
+                Eo_mean = yearsEo_dict[Eo_range_fail_keys[0]]
+            else:
+                Eo_mean = [yearsEo_dict[i] for i in Eo_range_fail_keys].mean()
             for i in Eo_nan_fail_keys:
                 yearsEo_dict[i] = Eo_mean
             log.warning(" Eo estimates were out of range for all years")

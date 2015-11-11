@@ -1043,27 +1043,48 @@ def L6_summary_createseriesdict(cf,ds):
         series_dict["daily"][item]["format"] = "0.00"
         series_dict["cumulative"][item]["operator"] = "sum"
         series_dict["cumulative"][item]["format"] = "0.00"
-    series_dict["daily"]["Ah"] = {"operator":"average","format":"0.00"}
-    series_dict["daily"]["Cc"] = {"operator":"average","format":"0.0"}
-    series_dict["daily"]["Fc"] = {"operator":"average","format":"0.00"}
-    series_dict["daily"]["Fe"] = {"operator":"average","format":"0.0"}
-    series_dict["daily"]["Fh"] = {"operator":"average","format":"0.0"}
-    series_dict["daily"]["Fg"] = {"operator":"average","format":"0.0"}
-    series_dict["daily"]["Fn"] = {"operator":"average","format":"0.0"}
-    series_dict["daily"]["Fsd"] = {"operator":"average","format":"0.0"}
-    series_dict["daily"]["Fsu"] = {"operator":"average","format":"0.0"}
-    series_dict["daily"]["Fld"] = {"operator":"average","format":"0.0"}
-    series_dict["daily"]["Flu"] = {"operator":"average","format":"0.0"}
-    series_dict["daily"]["ps"] = {"operator":"average","format":"0.00"}
-    series_dict["daily"]["q"] = {"operator":"average","format":"0.0000"}
-    series_dict["daily"]["RH"] = {"operator":"average","format":"0"}
-    series_dict["daily"]["Sws"] = {"operator":"average","format":"0.000"}
-    series_dict["daily"]["Ta"] = {"operator":"average","format":"0.00"}
-    series_dict["daily"]["Ts"] = {"operator":"average","format":"0.00"}
-    series_dict["daily"]["ustar"] = {"operator":"average","format":"0.00"}
-    series_dict["daily"]["Ws"] = {"operator":"average","format":"0.00"}
-    series_dict["daily"]["ET"] = {"operator":"sum","format":"0.0"}
-    series_dict["daily"]["Precip"] = {"operator":"sum","format":"0.0"}
+    if "Ah" in ds.series.keys():
+        series_dict["daily"]["Ah"] = {"operator":"average","format":"0.00"}
+    if "Cc" in ds.series.keys():
+        series_dict["daily"]["Cc"] = {"operator":"average","format":"0.0"}
+    if "Fc" in ds.series.keys():
+        series_dict["daily"]["Fc"] = {"operator":"average","format":"0.00"}
+    if "Fe" in ds.series.keys():
+        series_dict["daily"]["Fe"] = {"operator":"average","format":"0.0"}
+    if "Fh" in ds.series.keys():
+        series_dict["daily"]["Fh"] = {"operator":"average","format":"0.0"}
+    if "Fg" in ds.series.keys():
+        series_dict["daily"]["Fg"] = {"operator":"average","format":"0.0"}
+    if "Fn" in ds.series.keys():
+        series_dict["daily"]["Fn"] = {"operator":"average","format":"0.0"}
+    if "Fsd" in ds.series.keys():
+        series_dict["daily"]["Fsd"] = {"operator":"average","format":"0.0"}
+    if "Fsu" in ds.series.keys():
+        series_dict["daily"]["Fsu"] = {"operator":"average","format":"0.0"}
+    if "Fld" in ds.series.keys():
+        series_dict["daily"]["Fld"] = {"operator":"average","format":"0.0"}
+    if "Flu" in ds.series.keys():
+        series_dict["daily"]["Flu"] = {"operator":"average","format":"0.0"}
+    if "ps" in ds.series.keys():
+        series_dict["daily"]["ps"] = {"operator":"average","format":"0.00"}
+    if "q" in ds.series.keys():
+        series_dict["daily"]["q"] = {"operator":"average","format":"0.0000"}
+    if "RH" in ds.series.keys():
+        series_dict["daily"]["RH"] = {"operator":"average","format":"0"}
+    if "Sws" in ds.series.keys():
+        series_dict["daily"]["Sws"] = {"operator":"average","format":"0.000"}
+    if "Ta" in ds.series.keys():
+        series_dict["daily"]["Ta"] = {"operator":"average","format":"0.00"}
+    if "Ts" in ds.series.keys():
+        series_dict["daily"]["Ts"] = {"operator":"average","format":"0.00"}
+    if "ustar" in ds.series.keys():
+        series_dict["daily"]["ustar"] = {"operator":"average","format":"0.00"}
+    if "Ws" in ds.series.keys():
+        series_dict["daily"]["Ws"] = {"operator":"average","format":"0.00"}
+    if "ET" in ds.series.keys():
+        series_dict["daily"]["ET"] = {"operator":"sum","format":"0.0"}
+    if "Precip" in ds.series.keys():
+        series_dict["daily"]["Precip"] = {"operator":"sum","format":"0.0"}
     series_dict["cumulative"]["ET"] = series_dict["daily"]["ET"]
     series_dict["cumulative"]["Precip"] = series_dict["daily"]["Precip"]
     series_dict["annual"] = series_dict["daily"]

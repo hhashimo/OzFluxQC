@@ -1897,7 +1897,10 @@ def xl_write_data(xl_sheet,data,xlCol=0):
     series_list.sort()
     for item in series_list:
         xlCol = xlCol + 1
-        xl_sheet.write(0,xlCol,data[item]["units"])
+        try:
+            xl_sheet.write(0,xlCol,data[item]["units"])
+        except:
+            pass
         xl_sheet.write(1,xlCol,item)
         d_xf = xlwt.easyxf(num_format_str=data[item]["format"])
         for j in range(nrows):
