@@ -613,6 +613,7 @@ def GetERFromFc(cf,ds):
     # get the data
     Fsd,Fsd_flag,Fsd_attr = qcutils.GetSeriesasMA(ds,"Fsd")
     if "solar_altitude" not in ds.series.keys(): qcts.get_synthetic_fsd(ds)
+    Fsd_syn,flag,attr = qcutils.GetSeriesasMA(ds,"Fsd_syn")
     sa,flag,attr = qcutils.GetSeriesasMA(ds,"solar_altitude")
     ustar,ustar_flag,ustar_attr = qcutils.GetSeriesasMA(ds,"ustar")
     Fc,Fc_flag,Fc_attr = qcutils.GetSeriesasMA(ds,"Fc")
@@ -641,7 +642,7 @@ def GetERFromFc(cf,ds):
     turbulence_indicator = get_turbulence_indicator(cf,ldt,ustar,L,ustar_dict,ts,ER_attr)
     idx = numpy.where(turbulence_indicator==0)[0]
     ER_flag[idx] = numpy.int32(64)
-    daynight_indicator = get_daynight_indicator(cf,Fsd,sa,ER_attr)
+    daynight_indicator = get_daynight_indicator(cf,Fsd,Fsd_syn,sa,ER_attr)
     idx = numpy.where(daynight_indicator==0)[0]
     ER_flag[idx] = numpy.int32(63)
     er_indicator = turbulence_indicator*daynight_indicator
@@ -680,19 +681,23 @@ def get_ustar_thresholds2(cf,ldt):
 
     return ustar_dict
 
-def get_daynight_indicator(cf,Fsd,sa,ER_attr):
+def get_daynight_indicator(cf,Fsd,Fsd_syn,sa,ER_attr):
     # get the day/night indicator
     nRecs = len(Fsd)
     daynight_indicator = numpy.zeros(nRecs,dtype=numpy.int32)
     # get the filter type
     filter_type = qcutils.get_keyvaluefromcf(cf,["Options"],"DayNightFilter",default="Fsd")
+    use_fsdsyn = qcutils.get_keyvaluefromcf(cf,["Options"],"UseFsdsyn_threshold",default="Yes")
     # get the indicator series
     if filter_type.lower()=="fsd":
         # get the Fsd threshold
         Fsd_threshold = int(qcutils.get_keyvaluefromcf(cf,["Options"],"Fsd_threshold",default=10))
         ER_attr["Fsd_threshold"] = str(Fsd_threshold)
         # we are using Fsd only to define day/night
-        idx = numpy.ma.where(Fsd<Fsd_threshold)[0]
+        if use_fsdsyn.lower()=="yes":
+            idx = numpy.ma.where((Fsd<Fsd_threshold)|(Fsd_syn<Fsd_threshold))[0]
+        else:
+            idx = numpy.ma.where(Fsd<Fsd_threshold)[0]
         daynight_indicator[idx] = numpy.int32(1)
     elif filter_type.lower()=="sa":
         # get the solar altitude threshold
