@@ -1,6 +1,6 @@
 [Options]
     Fsd_threshold  = 10
-    Num_bootstraps = 100
+    Num_bootstraps = 500
     Output_results = True
     Output_plots   = True
 

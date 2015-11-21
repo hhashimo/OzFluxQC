@@ -4,8 +4,8 @@
 #  for processing L1 to L3 for each year at each site.
 #  Keys in the Files section must be unique.
 [Options]
-    levels = "['L1','L2','L3','concatenate','climatology','cpd','L4','L5','L6']"
-    #levels = "['L1','L2','L3','FluxNet']"
+    #levels = "['L1','L2','L3','concatenate','climatology','cpd','L4','L5','L6']"
+    levels = "['L1','L2','L3','concatenate','cpd']"
 
 [Levels]
    [[L1]]

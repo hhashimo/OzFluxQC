@@ -251,10 +251,10 @@ def cpd_main(cf):
             #if 'results_output_path' in d.keys(): 
                 #print 'Outputting results for all years / seasons / T classes in observational dataset'
                 #results_df.to_csv(os.path.join(d['results_output_path'],'Observational_ustar_threshold_statistics.csv'))
-            #if 'plot_path' in d.keys(): 
-                #print 'Doing plotting for observational data'
-                #for j in results_df.index:
-                    #plot_fits(seasons_df.loc[j], results_df.loc[j], d['plot_path'])
+            if 'plot_path' in d.keys(): 
+                print 'Doing plotting for observational data'
+                for j in results_df.index:
+                    plot_fits(seasons_df.loc[j], results_df.loc[j], d['plot_path'])
             log.info(' Outputting results for observational dataset')
             xlwriter = pd.ExcelWriter(d['file_out'])
             xlsheet = "T class"

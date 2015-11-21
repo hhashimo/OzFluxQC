@@ -574,7 +574,8 @@ class qcgui(tk.Tk):
         logging.info(' Starting conversion to REddyProc CSV file')
         self.do_progress(text="Choosing netCDF file ...")
         ncfilename = qcio.get_filename_dialog(path="../Sites",title="Choose a netCDF file")
-        if len(ncfilename)==0: self.do_progress(text="Waiting for input ..."); return
+        if len(ncfilename)==0 or not os.path.exists(ncfilename):
+            self.do_progress(text="Waiting for input ..."); return
         self.do_progress(text='Converting nc to REddyProc CSV ...')
         qcio.reddyproc_write_csv(ncfilename)
         logging.info(' Finished conversion')
