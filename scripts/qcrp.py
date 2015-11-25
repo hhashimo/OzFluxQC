@@ -1372,15 +1372,20 @@ def PartitionNEE(cf,ds):
         #  NEP = -1*NEE
         #  GPP = NEP + ER ==> GPP = -1*NEE + ER
         GPP = float(-1)*NEE + ER
+        ds.series[output_label]["Data"] = GPP
+        ds.series[output_label]["Flag"] = NEE_flag
+        # NOTE: there is no need to force GPP to 0 when Fsd<threshold since
+        #       OzFluxQC sets NEE=ER when Fsd<threshold.  Hence, the following
+        #       lines are unecessary and have been commented out.
         # put the day time data into the GPP series
-        index = numpy.ma.where(Fsd>=Fsd_threshold)[0]
-        ds.series[output_label]["Data"][index] = GPP[index]
-        ds.series[output_label]["Flag"][index] = NEE_flag[index]
+        #index = numpy.ma.where(Fsd>=Fsd_threshold)[0]
+        #ds.series[output_label]["Data"][index] = GPP[index]
+        #ds.series[output_label]["Flag"][index] = NEE_flag[index]
         # put the night time ER into the NEE series
         # This force nocturnal GPP to be 0!  Not sure this is the right thing to do.
-        index = numpy.ma.where(Fsd<Fsd_threshold)[0]
-        ds.series[output_label]["Data"][index] = numpy.float64(0)
-        ds.series[output_label]["Flag"][index] = numpy.int32(1)
+        #index = numpy.ma.where(Fsd<Fsd_threshold)[0]
+        #ds.series[output_label]["Data"][index] = numpy.float64(0)
+        #ds.series[output_label]["Flag"][index] = numpy.int32(1)
         # copy the attributes
         attr = ds.series[output_label]["Attr"]
         attr["units"] = NEE_attr["units"]
