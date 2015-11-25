@@ -251,10 +251,13 @@ def cpd_main(cf):
             #if 'results_output_path' in d.keys(): 
                 #print 'Outputting results for all years / seasons / T classes in observational dataset'
                 #results_df.to_csv(os.path.join(d['results_output_path'],'Observational_ustar_threshold_statistics.csv'))
-            if 'plot_path' in d.keys(): 
-                print 'Doing plotting for observational data'
+            if 'plot_path' in d.keys() and d["plot_tclass"]:
+                log.info('Doing plotting for observational data')
+                d["nFig"] = 0
+                fig_nums = plt.get_fignums()
+                if len(fig_nums)>0: d["nFig"] = fig_nums[-1] + 1
                 for j in results_df.index:
-                    plot_fits(seasons_df.loc[j], results_df.loc[j], d['plot_path'])
+                    plot_fits(seasons_df.loc[j], results_df.loc[j], d)
             log.info(' Outputting results for observational dataset')
             xlwriter = pd.ExcelWriter(d['file_out'])
             xlsheet = "T class"
@@ -430,6 +433,8 @@ def CPD_run(cf):
     d['site_name']=getattr(ncFile,"site_name")
     d["call_mode"]=qcutils.get_keyvaluefromcf(cf,["Options"],"call_mode",default="interactive",mode="quiet")
     d["show_plots"]=qcutils.get_keyvaluefromcf(cf,["Options"],"show_plots",default=True,mode="quiet")
+    d['plot_tclass'] = False
+    if cf['Options']['Plot_TClass'] == 'True': d['plot_tclass'] = True
     if cf['Options']['Output_plots']=='True':
         d['plot_path']=plot_path
     if cf['Options']['Output_results']=='True':
@@ -459,7 +464,7 @@ def CPD_run(cf):
 #------------------------------------------------------------------------------
 # Plot identified change points in observed (i.e. not bootstrapped) data and   
 # write to specified folder                                                    
-def plot_fits(temp_df,stats_df,plot_out):
+def plot_fits(temp_df,stats_df,d):
     
     # Create series for use in plotting (this could be more easily called from fitting function - why are we separating these?)
     temp_df['ustar_alt']=temp_df['ustar']
@@ -471,12 +476,12 @@ def plot_fits(temp_df,stats_df,plot_out):
     temp_df['yHat_a']=stats_df['a0']+stats_df['a1']*temp_df['ustar_alt1']+stats_df['a2']*temp_df['ustar_alt2'] # Calculate the estimated time series
     temp_df['yHat_b']=stats_df['b0']+stats_df['b1']*temp_df['ustar_alt']          
     
-    # Now plot    
-    fig=plt.figure(figsize=(12,8))
+    # Now plot
+    fig=plt.figure(d["nFig"],figsize=(12,8))
     fig.patch.set_facecolor('white')
     plt.plot(temp_df['ustar'],temp_df['Fc'],'bo')
-    plt.plot(temp_df['ustar'],temp_df['yHat_b'],color='red')   
-    plt.plot(temp_df['ustar'],temp_df['yHat_a'],color='green')   
+    plt.plot(temp_df['ustar'],temp_df['yHat_b'],color='red')
+    plt.plot(temp_df['ustar'],temp_df['yHat_a'],color='green')
     plt.title('Year: '+str(stats_df.name[0])+', Season: '+str(stats_df.name[1])+', T class: '+str(stats_df.name[2])+'\n',fontsize=22)
     plt.xlabel(r'u* ($m\/s^{-1}$)',fontsize=16)
     plt.ylabel(r'Fc ($\mu mol C\/m^{-2} s^{-1}$)',fontsize=16)
@@ -486,8 +491,8 @@ def plot_fits(temp_df,stats_df,plot_out):
     ax=plt.gca()
     plt.text(0.57,0.1,txt,bbox=props,fontsize=12,verticalalignment='top',transform=ax.transAxes)
     plot_out_name='Y'+str(stats_df.name[0])+'_S'+str(stats_df.name[1])+'_Tclass'+str(stats_df.name[2])+'.jpg'
-    fig.savefig(os.path.join(plot_out,plot_out_name))
-    plt.close(fig)
+    fig.savefig(os.path.join(d["plot_path"],plot_out_name))
+    fig.clf()
 
 # Plot PDF of u* values and write to specified folder           
 def plot_hist(S,mu,sig,crit_t,year,d):

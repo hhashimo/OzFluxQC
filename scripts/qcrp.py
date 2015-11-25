@@ -695,7 +695,7 @@ def get_daynight_indicator(cf,Fsd,Fsd_syn,sa,ER_attr):
         ER_attr["Fsd_threshold"] = str(Fsd_threshold)
         # we are using Fsd only to define day/night
         if use_fsdsyn.lower()=="yes":
-            idx = numpy.ma.where((Fsd<Fsd_threshold)|(Fsd_syn<Fsd_threshold))[0]
+            idx = numpy.ma.where((Fsd<Fsd_threshold)&(Fsd_syn<Fsd_threshold))[0]
         else:
             idx = numpy.ma.where(Fsd<Fsd_threshold)[0]
         daynight_indicator[idx] = numpy.int32(1)
@@ -1040,6 +1040,7 @@ def L6_summary_createseriesdict(cf,ds):
     sdl["gpp"] = [item for item in cf["GPP"].keys() if "GPP" in item and item in ds.series.keys()]
     sdl["fre"] = [item for item in cf["ER"].keys() if "ER" in item and item in ds.series.keys()]
     sdl["nep"] = [item.replace("NEE","NEP") for item in sdl["nee"]]
+    sdl["nep"] = [item for item in sdl["nep"] if item in ds.series.keys()]
     sdl["co2"] = sdl["nee"]+sdl["nep"]+sdl["gpp"]+sdl["fre"]
     for item in sdl["co2"]:
         series_dict["daily"][item] = {}

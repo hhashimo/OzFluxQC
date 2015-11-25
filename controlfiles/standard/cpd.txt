@@ -1,8 +1,9 @@
 [Options]
     Fsd_threshold  = 10
-    Num_bootstraps = 500
+    Num_bootstraps = 10
     Output_results = True
     Output_plots   = True
+    Plot_TClass    = False
 
 [Variables]
     [[Fc]]
