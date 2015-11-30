@@ -1180,9 +1180,10 @@ def L6_summary_monthly(ds,series_dict):
     end_date = end_date-dateutil.relativedelta.relativedelta(minutes=ts)
     last_date = ldt[-1]
     while start_date<=last_date:
-        si = qcutils.GetDateIndex(ldt,str(start_date),ts=ts,default=0)
-        ei = qcutils.GetDateIndex(ldt,str(end_date),ts=ts,default=len(ldt)-1)
-        monthly_dict["DateTime"]["data"].append(ldt[si])
+        # *** The Elise Pendall bug fix ***
+        si = qcutils.GetDateIndex(dt,str(start_date),ts=ts,default=0)
+        ei = qcutils.GetDateIndex(dt,str(end_date),ts=ts,default=len(dt)-1)
+        monthly_dict["DateTime"]["data"].append(dt[si])
         for item in series_list:
             if item not in ds.series.keys(): continue
             data_1d,flag,attr = qcutils.GetSeriesasMA(ds,item,si=si,ei=ei)
