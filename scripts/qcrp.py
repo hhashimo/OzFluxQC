@@ -1180,6 +1180,7 @@ def L6_summary_monthly(ds,series_dict):
     end_date = end_date-dateutil.relativedelta.relativedelta(minutes=ts)
     last_date = ldt[-1]
     while start_date<=last_date:
+#        print start_date,end_date
         si = qcutils.GetDateIndex(ldt,str(start_date),ts=ts,default=0)
         ei = qcutils.GetDateIndex(ldt,str(end_date),ts=ts,default=len(ldt)-1)
         monthly_dict["DateTime"]["data"].append(ldt[si])
