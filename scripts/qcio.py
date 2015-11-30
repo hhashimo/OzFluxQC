@@ -986,11 +986,17 @@ def get_seriesstats(cf,ds):
     xlFile.save(xl_filename)
 
 def load_controlfile(path='.',title='Choose a control file'):
-    ''' 
-    Returns a control file object.
-    USAGE: cf = load_controlfile([path=<some_path_to_a_controlfile>])
-    The "path" keyword is optional.
-    '''
+    """
+    Purpose:
+     Returns a control file object.
+    Usage:
+     cf = qcio.load_controlfile([path=<some_path_to_a_controlfile>],[title=<some title>])
+          where path [optional] is the path to a subdirectory
+                title [optional] is a title for the file open dialog
+                cf is a control file object
+    Author: PRI
+    Date: Back in the day
+    """
     name = get_controlfilename(path=path,title=title)
     cf = get_controlfilecontents(name)
     return cf
