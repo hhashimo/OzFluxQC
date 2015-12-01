@@ -1019,6 +1019,39 @@ def nc_concatenate(cf):
     # fill the global attributes
     for ThisOne in ds_n.globalattributes.keys():
         ds.globalattributes[ThisOne] = ds_n.globalattributes[ThisOne]
+    # find the first datetime in the file where more than 90% of the variables are present.
+    dt = ds_n.series["DateTime"]["Data"]
+    cond_idx = numpy.zeros(len(dt))
+    series_list = ds_n.series.keys()
+    # remove non-data series
+    for item in ["DateTime","DateTime_UTC","xlDateTime",
+                 "Year","Month","Day","Hour","Minute","Second",
+                 "Hdh","Ddd","time"]:
+        if item in series_list: series_list.remove(item)
+    # loop over the data series and calculate fraction of data present
+    for item in series_list:
+        data,flag,attr = qcutils.GetSeriesasMA(ds_n,item)
+        idx = numpy.ma.where(data.mask==False)
+        cond_idx[idx] = cond_idx[idx] + 1
+    cond_idx = cond_idx/len(series_list)
+    # find the first element where more than 50% data is present
+    idx = numpy.where(cond_idx>=0.50)[0]
+    # skip if enough data is present from the start of the file
+    if len(idx)!=0 and idx[0]!=0:
+        si = idx[0]
+        msg = " Start date truncated from "+str(dt[0])
+        msg = msg+" to "+str(dt[si])
+        log.warning(msg)
+        # update the relevent global attributes
+        ds_n.globalattributes["start_date"] = dt[si]
+        ds_n.globalattributes["nc_nrecs"] = len(dt[si:])
+        # now loop over the data series and truncate
+        series_list = ds_n.series.keys()
+        for item in ["DateTime"]:
+            if item in series_list: series_list.remove(item)
+        for item in series_list:
+            ds_n.series[item]["Data"] = ds_n.series[item]["Data"][si:]
+            ds_n.series[item]["Flag"] = ds_n.series[item]["Flag"][si:]
     # check that we have 'Ws' and 'Wd' series
     if "Ws" not in ds_n.series.keys():
         if "Ws_CSAT" in ds_n.series.keys():
