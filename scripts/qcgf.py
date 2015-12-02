@@ -1907,45 +1907,45 @@ def gfalternate_run_nogui(cf,ds_tower,ds_alt,alternate_info):
     alternate_info["autoforce"] = False
     # period option
     dt_tower = ds_tower.series["DateTime"]["Data"]
-    opt = qcutils.get_keyvaluefromcf(cf,["Options","GUI"],"period_option",default="manual",mode="quiet")
+    opt = qcutils.get_keyvaluefromcf(cf,["GUI","Alternate"],"period_option",default="manual",mode="quiet")
     if opt=="manual":
         alternate_info["peropt"] = 1
-        sd = qcutils.get_keyvaluefromcf(cf,["Options","GUI"],"start_date",default="",mode="quiet")
+        sd = qcutils.get_keyvaluefromcf(cf,["GUI","Alternate"],"start_date",default="",mode="quiet")
         alternate_info["startdate"] = dt_tower[0].strftime("%Y-%m-%d %H:%M")
         if len(sd)!=0: alternate_info["startdate"] = sd
-        ed = qcutils.get_keyvaluefromcf(cf,["Options","GUI"],"end_date",default="",mode="quiet")
+        ed = qcutils.get_keyvaluefromcf(cf,["GUI","Alternate"],"end_date",default="",mode="quiet")
         alternate_info["enddate"] = dt_tower[-1].strftime("%Y-%m-%d %H:%M")
         if len(ed)!=0: alternate_info["enddate"] = ed
     elif opt=="monthly":
         alternate_info["peropt"] = 2
-        sd = qcutils.get_keyvaluefromcf(cf,["Options","GUI"],"start_date",default="",mode="quiet")
+        sd = qcutils.get_keyvaluefromcf(cf,["GUI","Alternate"],"start_date",default="",mode="quiet")
         alternate_info["startdate"] = dt_tower[0].strftime("%Y-%m-%d %H:%M")
         if len(sd)!=0: alternate_info["startdate"] = sd
     elif opt=="days":
         alternate_info["peropt"] = 3
-        sd = qcutils.get_keyvaluefromcf(cf,["Options","GUI"],"start_date",default="",mode="quiet")
+        sd = qcutils.get_keyvaluefromcf(cf,["GUI","Alternate"],"start_date",default="",mode="quiet")
         alternate_info["startdate"] = dt_tower[0].strftime("%Y-%m-%d %H:%M")
         if len(sd)!=0: alternate_info["startdate"] = sd
-        ed = qcutils.get_keyvaluefromcf(cf,["Options","GUI"],"end_date",default="",mode="quiet")
+        ed = qcutils.get_keyvaluefromcf(cf,["GUI","Alternate"],"end_date",default="",mode="quiet")
         alternate_info["enddate"] = dt_tower[-1].strftime("%Y-%m-%d %H:%M")
         if len(ed)!=0: alternate_info["enddate"] = ed
     # overwrite option
     alternate_info["overwrite"] = False
-    opt = qcutils.get_keyvaluefromcf(cf,["Options","GUI"],"overwrite",default="no",mode="quiet")
+    opt = qcutils.get_keyvaluefromcf(cf,["GUI","Alternate"],"overwrite",default="no",mode="quiet")
     if opt.lower()=="yes": alternate_info["overwrite"] = True
     # show plots option
     alternate_info["show_plots"] = True
-    opt = qcutils.get_keyvaluefromcf(cf,["Options","GUI"],"show_plots",default="yes",mode="quiet")
+    opt = qcutils.get_keyvaluefromcf(cf,["GUI","Alternate"],"show_plots",default="yes",mode="quiet")
     if opt.lower()=="no": alternate_info["show_plots"] = False
     # auto-complete option
     alternate_info["auto_complete"] = True
-    opt = qcutils.get_keyvaluefromcf(cf,["Options","GUI"],"auto_complete",default="yes",mode="quiet")
+    opt = qcutils.get_keyvaluefromcf(cf,["GUI","Alternate"],"auto_complete",default="yes",mode="quiet")
     if opt.lower()=="no": alternate_info["auto_complete"] = False
     # minimum percentage of good points required
-    opt = qcutils.get_keyvaluefromcf(cf,["Options","GUI"],"min_percent",default=50,mode="quiet")
+    opt = qcutils.get_keyvaluefromcf(cf,["GUI","Alternate"],"min_percent",default=50,mode="quiet")
     alternate_info["min_percent"] = max(int(opt),1)
     # number of days
-    opt = qcutils.get_keyvaluefromcf(cf,["Options","GUI"],"number_days",default=90,mode="quiet")
+    opt = qcutils.get_keyvaluefromcf(cf,["GUI","Alternate"],"number_days",default=90,mode="quiet")
     alternate_info["number_days"] = int(opt)
     # now set up the rest of the alternate_info dictionary
     alternate_info["site_name"] = ds_tower.globalattributes["site_name"]
@@ -2914,60 +2914,60 @@ def gfSOLO_run_nogui(cf,dsa,dsb,solo_info):
     # populate the solo_info dictionary with things that will be useful
     # period option
     dt = dsb.series["DateTime"]["Data"]
-    opt = qcutils.get_keyvaluefromcf(cf,["Options","GUI"],"period_option",default="manual",mode="quiet")
+    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"period_option",default="manual",mode="quiet")
     if opt=="manual":
         solo_info["peropt"] = 1
-        sd = qcutils.get_keyvaluefromcf(cf,["Options","GUI"],"start_date",default="",mode="quiet")
+        sd = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"start_date",default="",mode="quiet")
         solo_info["startdate"] = dt[0].strftime("%Y-%m-%d %H:%M")
         if len(sd)!=0: solo_info["startdate"] = sd
-        ed = qcutils.get_keyvaluefromcf(cf,["Options","GUI"],"end_date",default="",mode="quiet")
+        ed = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"end_date",default="",mode="quiet")
         solo_info["enddate"] = dt[-1].strftime("%Y-%m-%d %H:%M")
         if len(ed)!=0: solo_info["enddate"] = ed
     elif opt=="monthly":
         solo_info["peropt"] = 2
-        sd = qcutils.get_keyvaluefromcf(cf,["Options","GUI"],"start_date",default="",mode="quiet")
+        sd = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"start_date",default="",mode="quiet")
         solo_info["startdate"] = dt[0].strftime("%Y-%m-%d %H:%M")
         if len(sd)!=0: solo_info["startdate"] = sd
     elif opt=="days":
         solo_info["peropt"] = 3
-        sd = qcutils.get_keyvaluefromcf(cf,["Options","GUI"],"start_date",default="",mode="quiet")
+        sd = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"start_date",default="",mode="quiet")
         solo_info["startdate"] = dt[0].strftime("%Y-%m-%d %H:%M")
         if len(sd)!=0: solo_info["startdate"] = sd
-        ed = qcutils.get_keyvaluefromcf(cf,["Options","GUI"],"end_date",default="",mode="quiet")
+        ed = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"end_date",default="",mode="quiet")
         solo_info["enddate"] = dt[-1].strftime("%Y-%m-%d %H:%M")
         if len(ed)!=0: solo_info["enddate"] = ed
     # overwrite option
     solo_info["overwrite"] = False
-    opt = qcutils.get_keyvaluefromcf(cf,["Options","GUI"],"overwrite",default="no",mode="quiet")
+    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"overwrite",default="no",mode="quiet")
     if opt.lower()=="yes": solo_info["overwrite"] = True
     # show plots option
     solo_info["show_plots"] = True
-    opt = qcutils.get_keyvaluefromcf(cf,["Options","GUI"],"show_plots",default="yes",mode="quiet")
+    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"show_plots",default="yes",mode="quiet")
     if opt.lower()=="no": solo_info["show_plots"] = False
     # auto-complete option
     solo_info["auto_complete"] = True
-    opt = qcutils.get_keyvaluefromcf(cf,["Options","GUI"],"auto_complete",default="yes",mode="quiet")
+    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"auto_complete",default="yes",mode="quiet")
     if opt.lower()=="no": alternate_info["auto_complete"] = False
     # minimum percentage of good points required
-    opt = qcutils.get_keyvaluefromcf(cf,["Options","GUI"],"min_percent",default=50,mode="quiet")
+    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"min_percent",default=50,mode="quiet")
     solo_info["min_percent"] = int(opt)
     # number of days
-    opt = qcutils.get_keyvaluefromcf(cf,["Options","GUI"],"number_days",default=90,mode="quiet")
+    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"number_days",default=90,mode="quiet")
     solo_info["number_days"] = int(opt)
     # nodes for SOFM/SOLO network
-    opt = qcutils.get_keyvaluefromcf(cf,["Options","GUI"],"nodes",default="auto",mode="quiet")
+    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"nodes",default="auto",mode="quiet")
     solo_info["nodes"] = str(opt)
     # training iterations
-    opt = qcutils.get_keyvaluefromcf(cf,["Options","GUI"],"training",default="500",mode="quiet")
+    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"training",default="500",mode="quiet")
     solo_info["training"] = str(opt)
     # nda factor
-    opt = qcutils.get_keyvaluefromcf(cf,["Options","GUI"],"nda_factor",default="5",mode="quiet")
+    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"nda_factor",default="5",mode="quiet")
     solo_info["factor"] = str(opt)
     # learning rate
-    opt = qcutils.get_keyvaluefromcf(cf,["Options","GUI"],"learning",default="0.01",mode="quiet")
+    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"learning",default="0.01",mode="quiet")
     solo_info["learningrate"] = str(opt)
     # learning iterations
-    opt = qcutils.get_keyvaluefromcf(cf,["Options","GUI"],"iterations",default="500",mode="quiet")
+    opt = qcutils.get_keyvaluefromcf(cf,["GUI","SOLO"],"iterations",default="500",mode="quiet")
     solo_info["iterations"] = str(opt)
     # now set up the rest of the solo_info dictionary
     solo_info["site_name"] = dsb.globalattributes["site_name"]

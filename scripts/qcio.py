@@ -1593,7 +1593,10 @@ def nc_write_series(ncFile,ds,outputlist=None,ndims=3):
     setattr(ncFile,'nc_rundatetime',rundatetime)
     # we specify the size of the Time dimension because netCDF4 is slow to write files
     # when the Time dimension is unlimited
-    nRecs = int(ds.globalattributes['nc_nrecs'])
+    if "nc_nrecs" in ds.globalattributes.keys():
+        nRecs = int(ds.globalattributes['nc_nrecs'])
+    else:
+        nRecs = len(ldt)
     ncFile.createDimension("time",nRecs)
     if ndims==3:
         ncFile.createDimension("latitude",1)

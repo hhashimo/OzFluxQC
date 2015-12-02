@@ -695,9 +695,9 @@ def get_daynight_indicator(cf,Fsd,Fsd_syn,sa,ER_attr):
         ER_attr["Fsd_threshold"] = str(Fsd_threshold)
         # we are using Fsd only to define day/night
         if use_fsdsyn.lower()=="yes":
-            idx = numpy.ma.where((Fsd<Fsd_threshold)&(Fsd_syn<Fsd_threshold))[0]
+            idx = numpy.ma.where((Fsd<=Fsd_threshold)&(Fsd_syn<=Fsd_threshold))[0]
         else:
-            idx = numpy.ma.where(Fsd<Fsd_threshold)[0]
+            idx = numpy.ma.where(Fsd<=Fsd_threshold)[0]
         daynight_indicator[idx] = numpy.int32(1)
     elif filter_type.lower()=="sa":
         # get the solar altitude threshold
