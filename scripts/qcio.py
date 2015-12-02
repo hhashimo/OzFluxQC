@@ -1047,8 +1047,6 @@ def nc_concatenate(cf):
         ds_n.globalattributes["nc_nrecs"] = len(dt[si:])
         # now loop over the data series and truncate
         series_list = ds_n.series.keys()
-        for item in ["DateTime"]:
-            if item in series_list: series_list.remove(item)
         for item in series_list:
             ds_n.series[item]["Data"] = ds_n.series[item]["Data"][si:]
             ds_n.series[item]["Flag"] = ds_n.series[item]["Flag"][si:]
