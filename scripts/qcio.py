@@ -1584,10 +1584,12 @@ def nc_write_series(ncFile,ds,outputlist=None,ndims=3):
     """
     ldt = ds.series["DateTime"]["Data"]
     ds.globalattributes['QC_version'] = str(cfg.version_name)+' '+str(cfg.version_number)
-    for ThisOne in ds.globalattributes.keys():
-        if "int" in str(type(ds.globalattributes[ThisOne])):
-            ds.globalattributes[ThisOne] = numpy.int32(ds.globalattributes[ThisOne])
-        setattr(ncFile,ThisOne,ds.globalattributes[ThisOne])
+    for item in ds.globalattributes.keys():
+        #if "int" in str(type(ds.globalattributes[item])):
+            #ds.globalattributes[item] = numpy.int32(ds.globalattributes[item])
+        #setattr(ncFile,item,ds.globalattributes[item])
+        attr = str(ds.globalattributes[item])
+        setattr(ncFile,item,attr.encode('ascii','ignore'))
     t = time.localtime()
     rundatetime = str(datetime.datetime(t[0],t[1],t[2],t[3],t[4],t[5]))
     setattr(ncFile,'nc_rundatetime',rundatetime)
@@ -1690,9 +1692,10 @@ def nc_write_var(ncFile,ds,ThisOne,dim):
     if len(dim)==1: ncVar[:] = ds.series[ThisOne]['Data'].tolist()
     if len(dim)==3: ncVar[:,0,0] = ds.series[ThisOne]['Data'].tolist()
     # write the attributes
-    for attr in ds.series[ThisOne]['Attr']:
-        if attr!="_FillValue":
-            setattr(ncVar,attr,ds.series[ThisOne]['Attr'][attr])
+    for item in ds.series[ThisOne]['Attr']:
+        if item!="_FillValue":
+            attr = str(ds.series[ThisOne]['Attr'][item])
+            setattr(ncVar,item,attr.encode('ascii','ignore'))
     # make sure the missing_value attribute is written
     if "missing_value" not in ds.series[ThisOne]['Attr']: setattr(ncVar,"missing_value",c.missing_value)
     # get the data type of the QC flag
