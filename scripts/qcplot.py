@@ -7,6 +7,7 @@ import matplotlib.dates as mdt
 import matplotlib.pyplot as plt
 import meteorologicalfunctions as mf
 import numpy
+import os
 import statsmodels.api as sm
 import sys
 import qcck
@@ -185,9 +186,14 @@ def plot_fingerprint(cf):
     title_str = site_name+' '+level
     title_str = title_str+' from '+str(overlap_start)+' to '+str(overlap_end)
     # loop over plots
-    plt.ion()
+    opt = qcutils.get_keyvaluefromcf(cf,["Options"],"show_plots",default="yes")
     for nFig in cf["Plots"].keys():
+        if opt.lower()=="yes":
+            plt.ion()
+        else:
+            plt.ioff()
         fig = plt.figure(nFig,figsize=[15,10])
+        fig.clf()        
         fig.canvas.set_window_title(cf["Plots"][str(nFig)]["Title"])
         plt.figtext(0.5,0.95,title_str,horizontalalignment='center')
         fig_var_list = qcutils.GetPlotVariableNamesFromCF(cf,nFig)
@@ -239,11 +245,19 @@ def plot_fingerprint(cf):
             plt.xticks([0,6,12,18,24])
             plt.xlabel(label)
             if n!= 0: plt.setp(ax.get_yticklabels(), visible=False)
-        pngname = 'plots/'+site_name.replace(' ','')+'_'+level+'_'
+        if "plot_path" in cf["Files"]:
+            plot_path = cf["Files"]["plot_path"]+"fingerprint/"
+        else:
+            plot_path = "plots/"
+        if not os.path.exists(plot_path): os.makedirs(plot_path)
+        pngname = plot_path+site_name.replace(' ','')+'_'+level+'_'
         pngname = pngname+qcutils.GetPlotTitleFromCF(cf,nFig).replace(' ','_')+'.png'
         fig.savefig(pngname,format='png')
-        plt.draw()
-    plt.ioff()
+        if opt.lower=="yes":
+            plt.draw()
+            plt.ioff()
+        else:
+            plt.ion()
 
 def plot_fluxnet(cf):
     """ Plot the FluxNet style plots. """

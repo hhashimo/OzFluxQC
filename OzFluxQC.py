@@ -653,6 +653,8 @@ class qcgui(tk.Tk):
             self.do_progress(text='Loading control file ...')
             cf = qcio.load_controlfile(path='controlfiles')
             if len(cf)==0: self.do_progress(text='Waiting for input ...'); return
+        if "Options" not in cf: cf["Options"]={}
+        cf["Options"]["call_mode"] = "interactive"
         self.do_progress(text='Plotting fingerprint ...')
         qcplot.plot_fingerprint(cf)
         self.do_progress(text='Finished plotting fingerprint')

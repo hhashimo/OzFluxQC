@@ -1019,7 +1019,7 @@ def nc_concatenate(cf):
     # fill the global attributes
     for ThisOne in ds_n.globalattributes.keys():
         ds.globalattributes[ThisOne] = ds_n.globalattributes[ThisOne]
-    # find the first datetime in the file where more than 90% of the variables are present.
+    # find the first datetime in the file where more than 50% of the variables are present.
     dt = ds_n.series["DateTime"]["Data"]
     cond_idx = numpy.zeros(len(dt))
     series_list = ds_n.series.keys()

@@ -1,6 +1,7 @@
 import ast
 import datetime
 import logging
+import ntpath
 import os
 import sys
 sys.path.append('scripts')
@@ -9,6 +10,7 @@ import qcclim
 import qccpd
 import qcio
 import qcls
+import qcplot
 import qcutils
 
 #log = qcutils.startlog('batch','logfiles/batch.log')
@@ -93,9 +95,23 @@ for level in level_list:
         for i in cf_batch["Levels"][level].keys():
             cfname = cf_batch["Levels"][level][i]
             logging.info('Starting concatenation with '+cfname)
-            cf = qcio.get_controlfilecontents(cfname)
-            qcio.nc_concatenate(cf)
+            cf_cc = qcio.get_controlfilecontents(cfname)
+            qcio.nc_concatenate(cf_cc)
             logging.info('Finished concatenation with '+cfname)
+            # now plot the fingerprints for the concatenated files
+            cf_fp = qcio.get_controlfilecontents("controlfiles/standard/fingerprint.txt")
+            if "Files" not in dir(cf_fp): cf_fp["Files"] = {}
+            file_name = cf_cc["Files"]["Out"]["ncFileName"]
+            file_path = ntpath.split(file_name)[0]+"/"
+            cf_fp["Files"]["file_path"] = file_path
+            cf_fp["Files"]["in_filename"] = ntpath.split(file_name)[1]
+            cf_fp["Files"]["plot_path"] = file_path[:file_path.index("Data")]+"Plots/"
+            if "Options" not in cf_fp: cf_fp["Options"]={}
+            cf_fp["Options"]["call_mode"] = "batch"
+            cf_fp["Options"]["show_plots"] = "no"
+            logging.info('Doing fingerprint plots using '+cf_fp["Files"]["in_filename"])
+            qcplot.plot_fingerprint(cf_fp)
+            logging.info('Finished fingerprint plots')
             logging.info('')
     elif level.lower()=="climatology":
         # climatology
@@ -123,36 +139,64 @@ for level in level_list:
         for i in cf_batch["Levels"][level].keys():
             cfname = cf_batch["Levels"][level][i]
             logging.info('Starting L4 processing with '+cfname)
-            cf = qcio.get_controlfilecontents(cfname)
-            if "Options" not in cf: cf["Options"]={}
-            cf["Options"]["call_mode"] = "batch"
-            cf["Options"]["show_plots"] = False
-            infilename = qcio.get_infilenamefromcf(cf)
+            cf_l4 = qcio.get_controlfilecontents(cfname)
+            if "Options" not in cf_l4: cf_l4["Options"]={}
+            cf_l4["Options"]["call_mode"] = "batch"
+            cf_l4["Options"]["show_plots"] = False
+            infilename = qcio.get_infilenamefromcf(cf_l4)
             ds3 = qcio.nc_read_series(infilename)
-            ds4 = qcls.l4qc(cf,ds3)
-            outfilename = qcio.get_outfilenamefromcf(cf)
-            outputlist = qcio.get_outputlistfromcf(cf,'nc')
+            ds4 = qcls.l4qc(cf_l4,ds3)
+            outfilename = qcio.get_outfilenamefromcf(cf_l4)
+            outputlist = qcio.get_outputlistfromcf(cf_l4,'nc')
             ncFile = qcio.nc_open_write(outfilename)
             qcio.nc_write_series(ncFile,ds4,outputlist=outputlist)
             logging.info('Finished L4 processing with '+cfname)
+            # now plot the fingerprints for the L4 files
+            cf_fp = qcio.get_controlfilecontents("controlfiles/standard/fingerprint.txt")
+            if "Files" not in dir(cf_fp): cf_fp["Files"] = {}
+            file_name = qcio.get_outfilenamefromcf(cf_l4)
+            file_path = ntpath.split(file_name)[0]+"/"
+            cf_fp["Files"]["file_path"] = file_path
+            cf_fp["Files"]["in_filename"] = ntpath.split(file_name)[1]
+            cf_fp["Files"]["plot_path"] = file_path[:file_path.index("Data")]+"Plots/"
+            if "Options" not in cf_fp: cf_fp["Options"]={}
+            cf_fp["Options"]["call_mode"] = "batch"
+            cf_fp["Options"]["show_plots"] = "no"
+            logging.info('Doing fingerprint plots using '+cf_fp["Files"]["in_filename"])
+            qcplot.plot_fingerprint(cf_fp)
+            logging.info('Finished fingerprint plots')
             logging.info('')
     elif level.lower()=="l5":
         # L5 processing
         for i in cf_batch["Levels"][level].keys():
             cfname = cf_batch["Levels"][level][i]
             logging.info('Starting L5 processing with '+cfname)
-            cf = qcio.get_controlfilecontents(cfname)
-            if "Options" not in cf: cf["Options"]={}
-            cf["Options"]["call_mode"] = "batch"
-            cf["Options"]["show_plots"] = False
-            infilename = qcio.get_infilenamefromcf(cf)
+            cf_l5 = qcio.get_controlfilecontents(cfname)
+            if "Options" not in cf_l5: cf_l5["Options"]={}
+            cf_l5["Options"]["call_mode"] = "batch"
+            cf_l5["Options"]["show_plots"] = False
+            infilename = qcio.get_infilenamefromcf(cf_l5)
             ds4 = qcio.nc_read_series(infilename)
-            ds5 = qcls.l5qc(cf,ds4)
-            outfilename = qcio.get_outfilenamefromcf(cf)
-            outputlist = qcio.get_outputlistfromcf(cf,'nc')
+            ds5 = qcls.l5qc(cf_l5,ds4)
+            outfilename = qcio.get_outfilenamefromcf(cf_l5)
+            outputlist = qcio.get_outputlistfromcf(cf_l5,'nc')
             ncFile = qcio.nc_open_write(outfilename)
             qcio.nc_write_series(ncFile,ds5,outputlist=outputlist)
             logging.info('Finished L5 processing with '+cfname)
+            # now plot the fingerprints for the L5 files
+            cf_fp = qcio.get_controlfilecontents("controlfiles/standard/fingerprint.txt")
+            if "Files" not in dir(cf_fp): cf_fp["Files"] = {}
+            file_name = qcio.get_outfilenamefromcf(cf_l5)
+            file_path = ntpath.split(file_name)[0]+"/"
+            cf_fp["Files"]["file_path"] = file_path
+            cf_fp["Files"]["in_filename"] = ntpath.split(file_name)[1]
+            cf_fp["Files"]["plot_path"] = file_path[:file_path.index("Data")]+"Plots/"
+            if "Options" not in cf_fp: cf_fp["Options"]={}
+            cf_fp["Options"]["call_mode"] = "batch"
+            cf_fp["Options"]["show_plots"] = "no"
+            logging.info('Doing fingerprint plots using '+cf_fp["Files"]["in_filename"])
+            qcplot.plot_fingerprint(cf_fp)
+            logging.info('Finished fingerprint plots')
             logging.info('')
     elif level.lower()=="l6":
         # L6 processing
