@@ -99,6 +99,8 @@ for level in level_list:
             qcio.nc_concatenate(cf_cc)
             logging.info('Finished concatenation with '+cfname)
             # now plot the fingerprints for the concatenated files
+            opt = qcutils.get_keyvaluefromcf(cf_cc,["Options"],"DoFingerprints", default="yes")
+            if opt.lower()=="no": continue
             cf_fp = qcio.get_controlfilecontents("controlfiles/standard/fingerprint.txt")
             if "Files" not in dir(cf_fp): cf_fp["Files"] = {}
             file_name = cf_cc["Files"]["Out"]["ncFileName"]
