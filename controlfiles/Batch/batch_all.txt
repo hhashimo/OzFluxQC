@@ -5,7 +5,7 @@
 #  Keys in the Files section must be unique.
 [Options]
     #levels = "['L1','L2','L3','concatenate','climatology','cpd','L4','L5','L6']"
-    levels = "['L4','L5','L6']"
+    levels = "['concatenate','climatology','L4','L5','L6']"
 
 [Levels]
    [[concatenate]]
