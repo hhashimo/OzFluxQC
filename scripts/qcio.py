@@ -1196,8 +1196,7 @@ def nc_concatenate(cf):
         series_list = ds.series.keys()
         for item in series_list:
             ds.series[item]["Data"] = ds.series[item]["Data"][:ei+1]
-            ds_n.series[item]["Flag"] = ds_n.series[item]["Flag"][:ei+1]
-        ds_n.globalattributes["nc_nrecs"] = len(dt)
+            ds.series[item]["Flag"] = ds.series[item]["Flag"][:ei+1]
     # update the number of records
     ds.globalattributes["nc_nrecs"] = len(ds.series["DateTime"]["Data"])
     # now sort out any time gaps
