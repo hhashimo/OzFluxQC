@@ -18,21 +18,21 @@
         [[[GapFillUsingSOLO]]]
             [[[[Fe_SOLO]]]]
                 drivers = "['Fa','SHD','Ta','Ws']"                  #minimalist
-               #drivers = "['Fn','Fg','q','SHD','Ta','Ts']"         #James
+               #drivers = "['Fn','Fg','q','VPD','Ta','Ts']"         #James
         [[[MergeSeries]]]
             Source     = "['Fe','Fe_SOLO']"
     [[Fh]]
         [[[GapFillUsingSOLO]]]
             [[[[Fh_SOLO]]]]
                 drivers = "['Fa','Ta','Ws']"                        #minimalist
-               #drivers = "['Fn','Fg','q','SHD','Ta','Ts']"         #James
+               #drivers = "['Fn','Fg','q','VPD','Ta','Ts']"         #James
         [[[MergeSeries]]]
             Source     = "['Fh','Fh_SOLO']"
     [[Fc]]
         [[[GapFillUsingSOLO]]]
             [[[[Fc_SOLO]]]]
                 drivers = "['Fsd','SHD','Ts']"                      #minimalist
-               #drivers = "['Fn','Fg','q','SHD','Ta','Ts']"         #James
+               #drivers = "['Fn','Fg','q','VPD','Ta','Ts']"         #James
         [[[MergeSeries]]]
             Source     = "['Fc','Fc_SOLO']"
 

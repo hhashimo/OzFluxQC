@@ -1089,10 +1089,10 @@ def L6_summary_createseriesdict(cf,ds):
         series_dict["daily"]["Ws"] = {"operator":"average","format":"0.00"}
     if "ET" in ds.series.keys():
         series_dict["daily"]["ET"] = {"operator":"sum","format":"0.0"}
+        series_dict["cumulative"]["ET"] = series_dict["daily"]["ET"]
     if "Precip" in ds.series.keys():
         series_dict["daily"]["Precip"] = {"operator":"sum","format":"0.0"}
-    series_dict["cumulative"]["ET"] = series_dict["daily"]["ET"]
-    series_dict["cumulative"]["Precip"] = series_dict["daily"]["Precip"]
+        series_dict["cumulative"]["Precip"] = series_dict["daily"]["Precip"]
     series_dict["annual"] = series_dict["daily"]
     series_dict["monthly"] = series_dict["daily"]
     return series_dict
