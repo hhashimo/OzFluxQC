@@ -123,6 +123,34 @@ def CheckTimeStep(ds):
         log.warning(" CheckTimeStep: "+str(len(index))+" problems found with the time stamp")
     return has_gaps
 
+def CheckUnits(ds,label,units,convert_units=False):
+    """
+    Purpose:
+     General units checking and conversion.
+    Usage:
+     qcutils.CheckUnits(ds,label,units,convert_units=True)
+     where ds is a data structure
+           label (string) is the label of the series for which the units
+                          are to be checked
+           units (string) is the required units
+           convert_units (logical, optional) is True to force conversion to
+                        required units
+    Author: PRI
+    Date: January 2016
+    """
+    data,flag,attr = GetSeriesasMA(ds,label)
+    if attr["units"]==units: return
+    if convert_units:
+        msg = " Units for "+label+" converted from "+attr["units"]+" to "+units
+        log.info(msg)
+        new_data = convert_units_func(ds,data,attr["units"],units)
+        attr["units"] = units
+        CreateSeries(ds,label,new_data,Flag=flag,Attr=attr)
+    else:
+        msg = " Units mismatch but conversion disabled"
+        log.error(msg)
+        sys.exit()
+
 def contiguous_regions(condition):
     """
     Purpose:
@@ -176,6 +204,8 @@ def ConvertCO2Units(cf,ds,Cc='Cc'):
             CreateSeries(ds,Cc,c_mgpm3,Flag=flag,Attr=attr)
         else:
             log.info('  ConvertCO2Units: input or output units for CO2 concentration not recognised')
+    else:
+        log.info(" CO2 concentration already in requested units")
 
 def ConvertFcUnits(cf,ds,Fc='Fc',Fc_storage='Fc_storage'):
     if 'Options' not in cf: return
@@ -223,13 +253,13 @@ def ConvertFcUnits(cf,ds,Fc='Fc',Fc_storage='Fc_storage'):
             else:
                 log.info('  ConvertFcUnits: input or output units for Fc_storage unrecognised')
 
-def convertunits(old_data,old_units,new_units,ts,mode="quiet"):
+def convert_units_func(ds,old_data,old_units,new_units,mode="quiet"):
     """
     Purpose:
      Generic routine for changing units.
      Nothing is done if the original units are the same as the requested units.
     Usage:
-     new_data = qcutils.convertunits(old_data,old_units,new_units)
+     new_data = qcutils.convert_units_func(old_data,old_units,new_units)
      where old_data is a 1D array of data in the original units
            old_units are the units of the original data
            new_units are the units of the new data
@@ -240,28 +270,149 @@ def convertunits(old_data,old_units,new_units,ts,mode="quiet"):
     if old_units==new_units: return
     # check the units are something we understand
     # add more lists here to cope with water etc
-    co2_list = ["umol/m2/s","gC/m2"]
-    ok_list = co2_list
+    co2_list = ["umol/m2/s","gC/m2","mg/m3","umol/mol","mg/m2/s"]
+    h2o_list = ["g/m3","mmol/mol","%","frac"]
+    t_list = ["C","K"]
+#    h2o_list = ["%","frac","g/m3","kg/kg","mmol/mol"]
+    ok_list = co2_list+h2o_list+t_list
     # parse the original units
-    if old_units=="umol/m^2/s": old_units="umol/m2/s"
-    if old_units.replace(" ","")=="umolm-2s-1": old_units="umol/m2/s"
+    #if old_units=="umol/m^2/s": old_units="umol/m2/s"
+    #if old_units.replace(" ","")=="umolm-2s-1": old_units="umol/m2/s"
     if old_units not in ok_list:
         msg = " Unrecognised units in quantity provided ("+old_units+")"
         log.error(msg)
-        new_data = old_data
+        new_data = numpy.ma.array(old_data,copy=True,mask=True)
     elif new_units not in ok_list:
         msg = " Unrecognised units requested ("+new_units+")"
         log.error(msg)
-        new_data = old_data
-    elif old_units=="umol/m2/s" and new_units=="gC/m2":
-        # do the units change
-        new_data = old_data*12.01*ts*60/1E6
-    elif old_units=="gC/m2" and new_units=="umol/m2/s":
-        # do the units change
-        new_data = old_data*1E6/(12.01*ts*60)
+        new_data = numpy.ma.array(old_data,copy=True,mask=True)
+    elif new_units in co2_list:
+        if old_units in co2_list:
+            new_data = convert_units_co2(ds,old_data,old_units,new_units)
+        else:
+            msg = " New units ("+new_units+") not compatible with old ("+old_units+")"
+            log.error(msg)
+            new_data = numpy.ma.array(old_data,copy=True,mask=True)
+    elif new_units in h2o_list:
+        if old_units in h2o_list:
+            new_data = convert_units_h2o(ds,old_data,old_units,new_units)
+        else:
+            msg = " New units ("+new_units+") not compatible with old ("+old_units+")"
+            log.error(msg)
+            new_data = numpy.ma.array(old_data,copy=True,mask=True)            
+    elif new_units in t_list:
+        if old_units in t_list:
+            new_data = convert_units_t(ds,old_data,old_units,new_units)
+        else:
+            msg = " New units ("+new_units+") not compatible with old ("+old_units+")"
+            log.error(msg)
+            new_data = numpy.ma.array(old_data,copy=True,mask=True)            
     else:
         msg = "Unrecognised units combination "+old_units+" and "+new_units
         log.error(msg)
+        new_data = numpy.ma.array(old_data,copy=True,mask=True)
+    return new_data
+
+def convert_units_co2(ds,old_data,old_units,new_units):
+    """
+    Purpose:
+     General purpose routine to convert from one set of CO2 concentration units
+     to another.
+     Conversions supported are:
+      umol/m2/s to gC/m2 (per time step)
+      gC/m2 (per time step) to umol/m2/s
+      mg/m3 to umol/mol
+      umol/mol to mg/m3
+    Usage:
+     new_data = qcutils.convert_units_co2(ds,old_data,old_units,new_units)
+      where ds is a data structure
+            old_data (numpy array) is the data to be converted
+            old_units (string) is the old units
+            new_units (string) is the new units
+    Author: PRI
+    Date: January 2016
+    """
+    ts = int(ds.globalattributes["time_step"])
+    if old_units=="umol/m2/s" and new_units=="gC/m2":
+        new_data = old_data*12.01*ts*60/1E6
+    elif old_units=="gC/m2" and new_units=="umol/m2/s":
+        new_data = old_data*1E6/(12.01*ts*60)
+    elif old_units=="mg/m3" and new_units=="umol/mol":
+        Ta,f,a = GetSeriesasMA(ds,"Ta")
+        ps,f,a = GetSeriesasMA(ds,"ps")
+        new_data = mf.co2_ppmfrommgpm3(old_data,Ta,ps)
+    elif old_units=="umol/mol" and new_units=="mg/m3":
+        Ta,f,a = GetSeriesasMA(ds,"Ta")
+        ps,f,a = GetSeriesasMA(ds,"ps")
+        new_data = mf.co2_mgpm3fromppm(old_data,Ta,ps)
+    else:
+        msg = " Unrecognised conversion from "+old_units+" to "+new_units
+        log.error(msg)
+        new_data = numpy.ma.array(old_data,copy=True,mask=True)
+    return new_data
+
+def convert_units_h2o(ds,old_data,old_units,new_units):
+    """
+    Purpose:
+     General purpose routine to convert from one set of H2O concentration units
+     to another.
+     Conversions supported are:
+      g/m3 to mmol/mol
+      mmol/mol to g/m3
+    Usage:
+     new_data = qcutils.convert_units_h2o(ds,old_data,old_units,new_units)
+      where ds is a data structure
+            old_data (numpy array) is the data to be converted
+            old_units (string) is the old units
+            new_units (string) is the new units
+    Author: PRI
+    Date: January 2016
+    """
+    ts = int(ds.globalattributes["time_step"])
+    if old_units=="mmol/mol" and new_units=="g/m3":
+        Ta,f,a = GetSeriesasMA(ds,"Ta")
+        ps,f,a = GetSeriesasMA(ds,"ps")
+        new_data = mf.h2o_gpm3frommmolpmol(old_data,Ta,ps)
+    elif old_units=="g/m3" and new_units=="mmol/mol":
+        Ta,f,a = GetSeriesasMA(ds,"Ta")
+        ps,f,a = GetSeriesasMA(ds,"ps")
+        new_data = mf.h2o_mmolpmolfromgpm3(old_data,Ta,ps)
+    elif old_units=="frac" and new_units=="%":
+        new_data = old_data*float(100)
+    elif old_units=="%" and new_units=="frac":
+        new_data = old_data/float(100)
+    else:
+        msg = " Unrecognised conversion from "+old_units+" to "+new_units
+        log.error(msg)
+        new_data = numpy.ma.array(old_data,copy=True,mask=True)
+    return new_data
+
+def convert_units_t(ds,old_data,old_units,new_units):
+    """
+    Purpose:
+     General purpose routine to convert from one set of temperature units
+     to another.
+     Conversions supported are:
+      C to K
+      K to C
+    Usage:
+     new_data = qcutils.convert_units_t(ds,old_data,old_units,new_units)
+      where ds is a data structure
+            old_data (numpy array) is the data to be converted
+            old_units (string) is the old units
+            new_units (string) is the new units
+    Author: PRI
+    Date: January 2016
+    """
+    ts = int(ds.globalattributes["time_step"])
+    if old_units=="C" and new_units=="K":
+        new_data = old_data+c.C2K
+    elif old_units=="K" and new_units=="C":
+        new_data = old_data-c.C2K
+    else:
+        msg = " Unrecognised conversion from "+old_units+" to "+new_units
+        log.error(msg)
+        new_data = numpy.ma.array(old_data,copy=True,mask=True)
     return new_data
 
 def convert_anglestring(anglestring):

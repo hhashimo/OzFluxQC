@@ -118,15 +118,17 @@ def l3qc(cf,ds2):
     # apply linear corrections to the data
     qcck.do_linear(cf,ds3)
     # merge whatever humidities are available
-    qcts.MergeHumidities(cf,ds3)
+    qcts.MergeHumidities(cf,ds3,convert_units=True)
     # get the air temperature from the CSAT virtual temperature
     qcts.TaFromTv(cf,ds3)
     # merge the HMP and corrected CSAT data
-    qcts.MergeSeries(cf,ds3,'Ta',[0,10])
+    qcts.MergeSeries(cf,ds3,'Ta',[0,10],convert_units=True)
+    qcutils.CheckUnits(ds3,"Ta","C",convert_units=True)
     # calculate humidities (absolute, specific and relative) from whatever is available
     qcts.CalculateHumidities(ds3)
     # merge the 7500 CO2 concentration
-    qcts.MergeSeries(cf,ds3,'Cc',[0,10])
+    qcts.MergeSeries(cf,ds3,'Cc',[0,10],convert_units=True)
+    qcutils.CheckUnits(ds3,"Cc","mg/m3",convert_units=True)
     # add relevant meteorological values to L3 data
     qcts.CalculateMeteorologicalVariables(ds3)
     # check to see if the user wants to use the fluxes in the L2 file

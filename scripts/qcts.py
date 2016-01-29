@@ -1481,12 +1481,25 @@ def Fc_WPL(cf,ds,Fc_wpl_out='Fc',Fc_raw_in='Fc',Fh_in='Fh',Fe_in='Fe',Ta_in='Ta'
     Fc_raw,Fc_raw_flag,Fc_raw_attr = qcutils.GetSeriesasMA(ds,Fc_raw_in)
     Fh,f,a = qcutils.GetSeriesasMA(ds,Fh_in)
     Fe,f,a = qcutils.GetSeriesasMA(ds,Fe_in)
+    ps,f,a = qcutils.GetSeriesasMA(ds,ps_in)
     Ta,f,a = qcutils.GetSeriesasMA(ds,Ta_in)
     TaK = Ta+c.C2K                                # air temperature from C to K
-    Ah,f,a = qcutils.GetSeriesasMA(ds,Ah_in)
+    Ah,Ah_flag,Ah_attr = qcutils.GetSeriesasMA(ds,Ah_in)
+    if Ah_attr["units"]!="g/m3":
+        msg = " Fc_WPL: units for Ah ("+Ah_attr["units"]+") are incorrect"
+        log.error(msg)
+        sys.exit()
     Ah = Ah*c.g2kg                                # absolute humidity from g/m3 to kg/m3
-    Cc,f,a = qcutils.GetSeriesasMA(ds,Cc_in)
-    ps,f,a = qcutils.GetSeriesasMA(ds,ps_in)
+    Cc,Cc_flag,Cc_attr = qcutils.GetSeriesasMA(ds,Cc_in)
+    if Cc_attr["units"]!="mg/m3":
+        if Cc_attr["units"]=="umol/mol":
+            msg = " Fc_WPL: CO2 units ("+Cc_attr["units"]+") converted to mg/m3"
+            log.warning(msg)
+            Cc = mf.co2_mgpm3fromppm(Cc,Ta,ps)
+        else:
+            msg = " Fc_WPL: unrecognised units ("+Cc_attr["units"]+") for Cc"
+            log.error(msg)
+            sys.exit()
     rhod,f,a = qcutils.GetSeriesasMA(ds,'rhod')
     RhoCp,f,a = qcutils.GetSeriesasMA(ds,'RhoCp')
     Lv,f,a = qcutils.GetSeriesasMA(ds,'Lv')
@@ -1545,7 +1558,11 @@ def Fe_WPL(cf,ds,Fe_wpl_out='Fe',Fe_raw_in='Fe',Fh_in='Fh',Ta_in='Ta',Ah_in='Ah'
     Fh,f,a = qcutils.GetSeriesasMA(ds,Fh_in)
     Ta,f,a = qcutils.GetSeriesasMA(ds,Ta_in)
     TaK = Ta + c.C2K                              # air temperature from C to K
-    Ah,f,a = qcutils.GetSeriesasMA(ds,Ah_in)
+    Ah,Ah_flag,Ah_attr = qcutils.GetSeriesasMA(ds,Ah_in)
+    if Ah_attr["units"]!="g/m3":
+        msg = " Fe_WPL: incorrect units for Ah"
+        log.error(msg)
+        sys.exit()
     ps,f,a = qcutils.GetSeriesasMA(ds,ps_in)
     rhod,f,a = qcutils.GetSeriesasMA(ds,'rhod')     # density dry air
     rhom,f,a = qcutils.GetSeriesasMA(ds,'rhom')     # density moist air
@@ -2136,18 +2153,21 @@ def MergeSeriesUsingDict(ds,merge_order=""):
         qcutils.CreateSeries(ds,target,data,Flag=flag1,Attr=attr)
     del ds.merge[merge_order]
 
-def MergeHumidities(cf,ds):
+def MergeHumidities(cf,ds,convert_units=False):
     if "Ah" not in cf["Variables"] and "RH" not in cf["Variables"] and "q" not in cf["Variables"]:
         log.error(" MergeHumidities: No humidities found in control file, returning ...")
         return
     if "Ah" in cf["Variables"]:
-        MergeSeries(cf,ds,'Ah',[0,10])
+        MergeSeries(cf,ds,"Ah",[0,10],convert_units=convert_units)
+        qcutils.CheckUnits(ds,"Ah","g/m3",convert_units=True)
     if "RH" in cf["Variables"]:
-        MergeSeries(cf,ds,'RH',[0,10])
+        MergeSeries(cf,ds,'RH',[0,10],convert_units=convert_units)
+        qcutils.CheckUnits(ds,"RH","%",convert_units=True)
     if "q" in cf["Variables"]:
-        MergeSeries(cf,ds,'q',[0,10])
+        MergeSeries(cf,ds,'q',[0,10],convert_units=convert_units)
+        qcutils.CheckUnits(ds,"q","kg/kg",convert_units=False)
 
-def MergeSeries(cf,ds,series,okflags):
+def MergeSeries(cf,ds,series,okflags,convert_units=False):
     """
         Merge two series of data to produce one series containing the best data from both.
         Calling syntax is: MergeSeries(cf,ds,series,okflags)
@@ -2169,47 +2189,54 @@ def MergeSeries(cf,ds,series,okflags):
     srclist, standardname = qcutils.GetMergeSeriesKeys(cf,series,section=section)
     nSeries = len(srclist)
     if nSeries==0:
-        log.info(' MergeSeries: no input series specified for '+str(series))
+        log.warning(' MergeSeries: no input series specified for '+str(series))
         return
     if nSeries==1:
         log.info(' Merging '+str(srclist)+'==>'+series)
         if srclist[0] not in ds.series.keys():
-            log.error('  MergeSeries: primary input series'+srclist[0]+'not found for'+str(series))
+            log.warning('  MergeSeries: primary input series '+srclist[0]+' not found for '+str(series))
             return
-        data = ds.series[srclist[0]]['Data'].copy()
-        flag = ds.series[srclist[0]]['Flag'].copy()
-        attr = ds.series[srclist[0]]['Attr'].copy()
+        mdata,mflag,mattr = qcutils.GetSeriesasMA(ds,srclist[0])
         SeriesNameString = srclist[0]
     else:
         log.info(' Merging '+str(srclist)+'==>'+series)
         if srclist[0] not in ds.series.keys():
-            log.error('  MergeSeries: primary input series'+srclist[0]+'not found')
+            log.warning('  MergeSeries: primary input series '+srclist[0]+' not found for '+str(series))
             return
-        data = ds.series[srclist[0]]['Data'].copy()
-        flag = ds.series[srclist[0]]['Flag'].copy()
-        attr = ds.series[srclist[0]]['Attr'].copy()
-        SeriesNameString = srclist[0]
-        srclist.remove(srclist[0])
-        for ThisOne in srclist:
-            if ThisOne in ds.series.keys():
-                SeriesNameString = SeriesNameString+', '+ThisOne
-                indx1 = numpy.zeros(numpy.size(data),dtype=numpy.int)
-                indx2 = numpy.zeros(numpy.size(data),dtype=numpy.int)
+        primary_series = srclist[0]
+        mdata,mflag,mattr = qcutils.GetSeriesasMA(ds,primary_series)
+        SeriesNameString = primary_series
+        srclist.remove(primary_series)
+        for secondary_series in srclist:
+            if secondary_series in ds.series.keys():
+                ndata,nflag,nattr = qcutils.GetSeriesasMA(ds,secondary_series)
+                if nattr["units"]!=mattr["units"]:
+                    msg = " "+secondary_series+" units don't match "+primary_series+" units"
+                    log.warning(msg)
+                    if convert_units:
+                        msg = " "+secondary_series+" units converted from "+nattr["units"]+" to "+mattr["units"]
+                        log.info(msg)
+                        ndata = qcutils.convert_units_func(ds,ndata,nattr["units"],mattr["units"])
+                    else:
+                        msg = " MergeSeries: "+secondary_series+" ignored"
+                        log.error(msg)
+                        continue
+                SeriesNameString = SeriesNameString+', '+secondary_series
+                indx1 = numpy.zeros(numpy.size(mdata),dtype=numpy.int)
+                indx2 = numpy.zeros(numpy.size(ndata),dtype=numpy.int)
                 for okflag in okflags:
-                    index = numpy.where((flag==okflag))[0]                             # index of acceptable primary values
-                    indx1[index] = 1                                                   # set primary index to 1 when primary good
-                    index = numpy.where((ds.series[ThisOne]['Flag']==okflag))[0]       # same process for secondary
+                    index = numpy.where(mflag==okflag)[0]   # index of acceptable primary values
+                    indx1[index] = 1                        # set primary index to 1 when primary good
+                    index = numpy.where(nflag==okflag)[0]   # same process for secondary
                     indx2[index] = 1
                 index = numpy.where((indx1!=1)&(indx2==1))[0]           # index where primary bad but secondary good
-                data[index] = ds.series[ThisOne]['Data'][index]         # replace bad primary with good secondary
-                flag[index] = ds.series[ThisOne]['Flag'][index]
+                mdata[index] = ndata[index]       # replace bad primary with good secondary
+                mflag[index] = nflag[index]
             else:
-                log.error('  MergeSeries: secondary input series'+ThisOne+'not found')
+                log.warning('  MergeSeries: secondary input series'+secondary_series+'not found')
     ds.mergeserieslist.append(series)
-    #attr = qcutils.MakeAttributeDictionary(long_name='Merged from '+SeriesNameString,
-                             #standard_name=standardname,units=SeriesUnitString)
-    attr["long_name"] = attr["long_name"]+", merged from " + SeriesNameString
-    qcutils.CreateSeries(ds,series,data,Flag=flag,Attr=attr)
+    mattr["long_name"] = mattr["long_name"]+", merged from " + SeriesNameString
+    qcutils.CreateSeries(ds,series,mdata,Flag=mflag,Attr=mattr)
 
 def PT100(ds,T_out,R_in,m):
     log.info(' Calculating temperature from PT100 resistance')

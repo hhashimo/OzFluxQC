@@ -1128,7 +1128,7 @@ def L6_summary_daily(ds,series_dict,xl_file=None):
         daily_dict[item] = {}
         data_1d,flag,attr = qcutils.GetSeriesasMA(ds,item,si=si,ei=ei)
         if item in series_dict["lists"]["co2"]:
-            data_1d = qcutils.convertunits(data_1d,attr["units"],"gC/m2",ts)
+            data_1d = qcutils.convert_units_func(ds,data_1d,attr["units"],"gC/m2",ts)
             daily_dict[item]["units"] = "gC/m2"
         else:
             daily_dict[item]["units"] = attr["units"]
@@ -1188,7 +1188,7 @@ def L6_summary_monthly(ds,series_dict):
             if item not in ds.series.keys(): continue
             data_1d,flag,attr = qcutils.GetSeriesasMA(ds,item,si=si,ei=ei)
             if item in series_dict["lists"]["co2"]:
-                data_1d = qcutils.convertunits(data_1d,attr["units"],"gC/m2",ts)
+                data_1d = qcutils.convert_units_func(ds,data_1d,attr["units"],"gC/m2",ts)
                 monthly_dict[item]["units"] = "gC/m2"
             else:
                 monthly_dict[item]["units"] = attr["units"]
@@ -1254,7 +1254,7 @@ def L6_summary_annual(ds,series_dict):
             if item not in ds.series.keys(): continue
             data_1d,flag,attr = qcutils.GetSeriesasMA(ds,item,si=si,ei=ei)
             if item in series_dict["lists"]["co2"]:
-                data_1d = qcutils.convertunits(data_1d,attr["units"],"gC/m2",ts)
+                data_1d = qcutils.convert_units_func(ds,data_1d,attr["units"],"gC/m2",ts)
                 annual_dict[item]["units"] = "gC/m2"
             else:
                 annual_dict[item]["units"] = attr["units"]
@@ -1308,7 +1308,7 @@ def L6_summary_cumulative(ds,series_dict):
             cumulative_dict[str(year)][item] = {}
             data,flag,attr = qcutils.GetSeriesasMA(ds,item,si=si,ei=ei)
             if item in series_dict["lists"]["co2"]:
-                data = qcutils.convertunits(data,attr["units"],"gC/m2",ts)
+                data = qcutils.convert_units_func(ds,data,attr["units"],"gC/m2",ts)
                 cumulative_dict[str(year)][item]["units"] = "gC/m2"
             else:
                 cumulative_dict[str(year)][item]["units"] = attr["units"]

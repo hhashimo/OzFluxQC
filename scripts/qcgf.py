@@ -2399,6 +2399,9 @@ def gfSOLO_createdict(cf,ds,series):
         ds.solo[output]["site_name"] = ds.globalattributes["site_name"]
         # list of drivers
         ds.solo[output]["drivers"] = ast.literal_eval(cf[section][series]["GapFillUsingSOLO"][output]["drivers"])
+        # apply ustar filter
+        opt = qcutils.get_keyvaluefromcf(cf,[section,series,"GapFillUsingSOLO",output],"apply_ustar_filter",default="No")
+        ds.solo[output]["apply_ustar_filter"] = opt
         # results of best fit for plotting later on
         ds.solo[output]["results"] = {"startdate":[],"enddate":[],"No. points":[],"r":[],
                                       "Bias":[],"RMSE":[],"Frac Bias":[],"NMSE":[],

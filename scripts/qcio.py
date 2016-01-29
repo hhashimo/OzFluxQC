@@ -1408,9 +1408,10 @@ def nc_read_series(ncFullName,checktimestep=True,fixtimestepmethod=""):
     netCDF4.default_encoding = 'latin-1'
     ds = DataStructure()
     # check to see if the requested file exists, return empty ds if it doesn't
-    if not qcutils.file_exists(ncFullName,mode="quiet"):
-        log.error(' netCDF file '+ncFullName+' not found')
-        raise Exception("nc_read_series: file not found")
+    if ncFullName[0:4]!="http":
+        if not qcutils.file_exists(ncFullName,mode="quiet"):
+            log.error(' netCDF file '+ncFullName+' not found')
+            raise Exception("nc_read_series: file not found")
     # file probably exists, so let's read it
     ncFile = netCDF4.Dataset(ncFullName,'r')
     # now deal with the global attributes
