@@ -1,0 +1,22 @@
+# Control file for batch processing
+# [Levels]
+#  Section containing keywords set to the names of control files
+#  for processing L1 to L3 for each year at each site.
+#  Keys in the Files section must be unique.
+[Options]
+    #levels = "['L1','L2','L3','concatenate','climatology','cpd','L4','L5','L6']"
+    levels = "['concatenate','climatology','cpd','L4','L5','L6']"
+
+[Levels]
+   [[concatenate]]
+       0 = 'controlfiles/concatenate/RobsonCreek.txt'
+   [[climatology]]
+       0 = 'controlfiles/climatology/RobsonCreek.txt'
+   [[cpd]]
+       0 = 'controlfiles/cpd/RobsonCreek.txt'
+   [[L4]]
+       0 = 'controlfiles/L4/RobsonCreek.txt'
+   [[L5]]
+       0 = 'controlfiles/L5/RobsonCreek.txt'
+   [[L6]]
+       0 = 'controlfiles/L6/RobsonCreek.txt'

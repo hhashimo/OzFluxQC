@@ -1179,7 +1179,7 @@ def nc_concatenate(cf):
     series_list = ["Ah","Cc","Fa","Fg","Fld","Flu","Fn","Fsd","Fsu","ps","Sws","Ta","Ts","Ws","Wd","Precip"]
     for item in series_list:
         data,flag,attr = qcutils.GetSeriesasMA(ds,item)
-        idx = numpy.ma.where(data.mask==False)
+        idx = numpy.where(numpy.ma.getmaskarray(data)==False)
         cond_idx[idx] = cond_idx[idx] + 1
     cond_idx = cond_idx/len(series_list)
     # find the last element where more than 50% data is present
