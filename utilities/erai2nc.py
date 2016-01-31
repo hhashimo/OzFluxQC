@@ -52,7 +52,7 @@ for cf_name in cf_list:
         site_latitude = float(cf["Sites"][site]["site_latitude"])
         site_longitude = float(cf["Sites"][site]["site_longitude"])
         site_timestep = int(cf["Sites"][site]["site_timestep"])
-        site_sa_limit = qcutils.get_keyvaluefromcf(cf,["Sites",site],site_sa_limit,default=5)
+        site_sa_limit = qcutils.get_keyvaluefromcf(cf,["Sites",site],"site_sa_limit",default=5)
         # index of the site in latitude dimension
         site_lat_index = int(((latitude[0]-site_latitude)/lat_resolution)+0.5)
         erai_latitude = latitude[site_lat_index]
