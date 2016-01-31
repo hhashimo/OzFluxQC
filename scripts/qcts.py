@@ -617,7 +617,7 @@ def SpecificHumidityFromRH(ds):
         qcutils.CreateSeries(ds,"q",q_new,Flag=q_new_flag,Attr=attr)
 
 def CalculateMeteorologicalVariables(ds,Ta_name='Ta',Tv_name='Tv_CSAT',ps_name='ps',
-                                     q_name="q",Ah_name='Ah',RH_name='RH',Cc_name='Cc'):
+                                     q_name="q",Ah_name='Ah',RH_name='RH'):
     """
         Add time series of meteorological variables based on fundamental
         relationships (Stull 1988)
@@ -638,7 +638,7 @@ def CalculateMeteorologicalVariables(ds,Ta_name='Ta',Tv_name='Tv_CSAT',ps_name='
             Cpm: specific heat of moist air, mf.specificheatmoistair(q)
             VPD: vapour pressure deficit, VPD = esat - e
         """
-    for item in [Ta_name,ps_name,Ah_name,Cc_name,q_name]:
+    for item in [Ta_name,ps_name,Ah_name,q_name]:
         if item not in ds.series.keys():
             msg = " CalculateMeteorologicalVariables: series "
             msg = msg + item + " not found, returning ..."
@@ -652,8 +652,6 @@ def CalculateMeteorologicalVariables(ds,Ta_name='Ta',Tv_name='Tv_CSAT',ps_name='
     Tv,f,a = qcutils.GetSeriesasMA(ds,Tv_name)
     ps,f,a = qcutils.GetSeriesasMA(ds,ps_name)
     Ah,f,a = qcutils.GetSeriesasMA(ds,Ah_name)
-    Cc,f,a = qcutils.GetSeriesasMA(ds,Cc_name)
-    Cc_units = a["units"]
     q,f,a = qcutils.GetSeriesasMA(ds,q_name)
     # do the calculations
     e = mf.vapourpressure(Ah,Ta)                  # vapour pressure from absolute humidity and temperature
@@ -671,11 +669,6 @@ def CalculateMeteorologicalVariables(ds,Ta_name='Ta',Tv_name='Tv_CSAT',ps_name='
     Cpm = mf.specificheatmoistair(q)              # specific heat of moist air
     VPD = esat - e                                # vapour pressure deficit
     SHD = qsat - q                                # specific humidity deficit
-    if Cc_units=="mg/m3":
-        c_ppm = mf.co2_ppmfrommgpm3(Cc,Ta,ps)     # CO2 concentration in units of umol/mol
-    else:
-        c_ppm = Cc
-    h_ppt = mf.h2o_mmolpmolfromgpm3(Ah,Ta,ps)     # H2O concentration in units of mmol/mol
     # write the meteorological series to the data structure
     attr = qcutils.MakeAttributeDictionary(long_name='Vapour pressure',units='kPa',standard_name='water_vapor_partial_pressure_in_air')
     qcutils.CreateSeries(ds,'e',e,FList=[Ta_name,Ah_name],Attr=attr)
@@ -701,10 +694,6 @@ def CalculateMeteorologicalVariables(ds,Ta_name='Ta',Tv_name='Tv_CSAT',ps_name='
     qcutils.CreateSeries(ds,'VPD',VPD,FList=[Ta_name,Ah_name],Attr=attr)
     attr = qcutils.MakeAttributeDictionary(long_name='Specific humidity deficit',units='kg/kg')
     qcutils.CreateSeries(ds,'SHD',SHD,FList=[Ta_name,Ah_name],Attr=attr)
-    attr = qcutils.MakeAttributeDictionary(long_name='CO2 concentration',units='umol/mol')
-    qcutils.CreateSeries(ds,'C_ppm',c_ppm,FList=[Cc_name,Ta_name,ps_name],Attr=attr)
-    attr = qcutils.MakeAttributeDictionary(long_name='H2O concentration',units='mmol/mol')
-    qcutils.CreateSeries(ds,'H_ppt',h_ppt,FList=[Ah_name,Ta_name,ps_name],Attr=attr)
     if 'CalculateMetVars' not in ds.globalattributes['Functions']:
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', CalculateMetVars'
 

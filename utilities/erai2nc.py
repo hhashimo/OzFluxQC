@@ -52,6 +52,7 @@ for cf_name in cf_list:
         site_latitude = float(cf["Sites"][site]["site_latitude"])
         site_longitude = float(cf["Sites"][site]["site_longitude"])
         site_timestep = int(cf["Sites"][site]["site_timestep"])
+        site_sa_limit = qcutils.get_keyvaluefromcf(cf,["Sites",site],site_sa_limit,default=5)
         # index of the site in latitude dimension
         site_lat_index = int(((latitude[0]-site_latitude)/lat_resolution)+0.5)
         erai_latitude = latitude[site_lat_index]
@@ -66,6 +67,7 @@ for cf_name in cf_list:
         ds_erai.globalattributes["latitude"] = site_latitude
         ds_erai.globalattributes["longitude"] = site_longitude
         ds_erai.globalattributes["time_step"] = site_timestep
+        ds_erai.globalattributes["sa_limit"] = site_sa_limit
         ds_erai.globalattributes['xl_datemode'] = str(0)
         ds_erai.globalattributes["nc_level"] = "L1"
         # get the UTC and local datetime series
@@ -127,7 +129,11 @@ for cf_name in cf_list:
         Fsd_erai_3hr[idx] = Fsd_accum[idx]
         Fsd_erai_3hr = Fsd_erai_3hr/(erai_timestep*60)
         # normalise the ERA-I downwelling shortwave by the solar altitude
-        coef_3hr = Fsd_erai_3hr/numpy.sin(numpy.deg2rad(alt_solar_3hr))
+        # clamp solar altitude to a minimum value to avoid numerical problems
+        # when alt_solar is close to 0
+        alt_solar_limit = float(site_sa_limit)*numpy.ones(len(alt_solar_3hr))
+        sa = numpy.where(alt_solar_3hr<=float(site_sa_limit),alt_solar_limit,alt_solar_3hr)
+        coef_3hr = Fsd_erai_3hr/numpy.sin(numpy.deg2rad(sa))
         # get the spline interpolation function
         s = InterpolatedUnivariateSpline(erai_time_3hr, coef_3hr, k=1)
         # get the coefficient at the tower time step
@@ -151,7 +157,7 @@ for cf_name in cf_list:
         # get the average value over the 3 hourly period
         Fn_sw_erai_3hr = Fn_sw_erai_3hr/(erai_timestep*60)
         # normalise the ERA-I et shortwave by the solar altitude
-        coef_3hr = Fn_sw_erai_3hr/numpy.sin(numpy.deg2rad(alt_solar_3hr))
+        coef_3hr = Fn_sw_erai_3hr/numpy.sin(numpy.deg2rad(sa))
         # get the spline interpolation function
         s = InterpolatedUnivariateSpline(erai_time_3hr, coef_3hr, k=1)
         # get the coefficient at the tower time step
