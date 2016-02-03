@@ -17,12 +17,13 @@ import pysolar
 import qcio
 import qcutils
 
-cf_list = sorted(glob.glob("../controlfiles/ERAI/*"))
+cf_list = sorted(glob.glob("../controlfiles/ERAI/L1/*"))
 for cf_name in cf_list:
     print "Processing control file "+cf_name
     cf = qcio.get_controlfilecontents(cf_name)
 
     erai_name = os.path.join(cf["Files"]["erai_path"],cf["Files"]["erai_file"])
+    erai_timestep = 180
     erai_file = netCDF4.Dataset(erai_name)
     latitude = erai_file.variables["latitude"][:]
     longitude = erai_file.variables["longitude"][:]
@@ -33,7 +34,14 @@ for cf_name in cf_list:
     time_units = getattr(erai_file.variables["time"],"units")
     dt_erai = netCDF4.num2date(erai_time,time_units)
     hour_utc = numpy.array([dt.hour for dt in dt_erai])
-    erai_timestep = 180
+    # get the datetime in the middle of the accumulation period
+    erai_offset = datetime.timedelta(minutes=float(erai_timestep)/2)
+    dt_erai_cor = [x - erai_offset for x in dt_erai]
+    # get a series of time, corrected for the offset
+    # NOTE: netCDF4.date2num doesn't handle timezone-aware datetimes
+    erai_time_3hr = netCDF4.date2num(dt_erai_cor,time_units)
+    # make utc_dt timezone aware so we can generate local times later
+    dt_erai_utc_cor = [x.replace(tzinfo=pytz.utc) for x in dt_erai_cor]
     
     # get a list of sites
     site_list = cf["Sites"].keys()
@@ -72,28 +80,28 @@ for cf_name in cf_list:
         ds_erai.globalattributes["nc_level"] = "L1"
         # get the UTC and local datetime series
         site_tz = pytz.timezone(site_timezone)
-        # make utc_dt timezone aware
-        dt_erai_utc = [x.replace(tzinfo=pytz.utc) for x in dt_erai]
-        # get local time from UTC
-        dt_erai_loc = [x.astimezone(site_tz) for x in dt_erai_utc]
-        # NOTE: will have to disable daylight saving at some stage, towers stay on Standard Time
-        # PRI hopes that the following line will do this ...
-        dt_erai_loc = [x-x.dst() for x in dt_erai_loc]
-        # make local time timezone naive to match datetimes in OzFluxQC
-        dt_erai_loc_ntz = [x.replace(tzinfo=None) for x in dt_erai_loc]
-        dt_erai_utc_ntz = [x.replace(tzinfo=None) for x in dt_erai_utc]
-        # get the datetime in the middle of the accumulation period
-        erai_offset = datetime.timedelta(minutes=float(erai_timestep)/2)
-        # subtract this from the ERA-I datetime to align ERA-I 3 hourly points with the middle
-        # of the accumulation period
-        dt_erai_loc_cor = [x - erai_offset for x in dt_erai_loc_ntz]
-        dt_erai_utc_cor = [x - erai_offset for x in dt_erai_utc_ntz]
         # now we get the datetime series at the tower time step
         tdts = datetime.timedelta(minutes=site_timestep)
-        # local time for plotting
-        start_date = dt_erai_loc_cor[0]
-        end_date = dt_erai_loc_cor[-1]
-        dt_erai_loc_tts = [x for x in qcutils.perdelta(start_date,end_date,tdts)]
+        # get the start and end datetimes rounded to the nearest time steps
+        # that lie between the first and last times
+        start_date = qcutils.rounddttots(dt_erai_utc_cor[0],ts=site_timestep)
+        if start_date<dt_erai_utc_cor[0]: start_date = start_date+tdts
+        end_date = qcutils.rounddttots(dt_erai_utc_cor[-1],ts=site_timestep)
+        if end_date>dt_erai_utc_cor[-1]: end_date = end_date-tdts
+        #print site_name,start_date,dt_erai_utc_cor[0]
+        #print site_name,end_date,dt_erai_utc_cor[-1]
+        # UTC datetime series at the tower time step
+        dt_erai_utc_tts = [x for x in qcutils.perdelta(start_date,end_date,tdts)]
+        # UTC netCDF time series at tower time step for interpolation
+        tmp = [x.replace(tzinfo=None) for x in dt_erai_utc_tts]
+        erai_time_tts = netCDF4.date2num(tmp,time_units)
+        # local datetime series at tower time step
+        dt_erai_loc_tts = [x.astimezone(site_tz) for x in dt_erai_utc_tts]
+        # NOTE: will have to disable daylight saving at some stage, towers stay on Standard Time
+        # PRI hopes that the following line will do this ...
+        dt_erai_loc_tts = [x-x.dst() for x in dt_erai_loc_tts]
+        # make the datetime series timezone naive and put it in data structure
+        dt_erai_loc_tts = [x.replace(tzinfo=None) for x in dt_erai_loc_tts]
         ds_erai.series["DateTime"]["Data"] = dt_erai_loc_tts
         ds_erai.globalattributes["nc_nrecs"] = len(dt_erai_loc_tts)
         ds_erai.globalattributes["start_datetime"] = str(dt_erai_loc_tts[0])
@@ -102,14 +110,7 @@ for cf_name in cf_list:
         qcutils.get_xldatefromdatetime(ds_erai)
         # get the year, month, day, hour, minute and second
         qcutils.get_ymdhmsfromdatetime(ds_erai)
-        # UTC for calculating solar altitude
-        start_date = dt_erai_utc_cor[0]
-        end_date = dt_erai_utc_cor[-1]
-        dt_erai_utc_tts = [x for x in qcutils.perdelta(start_date,end_date,tdts)]
-        # UTC at tower time step as number for interpolation
-        erai_time_tts = netCDF4.date2num(dt_erai_utc_tts,time_units)
-        erai_time_3hr = netCDF4.date2num(dt_erai_utc_cor,time_units)
-        # get the solar altitude, we will use this later to interpolate the ERA Interim
+        # get the solar altitude, we will use this later to interpolate the ERA Interim solar
         # data from the ERA-I 3 hour time step to the tower time step.
         # NOTE: alt_solar is in degrees
         alt_solar_3hr = numpy.array([pysolar.GetAltitude(erai_latitude,erai_longitude,dt) for dt in dt_erai_utc_cor])
@@ -348,7 +349,7 @@ for cf_name in cf_list:
         Precip_erai_3hr[idx] = Precip_accum[idx]
         Precip_erai_3hr = Precip_erai_3hr*float(1000)
         Precip_erai_tts = numpy.zeros(len(dt_erai_loc_tts))
-        idx = qcutils.FindIndicesOfBInA(dt_erai_loc_cor,dt_erai_loc_tts)
+        idx = qcutils.FindIndicesOfBInA(dt_erai_utc_cor,dt_erai_utc_tts)
         Precip_erai_tts[idx] = Precip_erai_3hr
         flag = numpy.zeros(len(Precip_erai_tts),dtype=numpy.int32)
         attr = qcutils.MakeAttributeDictionary(long_name="Precipitation",units="mm")

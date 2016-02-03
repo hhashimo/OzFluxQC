@@ -1009,12 +1009,12 @@ def nc_concatenate(cf):
     # get the input file list
     InFile_list = cf['Files']['In'].keys()
     # read in the first file
-    ncFileName = cf['Files']['In'][InFile_list[0]]
-    log.info(' Reading data from '+ncFileName)
+    baseFileName = cf['Files']['In'][InFile_list[0]]
+    log.info(' Reading data from '+baseFileName)
     fixtimestepmethod = qcutils.get_keyvaluefromcf(cf,["Options"],"FixTimeStepMethod",default="round")
-    ds_n = nc_read_series(ncFileName,fixtimestepmethod=fixtimestepmethod)
+    ds_n = nc_read_series(baseFileName,fixtimestepmethod=fixtimestepmethod)
     if len(ds_n.series.keys())==0:
-        log.error(' An error occurred reading netCDF file: '+ncFileName)
+        log.error(' An error occurred reading netCDF file: '+baseFileName)
         return
     # fill the global attributes
     for ThisOne in ds_n.globalattributes.keys():
@@ -1129,14 +1129,6 @@ def nc_concatenate(cf):
             #TimeGap = True
         # loop over the data series in the concatenated file
         for ThisOne in ds.series.keys():
-            if ThisOne=="Fc":
-                Fc,flag,attr = qcutils.GetSeriesasMA(ds_n,ThisOne)
-                if attr['units']=='mg/m2/s':
-                    log.info(" Converting Fc to umol/m2/s")
-                    Fc = mf.Fc_umolpm2psfrommgpm2ps(Fc)
-                    attr['units'] = 'umol/m2/s'
-                    attr['standard_name'] = 'surface_upward_mole_flux_of_carbon_dioxide'
-                    qcutils.CreateSeries(ds_n,ThisOne,Fc,Flag=flag,Attr=attr)
             # does this series exist in the file being added to the concatenated file
             if ThisOne in ds_n.series.keys():
                 # if so, then append this series to the concatenated series
@@ -1232,9 +1224,23 @@ def nc_concatenate(cf):
     # update the coverage statistics
     qcutils.get_coverage_individual(ds)
     # write the netCDF file
-    ncFileName = qcutils.get_keyvaluefromcf(cf,["Files","Out"],"ncFileName",default="out.nc")
-    log.info(' Writing data to '+ncFileName)
-    ncFile = nc_open_write(ncFileName)
+    outFileName = qcutils.get_keyvaluefromcf(cf,["Files","Out"],"ncFileName",default="out.nc")
+    log.info(' Writing data to '+outFileName)
+    # check to see if the base and concatenated file names are the same
+    # IE the user wants to overwrite the base file
+    if outFileName==baseFileName:
+        # ... but we will save them from themselves!
+        t = time.localtime()
+        rundatetime = datetime.datetime(t[0],t[1],t[2],t[3],t[4],t[5]).strftime("%Y%m%d%H%M")
+        new_ext = "_"+rundatetime+".nc"
+        # add the current local datetime the base file name
+        newFileName = baseFileName.replace(".nc",new_ext)
+        msg = " Renaming "+baseFileName+" to "+newFileName
+        log.info(msg)
+        # ... and rename the base file to preserve it
+        os.rename(baseFileName,newFileName)
+        # now the base file will not be overwritten
+    ncFile = nc_open_write(outFileName)
     ndims = qcutils.get_keyvaluefromcf(cf,["Options"],"NumberOfDimensions", default=3)
     nc_write_series(ncFile,ds,ndims=ndims)
 
@@ -1617,6 +1623,8 @@ def nc_write_series(ncFile,ds,outputlist=None,ndims=3):
     """
     ldt = ds.series["DateTime"]["Data"]
     ds.globalattributes['QC_version'] = str(cfg.version_name)+' '+str(cfg.version_number)
+    ds.globalattributes["start_date"] = str(ldt[0])
+    ds.globalattributes["end_date"] = str(ldt[-1])
     for item in ds.globalattributes.keys():
         #if "int" in str(type(ds.globalattributes[item])):
             #ds.globalattributes[item] = numpy.int32(ds.globalattributes[item])

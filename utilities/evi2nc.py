@@ -19,7 +19,7 @@ import qcutils
 do_plots = True
 
 # load the control file contents
-cf = qcio.load_controlfile(path="../controlfiles/")
+cf = qcio.load_controlfile(path="../controlfiles/MODIS/")
 # get the DAP file name
 evi_url = cf["Files"]["evi_path"]
 evi_file = cf["Files"]["evi_file"]
