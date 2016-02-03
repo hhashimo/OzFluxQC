@@ -8,6 +8,7 @@ import logging
 import meteorologicalfunctions as mf
 import netCDF4
 import numpy
+import os
 import qcio
 import qcts
 import qcutils
@@ -21,7 +22,7 @@ log = qcutils.startlog('aws2nc','../logfiles/aws2nc.log')
 cf = {"Options":{"FixTimeStepMethod":"round"}}
 
 # get the site information and the AWS stations to use
-xlname = "../../BoM/Locations/AWS_Locations.xls"
+xlname = "/mnt/OzFlux/AWS/AWS_Locations.xls"
 wb = xlrd.open_workbook(xlname)
 sheet = wb.sheet_by_name("OzFlux")
 xl_row = 10
@@ -42,7 +43,8 @@ for n in range(xl_row,sheet.nrows):
             bom_sites_info[str(xlrow[0])][str(int(xlrow[i+1]))]["elevation"] = xlrow[i+4]
             bom_sites_info[str(xlrow[0])][str(int(xlrow[i+1]))]["distance"] = xlrow[i+5]
 
-in_path = "../../BoM/AWS/Current/"
+in_path = "/mnt/OzFlux/AWS/Current/"
+out_path = "/mnt/OzFlux/Sites/"
 in_filename = in_path+"HM01X_Data*.csv"
 file_list = sorted(glob.glob(in_filename))
 
@@ -53,7 +55,7 @@ site_list = bom_sites_info.keys()
 for site_name in sorted(site_list):
     log.info("Starting site: "+site_name)
     sname = site_name.replace(" ","")
-    ncname = in_path+sname+"_AWS.nc"
+    ncname = os.path.join(out_path,sname,"/Data/AWS/",sname+"_AWS.nc")
     site_latitude = bom_sites_info[site_name]["latitude"]
     site_longitude = bom_sites_info[site_name]["longitude"]
     site_elevation = bom_sites_info[site_name]["elevation"]
@@ -275,6 +277,19 @@ for site_name in sorted(site_list):
         qcutils.CreateSeries(ds_all,RH_label.replace("RH","q"),q,Flag=f,Attr=attr)
     
     # now write the data structure to file
+    # OMG, the user may want to overwrite the old data ...
+    if os.path.exists(ncname):
+        # ... but we will save them from themselves!
+        t = time.localtime()
+        rundatetime = datetime.datetime(t[0],t[1],t[2],t[3],t[4],t[5]).strftime("%Y%m%d%H%M")
+        new_ext = "_"+rundatetime+".nc"
+        # add the current local datetime the old file name
+        newFileName = ncname.replace(".nc",new_ext)
+        msg = " Renaming "+ncname+" to "+newFileName
+        log.info(msg)
+        # ... and rename the old file to preserve it
+        os.rename(ncname,newFileName)
+        # now the old file will not be overwritten
     ncfile = qcio.nc_open_write(ncname)
     qcio.nc_write_series(ncfile,ds_all,ndims=1)
     log.info("Finished site: "+site_name)
