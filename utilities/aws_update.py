@@ -10,7 +10,7 @@ if not os.path.exists("../scripts/"):
 sys.path.append('../scripts')
 import qcio
 
-cf = qcio.load_controlfile(path="controlfiles")
+cf = qcio.load_controlfile(path="../controlfiles")
 
 base_pattern = "HM01X_Data*.txt"
 in_file_pattern = cf["Files"]["In"]["file_path"]+base_pattern
