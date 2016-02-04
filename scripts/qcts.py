@@ -1409,6 +1409,36 @@ def CalculateStandardDeviations(cf,ds):
         attr = qcutils.MakeAttributeDictionary(long_name='Vertical velocity component from CSAT, standard deviation',units='m/s')
         qcutils.CreateSeries(ds,'Uz_Sd',Uz_Sd,Flag=flag,Attr=attr)
 
+def do_mergeseries(ds,target,srclist,mode="verbose"):
+    if mode.lower()!="quiet":
+        log.info(' Merging '+str(srclist)+' ==> '+target)
+    if srclist[0] not in ds.series.keys():
+        if mode.lower()!="quiet":
+            log.error('  MergeSeries: primary input series '+srclist[0]+' not found')
+            return
+    data = ds.series[srclist[0]]['Data'].copy()
+    flag1 = ds.series[srclist[0]]['Flag'].copy()
+    flag2 = ds.series[srclist[0]]['Flag'].copy()
+    attr = ds.series[srclist[0]]['Attr'].copy()
+    SeriesNameString = srclist[0]
+    tmplist = list(srclist)
+    tmplist.remove(tmplist[0])
+    for label in tmplist:
+        if label in ds.series.keys():
+            SeriesNameString = SeriesNameString+', '+label
+            index = numpy.where(numpy.mod(flag1,10)==0)[0]         # find the elements with flag = 0, 10, 20 etc
+            flag2[index] = 0                                        # set them all to 0
+            if label=="Fg":
+                index = numpy.where(flag2==22)[0]
+                if len(index)!=0: flag2[index] = 0
+            index = numpy.where(flag2!=0)[0]                        # index of flag values other than 0,10,20,30 ...
+            data[index] = ds.series[label]['Data'][index].copy()  # replace bad primary with good secondary
+            flag1[index] = ds.series[label]['Flag'][index].copy()
+        else:
+            log.error(" MergeSeries: secondary input series "+label+" not found")
+    attr["long_name"] = attr["long_name"]+", merged from " + SeriesNameString
+    qcutils.CreateSeries(ds,target,data,Flag=flag1,Attr=attr)
+
 def do_solo(cf,ds4,Fc_in='Fc',Fe_in='Fe',Fh_in='Fh',Fc_out='Fc',Fe_out='Fe',Fh_out='Fh'):
     ''' duplicate gapfilled fluxes for graphing comparison'''
     if qcutils.cfkeycheck(cf,Base='FunctionArgs',ThisOne='SOLOvars'):

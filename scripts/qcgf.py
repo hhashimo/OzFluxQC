@@ -790,6 +790,9 @@ def gfalternate_done(ds,alt_gui):
     #gfalternate_plotsummary(ds,alternate_info)
     # destroy the alternate GUI
     alt_gui.destroy()
+    if len(plt.get_fignums())!=0:
+        for i in plt.get_fignums():
+            plt.close(i)
     # write Excel spreadsheet with fit statistics
     #qcio.xl_write_AlternateStats(ds)
     # put the return code into ds.alternate
@@ -1677,7 +1680,7 @@ def gfalternate_plotcoveragelines(ds_tower,alternate_info):
     ylabel_right_list.append("")
     ax2 = ax1.twinx()
     pylab.yticks(ylabel_posn,ylabel_right_list)
-    fig.tight_layout()
+    fig.tight_layout(pad=2)
     #fig.canvas.manager.window.attributes('-topmost', 1)
     if alternate_info["show_plots"]:
         plt.draw()
@@ -2492,6 +2495,12 @@ def gfSOLO_main(dsa,dsb,solo_info,output_list=[]):
         series = dsb.solo[output]["label_tower"]
         qcck.do_qcchecks_oneseries(dsb.cf,dsa,series=series)
         qcck.do_dependencycheck(dsb.cf,dsa,series=series)
+        if dsb.globalattributes["nc_level"].lower()=="l4":
+            for driver in dsb.solo[output]["drivers"]:
+                for mlist in dsb.merge.keys():
+                    if driver in dsb.merge[mlist]:
+                        srclist = dsb.merge[mlist][driver]["source"]
+                qcts.do_mergeseries(dsb,driver,srclist,mode="quiet")
         dsb.solo[output]["results"]["startdate"].append(xldt[si])
         dsb.solo[output]["results"]["enddate"].append(xldt[ei])
         d,f,a = qcutils.GetSeriesasMA(dsb,series,si=si,ei=ei)
@@ -2679,25 +2688,31 @@ def gfSOLO_plotcoveragelines(dsb,solo_info):
     output_list = dsb.solo.keys()
     series_list = [dsb.solo[item]["label_tower"] for item in dsb.solo.keys()]
     ylabel_list = [""]+series_list+[""]
+    ylabel_right_list = [""]
     series_list = [dsb.solo[item]["label_tower"] for item in output_list]
     color_list = ["blue","red","green","yellow","magenta","black","cyan","brown"]
     xsize = 15.0
-    ysize = len(output_list)*0.3
+    ysize = max([len(output_list)*0.3,1])
     if solo_info["show_plots"]:
         plt.ion()
     else:
         plt.ioff()
     if plt.fignum_exists(0):
         fig=plt.figure(0)
-        plt.cla()
+        plt.clf()
+        ax1 = plt.subplot(111)
     else:
         fig=plt.figure(0,figsize=(xsize,ysize))
+        ax1 = plt.subplot(111)
     title = "Coverage: "+site_name+" "+start_date+" to "+end_date
     fig.canvas.set_window_title(title)
     plt.ylim([0,len(output_list)+1])
+    plt.xlim([ldt[0],ldt[-1]])
     for output,series,n in zip(output_list,series_list,range(1,len(output_list)+1)):
         data_output,f,a = qcutils.GetSeriesasMA(dsb,output)
         data_series,f,a = qcutils.GetSeriesasMA(dsb,series)
+        percent = 100*numpy.ma.count(data_series)/len(data_series)
+        ylabel_right_list.append("{0:.0f}%".format(percent))
         ind_series = numpy.ma.ones(len(data_series))*float(n)
         ind_series = numpy.ma.masked_where(numpy.ma.getmaskarray(data_series)==True,ind_series)
         ind_output = numpy.ma.ones(len(data_output))*float(n)
@@ -2706,6 +2721,9 @@ def gfSOLO_plotcoveragelines(dsb,solo_info):
         plt.plot(ldt,ind_output,color=color_list[numpy.mod(n,8)],linewidth=4)
     ylabel_posn = range(0,len(output_list)+2)
     pylab.yticks(ylabel_posn,ylabel_list)
+    ylabel_right_list.append("")
+    ax2 = ax1.twinx()
+    pylab.yticks(ylabel_posn,ylabel_right_list)
     fig.tight_layout()
     #fig.canvas.manager.window.attributes('-topmost', 1)
     if solo_info["show_plots"]:
@@ -2716,6 +2734,10 @@ def gfSOLO_plotcoveragelines(dsb,solo_info):
 
 def gfSOLO_plotsummary(ds,solo_info):
     """ Plot single pages of summary results for groups of variables. """
+    if "SOLO_Summary" not in ds.cf:
+        msg = " SOLO summary section not in control file"
+        log.info(msg)
+        return
     # get a list of variables for which SOLO data was available
     label_list = ds.solo.keys()
     if len(ds.solo[label_list[0]]["results"]["startdate"])==0:
