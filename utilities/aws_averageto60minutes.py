@@ -10,7 +10,7 @@ sys.path.append('../scripts')
 import qcio
 import qcutils
 
-aws_name=qcio.get_filename_dialog(path="/mnt/OzFlux/AWS/")
+aws_name=qcio.get_filename_dialog(path="/mnt/OzFlux/Sites")
 
 ds_aws_30minute = qcio.nc_read_series(aws_name)
 has_gaps = qcutils.CheckTimeStep(ds_aws_30minute)

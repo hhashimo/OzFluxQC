@@ -235,14 +235,14 @@ def l4qc(cf,ds3):
     # *** start of the section that does the gap filling of the drivers ***
     # fill short gaps using interpolation
     qcgf.GapFillUsingInterpolation(cf,ds4)
+    # gap fill using climatology
+    qcgf.GapFillFromClimatology(ds4)
     # do the gap filling using the ACCESS output
     qcgf.GapFillFromAlternate(cf,ds4,ds_alt)
     if ds4.returncodes["alternate"]=="quit": return ds4
     # gap fill using SOLO
     qcgf.GapFillUsingSOLO(cf,ds3,ds4)
     if ds4.returncodes["solo"]=="quit": return ds4
-    # gap fill using climatology
-    qcgf.GapFillFromClimatology(ds4)
     # merge the first group of gap filled drivers into a single series
     qcts.MergeSeriesUsingDict(ds4,merge_order="prerequisite")
     # re-calculate the ground heat flux but only if requested in control file
