@@ -1647,7 +1647,7 @@ def gfalternate_plotcoveragelines(ds_tower,alternate_info):
     ylabel_right_list = [""]
     color_list = ["blue","red","green","yellow","magenta","black","cyan","brown"]
     xsize = 15.0
-    ysize = len(series_list)*0.2
+    ysize = max([len(output_list)*0.2,1])
     if alternate_info["show_plots"]:
         plt.ion()
     else:
