@@ -606,8 +606,11 @@ def sort(df, flux_period, years_index, i):
         for season in range(int(years_df.loc[year, 'seasons'])):
             start_ind = season * (bin_size / 2)
             end_ind = season * (bin_size / 2) + bin_size
-            lst.append(df.ix[str(year)].iloc[start_ind:end_ind].sort_values(by='Ta',axis = 0))
-#            lst.append(df.ix[str(year)].iloc[start_ind:end_ind].sort('Ta', axis = 0))
+            # ugly hack to avoid FutureWarning from pandas V0.16.2 and older
+            try:
+                lst.append(df.ix[str(year)].iloc[start_ind:end_ind].sort_values(by='Ta',axis = 0))
+            except AttributeError:
+                lst.append(df.ix[str(year)].iloc[start_ind:end_ind].sort('Ta', axis = 0))
     seasons_df = pd.concat([frame for frame in lst])
 
     # Make a hierarchical index for year, season, temperature class, bin for the seasons dataframe
@@ -638,7 +641,11 @@ def sort(df, flux_period, years_index, i):
     results_df = pd.DataFrame({'T_avg':seasons_df['Ta'].groupby(level = ['year','season','T_class']).mean()})
     
     # Sort the seasons by ustar, then bin average and drop the bin level from the index
-    seasons_df = pd.concat([seasons_df.loc[i[0]].loc[i[1]].loc[i[2]].sort_values(by='ustar', axis=0) for i in results_df.index])
+    # ugly hack to avoid FutureWarning from pandas V0.16.2 and older
+    try:
+        seasons_df = pd.concat([seasons_df.loc[i[0]].loc[i[1]].loc[i[2]].sort_values(by='ustar', axis=0) for i in results_df.index])
+    except AttributeError:
+        seasons_df = pd.concat([seasons_df.loc[i[0]].loc[i[1]].loc[i[2]].sort('ustar', axis=0) for i in results_df.index])        
     seasons_df.index = hierarchical_index
     seasons_df = seasons_df.set_index(bin_index, append = True)
     seasons_df.index.names = ['year','season','T_class','bin']

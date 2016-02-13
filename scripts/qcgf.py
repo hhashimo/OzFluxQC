@@ -2277,7 +2277,7 @@ def  gfSOLO_gui(cf,dsa,dsb,solo_info):
     solo_gui.learningrateLabel.grid(row=nrow,column=2,columnspan=1,sticky="E")
     solo_gui.learningrateEntry = Tkinter.Entry(solo_gui,width=6)
     solo_gui.learningrateEntry.grid(row=nrow,column=3,columnspan=1,sticky="W")
-    solo_gui.learningrateEntry.insert(0,"0.01")
+    solo_gui.learningrateEntry.insert(0,"0.001")
     solo_gui.iterationsLabel = Tkinter.Label(solo_gui,text="Iterations")
     solo_gui.iterationsLabel.grid(row=nrow,column=4,columnspan=1,sticky="E")
     solo_gui.iterationsEntry = Tkinter.Entry(solo_gui,width=6)
