@@ -507,7 +507,7 @@ def gfalternate_autocomplete(ds_tower,ds_alt,alternate_info,mode="verbose"):
             si_alternate = qcutils.GetDateIndex(dt_alternate,alternate_info["gui_startdate"],ts=ts,default=0)
             ei_alternate = qcutils.GetDateIndex(dt_alternate,alternate_info["gui_enddate"],ts=ts,default=nRecs-1)
             alt_series_list = [item for item in ds_alternate.series.keys() if "_QCFlag" not in item]
-            alt_series_list = [item for item in alt_series_list if label_tower in item]
+            alt_series_list = [item for item in alt_series_list if ds_tower.alternate[label_output]["alternate_name"] in item]
             for label_alternate in alt_series_list:
                 data_alt,flag_alt,attr_alt = qcutils.GetSeriesasMA(ds_alternate,label_alternate,si=si_alternate,ei=ei_alternate)
                 data_all[label_alternate] = data_alt
@@ -827,7 +827,7 @@ def gfalternate_getalternatevaratmaxr(ds_tower,ds_alternate,alternate_info,mode=
     ei_alternate = qcutils.GetDateIndex(ldt_alternate,enddate,ts=ts)
     # create an array for the correlations and a list for the alternate variables in order of decreasing correlation
     if "usevars" not in ds_tower.alternate[label_output]:
-        altvar_list = gfalternate_getalternatevarlist(ds_alternate,label_tower)
+        altvar_list = gfalternate_getalternatevarlist(ds_alternate,alternate_info["alternate_name"])
     else:
         altvar_list = ds_tower.alternate[label_output]["usevars"]
     r = numpy.zeros(len(altvar_list))
@@ -1504,6 +1504,7 @@ def gfalternate_main(ds_tower,ds_alt,alternate_info,label_tower_list=[]):
         # loop over the outputs for this tower series
         for label_output in label_output_list:
             alternate_info["label_output"] = label_output
+            alternate_info["alternate_name"] = ds_tower.alternate[label_output]["alternate_name"]
             # update the alternate_info dictionary
             gfalternate_update_alternate_info(ds_tower,alternate_info)
             # update the dictionaries
