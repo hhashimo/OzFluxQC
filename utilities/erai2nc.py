@@ -5,6 +5,7 @@ import numpy
 import os
 import pytz
 from scipy.interpolate import InterpolatedUnivariateSpline
+#from scipy.interpolate import interp1d
 import sys
 # check the scripts directory is present
 if not os.path.exists("../scripts/"):
@@ -17,7 +18,9 @@ import pysolar
 import qcio
 import qcutils
 
-cf_list = sorted(glob.glob("../controlfiles/ERAI/L1/*"))
+cf = qcio.load_controlfile(path='../controlfiles/ERAI/',title='Choose a control file')
+cf_list = [cf["L1"][n] for n in cf["L1"].keys()]
+#cf_list = sorted(glob.glob("../controlfiles/ERAI/L1/USA/*"))
 for cf_name in cf_list:
     print "Processing control file "+cf_name
     cf = qcio.get_controlfilecontents(cf_name)
@@ -65,8 +68,11 @@ for cf_name in cf_list:
         site_lat_index = int(((latitude[0]-site_latitude)/lat_resolution)+0.5)
         erai_latitude = latitude[site_lat_index]
         # index of the site in longitude dimension
+        if site_longitude<0: site_longitude = float(360) + site_longitude
         site_lon_index = int(((site_longitude-longitude[0])/lon_resolution)+0.5)
         erai_longitude = longitude[site_lon_index]
+        print "  Site coordinates: ",site_latitude,site_longitude
+        print "  ERAI grid: ",latitude[site_lat_index],longitude[site_lon_index]
         # get an instance of the Datastructure
         ds_erai = qcio.DataStructure()
         ds_erai.series["DateTime"] = {}
@@ -88,7 +94,7 @@ for cf_name in cf_list:
         if start_date<dt_erai_utc_cor[0]: start_date = start_date+tdts
         end_date = qcutils.rounddttots(dt_erai_utc_cor[-1],ts=site_timestep)
         if end_date>dt_erai_utc_cor[-1]: end_date = end_date-tdts
-        #print site_name,start_date,dt_erai_utc_cor[0]
+        print "  Got data from ",start_date," UTC to ",end_date," UTC"
         #print site_name,end_date,dt_erai_utc_cor[-1]
         # UTC datetime series at the tower time step
         dt_erai_utc_tts = [x for x in qcutils.perdelta(start_date,end_date,tdts)]
