@@ -424,11 +424,15 @@ def gfalternate_gui(cf,ds4,ds_alt,alternate_info):
     alt_gui.pltopt = Tkinter.IntVar()
     alt_gui.pltopt.set(1)
     alt_gui.showplots = Tkinter.Checkbutton(alt_gui, text="Show plots", variable=alt_gui.pltopt)
-    alt_gui.showplots.grid(row=nrow,column=0,columnspan=3,sticky="w")
+    alt_gui.showplots.grid(row=nrow,column=0,columnspan=1,sticky="w")
+    alt_gui.pltopt_all = Tkinter.IntVar()
+    alt_gui.pltopt_all.set(0)
+    alt_gui.showall = Tkinter.Checkbutton(alt_gui, text="Show all", variable=alt_gui.pltopt_all)
+    alt_gui.showall.grid(row=nrow,column=1,columnspan=1,sticky="w")
     alt_gui.owopt = Tkinter.IntVar()
     alt_gui.owopt.set(0)
     alt_gui.overwrite = Tkinter.Checkbutton(alt_gui, text="Overwrite", variable=alt_gui.owopt)
-    alt_gui.overwrite.grid(row=nrow,column=3,columnspan=3,sticky="w")
+    alt_gui.overwrite.grid(row=nrow,column=3,columnspan=1,sticky="w")
     # eighth row
     nrow = nrow + 1
     alt_gui.doneButton = Tkinter.Button(alt_gui,text="Done",command=lambda:gfalternate_done(ds4,alt_gui))
@@ -1542,7 +1546,11 @@ def gfalternate_main(ds_tower,ds_alt,alternate_info,label_tower_list=[]):
         # we have completed the loop over the alternate data for this output
         # now do the statistics, diurnal average and daily averages for this output
         gfalternate_getoutputstatistics(data_dict,stat_dict,alternate_info)
-        if alternate_info["nogaps_tower"]: continue
+        if alternate_info["nogaps_tower"]:
+            if alternate_info["show_all"]:
+                pass
+            else:
+                continue
         # plot the gap filled data
         pd = gfalternate_initplot(data_dict,alternate_info)
         diel_avg = gfalternate_getdielaverage(data_dict,alternate_info)
@@ -1652,7 +1660,7 @@ def gfalternate_plotcoveragelines(ds_tower,alternate_info):
     ylabel_right_list = [""]
     color_list = ["blue","red","green","yellow","magenta","black","cyan","brown"]
     xsize = 15.0
-    ysize = len(series_list)*0.2
+    ysize = max([len(series_list)*0.2,1])
     if alternate_info["show_plots"]:
         plt.ion()
     else:
@@ -1685,7 +1693,7 @@ def gfalternate_plotcoveragelines(ds_tower,alternate_info):
     ylabel_right_list.append("")
     ax2 = ax1.twinx()
     pylab.yticks(ylabel_posn,ylabel_right_list)
-    fig.tight_layout(pad=2)
+    fig.tight_layout()
     #fig.canvas.manager.window.attributes('-topmost', 1)
     if alternate_info["show_plots"]:
         plt.draw()
@@ -1811,6 +1819,8 @@ def gfalternate_run_gui(ds_tower,ds_alt,alt_gui,alternate_info):
     if alt_gui.owopt.get()==0: alternate_info["overwrite"] = False
     alternate_info["show_plots"] = True
     if alt_gui.pltopt.get()==0: alternate_info["show_plots"] = False
+    alternate_info["show_all"] = False
+    if alt_gui.pltopt_all.get()==1: alternate_info["show_all"] = True
     alternate_info["auto_complete"] = True
     if alt_gui.autocompleteopt.get()==0: alternate_info["auto_complete"] = False
     alternate_info["autoforce"] = False
@@ -1945,6 +1955,10 @@ def gfalternate_run_nogui(cf,ds_tower,ds_alt,alternate_info):
     alternate_info["show_plots"] = True
     opt = qcutils.get_keyvaluefromcf(cf,["GUI","Alternate"],"show_plots",default="yes",mode="quiet")
     if opt.lower()=="no": alternate_info["show_plots"] = False
+    # show all plots option
+    alternate_info["show_all"] = False
+    opt = qcutils.get_keyvaluefromcf(cf,["GUI","Alternate"],"show_all",default="no",mode="quiet")
+    if opt.lower()=="yes": alternate_info["show_all"] = True
     # auto-complete option
     alternate_info["auto_complete"] = True
     opt = qcutils.get_keyvaluefromcf(cf,["GUI","Alternate"],"auto_complete",default="yes",mode="quiet")
@@ -2268,7 +2282,7 @@ def  gfSOLO_gui(cf,dsa,dsb,solo_info):
     solo_gui.learningrateLabel.grid(row=nrow,column=2,columnspan=1,sticky="E")
     solo_gui.learningrateEntry = Tkinter.Entry(solo_gui,width=6)
     solo_gui.learningrateEntry.grid(row=nrow,column=3,columnspan=1,sticky="W")
-    solo_gui.learningrateEntry.insert(0,"0.01")
+    solo_gui.learningrateEntry.insert(0,"0.001")
     solo_gui.iterationsLabel = Tkinter.Label(solo_gui,text="Iterations")
     solo_gui.iterationsLabel.grid(row=nrow,column=4,columnspan=1,sticky="E")
     solo_gui.iterationsEntry = Tkinter.Entry(solo_gui,width=6)

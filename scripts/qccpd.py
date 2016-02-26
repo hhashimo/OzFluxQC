@@ -344,93 +344,51 @@ def cpd_main(cf):
 #------------------------------------------------------------------------------
 # Fetch the data and prepare it for analysis
 def CPD_run(cf):
-    # *** original code from IMcH
-    ## Prompt user for configuration file and get it
-    #root = Tkinter.Tk(); root.withdraw()
-    #cfName = tkFileDialog.askopenfilename(initialdir='')
-    #root.destroy()
-    #cf=ConfigObj(cfName)
-    
     # Set input file and output path and create directories for plots and results
     file_in = os.path.join(cf['Files']['file_path'],cf['Files']['in_filename'])
     path_out = cf['Files']['file_path']
-    #path_out = os.path.join(path_out,'CPD')
     file_out = os.path.join(cf['Files']['file_path'],cf['Files']['in_filename'].replace(".nc","_CPD.xls"))
     plot_path = "plots/"
     if "plot_path" in cf["Files"]: plot_path = os.path.join(cf["Files"]["plot_path"],"CPD/")
-    #plot_path = os.path.join(path_out,'Plots')
     if not os.path.isdir(plot_path): os.makedirs(plot_path)
     results_path = path_out
     if not os.path.isdir(results_path): os.makedirs(results_path)
-    # **** original code from IMcH
-    #file_in=os.path.join(cf['files']['input_path'],cf['files']['input_file'])
-    #path_out=cf['files']['output_path']
-    #plot_path_out=os.path.join(path_out,'Plots')
-    #if not os.path.isdir(plot_path_out): os.makedirs(os.path.join(path_out,'Plots'))
-    #results_path_out=os.path.join(path_out,'Results')
-    #if not os.path.isdir(results_path_out): os.makedirs(os.path.join(path_out,'Results'))    
-
-    # Get user-set variable names from config file
-    # *** original code from IMcH
-    #vars_data=[cf['variables']['data'][i] for i in cf['variables']['data']]
-    #vars_QC=[cf['variables']['QC'][i] for i in cf['variables']['QC']]
-    #vars_all=vars_data+vars_QC
-       
-    vars_data = []
-    for item in cf["Variables"].keys():
+    # get a dictionary of the variable names       
+    var_list = cf["Variables"].keys()
+    names = {}
+    for item in var_list:
         if "AltVarName" in cf["Variables"][item].keys():
-            vars_data.append(str(cf["Variables"][item]["AltVarName"]))
+            names[item] = cf["Variables"][item]["AltVarName"]
         else:
-            vars_data.append(str(item))
-    vars_QC = []
-    for item in vars_data:
-        vars_QC.append(item+"_QCFlag")
-    vars_all = vars_data+vars_QC
-
-    # Read .nc file
-    # *** original code from IMcH
-    #nc_obj=netCDF4.Dataset(file_in)
-    #flux_frequency=int(nc_obj.time_step)
-    #dates_list=[dt.datetime(*xlrd.xldate_as_tuple(elem,0)) for elem in nc_obj.variables['xlDateTime']]
-    #d={}
-    #for i in vars_all:
-        #d[i]=nc_obj.variables[i][:]
-    #nc_obj.close()
-    #df=pd.DataFrame(d,index=dates_list)
+            names[item] = item
+    # read the netcdf file
     log.info(' Reading netCDF file '+file_in)   
-    ncFile = netCDF4.Dataset(file_in)
-    flux_period=int(ncFile.time_step)
-    dates_list=[dt.datetime(*xlrd.xldate_as_tuple(elem,0)) for elem in ncFile.variables['xlDateTime']]
-    d={}
-    for item in vars_all:
-        nDims = len(ncFile.variables[item].shape)
-        if nDims not in [1,3]:
-            msg = "CPD_run: unrecognised number of dimensions ("+str(nDims)
-            msg = msg+") for netCDF variable "+item
-            raise Exception(msg)
-        if nDims==1:
-            # single dimension
-            d[item] = ncFile.variables[item][:]
-        elif nDims==3:
-            # 3 dimensions
-            d[item] = ncFile.variables[item][:,0,0]
+    ds = qcio.nc_read_series(file_in)
+    dates_list = ds.series["DateTime"]["Data"]
+    nrecs = int(ds.globalattributes["nc_nrecs"])
+    # now get the data
+    d = {}
+    f = {}
+    for item in names.keys():
+        data,flag,attr = qcutils.GetSeries(ds,item)
+        d[item] = np.where(data==c.missing_value,np.nan,data)
+        f[item] = flag
+    # set all data to NaNs if any flag not 0 or 10
+    for item in f.keys():
+        for f_OK in [0,10]:
+            idx = np.where(f[item]!=0)[0]
+            if len(idx)!=0:
+                for itemd in d.keys():
+                    d[itemd][idx] = np.nan
     df=pd.DataFrame(d,index=dates_list)
-
+    # replace missing values with NaN
+    df.replace(c.missing_value,np.nan)
     # Build dictionary of additional configs
-    # *** original code from IMcH
-    #d={}
-    #d['radiation_threshold']=int(cf['options']['radiation_threshold'])
-    #d['num_bootstraps']=int(cf['options']['num_bootstraps'])
-    #d['flux_frequency']=flux_frequency
-    #if cf['options']['output_plots']=='True':
-        #d['plot_output_path']=plot_path_out
-    #if cf['options']['output_results']=='True':
-        #d['results_output_path']=results_path_out
     d={}
     d['radiation_threshold']=int(cf['Options']['Fsd_threshold'])
     d['num_bootstraps']=int(cf['Options']['Num_bootstraps'])
-    d['flux_period']=flux_period
-    d['site_name']=getattr(ncFile,"site_name")
+    d['flux_period']=int(ds.globalattributes["time_step"])
+    d['site_name']=ds.globalattributes["site_name"]
     d["call_mode"]=qcutils.get_keyvaluefromcf(cf,["Options"],"call_mode",default="interactive",mode="quiet")
     d["show_plots"]=qcutils.get_keyvaluefromcf(cf,["Options"],"show_plots",default=True,mode="quiet")
     d['plot_tclass'] = False
@@ -441,23 +399,6 @@ def CPD_run(cf):
         d['results_path']=results_path
         d["file_out"]=file_out
 
-    # Replace configured error values with NaNs and remove data with unacceptable QC codes, then drop flags
-    # *** original code from IMcH
-    #df.replace(int(cf['options']['nan_value']),np.nan)
-    #if 'QC_accept_codes' in cf['options']:
-        #QC_accept_codes=ast.literal_eval(cf['options']['QC_accept_codes'])
-        #eval_string='|'.join(['(df[vars_QC[i]]=='+str(i)+')' for i in QC_accept_codes])
-        #for i in xrange(4):
-            #df[vars_data[i]]=np.where(eval(eval_string),df[vars_data[i]],np.nan)
-    df.replace(c.missing_value,np.nan)
-    eval_string='|'.join(['(df[vars_QC[i]]=='+str(i)+')' for i in [0,10]])
-    #for i in xrange(len(vars_data)):
-    for i in range(len(vars_data)):
-        df[vars_data[i]]=np.where(eval(eval_string),df[vars_data[i]],np.nan)
-    df=df[vars_data]
-
-    ncFile.close()
-    
     return df,d
 #------------------------------------------------------------------------------
 
@@ -665,7 +606,11 @@ def sort(df, flux_period, years_index, i):
         for season in range(int(years_df.loc[year, 'seasons'])):
             start_ind = season * (bin_size / 2)
             end_ind = season * (bin_size / 2) + bin_size
-            lst.append(df.ix[str(year)].iloc[start_ind:end_ind].sort('Ta', axis = 0))
+            # ugly hack to avoid FutureWarning from pandas V0.16.2 and older
+            try:
+                lst.append(df.ix[str(year)].iloc[start_ind:end_ind].sort_values(by='Ta',axis = 0))
+            except AttributeError:
+                lst.append(df.ix[str(year)].iloc[start_ind:end_ind].sort('Ta', axis = 0))
     seasons_df = pd.concat([frame for frame in lst])
 
     # Make a hierarchical index for year, season, temperature class, bin for the seasons dataframe
@@ -696,7 +641,11 @@ def sort(df, flux_period, years_index, i):
     results_df = pd.DataFrame({'T_avg':seasons_df['Ta'].groupby(level = ['year','season','T_class']).mean()})
     
     # Sort the seasons by ustar, then bin average and drop the bin level from the index
-    seasons_df = pd.concat([seasons_df.loc[i[0]].loc[i[1]].loc[i[2]].sort('ustar', axis=0) for i in results_df.index])
+    # ugly hack to avoid FutureWarning from pandas V0.16.2 and older
+    try:
+        seasons_df = pd.concat([seasons_df.loc[i[0]].loc[i[1]].loc[i[2]].sort_values(by='ustar', axis=0) for i in results_df.index])
+    except AttributeError:
+        seasons_df = pd.concat([seasons_df.loc[i[0]].loc[i[1]].loc[i[2]].sort('ustar', axis=0) for i in results_df.index])        
     seasons_df.index = hierarchical_index
     seasons_df = seasons_df.set_index(bin_index, append = True)
     seasons_df.index.names = ['year','season','T_class','bin']
