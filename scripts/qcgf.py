@@ -426,7 +426,7 @@ def gfalternate_gui(cf,ds4,ds_alt,alternate_info):
     alt_gui.showplots.grid(row=nrow,column=0,columnspan=1,sticky="w")
     alt_gui.pltopt_all = Tkinter.IntVar()
     alt_gui.pltopt_all.set(0)
-    alt_gui.showall = Tkinter.Checkbutton(alt_gui, text="Show all", variable=alt_gui.pltopt_all)
+    alt_gui.showall = Tkinter.Checkbutton(alt_gui, text="Plot all", variable=alt_gui.pltopt_all)
     alt_gui.showall.grid(row=nrow,column=1,columnspan=1,sticky="w")
     alt_gui.owopt = Tkinter.IntVar()
     alt_gui.owopt.set(0)
