@@ -18,6 +18,45 @@ import xlrd
 
 log = logging.getLogger('qc.rp')
 
+def apply_turbulence_filter(cf,ds,series="Fc"):
+    """
+    Purpose:
+     Apply a filter to selected series to remove low turbulence conditions.
+    Usage:
+    Author: PRI
+    Date: February 2016
+    """
+    ldt = ds.series["DateTime"]["Data"]
+    ts = int(ds.globalattributes["time_step"])
+    # get the ustar thresholds
+    ustar_dict = get_ustar_thresholds(cf,ldt)
+    # get ustar
+    ustar,ustar_flag,ustar_attr = qcutils.GetSeriesasMA(ds,"ustar")
+    # get the Monin-Obukhov length
+    Ta,flag,attr = qcutils.GetSeriesasMA(ds,"Ta")
+    Ah,flag,attr = qcutils.GetSeriesasMA(ds,"Ah")
+    ps,flag,attr = qcutils.GetSeriesasMA(ds,"ps")
+    Fh,flag,Fh_attr = qcutils.GetSeriesasMA(ds,"Fh")
+    L = mf.molen(Ta,Ah,ps,ustar,Fh,fluxtype="sensible")    
+    # get the indicator series
+    threshold_attr = {}
+    turbulence_indicator = get_turbulence_indicator(cf,ldt,ustar,L,ustar_dict,ts,threshold_attr)
+    # now we apply the indicator series to the data
+    # first, get the data
+    data,flag,attr = qcutils.GetSeriesasMA(ds,series)
+    # save the data before filtering
+    qcutils.CreateSeries(ds,series+"_nofilter",data,Flag=flag,Attr=attr)
+    # mask the data for low turbulence conditions
+    data = numpy.ma.masked_where(turbulence_indicator==0,data)
+    # set the QC flag
+    idx = numpy.where(turbulence_indicator==0)[0]
+    flag[idx] = numpy.int32(64)
+    # add the threshold values to the variable attributes
+    for item in threshold_attr:
+        attr[item] = threshold_attr[item]
+    # put the data, flag and updated attributes into the data structure
+    qcutils.CreateSeries(ds,series,data,Flag=flag,Attr=attr)
+    
 def CalculateET(ds):
     """
     Purpose:
@@ -711,16 +750,16 @@ def get_daynight_indicator(cf,Fsd,Fsd_syn,sa,ER_attr):
         raise Exception(msg)
     return daynight_indicator
 
-def get_turbulence_indicator(cf,ldt,ustar,L,ustar_dict,ts,ER_attr):
+def get_turbulence_indicator(cf,ldt,ustar,L,ustar_dict,ts,attr):
     opt = qcutils.get_keyvaluefromcf(cf,["Options"],"TurbulenceFilter",default="ustar")
     if opt.lower()=="ustar":
-        turbulence_indicator = get_turbulence_indicator_ustar(ldt,ustar,ustar_dict,ts,ER_attr)
+        turbulence_indicator = get_turbulence_indicator_ustar(ldt,ustar,ustar_dict,ts,attr)
     elif opt.lower()=="l":
         msg = " GetERfromFc: use of L as turbulence indicator not implemented yet"
         log.warning(msg)
         #turbulence_indicator = get_turbulence_indicator_l(ldt,L,z,d,zmdonL_threshold)
     else:
-        msg = " Unrecognised TurbulenceFilter option in L6 control file"
+        msg = " Unrecognised TurbulenceFilter option in control file"
         raise Exception(msg)
     return turbulence_indicator
 
@@ -731,7 +770,7 @@ def get_turbulence_indicator_l(ldt,L,z,d,zmdonL_threshold):
     turbulence_indicator[idx] = numpy.int32(1)
     return turbulence_indicator
 
-def get_turbulence_indicator_ustar(ldt,ustar,ustar_dict,ts,ER_attr):
+def get_turbulence_indicator_ustar(ldt,ustar,ustar_dict,ts,attr):
     year_list = ustar_dict.keys()
     year_list.sort()
     # now loop over the years in the data to apply the ustar threshold
@@ -742,7 +781,7 @@ def get_turbulence_indicator_ustar(ldt,ustar,ustar_dict,ts,ER_attr):
         end_date = str(int(year)+1)+"-01-01 00:00"
         # get the ustar threshold
         ustar_threshold = float(ustar_dict[year]["ustar_mean"])
-        ER_attr["ustar_threshold_"+str(year)] = str(ustar_threshold)
+        attr["ustar_threshold_"+str(year)] = str(ustar_threshold)
         # get the start and end datetime indices
         si = qcutils.GetDateIndex(ldt,start_date,ts=ts,default=0,match='exact')
         ei = qcutils.GetDateIndex(ldt,end_date,ts=ts,default=len(ldt),match='exact')

@@ -14,8 +14,8 @@ import pdb
 log = logging.getLogger('qc.rpLT')
 
 # code to integrate Ian's code into OzFluxQC
-def apply_turbulence_filter(data_dict,indicator):
-    data_dict["NEE"] = numpy.where(indicator==0,numpy.nan,data_dict["NEE"])
+#def apply_turbulence_filter(data_dict,indicator):
+    #data_dict["NEE"] = numpy.where(indicator==0,numpy.nan,data_dict["NEE"])
 
 def get_configs_dict(cf,ds):
 #    configs_dict = {'nan_value': -9999,
