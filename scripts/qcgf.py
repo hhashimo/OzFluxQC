@@ -2418,9 +2418,11 @@ def gfSOLO_createdict(cf,ds,series):
         # list of drivers
         ds.solo[output]["drivers"] = ast.literal_eval(cf[section][series]["GapFillUsingSOLO"][output]["drivers"])
         # apply ustar filter
-        opt = qcutils.get_keyvaluefromcf(cf,[section,series,"GapFillUsingSOLO",output],"apply_turbulence_filter",default="No")
+        opt = qcutils.get_keyvaluefromcf(cf,[section,series,"GapFillUsingSOLO",output],
+                                         "apply_turbulence_filter",default="No")
         ds.solo[output]["apply_turbulence_filter"] = opt
-        opt = qcutils.get_keyvaluefromcf(cf,[section,series,"GapFillUsingSOLO",output],"turbulence_filter_type",default="ustar")
+        opt = qcutils.get_keyvaluefromcf(cf,[section,series,"GapFillUsingSOLO",output],
+                                         "turbulence_filter_type",default="ustar")
         ds.solo[output]["turbulence_filter_type"] = opt
         # results of best fit for plotting later on
         ds.solo[output]["results"] = {"startdate":[],"enddate":[],"No. points":[],"r":[],

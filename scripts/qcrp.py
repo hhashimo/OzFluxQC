@@ -18,45 +18,6 @@ import xlrd
 
 log = logging.getLogger('qc.rp')
 
-def apply_turbulence_filter(cf,ds,series="Fc"):
-    """
-    Purpose:
-     Apply a filter to selected series to remove low turbulence conditions.
-    Usage:
-    Author: PRI
-    Date: February 2016
-    """
-    ldt = ds.series["DateTime"]["Data"]
-    ts = int(ds.globalattributes["time_step"])
-    # get the ustar thresholds
-    ustar_dict = get_ustar_thresholds(cf,ldt)
-    # get ustar
-    ustar,ustar_flag,ustar_attr = qcutils.GetSeriesasMA(ds,"ustar")
-    # get the Monin-Obukhov length
-    Ta,flag,attr = qcutils.GetSeriesasMA(ds,"Ta")
-    Ah,flag,attr = qcutils.GetSeriesasMA(ds,"Ah")
-    ps,flag,attr = qcutils.GetSeriesasMA(ds,"ps")
-    Fh,flag,Fh_attr = qcutils.GetSeriesasMA(ds,"Fh")
-    L = mf.molen(Ta,Ah,ps,ustar,Fh,fluxtype="sensible")    
-    # get the indicator series
-    threshold_attr = {}
-    turbulence_indicator = get_turbulence_indicator(cf,ldt,ustar,L,ustar_dict,ts,threshold_attr)
-    # now we apply the indicator series to the data
-    # first, get the data
-    data,flag,attr = qcutils.GetSeriesasMA(ds,series)
-    # save the data before filtering
-    qcutils.CreateSeries(ds,series+"_nofilter",data,Flag=flag,Attr=attr)
-    # mask the data for low turbulence conditions
-    data = numpy.ma.masked_where(turbulence_indicator==0,data)
-    # set the QC flag
-    idx = numpy.where(turbulence_indicator==0)[0]
-    flag[idx] = numpy.int32(64)
-    # add the threshold values to the variable attributes
-    for item in threshold_attr:
-        attr[item] = threshold_attr[item]
-    # put the data, flag and updated attributes into the data structure
-    qcutils.CreateSeries(ds,series,data,Flag=flag,Attr=attr)
-    
 def CalculateET(ds):
     """
     Purpose:
@@ -119,7 +80,7 @@ def CalculateNEE(cf,ds):
         # copy the attributes
         attr = ds.series[output_label]["Attr"]
         attr["units"] = Fc_attr["units"]
-        attr["long_name"] = "Net Ecosystem Exchange calculated from "+Fc_label+" (Fc) "
+        attr["long_name"] = "Net Ecosystem Exchange calculated from "+Fc_label+" (Fc)"
         attr["long_name"] = attr["long_name"]+" and "+ER_label+" (ER)"
         attr["comment1"] = "Fsd threshold used was "+str(Fsd_threshold)
     del ds.nee
@@ -130,7 +91,7 @@ def CalculateNEP(cf,ds):
      Calculate NEP from NEE
     Usage:
      qcrp.CalculateNEP(cf,ds)
-      where cf is a conbtrol file object
+      where cf is a control file object
             ds is a data structure
     Side effects:
      Series to hold the NEP data are created in ds.
@@ -141,7 +102,7 @@ def CalculateNEP(cf,ds):
         nep_name = nee_name.replace("NEE","NEP")
         nee,flag,attr = qcutils.GetSeriesasMA(ds,nee_name)
         nep = float(-1)*nee
-        attr["long_name"] = "Net Ecosystem Productivity calculated as -1*NEE"
+        attr["long_name"] = "Net Ecosystem Productivity calculated as -1*"+nee_name
         qcutils.CreateSeries(ds,nep_name,nep,Flag=flag,Attr=attr)
 
 def cleanup_ustar_dict(ldt,ustar_dict):

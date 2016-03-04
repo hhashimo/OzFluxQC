@@ -10,6 +10,47 @@ import logging
 
 log = logging.getLogger('qc.ck')
 
+def ApplyTurbulenceFilter(cf,ds):
+    """
+    Purpose:
+     Apply a filter to selected series to remove low turbulence conditions.
+    Usage:
+    Author: PRI
+    Date: February 2016
+    """
+    if "solo" not in ds: return
+    
+    ldt = ds.series["DateTime"]["Data"]
+    ts = int(ds.globalattributes["time_step"])
+    # get the ustar thresholds
+    ustar_dict = get_ustar_thresholds(cf,ldt)
+    # get ustar
+    ustar,ustar_flag,ustar_attr = qcutils.GetSeriesasMA(ds,"ustar")
+    # get the Monin-Obukhov length
+    Ta,flag,attr = qcutils.GetSeriesasMA(ds,"Ta")
+    Ah,flag,attr = qcutils.GetSeriesasMA(ds,"Ah")
+    ps,flag,attr = qcutils.GetSeriesasMA(ds,"ps")
+    Fh,flag,Fh_attr = qcutils.GetSeriesasMA(ds,"Fh")
+    L = mf.molen(Ta,Ah,ps,ustar,Fh,fluxtype="sensible")    
+    # get the indicator series
+    threshold_attr = {}
+    turbulence_indicator = get_turbulence_indicator(cf,ldt,ustar,L,ustar_dict,ts,threshold_attr)
+    # now we apply the indicator series to the data
+    # first, get the data
+    data,flag,attr = qcutils.GetSeriesasMA(ds,series)
+    # save the data before filtering
+    qcutils.CreateSeries(ds,series+"_nofilter",data,Flag=flag,Attr=attr)
+    # mask the data for low turbulence conditions
+    data = numpy.ma.masked_where(turbulence_indicator==0,data)
+    # set the QC flag
+    idx = numpy.where(turbulence_indicator==0)[0]
+    flag[idx] = numpy.int32(64)
+    # add the threshold values to the variable attributes
+    for item in threshold_attr:
+        attr[item] = threshold_attr[item]
+    # put the data, flag and updated attributes into the data structure
+    qcutils.CreateSeries(ds,series,data,Flag=flag,Attr=attr)
+
 def cliptorange(data, lower, upper):
     data = rangecheckserieslower(data,lower)
     data = rangecheckseriesupper(data,upper)

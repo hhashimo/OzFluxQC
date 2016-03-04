@@ -2,6 +2,7 @@
 # -*- coding: latin-1 -*-
 import ast
 import constants as c
+import copy
 import datetime
 import dateutil
 import logging
@@ -797,7 +798,7 @@ def GetAttributeDictionary(ds,ThisOne):
         attr = ds.series[ThisOne]['Attr']
     else:
         attr = MakeAttributeDictionary()
-    return attr
+    return copy.deepcopy(attr)
 
 def GetcbTicksFromCF(cf,ThisOne):
     '''
@@ -1581,7 +1582,7 @@ def MakeAttributeDictionary(**kwargs):
     if len(default_list)!=0:
         for item in default_list: attr[item] = 'not defined'
     attr["missing_value"] = c.missing_value
-    return attr
+    return copy.deepcopy(attr)
 
 def MakeQCFlag(ds,SeriesList):
     flag = []

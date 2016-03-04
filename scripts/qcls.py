@@ -287,6 +287,8 @@ def l5qc(cf,ds4):
         # parse the control file for information on how the user wants to do the gap filling
         qcgf.GapFillParseControlFile(cf,ds5,ThisOne,ds_alt)
     # *** start of the section that does the gap filling of the fluxes ***
+    # apply the turbulence filter (if requested)
+    #qcck.ApplyTurbulenceFilter(cf,ds4)
     # fill short gaps using interpolation
     qcgf.GapFillUsingInterpolation(cf,ds5)
     # do the gap filling using SOLO
