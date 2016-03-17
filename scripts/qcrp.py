@@ -833,7 +833,10 @@ def L6_summary(cf,ds):
         return
     # daily averages and totals
     daily_dict = L6_summary_daily(ds,series_dict)
-    L6_summary_write_xlfile(xl_file,"Daily",daily_dict)
+    L6_summary_write_xlfile(xl_file,"Daily (all)",daily_dict)
+    #flag_dict = L6_summary_daily_flag(ds,series_dict)
+    fluxes_dict = L6_summary_co2andh2o_fluxes(ds,series_dict,daily_dict)
+    L6_summary_write_xlfile(xl_file,"Daily (CO2,H2O)",fluxes_dict)
     # monthly averages and totals
     monthly_dict = L6_summary_monthly(ds,series_dict)
     L6_summary_write_xlfile(xl_file,"Monthly",monthly_dict)
@@ -1049,6 +1052,10 @@ def L6_summary_createseriesdict(cf,ds):
         series_dict["daily"][item]["format"] = "0.00"
         series_dict["cumulative"][item]["operator"] = "sum"
         series_dict["cumulative"][item]["format"] = "0.00"
+    sdl["h2o"] = ["ET","Precip"]
+    for item in sdl["h2o"]:
+        series_dict["daily"][item] = {"operator":"sum","format":"0.00"}
+        series_dict["cumulative"][item] = {"operator":"sum","format":"0.00"}
     if "Ah" in ds.series.keys():
         series_dict["daily"]["Ah"] = {"operator":"average","format":"0.00"}
     if "Cc" in ds.series.keys():
@@ -1087,30 +1094,23 @@ def L6_summary_createseriesdict(cf,ds):
         series_dict["daily"]["ustar"] = {"operator":"average","format":"0.00"}
     if "Ws" in ds.series.keys():
         series_dict["daily"]["Ws"] = {"operator":"average","format":"0.00"}
-    if "ET" in ds.series.keys():
-        series_dict["daily"]["ET"] = {"operator":"sum","format":"0.0"}
-        series_dict["cumulative"]["ET"] = series_dict["daily"]["ET"]
-    if "Precip" in ds.series.keys():
-        series_dict["daily"]["Precip"] = {"operator":"sum","format":"0.0"}
-        series_dict["cumulative"]["Precip"] = series_dict["daily"]["Precip"]
     series_dict["annual"] = series_dict["daily"]
     series_dict["monthly"] = series_dict["daily"]
     return series_dict
 
-def L6_summary_daily(ds,series_dict,xl_file=None):
+def L6_summary_daily(ds,series_dict):
     """
     Purpose:
      Calculate the daily averages or sums of various quantities and write
      them to a worksheet in an Excel workbook.
     Usage:
-     L6_summary_daily(xl_file,ds,series_dict)
-     where xl_file is an Excel file object
-           ds is an OzFluxQC data structure
+     L6_summary_daily(ds,series_dict)
+     where ds is an OzFluxQC data structure
            series_dict is a dictionary of various variable lists
     Author: PRI
     Date: June 2015
     """
-    log.info(" Doing the daily summary at L6")
+    log.info(" Doing the daily summary (data) at L6")
     dt = ds.series["DateTime"]["Data"]
     ts = int(ds.globalattributes["time_step"])
     si = qcutils.GetDateIndex(dt,str(dt[0]),ts=ts,default=0,match="startnextday")
@@ -1126,7 +1126,7 @@ def L6_summary_daily(ds,series_dict,xl_file=None):
     for item in series_list:
         if item not in ds.series.keys(): continue
         daily_dict[item] = {}
-        data_1d,flag,attr = qcutils.GetSeriesasMA(ds,item,si=si,ei=ei)
+        data_1d,flag_1d,attr = qcutils.GetSeriesasMA(ds,item,si=si,ei=ei)
         if item in series_dict["lists"]["co2"]:
             data_1d = qcutils.convert_units_func(ds,data_1d,attr["units"],"gC/m2",ts)
             daily_dict[item]["units"] = "gC/m2"
@@ -1139,9 +1139,41 @@ def L6_summary_daily(ds,series_dict,xl_file=None):
             daily_dict[item]["data"] = numpy.ma.sum(data_2d,axis=1)
             daily_dict[item]["units"] = daily_dict[item]["units"]+"/day"
         else:
-            print "unrecognised series: ",series
+            msg = "Unrecognised operator ("+series_dict["daily"][item]["operator"]
+            msg = msg+") for series "+item
+            log.error(msg)
+            continue
+        # add the format to be used
         daily_dict[item]["format"] = series_dict["daily"][item]["format"]
+        # now do the flag, this is the fraction of data with QC flag = 0 in the day
+        daily_dict[item]["flag"] = numpy.zeros(nDays,dtype=numpy.float64)
+        flag_2d = flag_1d.reshape(nDays,ntsInDay)
+        for i in range(nDays):
+            daily_dict[item]["flag"][i] = 1-float(numpy.count_nonzero(flag_2d[i,:]))/float(ntsInDay)
     return daily_dict
+
+def L6_summary_co2andh2o_fluxes(ds,series_dict,daily_dict):
+    """
+    Purpose:
+    Usage:
+    Author: PRI
+    Date: March 2016
+    """
+    log.info(" Doing the daily summary (fluxes) at L6")
+    sdl = series_dict["lists"]
+    series_list = sdl["h2o"]+sdl["co2"]
+    fluxes_dict = {}
+    fluxes_dict["DateTime"] = daily_dict["DateTime"]
+    for item in series_list:
+        fluxes_dict[item] = {}
+        fluxes_dict[item]["data"] = daily_dict[item]["data"]
+        fluxes_dict[item]["units"] = daily_dict[item]["units"]
+        fluxes_dict[item]["format"] = daily_dict[item]["format"]
+        fluxes_dict[item+"_flag"] = {}
+        fluxes_dict[item+"_flag"]["data"] = daily_dict[item]["flag"]
+        fluxes_dict[item+"_flag"]["units"] = "frac"
+        fluxes_dict[item+"_flag"]["format"] = "0.00"
+    return fluxes_dict
 
 def L6_summary_write_xlfile(xl_file,sheet_name,data_dict):
     # add the daily worksheet to the summary Excel file
@@ -1154,9 +1186,8 @@ def L6_summary_monthly(ds,series_dict):
      Calculate the monthly averages or sums of various quantities and write
      them to a worksheet in an Excel workbook.
     Usage:
-     L6_summary_monthly(xl_file,ds,series_dict)
-     where xl_file is an Excel file object
-           ds is an OzFluxQC data structure
+     L6_summary_monthly(ds,series_dict)
+     where ds is an OzFluxQC data structure
            series_dict is a dictionary of various variable lists
     Author: PRI
     Date: July 2015
@@ -1213,9 +1244,8 @@ def L6_summary_annual(ds,series_dict):
      Calculate the annual averages or sums of various quantities and write
      them to a worksheet in an Excel workbook.
     Usage:
-     L6_summary_annual(xl_file,ds,series_dict)
-     where xl_file is an Excel file object
-           ds is an OzFluxQC data structure
+     L6_summary_annual(ds,series_dict)
+     where ds is an OzFluxQC data structure
            series_dict is a dictionary of various variable lists
     Author: PRI
     Date: June 2015
