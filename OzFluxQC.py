@@ -842,6 +842,7 @@ class qcgui(tk.Tk):
         self.update_startenddate(str(ds6.series['DateTime']['Data'][0]),
                                  str(ds6.series['DateTime']['Data'][-1]))
         self.do_progress(text='Plotting L6 summary ...')
+        qcgf.ImportSeries(cf,ds6)        
         qcrp.L6_summary(cf,ds6)
         self.do_progress(text='Finished plotting L6 summary')
         logging.info(' Finished plotting L6 summary, check the GUI')

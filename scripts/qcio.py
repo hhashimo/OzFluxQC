@@ -388,7 +388,7 @@ def reddyproc_write_csv(ncFileName):
     # this could be done better, pete!
     for series in series_list:
         if series=="NEE":
-            if data[series]["Attr"]["units"]=='mg/m2/s':
+            if data[series]["Attr"]["units"] in ["mg/m2/s","mgCO2/m2/s"]:
                 data[series]["Data"] = mf.Fc_umolpm2psfrommgpm2ps(data[series]["Data"])
                 data[series]["Attr"]["units"] = "umolm-2s-1"
             elif data[series]["Attr"]["units"]=='umol/m2/s':
