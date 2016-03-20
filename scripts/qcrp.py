@@ -1420,8 +1420,7 @@ def PartitionNEE(cf,ds):
         # copy the attributes
         attr = ds.series[output_label]["Attr"]
         attr["units"] = NEE_attr["units"]
-        attr["long_name"] = "Gross Primary Productivity calculated from "+NEE_label+" as -NEE+ER "
-        attr["long_name"] = attr["long_name"]+" and "+ER_label+" (ER)"
+        attr["long_name"] = "Gross Primary Productivity calculated as -1*"+NEE_label+"+"+ER_label
 
 def rpGPP_createdict(cf,ds,series):
     """ Creates a dictionary in ds to hold information about calculating GPP."""
