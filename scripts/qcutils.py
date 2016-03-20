@@ -271,7 +271,7 @@ def convert_units_func(ds,old_data,old_units,new_units,mode="quiet"):
     if old_units==new_units: return
     # check the units are something we understand
     # add more lists here to cope with water etc
-    co2_list = ["umol/m2/s","gC/m2","mg/m3","umol/mol","mg/m2/s"]
+    co2_list = ["umol/m2/s","gC/m2","mg/m3","mgCO2/m3","umol/mol","mg/m2/s","mgCO2/m2/s"]
     h2o_list = ["g/m3","mmol/mol","%","frac"]
     t_list = ["C","K"]
 #    h2o_list = ["%","frac","g/m3","kg/kg","mmol/mol"]
@@ -323,7 +323,10 @@ def convert_units_co2(ds,old_data,old_units,new_units):
       umol/m2/s to gC/m2 (per time step)
       gC/m2 (per time step) to umol/m2/s
       mg/m3 to umol/mol
+      mgCO2/m3 to umol/mol
       umol/mol to mg/m3
+      mg/m2/s to umol/m2/s
+      mgCO2/m2/s to umol/m2/s
     Usage:
      new_data = qcutils.convert_units_co2(ds,old_data,old_units,new_units)
       where ds is a data structure
@@ -338,14 +341,16 @@ def convert_units_co2(ds,old_data,old_units,new_units):
         new_data = old_data*12.01*ts*60/1E6
     elif old_units=="gC/m2" and new_units=="umol/m2/s":
         new_data = old_data*1E6/(12.01*ts*60)
-    elif old_units=="mg/m3" and new_units=="umol/mol":
+    elif old_units in ["mg/m3","mgCO2/m3"] and new_units=="umol/mol":
         Ta,f,a = GetSeriesasMA(ds,"Ta")
         ps,f,a = GetSeriesasMA(ds,"ps")
         new_data = mf.co2_ppmfrommgpm3(old_data,Ta,ps)
-    elif old_units=="umol/mol" and new_units=="mg/m3":
+    elif old_units=="umol/mol" and new_units in ["mg/m3","mgCO2/m3"]:
         Ta,f,a = GetSeriesasMA(ds,"Ta")
         ps,f,a = GetSeriesasMA(ds,"ps")
         new_data = mf.co2_mgpm3fromppm(old_data,Ta,ps)
+    elif old_units in ["mg/m2/s","mgCO2/m2/s"] and new_units=="umol/m2/s":
+        new_data = mf.Fc_umolpm2psfrommgpm2ps(old_data)
     else:
         msg = " Unrecognised conversion from "+old_units+" to "+new_units
         log.error(msg)

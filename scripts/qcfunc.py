@@ -105,8 +105,8 @@ def DateTimeFromTimeStamp(ds,TimeStamp_in):
         return 0
     TimeStamp = ds.series[TimeStamp_in]["Data"]
     # guard against empty fields in what we assume is the datetime
-    idx = [i for i in range(len(TimeStamp)) if len(TimeStamp[i])>0]
-    dt = [dateutil.parser.parse(TimeStamp[i]) for i in idx]
+    idx = [i for i in range(len(TimeStamp)) if len(str(TimeStamp[i]))>0]
+    dt = [dateutil.parser.parse(str(TimeStamp[i])) for i in idx]
     # we have finished with the timestamp so delete it from the data structure
     del ds.series[TimeStamp_in]
     nRecs = len(dt)

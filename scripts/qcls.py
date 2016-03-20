@@ -320,6 +320,8 @@ def l6qc(cf,ds5):
     qcrp.ParseL6ControlFile(cf,ds6)
     # check to see if we have any imports
     qcgf.ImportSeries(cf,ds6)
+    # check units
+    qcutils.CheckUnits(ds6,"Fc","umol/m2/s",convert_units=True)
     # filter Fc for night time and ustar threshold, write to ds as "ER"
     #qcrp.GetERFromFc(cf,ds6)
     result = qcrp.GetERFromFc(cf,ds6)
