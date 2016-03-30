@@ -288,7 +288,7 @@ def l5qc(cf,ds4):
         qcgf.GapFillParseControlFile(cf,ds5,ThisOne,ds_alt)
     # *** start of the section that does the gap filling of the fluxes ***
     # apply the turbulence filter (if requested)
-    #qcck.ApplyTurbulenceFilter(cf,ds5)
+    qcck.ApplyTurbulenceFilter(cf,ds5)
     # fill short gaps using interpolation
     qcgf.GapFillUsingInterpolation(cf,ds5)
     # do the gap filling using SOLO
@@ -322,10 +322,12 @@ def l6qc(cf,ds5):
     qcgf.ImportSeries(cf,ds6)
     # check units
     qcutils.CheckUnits(ds6,"Fc","umol/m2/s",convert_units=True)
-    # filter Fc for night time and ustar threshold, write to ds as "ER"
-    #qcrp.GetERFromFc(cf,ds6)
-    result = qcrp.GetERFromFc(cf,ds6)
-    if result==0: return
+    ## filter Fc for night time and ustar threshold, write to ds as "ER"
+    #result = qcrp.GetERFromFc(cf,ds6)
+    #if result==0: return
+    # apply the turbulence filter (if requested)
+    qcck.ApplyTurbulenceFilter(cf,ds6)
+    qcrp.GetERFromFc2(cf,ds6)
     # estimate ER using SOLO
     qcrp.ERUsingSOLO(cf,ds6)
     # estimate ER using FFNET

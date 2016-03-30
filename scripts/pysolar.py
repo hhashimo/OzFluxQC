@@ -795,6 +795,7 @@ def GetRadiationDirect(utc_datetime, altitude_deg):
             flux = GetApparentExtraterrestrialFlux(day)
             optical_depth = GetOpticalDepth(day)
             air_mass_ratio = GetAirMassRatio(altitude_deg)
-            return flux * math.exp(-1 * optical_depth * air_mass_ratio)
+            #return flux * math.exp(-1 * optical_depth * air_mass_ratio)
+            return flux * math.exp(-1 * optical_depth * air_mass_ratio) * math.sin(math.radians(altitude_deg))
     else:
             return 0.0

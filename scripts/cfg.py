@@ -1,5 +1,11 @@
 version_name = "OzFluxQC"
-version_number = "V2.9.5"
+version_number = "V2.9.6a"
+# V2.9.6a  - implementation of ustar filtering at L5 or L6
+#            - previous versions applied the ustar filter at L6
+#              after gap filling at L5 which meant the NN used
+#              for gap filling at L5 was being trained on Fc
+#              observations from periods when ustar was below the
+#              threshold.
 # V2.9.5   - implementation of new respiration options
 #            - removed NN related code from qcrp.py and placed this
 #              in a stand-alone module qcrpNN.py.

@@ -2320,7 +2320,7 @@ def  gfSOLO_gui(cf,dsa,dsb,solo_info):
     solo_gui.minptsLabel.grid(row=nrow,column=3,columnspan=1,sticky="E")
     solo_gui.minptsEntry = Tkinter.Entry(solo_gui,width=5)
     solo_gui.minptsEntry.grid(row=nrow,column=4,columnspan=1,sticky="W")
-    solo_gui.minptsEntry.insert(0,"50")
+    solo_gui.minptsEntry.insert(0,"25")
     # eigth row
     nrow = nrow + 1
     solo_gui.automonthly = Tkinter.Radiobutton(solo_gui,text="Monthly",variable=solo_gui.peropt,value=2)
@@ -2371,7 +2371,7 @@ def gfSOLO_autocomplete(dsa,dsb,solo_info):
         if numpy.ma.count(data_solo)==0: continue
         mask_solo = numpy.ma.getmaskarray(data_solo)
         gapstartend = qcutils.contiguous_regions(mask_solo)
-        data_obs,flag,attr = qcutils.GetSeriesasMA(dsa,series)
+        data_obs,flag,attr = qcutils.GetSeriesasMA(dsb,series)
         for si_gap,ei_gap in gapstartend:
             #min_points = max([int(((gap[1]-gap[0])+1)*solo_info["min_percent"]/100),3*solo_info["nperhr"]])
             min_points = int((ei_gap-si_gap)*solo_info["min_percent"]/100)
@@ -2419,11 +2419,11 @@ def gfSOLO_createdict(cf,ds,series):
         ds.solo[output]["drivers"] = ast.literal_eval(cf[section][series]["GapFillUsingSOLO"][output]["drivers"])
         # apply ustar filter
         opt = qcutils.get_keyvaluefromcf(cf,[section,series,"GapFillUsingSOLO",output],
-                                         "apply_turbulence_filter",default="No")
-        ds.solo[output]["apply_turbulence_filter"] = opt
+                                         "turbulence_filter",default="")
+        ds.solo[output]["turbulence_filter"] = opt
         opt = qcutils.get_keyvaluefromcf(cf,[section,series,"GapFillUsingSOLO",output],
-                                         "turbulence_filter_type",default="ustar")
-        ds.solo[output]["turbulence_filter_type"] = opt
+                                         "daynight_filter",default="")
+        ds.solo[output]["daynight_filter"] = opt
         # results of best fit for plotting later on
         ds.solo[output]["results"] = {"startdate":[],"enddate":[],"No. points":[],"r":[],
                                       "Bias":[],"RMSE":[],"Frac Bias":[],"NMSE":[],

@@ -649,7 +649,56 @@ def GetERFromFc(cf,ds):
     # apply the filter to get ER from Fc
     ER = numpy.ma.masked_where(er_indicator==0,Fc,copy=True)
     qcutils.CreateSeries(ds,"ER",ER,Flag=ER_flag,Attr=ER_attr)
+    return 1
 
+def GetERFromFc2(cf,ds):
+    """
+    Purpose:
+     Get the observed ecosystem respiration from measurements of Fc by
+     filtering out daytime periods and periods when ustar is less than
+     a threshold value.
+     The Fsd threshold for determining day time and night time and the
+     ustar threshold are set in the [Params] section of the L5 control
+     file.
+     Re-write of the original penned in August 2014
+    Usage:
+     qcrp.GetERFromFc(cf,ds)
+     where cf is a control file object
+           ds is a data structure
+    Side effects:
+     A new series called "ER" is created in the data structure.
+    Author: PRI
+    Date: October 2015
+    """
+    ldt = ds.series["DateTime"]["Data"]
+    ts = int(ds.globalattributes["time_step"])
+    # get the data
+    Fsd,Fsd_flag,Fsd_attr = qcutils.GetSeriesasMA(ds,"Fsd")
+    if "solar_altitude" not in ds.series.keys(): qcts.get_synthetic_fsd(ds)
+    Fsd_syn,flag,attr = qcutils.GetSeriesasMA(ds,"Fsd_syn")
+    sa,flag,attr = qcutils.GetSeriesasMA(ds,"solar_altitude")
+    Fc,Fc_flag,Fc_attr = qcutils.GetSeriesasMA(ds,"Fc")
+    # get a copy of the Fc flag and make the attribute dictionary
+    ER_flag = numpy.array(Fc_flag)
+    long_name = "Ecosystem respiration (observed)"
+    units = Fc_attr["units"]
+    ER_attr = qcutils.MakeAttributeDictionary(long_name=long_name,units=units)
+    ## check for any missing data
+    #series_list = [Fsd,sa,Fc]
+    #label_list = ["Fsd","sa","Fc"]
+    #result = check_for_missing_data(series_list,label_list)
+    #if result!=1: return 0
+    # only accept Fc with QC flag value of 0
+    Fc = numpy.ma.masked_where((Fc_flag!=0),Fc)
+    index_notok = numpy.where((Fc_flag!=0))[0]
+    ER_flag[index_notok] = numpy.int32(61)
+    # get the indicator series
+    daynight_indicator = get_daynight_indicator(cf,Fsd,Fsd_syn,sa,ER_attr)
+    idx = numpy.where(daynight_indicator==0)[0]
+    ER_flag[idx] = numpy.int32(63)
+    # apply the filter to get ER from Fc
+    ER = numpy.ma.masked_where(daynight_indicator==0,Fc,copy=True)
+    qcutils.CreateSeries(ds,"ER",ER,Flag=ER_flag,Attr=ER_attr)
     return 1
 
 def check_for_missing_data(series_list,label_list):
@@ -711,6 +760,149 @@ def get_daynight_indicator(cf,Fsd,Fsd_syn,sa,ER_attr):
         raise Exception(msg)
     return daynight_indicator
 
+def get_day_indicator(cf,Fsd,Fsd_syn,sa):
+    """
+    Purpose:
+     Returns a dictionary containing an indicator series and some attributes.
+     The indicator series is 1 during day time and 0 at night time.  The threshold
+     between night and day is the Fsd threshold specified in the control file.
+    Usage:
+     indicators["day"] = get_day_indicator(cf,Fsd,Fsd_syn,sa)
+     where;
+      cf is a control file object
+      Fsd is a series of incoming shortwave radiation values (ndarray)
+      Fsd_syn is a series of calculated Fsd (ndarray)
+      sa is a series of solar altitude values (ndarray)
+    and;
+      indicators["day"] is a dictionary containing
+      indicators["day"]["values"] is the indicator series
+      indicators["day"]["attr"] are the attributes
+    Author: PRI
+    Date: March 2016
+    """
+    # indicator = 1 ==> day, indicator = 0 ==> night
+    day_indicator = {"values":numpy.ones(len(Fsd),dtype=numpy.int32),
+                     "attr":{}}
+    inds = day_indicator["values"]
+    attr = day_indicator["attr"]
+    # get the filter type
+    filter_type = qcutils.get_keyvaluefromcf(cf,["Options"],"DayNightFilter",default="Fsd")
+    use_fsdsyn = qcutils.get_keyvaluefromcf(cf,["Options"],"UseFsdsyn_threshold",default="Yes")
+    # get the indicator series
+    if filter_type.lower()=="fsd":
+        # get the Fsd threshold
+        Fsd_threshold = int(qcutils.get_keyvaluefromcf(cf,["Options"],"Fsd_threshold",default=10))
+        attr["Fsd_threshold"] = str(Fsd_threshold)
+        # we are using Fsd only to define day/night
+        if use_fsdsyn.lower()=="yes":
+            idx = numpy.ma.where((Fsd<=Fsd_threshold)&(Fsd_syn<=Fsd_threshold))[0]
+        else:
+            idx = numpy.ma.where(Fsd<=Fsd_threshold)[0]
+        inds[idx] = numpy.int32(0)
+    elif filter_type.lower()=="sa":
+        # get the solar altitude threshold
+        sa_threshold = int(qcutils.get_keyvaluefromcf(cf,["Options"],"sa_threshold",default="-5"))
+        attr["sa_threshold"] = str(sa_threshold)
+        # we are using solar altitude to define day/night
+        index = numpy.ma.where(sa<sa_threshold)[0]
+        inds[index] = numpy.int32(0)
+    else:
+        msg = "Unrecognised DayNightFilter option in L6 control file"
+        raise Exception(msg)
+    return day_indicator
+
+def get_evening_indicator(cf,Fsd,Fsd_syn,sa,ts):
+    """
+    Purpose:
+     Returns a dictionary containing an indicator series and some attributes.
+     The indicator series is 1 during the evening and 0 at all other times.
+     Evening is defined as the period between sunset and the number of hours
+     specified in the control file [Options] section as the EveningFilterLength
+     key.
+    Usage:
+     indicators["evening"] = get_evening_indicator(cf,Fsd,Fsd_syn,sa,ts)
+     where;
+      cf is a control file object
+      Fsd is a series of incoming shortwave radiation values (ndarray)
+      Fsd_syn is a series of calculated Fsd (ndarray)
+      sa is a series of solar altitude values (ndarray)
+      ts is the time step (minutes), integer
+    and;
+      indicators["evening"] is a dictionary containing
+      indicators["evening"]["values"] is the indicator series
+      indicators["evening"]["attr"] are the attributes
+    Author: PRI
+    Date: March 2016
+    """
+    evening_indicator = {}
+    opt = qcutils.get_keyvaluefromcf(cf,["Options"],"EveningFilterLength",default="0")
+    num_hours = int(opt)
+    if num_hours<=0 or num_hours>=12:
+        evening_indicator = numpy.zeros(len(Fsd))
+        msg = " Evening filter period outside 0 to 12 hours, skipping ..."
+        log.warning(msg)
+        return evening_indicator
+    night_indicator = get_night_indicator(cf, Fsd, Fsd_syn, sa)
+    day_indicator = get_day_indicator(cf, Fsd, Fsd_syn, sa)
+    ntsperhour = int(0.5+float(60)/float(ts))
+    shift = num_hours*ntsperhour
+    day_indicator_shifted = numpy.roll(day_indicator["values"], shift)
+    evening_indicator["values"] = night_indicator["values"]*day_indicator_shifted
+    evening_indicator["attr"] = {"EveningFilterLength":num_hours}
+    return evening_indicator
+
+def get_night_indicator(cf,Fsd,Fsd_syn,sa):
+    """
+    Purpose:
+     Returns a dictionary containing an indicator series and some attributes.
+     The indicator series is 1 during night time and 0 during the day.  The
+     threshold for determining night and day is the Fsd threshold
+     given in the control file [Options] section.
+    Usage:
+     indicators["night"] = get_night_indicator(cf,Fsd,Fsd_syn,sa)
+     where;
+      cf is a control file object
+      Fsd is a series of incoming shortwave radiation values (ndarray)
+      Fsd_syn is a series of calculated Fsd (ndarray)
+      sa is a series of solar altitude values (ndarray)
+    and;
+      indicators["night"] is a dictionary containing
+      indicators["night"]["values"] is the indicator series
+      indicators["night"]["attr"] are the attributes
+    Author: PRI
+    Date: March 2016
+    """
+    # indicator = 1 ==> night, indicator = 0 ==> day
+    night_indicator = {"values":numpy.zeros(len(Fsd),dtype=numpy.int32),
+                       "attr":{}}
+    inds = night_indicator["values"]
+    attr = night_indicator["attr"]
+    # get the filter type
+    filter_type = qcutils.get_keyvaluefromcf(cf,["Options"],"DayNightFilter",default="Fsd")
+    use_fsdsyn = qcutils.get_keyvaluefromcf(cf,["Options"],"UseFsdsyn_threshold",default="Yes")
+    # get the indicator series
+    if filter_type.lower()=="fsd":
+        # get the Fsd threshold
+        Fsd_threshold = int(qcutils.get_keyvaluefromcf(cf,["Options"],"Fsd_threshold",default=10))
+        attr["Fsd_threshold"] = str(Fsd_threshold)
+        # we are using Fsd only to define day/night
+        if use_fsdsyn.lower()=="yes":
+            idx = numpy.ma.where((Fsd<=Fsd_threshold)&(Fsd_syn<=Fsd_threshold))[0]
+        else:
+            idx = numpy.ma.where(Fsd<=Fsd_threshold)[0]
+        inds[idx] = numpy.int32(1)
+    elif filter_type.lower()=="sa":
+        # get the solar altitude threshold
+        sa_threshold = int(qcutils.get_keyvaluefromcf(cf,["Options"],"sa_threshold",default="-5"))
+        attr["sa_threshold"] = str(sa_threshold)
+        # we are using solar altitude to define day/night
+        index = numpy.ma.where(sa<sa_threshold)[0]
+        inds[index] = numpy.int32(1)
+    else:
+        msg = "Unrecognised DayNightFilter option in L6 control file"
+        raise Exception(msg)
+    return night_indicator
+
 def get_turbulence_indicator(cf,ldt,ustar,L,ustar_dict,ts,attr):
     opt = qcutils.get_keyvaluefromcf(cf,["Options"],"TurbulenceFilter",default="ustar")
     if opt.lower()=="ustar":
@@ -731,11 +923,33 @@ def get_turbulence_indicator_l(ldt,L,z,d,zmdonL_threshold):
     turbulence_indicator[idx] = numpy.int32(1)
     return turbulence_indicator
 
-def get_turbulence_indicator_ustar(ldt,ustar,ustar_dict,ts,attr):
+def get_turbulence_indicator_ustar(ldt,ustar,ustar_dict,ts):
+    """
+    Purpose:
+     Returns a dictionary containing an indicator series and some attributes.
+     The indicator series is 1 when ustar is above the threshold and 0 when
+     ustar is below the threshold.
+    Usage:
+     indicators["turbulence"] = get_turbulence_indicator_ustar(ldt,ustar,ustar_dict,ts)
+     where;
+      ldt is a list of datetimes
+      ustar is a series of ustar values (ndarray)
+      ustar_dict is a dictionary of ustar thresholds returned by qcrp.get_ustar_thresholds
+      ts is the time step for ustar
+    and;
+     indicators["turbulence"] is a dictionary containing
+      indicators["turbulence"]["values"] is the indicator series
+      indicators["turbulence"]["attr"] are the attributes
+    Author: PRI
+    Date: March 2016
+    """
     year_list = ustar_dict.keys()
     year_list.sort()
     # now loop over the years in the data to apply the ustar threshold
-    turbulence_indicator = numpy.zeros(len(ldt),dtype=numpy.int32)
+    turbulence_indicator = {"values":numpy.zeros(len(ldt),dtype=numpy.int32),
+                            "attr":{}}
+    inds = turbulence_indicator["values"]
+    attr = turbulence_indicator["attr"]
     for year in year_list:
         start_date = str(year)+"-01-01 00:30"
         if ts==60: start_date = str(year)+"-01-01 01:00"
@@ -748,7 +962,7 @@ def get_turbulence_indicator_ustar(ldt,ustar,ustar_dict,ts,attr):
         ei = qcutils.GetDateIndex(ldt,end_date,ts=ts,default=len(ldt),match='exact')
         # set the QC flag
         idx = numpy.ma.where(ustar[si:ei]>=ustar_threshold)[0]
-        turbulence_indicator[si:ei][idx] = numpy.int32(1)
+        inds[si:ei][idx] = numpy.int32(1)
     return turbulence_indicator
 
 def get_ustarthreshold_from_cf(cf,ldt):
@@ -1381,8 +1595,9 @@ def PartitionNEE(cf,ds):
     Date: August 2014
     """
     if "gpp" not in dir(ds): return
-    # get the Fsd thresholds
-    Fsd_threshold = float(cf['Options']['Fsd_threshold'])
+    # get the Fsd threshold
+    opt = qcutils.get_keyvaluefromcf(cf,["Options"],"Fsd_threshold",default=10)
+    Fsd_threshold = float(opt)
     # get the incoming shortwave radiation
     Fsd,Fsd_flag,Fsd_attr = qcutils.GetSeriesasMA(ds,"Fsd")
     if "Fsd_syn" in ds.series.keys():

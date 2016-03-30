@@ -532,6 +532,9 @@ def CreateSeries(ds,Label,Data,FList=None,Flag=None,Attr=None):
                 ds.series['_tmp_']['Attr'][attr] = Attr[attr]
             else:
                 ds.series['_tmp_']['Attr'][attr] = ds.series[Label]['Attr'][attr]
+        for attr in Attr:
+            if attr not in ds.series['_tmp_']['Attr'].keys():
+                ds.series['_tmp_']['Attr'][attr] = Attr[attr]
     else:
         for item in Attr:
             ds.series['_tmp_']['Attr'][item] = Attr[item]
@@ -1431,10 +1434,12 @@ def get_UTCfromlocaltime(ds):
     loc_tz = pytz.timezone(tz)
     # local pointer to the datetime series in ds
     ldt = ds.series["DateTime"]["Data"]
-    # localise the datetime
+    # localise the datetime by assigning a time zone
     ldt_loc = [loc_tz.localize(dt) for dt in ldt]
+    # remove any daylight saving time
+    ldt_loc_nodst = [dt+dt.dst() for dt in ldt_loc]
     # convert to UTC
-    ldt_utc = [dt.astimezone(pytz.utc) for dt in ldt_loc]
+    ldt_utc = [dt.astimezone(pytz.utc) for dt in ldt_loc_nodst]
     return ldt_utc
 
 def get_xldatefromdatetime(ds):

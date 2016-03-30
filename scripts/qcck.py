@@ -4,6 +4,7 @@ import constants as c
 import datetime
 import numpy
 import time
+import qcrp
 import qcts
 import qcutils
 import logging
@@ -13,43 +14,159 @@ log = logging.getLogger('qc.ck')
 def ApplyTurbulenceFilter(cf,ds):
     """
     Purpose:
-     Apply a filter to selected series to remove low turbulence conditions.
     Usage:
-    Author: PRI
-    Date: February 2016
+    Author:
+    Date:
     """
-    if "solo" not in ds: return
-    
+    opt = ApplyTurbulenceFilter_checks(cf,ds)
+    if not opt["OK"]: return
+    # local point to datetime series
     ldt = ds.series["DateTime"]["Data"]
+    # time step
     ts = int(ds.globalattributes["time_step"])
-    # get the ustar thresholds
-    ustar_dict = get_ustar_thresholds(cf,ldt)
-    # get ustar
+    # dictionary of utar thresold values
+    ustar_dict = qcrp.get_ustar_thresholds(cf,ldt)
+    # initialise a dictionary for the indicator series
+    indicators = {}
+    # get data for the indicator series
     ustar,ustar_flag,ustar_attr = qcutils.GetSeriesasMA(ds,"ustar")
-    # get the Monin-Obukhov length
-    Ta,flag,attr = qcutils.GetSeriesasMA(ds,"Ta")
-    Ah,flag,attr = qcutils.GetSeriesasMA(ds,"Ah")
-    ps,flag,attr = qcutils.GetSeriesasMA(ds,"ps")
-    Fh,flag,Fh_attr = qcutils.GetSeriesasMA(ds,"Fh")
-    L = mf.molen(Ta,Ah,ps,ustar,Fh,fluxtype="sensible")    
-    # get the indicator series
-    threshold_attr = {}
-    turbulence_indicator = get_turbulence_indicator(cf,ldt,ustar,L,ustar_dict,ts,threshold_attr)
-    # now we apply the indicator series to the data
-    # first, get the data
-    data,flag,attr = qcutils.GetSeriesasMA(ds,series)
-    # save the data before filtering
-    qcutils.CreateSeries(ds,series+"_nofilter",data,Flag=flag,Attr=attr)
-    # mask the data for low turbulence conditions
-    data = numpy.ma.masked_where(turbulence_indicator==0,data)
-    # set the QC flag
-    idx = numpy.where(turbulence_indicator==0)[0]
-    flag[idx] = numpy.int32(64)
-    # add the threshold values to the variable attributes
-    for item in threshold_attr:
-        attr[item] = threshold_attr[item]
-    # put the data, flag and updated attributes into the data structure
-    qcutils.CreateSeries(ds,series,data,Flag=flag,Attr=attr)
+    Fsd,f,a = qcutils.GetSeriesasMA(ds,"Fsd")
+    if "solar_altitude" not in ds.series.keys(): qcts.get_synthetic_fsd(ds)
+    Fsd_syn,f,a = qcutils.GetSeriesasMA(ds,"Fsd_syn")
+    sa,f,a = qcutils.GetSeriesasMA(ds,"solar_altitude")
+    # get the turbulence indicator series
+    if opt["turbulence_filter"].lower()=="ustar":
+        # indicators["turbulence"] = 1 ==> turbulent, indicators["turbulence"] = 0 ==> not turbulent
+        indicators["turbulence"] = qcrp.get_turbulence_indicator_ustar(ldt,ustar,ustar_dict,ts)
+    elif opt["turbulence_filter"].lower()=="l":
+        #indicators["turbulence] = get_turbulence_indicator_l(ldt,L,z,d,zmdonL_threshold)
+        indicators["turbulence"] = numpy.ones(len(ldt))
+        msg = " Use of L as turbulence indicator not implemented, no filter applied"
+        log.warning(msg)
+    else:
+        msg = " Unrecognised turbulence filter option ("
+        msg = msg+opt["turbulence_filter"]+"), no filter applied"
+        log.error(msg)
+        return
+    # initialise the final indicator series as the turbulence indicator
+    # subsequent filters will modify the final indicator series
+    indicators["final"] = indicators["turbulence"].copy()
+    # get the day/night indicator series
+    # indicators["day"] = 1 ==> day time, indicators["day"] = 0 ==> night time
+    indicators["day"] = qcrp.get_day_indicator(cf,Fsd,Fsd_syn,sa)
+    if opt["accept_day_times"].lower()=="yes":
+        idx = numpy.where(indicators["day"]["values"]==1)[0]
+        indicators["final"]["values"][idx] = numpy.int(1)
+        indicators["final"]["attr"].update(indicators["day"]["attr"])
+    # get the evening indicator series
+    indicators["evening"] = qcrp.get_evening_indicator(cf,Fsd,Fsd_syn,sa,ts)
+    indicators["dayevening"] = {"values":indicators["day"]["values"]+indicators["evening"]["values"]}
+    indicators["dayevening"]["attr"] = indicators["day"]["attr"].copy()
+    indicators["dayevening"]["attr"].update(indicators["evening"]["attr"])
+    if opt["use_evening_filter"].lower()=="yes":
+        idx = numpy.where(indicators["dayevening"]["values"]==0)[0]
+        indicators["final"]["values"][idx] = numpy.int(0)
+        indicators["final"]["attr"].update(indicators["dayevening"]["attr"])
+    # save the indicator series
+    ind_flag = numpy.zeros(len(ldt))
+    long_name = "Turbulence indicator, 1 for turbulent, 0 for non-turbulent"
+    ind_attr = qcutils.MakeAttributeDictionary(long_name=long_name,units="None")
+    qcutils.CreateSeries(ds,"turbulence_indicator",indicators["turbulence"]["values"],Flag=ind_flag,Attr=ind_attr)
+    long_name = "Day indicator, 1 for day time, 0 for night time"
+    ind_attr = qcutils.MakeAttributeDictionary(long_name=long_name,units="None")
+    qcutils.CreateSeries(ds,"day_indicator",indicators["day"]["values"],Flag=ind_flag,Attr=ind_attr)
+    long_name = "Evening indicator, 1 for evening, 0 for not evening"
+    ind_attr = qcutils.MakeAttributeDictionary(long_name=long_name,units="None")
+    qcutils.CreateSeries(ds,"evening_indicator",indicators["evening"]["values"],Flag=ind_flag,Attr=ind_attr)
+    long_name = "Day/evening indicator, 1 for day/evening, 0 for not day/evening"
+    ind_attr = qcutils.MakeAttributeDictionary(long_name=long_name,units="None")
+    qcutils.CreateSeries(ds,"dayevening_indicator",indicators["dayevening"]["values"],Flag=ind_flag,Attr=ind_attr)
+    long_name = "Final indicator, 1 for use data, 0 for don't use data"
+    ind_attr = qcutils.MakeAttributeDictionary(long_name=long_name,units="None")
+    qcutils.CreateSeries(ds,"final_indicator",indicators["final"]["values"],Flag=ind_flag,Attr=ind_attr)
+    # loop over the series to be filtered
+    for series in opt["filter_list"]:
+        msg = " Applying "+opt["turbulence_filter"]+" filter to "+series
+        log.info(msg)
+        # get the data
+        data,flag,attr = qcutils.GetSeriesasMA(ds,series)
+        # continue to next series if this series has been filtered before
+        if "turbulence_filter" in attr:
+            msg = " Series "+series+" has already been filtered, skipping ..."
+            log.warning(msg)
+            continue
+        # save the non-filtered data
+        qcutils.CreateSeries(ds,series+"_nofilter",data,Flag=flag,Attr=attr)
+        # now apply the filter
+        data_filtered = numpy.ma.masked_where(indicators["final"]["values"]==0,data,copy=True)
+        # update the series attributes
+        for item in indicators["final"]["attr"].keys():
+            attr[item] = indicators["final"]["attr"][item]
+        # and write the filtered datas to the data structure
+        qcutils.CreateSeries(ds,series,data_filtered,Flag=flag,Attr=attr)
+        # and write a copy of the filtered datas to the data structure so it
+        # will still exist once the gap filling has been done
+        qcutils.CreateSeries(ds,series+"_filtered",data_filtered,Flag=flag,Attr=attr)
+    return
+
+def ApplyTurbulenceFilter_checks(cf,ds):
+    """
+    Purpose:
+    Usage:
+    Author:
+    Date:
+    """
+    opt = {"OK":True,"turbulence_filter":"ustar","filter_list":['Fc']}
+    # return if there is no Options section in control file
+    if "Options" not in cf:
+        msg = " ApplyTurbulenceFilter: Options section not found in control file"
+        log.warning(msg)
+        opt["OK"] = False
+        return opt
+    # get the value of the TurbulenceFilter key in the Options section
+    opt["turbulence_filter"] = qcutils.get_keyvaluefromcf(cf,["Options"],"TurbulenceFilter",default="None")
+    # return if turbulence filter disabled
+    if opt["turbulence_filter"].lower()=="none":
+        msg = " Turbulence filter disabled in control file"
+        log.warning(msg)
+        opt["OK"] = False
+        return opt
+    # check to see if filter type can be handled
+    if opt["turbulence_filter"].lower() not in ["ustar","l"]:
+        msg = " Unrecognised turbulence filter option ("
+        msg = msg+opt["turbulence_filter"]+"), no filter applied"
+        log.error(msg)
+        opt["OK"] = False
+        return opt
+    # get the list of series to be filtered
+    if "FilterList" in cf["Options"]:
+        opt["filter_list"] = ast.literal_eval(cf["Options"]["FilterList"])
+    # check to see if the series are in the data structure
+    for item in opt["filter_list"]:
+        if item not in ds.series.keys():
+            msg = " Series "+item+" given in FilterList not found in data stucture"
+            log.warning(msg)
+            opt["filter_list"].remove(item)
+    # return if the filter list is empty
+    if len(opt["filter_list"])==0:
+        msg = " FilterList in control file is empty, skipping turbulence filter"
+        log.warning(msg)
+        opt["OK"] = False
+        return opt
+    # get the value of the DayNightFilter key in the Options section
+    opt["daynight_filter"] = qcutils.get_keyvaluefromcf(cf,["Options"],"DayNightFilter",default="None")
+    # check to see if filter type can be handled
+    if opt["daynight_filter"].lower() not in ["fsd","sa","none"]:
+        msg = " Unrecognised day/night filter option ("
+        msg = msg+opt["daynight_filter"]+"), no filter applied"
+        log.error(msg)
+        opt["OK"] = False
+        return opt
+    # check to see if all day time values are to be accepted
+    opt["accept_day_times"] = qcutils.get_keyvaluefromcf(cf,["Options"],"AcceptDayTimes",default="Yes")
+    opt["use_evening_filter"] = qcutils.get_keyvaluefromcf(cf,["Options"],"UseEveningFilter",default="Yes")
+    
+    return opt
 
 def cliptorange(data, lower, upper):
     data = rangecheckserieslower(data,lower)
