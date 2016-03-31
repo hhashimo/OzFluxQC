@@ -1418,7 +1418,7 @@ def L6_summary_monthly(ds,series_dict):
     series_list.sort()
     # create the data arrays
     for item in series_list:
-        monthly_dict[item] = {"data":numpy.array([])}
+        monthly_dict[item] = {"data":numpy.ma.array([])}
     # loop over the months in the data file
     start_date = ldt[0]
     end_date = start_date+dateutil.relativedelta.relativedelta(months=1)
@@ -1483,7 +1483,7 @@ def L6_summary_annual(ds,series_dict):
     series_list = series_dict["annual"].keys()
     series_list.sort()
     for item in series_list:
-        annual_dict[item] = {"data":numpy.array([float(-9999)]*len(year_list))}
+        annual_dict[item] = {"data":numpy.ma.array([float(-9999)]*len(year_list))}
     for i,year in enumerate(year_list):
         if ts==30:
             start_date = str(year)+"-01-01 00:30"

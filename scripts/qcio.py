@@ -1987,8 +1987,12 @@ def xl_write_data(xl_sheet,data,xlCol=0):
             pass
         xl_sheet.write(1,xlCol,item)
         d_xf = xlwt.easyxf(num_format_str=data[item]["format"])
+        if numpy.ma.isMA(data[item]["data"]):
+            tmp = numpy.ma.filled(data[item]["data"],fill_value=numpy.NaN)
+        else:
+            tmp = data[item]["data"]
         for j in range(nrows):
-            xl_sheet.write(j+2,xlCol,float(data[item]["data"][j]),d_xf)
+            xl_sheet.write(j+2,xlCol,tmp[j],d_xf)
 
 def xl_write_series(ds, xlfullname, outputlist=None):
     if "nc_nrecs" in ds.globalattributes.keys():
