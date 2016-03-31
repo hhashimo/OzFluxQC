@@ -12,13 +12,16 @@ the National Collaborative Research Infrastructure Scheme and the Education Inve
 Fund."""
 
 [Options]
-    TurbulenceFilter    = ustar  # ustar/L
-    DayNightFilter      = Fsd    # Fsd/sa, Fsd ==> use Fsd, sa ==> use solar altitude
+    MaxGapInterpolate   = 0
+    FilterList          = "['Fc']"
+    TurbulenceFilter    = ustar  # ustar/L/none, type of turbulence filter
+    DayNightFilter      = Fsd    # Fsd/sa/none, Fsd ==> use Fsd, sa ==> use solar altitude
+    UseFsdsyn_threshold = No     # Yes/No, include Fsd_syn in the day/night filter
+    AcceptDayTimes      = Yes    # Yes/No, accept all day time values (including ustar<threshold)
+    UseEveningFilter    = No     # Yes/No, only use specified hours after sunset
+    EveningFilterLength = 3      # 0/X, period starting after sunset, hours (0 ==> disable)
     Fsd_threshold       = 10     # Fsd threshold for determining day or night time, W/m2
     sa_threshold        = -5     # Solar altitude threshold, degrees, -ve below horizon
-    UseFsdsyn_threshold = Yes    # Yes/No, include Fsd_syn in the day/night filter
-    UseQuantileFilter   = No     # Yes/No, reject nocturnal Fc outside quantile ranges
-    QuantileValue       = 2.5    # Quantile value
 
 [ustar_threshold]
 # put a line here for each date period being used (usually one year)
