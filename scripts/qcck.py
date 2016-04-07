@@ -130,8 +130,8 @@ def ApplyTurbulenceFilter_checks(cf,ds):
     opt["turbulence_filter"] = qcutils.get_keyvaluefromcf(cf,["Options"],"TurbulenceFilter",default="None")
     # return if turbulence filter disabled
     if opt["turbulence_filter"].lower()=="none":
-        msg = " Turbulence filter disabled in control file"
-        log.warning(msg)
+        msg = " Turbulence filter disabled in control file at "+ds.globalattributes["nc_level"]
+        log.info(msg)
         opt["OK"] = False
         return opt
     # check to see if filter type can be handled
