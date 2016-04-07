@@ -1657,10 +1657,7 @@ def gfalternate_plotcoveragelines(ds_tower,alternate_info):
     color_list = ["blue","red","green","yellow","magenta","black","cyan","brown"]
     xsize = 15.0
     ysize = max([len(series_list)*0.2,1])
-    if alternate_info["show_plots"]:
-        plt.ion()
-    else:
-        plt.ioff()
+    plt.ion()
     if plt.fignum_exists(0):
         fig=plt.figure(0)
         plt.clf()
@@ -1691,11 +1688,8 @@ def gfalternate_plotcoveragelines(ds_tower,alternate_info):
     pylab.yticks(ylabel_posn,ylabel_right_list)
     fig.tight_layout()
     #fig.canvas.manager.window.attributes('-topmost', 1)
-    if alternate_info["show_plots"]:
-        plt.draw()
-        plt.ioff()
-    else:
-        plt.ion()
+    plt.draw()
+    plt.ioff()
 
 def gfalternate_plotsummary(ds,alternate_info):
     """ Plot single pages of summary results for groups of variables. """
@@ -2811,12 +2805,8 @@ def gfSOLO_plotsummary(ds,solo_info):
         title_str = "SOLO: "+plot_title+"; "+site_name+" "+datetime.datetime.strftime(startdate,"%Y-%m-%d")
         title_str = title_str+" to "+datetime.datetime.strftime(enddate,"%Y-%m-%d")
         fig.suptitle(title_str, fontsize=14, fontweight='bold')
-        # initialise a string to take the concatenated variable names, used in the name of the hard-copy of the plot
-        figlab = ""
         # now loop over the variables in the group list
         for col,label in enumerate(var_list):
-            # append the variable name to the variable name string
-            figlab = figlab+label
             # and loop over rows in plot
             for row,rlabel,ylabel in zip(range(len(result_list)),result_list,ylabel_list):
                 # get the results to be plotted
@@ -2842,7 +2832,7 @@ def gfSOLO_plotsummary(ds,solo_info):
         edt = enddate.strftime("%Y%m%d")
         plot_path = solo_info["plot_path"]+"L5/"
         if not os.path.exists(plot_path): os.makedirs(plot_path)
-        figname = plot_path+site_name.replace(" ","")+"_SOLO_FitStatistics_"+figlab
+        figname = plot_path+site_name.replace(" ","")+"_SOLO_FitStatistics_"
         figname = figname+"_"+sdt+"_"+edt+".png"
         fig.savefig(figname,format="png")
         if solo_info["show_plots"]:

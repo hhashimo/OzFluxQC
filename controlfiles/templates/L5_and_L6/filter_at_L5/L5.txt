@@ -3,6 +3,7 @@
     in_filename = <site_name>_<year>_L4.nc
     out_filename = <site_name>_<year>_L5.nc
     plot_path = ../Sites/<site_name>/Plots/
+    cpd_filename = <site_name>_L3_CPD.xls
 
 [Output]
     nc = "['Ah','Cc','e','Fa','Fc','Fc_storage','Fe','Fg','Fh','Fld','Flu','Fm','Fn','Fsd','Fsu','Precip','ps','q','RH','Sws','SHD','Ta','Ts','ustar','VPD','Ws','Wd']"
@@ -18,6 +19,14 @@
     EveningFilterLength = 3      # 0/X, period starting after sunset, hours (0 ==> disable)
     Fsd_threshold       = 10     # Fsd threshold for determining day or night time, W/m2
     sa_threshold        = -5     # Solar altitude threshold, degrees, -ve below horizon
+
+[ustar_threshold]
+# put a line here for each date period being used (usually one year)
+# <start_datetime> is of the form YYYY-MM-DD hh:mm
+# <end_datetime> is of the form YYYY-MM-DD hh:mm
+# <ustar_threshold> is a number
+# eg     0 = "['2011-01-01 00:30','2012-01-01 00:00',0.27]"
+    0 = "['<start_datetime>','<end_datetime>',<ustar_threshold>]"
 
 [Fluxes]
     [[ustar]]
@@ -43,8 +52,9 @@
     [[Fc]]
         [[[GapFillUsingSOLO]]]
             [[[[Fc_SOLO]]]]
-                drivers = "['Fsd','SHD','Ts']"                      #minimalist
-               #drivers = "['Fn','Fg','q','VPD','Ta','Ts']"         #James
+               #drivers = "['Fsd','SHD','Ts']"                      #minimalist
+                drivers = "['Fn','Fg','q','VPD','Ta','Ts']"         #James
+                solo_settings = "[25,500,5,0.001,500]"
         [[[MergeSeries]]]
             Source     = "['Fc','Fc_SOLO']"
 

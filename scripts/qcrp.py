@@ -736,8 +736,8 @@ def get_daynight_indicator(cf,Fsd,Fsd_syn,sa):
     # get the day/night indicator
     nRecs = len(Fsd)
     daynight_indicator = {"values":numpy.zeros(len(Fsd),dtype=numpy.int32),"attr":{}}
-    inds = day_indicator["values"]
-    attr = day_indicator["attr"]
+    inds = daynight_indicator["values"]
+    attr = daynight_indicator["attr"]
     # get the filter type
     filter_type = qcutils.get_keyvaluefromcf(cf,["Options"],"DayNightFilter",default="Fsd")
     attr["daynight_filter"] = filter_type
@@ -753,7 +753,7 @@ def get_daynight_indicator(cf,Fsd,Fsd_syn,sa):
             idx = numpy.ma.where((Fsd<=Fsd_threshold)&(Fsd_syn<=Fsd_threshold))[0]
         else:
             idx = numpy.ma.where(Fsd<=Fsd_threshold)[0]
-        inds["values"][idx] = numpy.int32(1)
+        inds[idx] = numpy.int32(1)
     elif filter_type.lower()=="sa":
         # get the solar altitude threshold
         sa_threshold = int(qcutils.get_keyvaluefromcf(cf,["Options"],"sa_threshold",default="-5"))

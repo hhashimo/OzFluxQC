@@ -59,13 +59,6 @@ Fund."""
             output_plots = False
         [[[MergeSeries]]]
             Source = "['ER','ER_LT_all']"
-    [[ER_LL]]
-        [[[ERUsingLasslop]]]
-            target = "ER"
-            drivers = "['Ts']"
-            output = "ER_LL_all"
-        [[[MergeSeries]]]
-            Source = "['ER','ER_LL_all']"
 
 [NEE]
     [[NEE_SOLO]]
