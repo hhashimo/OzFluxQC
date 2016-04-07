@@ -2415,6 +2415,15 @@ def gfSOLO_createdict(cf,ds,series):
         ds.solo[output]["label_tower"] = series
         # site name
         ds.solo[output]["site_name"] = ds.globalattributes["site_name"]
+        # list of SOLO settings
+        if "solo_settings" in cf[section][series]["GapFillUsingSOLO"][output]:
+            ss_list = ast.literal_eval(cf[section][series]["GapFillUsingSOLO"][output]["solo_settings"])
+            ds.solo[output]["solo_settings"] = {}
+            ds.solo[output]["solo_settings"]["nodes_target"] = int(ss_list[0])
+            ds.solo[output]["solo_settings"]["training"] = int(ss_list[1])
+            ds.solo[output]["solo_settings"]["factor"] = int(ss_list[2])
+            ds.solo[output]["solo_settings"]["learningrate"] = float(ss_list[3])
+            ds.solo[output]["solo_settings"]["iterations"] = int(ss_list[4])
         # list of drivers
         ds.solo[output]["drivers"] = ast.literal_eval(cf[section][series]["GapFillUsingSOLO"][output]["drivers"])
         # apply ustar filter
@@ -2540,6 +2549,13 @@ def gfSOLO_main(dsa,dsb,solo_info,output_list=[]):
         #output = dsb.solo[series]["output"]
         # set the number of nodes for the inf files
         #nodesAuto = gfSOLO_setnodesEntry(solo_gui,drivers)
+        # overwrite the GUI settings if required
+        if "solo_settings" in dsb.solo[output]:
+            solo_info["nodes_target"] = dsb.solo[output]["solo_settings"]["nodes_target"]
+            solo_info["training"] = dsb.solo[output]["solo_settings"]["training"]
+            solo_info["factor"] = dsb.solo[output]["solo_settings"]["factor"]
+            solo_info["learningrate"] = dsb.solo[output]["solo_settings"]["learningrate"]
+            solo_info["iterations"] = dsb.solo[output]["solo_settings"]["iterations"]
         # write the inf files for sofm, solo and seqsolo
         gfSOLO_writeinffiles(solo_info)
         # run SOFM
@@ -2570,7 +2586,7 @@ def gfSOLO_plot(pd,dsa,dsb,driverlist,targetlabel,outputlabel,solo_info,si=0,ei=
     xdt = numpy.array(dsb.series['DateTime']['Data'][si:ei+1])
     Hdh,f,a = qcutils.GetSeriesasMA(dsb,'Hdh',si=si,ei=ei)
     # get the observed and modelled values
-    obs,f,a = qcutils.GetSeriesasMA(dsa,targetlabel,si=si,ei=ei)
+    obs,f,a = qcutils.GetSeriesasMA(dsb,targetlabel,si=si,ei=ei)
     mod,f,a = qcutils.GetSeriesasMA(dsb,outputlabel,si=si,ei=ei)
     # make the figure
     if solo_info["show_plots"]:
@@ -2712,10 +2728,7 @@ def gfSOLO_plotcoveragelines(dsb,solo_info):
     color_list = ["blue","red","green","yellow","magenta","black","cyan","brown"]
     xsize = 15.0
     ysize = max([len(output_list)*0.3,1])
-    if solo_info["show_plots"]:
-        plt.ion()
-    else:
-        plt.ioff()
+    plt.ion()
     if plt.fignum_exists(0):
         fig=plt.figure(0)
         plt.clf()
@@ -2745,11 +2758,8 @@ def gfSOLO_plotcoveragelines(dsb,solo_info):
     pylab.yticks(ylabel_posn,ylabel_right_list)
     fig.tight_layout()
     #fig.canvas.manager.window.attributes('-topmost', 1)
-    if solo_info["show_plots"]:
-        plt.draw()
-        plt.ioff()
-    else:
-        plt.ion()
+    plt.draw()
+    plt.ioff()
 
 def gfSOLO_plotsummary(ds,solo_info):
     """ Plot single pages of summary results for groups of variables. """
@@ -3083,8 +3093,10 @@ def gfSOLO_runseqsolo(dsa,dsb,driverlist,targetlabel,outputlabel,nRecs,si=0,ei=-
         driver,flag,attr = qcutils.GetSeries(dsb,TheseOnes,si=si,ei=ei)
         seqsoloinputdata[:,i] = driver[:]
         i = i + 1
-    # a clean copy of the target is pulled from the unmodified ds each time
-    target,flag,attr = qcutils.GetSeries(dsa,targetlabel,si=si,ei=ei)
+    ## a clean copy of the target is pulled from the unmodified ds each time
+    #target,flag,attr = qcutils.GetSeries(dsa,targetlabel,si=si,ei=ei)
+    # get the target data
+    target,flag,attr = qcutils.GetSeries(dsb,targetlabel,si=si,ei=ei)
     # now load the target data into the data array
     seqsoloinputdata[:,ndrivers] = target[:]
     # now strip out the bad data
@@ -3199,8 +3211,10 @@ def gfSOLO_runsolo(dsa,dsb,driverlist,targetlabel,nRecs,si=0,ei=-1):
         driver,flag,attr = qcutils.GetSeries(dsb,TheseOnes,si=si,ei=ei)
         soloinputdata[:,i] = driver[:]
         i = i + 1
-    # a clean copy of the target is pulled from the unmodified ds each time
-    target,flag,attr = qcutils.GetSeries(dsa,targetlabel,si=si,ei=ei)
+    ## a clean copy of the target is pulled from the unmodified ds each time
+    #target,flag,attr = qcutils.GetSeries(dsa,targetlabel,si=si,ei=ei)
+    # get the target data
+    target,flag,attr = qcutils.GetSeries(dsb,targetlabel,si=si,ei=ei)
     # now load the target data into the data array
     soloinputdata[:,ndrivers] = target[:]
     # now strip out the bad data

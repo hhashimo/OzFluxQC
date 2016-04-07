@@ -1,5 +1,12 @@
 version_name = "OzFluxQC"
-version_number = "V2.9.6a"
+version_number = "V2.9.6b"
+# V2.9.6b  - bug fix of ustar implementation at L5
+#            - gfSOLO was picking the target data from the L4 (not filtered)
+#              data structure not the L5 (filtered) data structure so
+#              filtered data in L5 was being overwritten by gap filled,
+#              unfiltered data
+#            - changed source of target data in gfSOLO_runsolo,
+#              gfSOLO_runseqsolo and gfSOLO_plot from dsa to dsb
 # V2.9.6a  - implementation of ustar filtering at L5 or L6
 #            - previous versions applied the ustar filter at L6
 #              after gap filling at L5 which meant the NN used

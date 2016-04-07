@@ -99,14 +99,17 @@ def ApplyTurbulenceFilter(cf,ds):
         qcutils.CreateSeries(ds,series+"_nofilter",data,Flag=flag,Attr=attr)
         # now apply the filter
         data_filtered = numpy.ma.masked_where(indicators["final"]["values"]==0,data,copy=True)
+        flag_filtered = numpy.copy(flag)
+        idx = numpy.where(indicators["final"]["values"]==0)[0]
+        flag_filtered[idx] = numpy.int32(61)
         # update the series attributes
         for item in indicators["final"]["attr"].keys():
             attr[item] = indicators["final"]["attr"][item]
-        # and write the filtered datas to the data structure
-        qcutils.CreateSeries(ds,series,data_filtered,Flag=flag,Attr=attr)
+        # and write the filtered data to the data structure
+        qcutils.CreateSeries(ds,series,data_filtered,Flag=flag_filtered,Attr=attr)
         # and write a copy of the filtered datas to the data structure so it
         # will still exist once the gap filling has been done
-        qcutils.CreateSeries(ds,series+"_filtered",data_filtered,Flag=flag,Attr=attr)
+        qcutils.CreateSeries(ds,series+"_filtered",data_filtered,Flag=flag_filtered,Attr=attr)
     return
 
 def ApplyTurbulenceFilter_checks(cf,ds):
