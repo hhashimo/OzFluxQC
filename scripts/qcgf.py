@@ -2597,17 +2597,18 @@ def gfSOLO_plot(pd,dsa,dsb,driverlist,targetlabel,outputlabel,solo_info,si=0,ei=
     # get the diurnal stats of the observations
     mask = numpy.ma.mask_or(obs.mask,mod.mask)
     obs_mor = numpy.ma.array(obs,mask=mask)
-    Hr1,Av1,Sd1,Mx1,Mn1 = gf_getdiurnalstats(Hdh,obs_mor,ts)
+    Num1,Hr1,Av1,Sd1,Mx1,Mn1 = gf_getdiurnalstats(Hdh,obs_mor,ts)
     ax1.plot(Hr1,Av1,'b-',label="Obs")
     # get the diurnal stats of all SOLO predictions
-    mod_mor = numpy.ma.array(mod,mask=mask)
-    Hr2,Av2,Sd2,Mx2,Mn2 = gf_getdiurnalstats(Hdh,mod_mor,ts)
+    Num2,Hr2,Av2,Sd2,Mx2,Mn2 = gf_getdiurnalstats(Hdh,mod,ts)
     ax1.plot(Hr2,Av2,'r-',label="SOLO(all)")
+    # get the diurnal stats of SOLO predictions when the obs are present
+    mod_mor = numpy.ma.array(mod,mask=mask)
     if numpy.ma.count_masked(obs)!=0:
         index = numpy.where(numpy.ma.getmaskarray(obs)==False)[0]
         #index = numpy.ma.where(numpy.ma.getmaskarray(obs)==False)[0]
         # get the diurnal stats of SOLO predictions when observations are present
-        Hr3,Av3,Sd3,Mx3,Mn3=gf_getdiurnalstats(Hdh[index],mod_mor[index],ts)
+        Num3,Hr3,Av3,Sd3,Mx3,Mn3=gf_getdiurnalstats(Hdh[index],mod_mor[index],ts)
         ax1.plot(Hr3,Av3,'g-',label="SOLO(obs)")
     plt.xlim(0,24)
     plt.xticks([0,6,12,18,24])
@@ -3344,22 +3345,43 @@ def gfSOLO_writeinffiles(solo_info):
     f.close()
 
 # miscellaneous L4 routines
-def gf_getdiurnalstats(DecHour,Data,dt):
-    nInts = 24*int((60/dt)+0.5)
-    Hr = numpy.array([c.missing_value]*nInts,dtype=numpy.float64)
-    Av = numpy.array([c.missing_value]*nInts,dtype=numpy.float64)
-    Sd = numpy.array([c.missing_value]*nInts,dtype=numpy.float64)
-    Mx = numpy.array([c.missing_value]*nInts,dtype=numpy.float64)
-    Mn = numpy.array([c.missing_value]*nInts,dtype=numpy.float64)
+#def gf_getdiurnalstats(DecHour,Data,dt):
+    #nInts = 24*int((60/dt)+0.5)
+    #Hr = numpy.array([c.missing_value]*nInts,dtype=numpy.float64)
+    #Av = numpy.array([c.missing_value]*nInts,dtype=numpy.float64)
+    #Sd = numpy.array([c.missing_value]*nInts,dtype=numpy.float64)
+    #Mx = numpy.array([c.missing_value]*nInts,dtype=numpy.float64)
+    #Mn = numpy.array([c.missing_value]*nInts,dtype=numpy.float64)
+    #for i in range(nInts):
+        #Hr[i] = float(i)*dt/60.
+        #li = numpy.where((abs(DecHour-Hr[i])<c.eps)&(abs(Data-float(c.missing_value))>c.eps))
+        #if numpy.size(li)!=0:
+            #Av[i] = numpy.mean(Data[li])
+            #Sd[i] = numpy.std(Data[li])
+            #Mx[i] = numpy.max(Data[li])
+            #Mn[i] = numpy.min(Data[li])
+    #return Hr, Av, Sd, Mx, Mn
+
+def gf_getdiurnalstats(DecHour,Data,ts):
+    nInts = 24*int((60/ts)+0.5)
+    Num = numpy.ma.zeros(nInts,dtype=int)
+    Hr = numpy.ma.zeros(nInts,dtype=float)
     for i in range(nInts):
-        Hr[i] = float(i)*dt/60.
-        li = numpy.where((abs(DecHour-Hr[i])<c.eps)&(abs(Data-float(c.missing_value))>c.eps))
-        if numpy.size(li)!=0:
-            Av[i] = numpy.mean(Data[li])
-            Sd[i] = numpy.std(Data[li])
-            Mx[i] = numpy.max(Data[li])
-            Mn[i] = numpy.min(Data[li])
-    return Hr, Av, Sd, Mx, Mn
+        Hr[i] = float(i)*ts/60.
+    Av = numpy.ma.masked_all(nInts)
+    Sd = numpy.ma.masked_all(nInts)
+    Mx = numpy.ma.masked_all(nInts)
+    Mn = numpy.ma.masked_all(nInts)
+    if numpy.size(Data)!=0:
+        for i in range(nInts):
+            li = numpy.ma.where((abs(DecHour-Hr[i])<c.eps)&(abs(Data-float(c.missing_value))>c.eps))
+            Num[i] = numpy.size(li)
+            if Num[i]!=0:
+                Av[i] = numpy.ma.mean(Data[li])
+                Sd[i] = numpy.ma.std(Data[li])
+                Mx[i] = numpy.ma.maximum(Data[li])
+                Mn[i] = numpy.ma.minimum(Data[li])
+    return Num, Hr, Av, Sd, Mx, Mn
 
 def gf_getdateticks(start, end):
     from datetime import timedelta as td
