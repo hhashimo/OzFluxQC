@@ -164,6 +164,7 @@
 #         5) the format for the dates is YYYY-MM-DD HH:mm where YYYY is the 4 digit year,
 #            MM is the 2 digit month, DD is the 2 digit day of the month, HH is the 2 digit
 #            hour (24 hour format) and mm is the 2 digit minute
+#
 # [[CorrectWindDirection]]
 #     Purpose:
 #        Apply an offset to a wind direction measurement to correct for alignment.

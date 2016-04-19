@@ -9,6 +9,7 @@ import meteorologicalfunctions as mf
 import numpy
 import os
 import qcio
+import qcrpLL
 import qcrpLT
 import qcrpNN
 import qcts
@@ -175,49 +176,154 @@ def ERUsingFFNET(cf,ds):
                 qcrpNN.rpFFNET_run_nogui(cf,ds,FFNET_info)
 
 def ERUsingLasslop(cf,ds):
-    log.info('Estimating ER using Lasslop et al is not implemented yet, but we are working on it now ...')
-    pass
-    # get necessary data
-    #  - PAR or Fsd
-    #    - convert Fsd to PAR
-    #    - check PAR units are umol/m2/s
-    #  - soil or air temperature
-    #
-    # get a list of years in the data set
-    #
-    # loop over entries in 
-    # loop over years to get annual E0 values
-    #  - if year has > minimum good points
-    #    - curve fit to get E0
-    #  - else
-    #    - set E0 to missing value
-    # replace any missing E0 with mean values
-    #  E0_dict = rpLL_get_annual_E0()
-    #
-    # loop through data set with window_size and window_step to get
-    # curve fit parameters phi, Aopt, k and rb
-    #  fit_dict = rpLL_get_fit_parameters()
-    #   fit_dict["middate"],fit_dict["phi"],fit_dict["Aopt"],fit_dict["k"],fit_dict["E0_short"],fit_dict["E0_long"]
-    #dt = ds.series["DateTime"]["Data"]
-    #radn,f,a = qcutils.GetSeriesasMA(ds,"Fsd")
-    #hd_label = cf
-    #hd,f,a = qcutils.GetSeriesasMA(ds,hd_label)
-    #startdate = dt[0]
-    #enddate = startdate + dateutil.relativedelta.relativedelta(days=window_size)
-    #while startdate>dt[-1]:
-        #middate = startdate+(enddate-startdate)/2
-        #E0 = E0_dict[middate.year]
-        #si = qcutils.GetDateIndex(dt,str(startdate),ts=ts)
-        #ei = qcutils.GetDateIndex(dt,str(enddate),ts=ts)
-    # plot phi, Aopt, k and rb values
-    #  rpLL_plot_fit_parameters(fit_dict)
-    # interpolate phi, Aopt, k and rb values to daily time step
-    #  fit_dict_daily = rpLL_interpolate_fit_parameters(fit_dict)
-    # calculate ER_LL
-    #  rpLL_calculateER()
-    # - replicate daily values of phi, Aopt, k and rb at data time step
-    # - calculate ER from temperature, rb and E0
-    # - put ER in data structure
+    log.info("Estimating ER using Lasslop")
+    # these should be read from the control file
+    info = {"window_length":30,"window_offset":5,"fsd_threshold":10}
+    ldt = ds.series["DateTime"]["Data"]
+    ts = int(ds.globalattributes["time_step"])
+    info["ts"] = ts
+    site_name = ds.globalattributes["site_name"]
+    nrecs = int(ds.globalattributes["nc_nrecs"])
+    # get the data and synchronise the gaps
+    # *** PUT INTO SEPARATE FUNCTION
+    indicator = numpy.ones(nrecs,dtype=numpy.int)
+    Fsd,f,a = qcutils.GetSeriesasMA(ds,"Fsd")
+    idx = numpy.where(f!=0)[0]
+    indicator[idx] = numpy.int(0)
+    D,f,a = qcutils.GetSeriesasMA(ds,"VPD")
+    idx = numpy.where(f!=0)[0]
+    indicator[idx] = numpy.int(0)
+    T,f,a = qcutils.GetSeriesasMA(ds,"Ta")
+    idx = numpy.where(f!=0)[0]
+    indicator[idx] = numpy.int(0)
+    ustar,f,a = qcutils.GetSeriesasMA(ds,"ustar")
+    idx = numpy.where(f!=0)[0]
+    indicator[idx] = numpy.int(0)
+    Fc,f,Fc_attr = qcutils.GetSeriesasMA(ds,"Fc")
+    idx = numpy.where(f!=0)[0]
+    indicator[idx] = numpy.int(0)
+    indicator_night = numpy.copy(indicator)
+    # ***
+    # apply a day/night filter
+    idx = numpy.where(Fsd>=10)[0]
+    indicator_night[idx] = numpy.int(0)
+    # replace this with a check to see if a turbulence filter has been applied
+    # apply a simple ustar filter
+    #idx = numpy.where(ustar<=0.24)[0]
+    #indicator_night[idx] = numpy.int(0)
+    # synchronise the gaps and apply the ustar filter
+    T_night = numpy.ma.masked_where(indicator_night==0,T)
+    ustar_night = numpy.ma.masked_where(indicator_night==0,ustar)
+    ER = numpy.ma.masked_where(indicator_night==0,Fc)
+    # loop over the windows and get E0
+    log.info("Estimating the Lloyd-Taylor parameters")
+    LT_results = qcrpLL.get_LT_params(ldt,ER,T_night,info)
+    # interpolate parameters
+    # this should have a check to make sure we are not interpolating with a small
+    # number of points
+    LT_results["rb_int"] = qcrpLL.interp_params(LT_results["rb"])
+    LT_results["E0_int"] = qcrpLL.interp_params(LT_results["E0"])
+    # get series of rb and E0 from LT at the tower stime step
+    # *** PUT INTO SEPARATE FUNCTION
+    ntsperday = float(24)*float(60)/float(ts)
+    days_at_beginning = float(info["window_length"])/2 - float(info["window_offset"])/2
+    rb_beginning = numpy.ones(days_at_beginning*ntsperday)*LT_results["rb_int"][0]
+    rb_middle = numpy.repeat(LT_results["rb_int"],info["window_offset"]*ntsperday)
+    nend = len(ldt) - (len(rb_beginning)+len(rb_middle))
+    rb_end = numpy.ones(nend)*LT_results["rb_int"][-1]
+    rb_tts = numpy.concatenate((rb_beginning,rb_middle,rb_end))
+    E0_beginning = numpy.ones(days_at_beginning*ntsperday)*LT_results["E0_int"][0]
+    E0_middle = numpy.repeat(LT_results["E0_int"],info["window_offset"]*ntsperday)
+    nend = len(ldt) - (len(E0_beginning)+len(E0_middle))
+    E0_end = numpy.ones(nend)*LT_results["E0_int"][-1]
+    E0_tts = numpy.concatenate((E0_beginning,E0_middle,E0_end))
+    # ***
+    # and get the ecosystem respiration at the tower time step
+    log.info("Calculating ER using Lloyd-Taylor")
+    ER_LT = qcrpLL.ER_LloydTaylor(T,rb_tts,E0_tts)
+    # plot the L&T parameters and ER_LT
+    #qcrpLL.plot_LTparams_ER(ldt,ER,ER_LT,LT_results)
+    # get a day time indicator
+    indicator_day = numpy.copy(indicator)
+    # apply a day/night filter
+    idx = numpy.where(Fsd<=info["fsd_threshold"])[0]
+    indicator_day[idx] = numpy.int(0)
+    # synchronise the gaps and apply the day/night filter
+    Fsd_day = numpy.ma.masked_where(indicator_day==0,Fsd)
+    D_day = numpy.ma.masked_where(indicator_day==0,D)
+    T_day = numpy.ma.masked_where(indicator_day==0,T)
+    NEE_day = numpy.ma.masked_where(indicator_day==0,Fc)
+    # get the Lasslop parameters
+    log.info("Estimating the Lasslop parameters")
+    LL_results = qcrpLL.get_LL_params(ldt,Fsd_day,D_day,T_day,NEE_day,ER,LT_results,info)
+    # interpolate parameters
+    LL_results["alpha_int"] = qcrpLL.interp_params(LL_results["alpha"])
+    LL_results["beta_int"] = qcrpLL.interp_params(LL_results["beta"])
+    LL_results["k_int"] = qcrpLL.interp_params(LL_results["k"])
+    LL_results["rb_int"] = qcrpLL.interp_params(LL_results["rb"])
+    LL_results["E0_int"] = qcrpLL.interp_params(LL_results["E0"])
+    #qcrpLL.plot_LLparams(LT_results,LL_results)
+    # get the Lasslop parameters at the tower time step
+    # *** PUT INTO SEPARATE FUNCTION
+    ntsperday = float(24)*float(60)/float(ts)
+    days_at_beginning = float(info["window_length"])/2 - float(info["window_offset"])/2
+    int_list = ["alpha_int","beta_int","k_int","rb_int","E0_int"]
+    tts_list = ["alpha_tts","beta_tts","k_tts","rb_tts","E0_tts"]
+    for tts_item,int_item in zip(tts_list,int_list):
+        beginning = numpy.ones(days_at_beginning*ntsperday)*LL_results[int_item][0]
+        middle = numpy.repeat(LL_results[int_item],info["window_offset"]*ntsperday)
+        nend = len(ldt) - (len(rb_beginning)+len(rb_middle))
+        end = numpy.ones(nend)*LL_results[int_item][-1]
+        LL_results[tts_item] = numpy.concatenate((beginning,middle,end))
+    # ***
+    # get ER, GPP and NEE using Lasslop
+    D0 = LL_results["D0"]
+    rb = LL_results["rb_tts"]
+    units = "umol/m2/s"
+    long_name = "Base respiration at Tref from Lloyd-Taylor method used in Lasslop et al (2010)"
+    attr = qcutils.MakeAttributeDictionary(long_name=long_name,units=units)
+    flag = numpy.zeros(len(rb),dtype=numpy.int32)
+    qcutils.CreateSeries(ds,"rb_LL",rb,Flag=flag,Attr=attr)
+    E0 = LL_results["E0_tts"]
+    units = "C"
+    long_name = "Activation energy from Lloyd-Taylor method used in Lasslop et al (2010)"
+    attr = qcutils.MakeAttributeDictionary(long_name=long_name,units=units)
+    qcutils.CreateSeries(ds,"E0_LL",E0,Flag=flag,Attr=attr)
+    log.info("Calculating ER using Lloyd-Taylor with Lasslop parameters")
+    ER_LL = qcrpLL.ER_LloydTaylor(T,rb,E0)
+    # write ecosystem respiration modelled by Lasslop et al (2010)
+    units = Fc_attr["units"]
+    long_name = "Ecosystem respiration modelled by Lasslop et al (2010)"
+    attr = qcutils.MakeAttributeDictionary(long_name=long_name,units=units)
+    qcutils.CreateSeries(ds,"ER_LL_all",ER_LL,Flag=flag,Attr=attr)
+    # parameters associated with GPP and GPP itself
+    alpha = LL_results["alpha_tts"]
+    units = "umol/J"
+    long_name = "Canopy light use efficiency"
+    attr = qcutils.MakeAttributeDictionary(long_name=long_name,units=units)
+    qcutils.CreateSeries(ds,"alpha_LL",alpha,Flag=flag,Attr=attr)
+    beta = LL_results["beta_tts"]
+    units = "umol/m2/s"
+    long_name = "Maximum CO2 uptake at light saturation"
+    attr = qcutils.MakeAttributeDictionary(long_name=long_name,units=units)
+    qcutils.CreateSeries(ds,"beta_LL",beta,Flag=flag,Attr=attr)
+    k = LL_results["k_tts"]
+    units = "none"
+    long_name = "Sensitivity of response to VPD"
+    attr = qcutils.MakeAttributeDictionary(long_name=long_name,units=units)
+    qcutils.CreateSeries(ds,"k_LL",k,Flag=flag,Attr=attr)
+    GPP_LL = qcrpLL.GPP_RHLRC_D(Fsd,D,alpha,beta,k,D0)
+    units = "umol/m2/s"
+    long_name = "GPP modelled by Lasslop et al (2010)"
+    attr = qcutils.MakeAttributeDictionary(long_name=long_name,units=units)
+    qcutils.CreateSeries(ds,"GPP_LL_all",GPP_LL,Flag=flag,Attr=attr)
+    # NEE
+    data = {"Fsd":Fsd,"T":T,"D":D}
+    NEE_LL = qcrpLL.NEE_RHLRC_D(data,alpha,beta,k,D0,rb,E0)
+    units = "umol/m2/s"
+    long_name = "NEE modelled by Lasslop et al (2010)"
+    attr = qcutils.MakeAttributeDictionary(long_name=long_name,units=units)
+    qcutils.CreateSeries(ds,"NEE_LL_all",NEE_LL,Flag=flag,Attr=attr)
 
 def ERUsingLloydTaylor(cf,ds):
     """
@@ -1587,6 +1693,8 @@ def ParseL6ControlFile(cf,ds):
                 qcrpNN.rpFFNET_createdict(cf,ds,ThisOne)     # create the FFNET dictionary in ds
             if "ERUsingLloydTaylor" in cf["ER"][ThisOne].keys():
                 qcrpLT.rpLT_createdict(cf,ds,ThisOne)        # create the Lloyd-Taylor dictionary in ds
+            if "ERUsingLasslop" in cf["ER"][ThisOne].keys():
+                qcrpLL.rpLL_createdict(cf,ds,ThisOne)        # create the Lasslop dictionary in ds
     if "NEE" in cf.keys():
         for ThisOne in cf["NEE"].keys():
             rpNEE_createdict(cf,ds,ThisOne)

@@ -254,7 +254,7 @@ def do_IRGAcheck(cf,ds):
     Author: PRI
     Date: September 2015
     """
-    irga_list = ["li7500","li7500a","ec155"]
+    irga_list = ["li7500","li7500a","li7500rs","ec150","ec155","irgason"]
     # get the IRGA type from the control file
     irga_type = qcutils.get_keyvaluefromcf(cf,["Options"],"irga_type", default="li7500")
     # remove any hyphens or spaces
@@ -266,10 +266,13 @@ def do_IRGAcheck(cf,ds):
         log.error(msg)
         return
     # do the IRGA checks
-    if irga_type.lower()=="li7500" or irga_type.lower()=="li7500a":
+    if irga_type.lower()=="li7500":
         ds.globalattributes["irga_type"] = irga_type
         do_7500check(cf,ds)
-    elif irga_type.lower()=="ec155":
+    elif irga_type.lower() in ["li7500a","irgason"]:
+        ds.globalattributes["irga_type"] = irga_type
+        do_7500acheck(cf,ds)
+    elif irga_type.lower() in ["ec155","ec150","irgason"]:
         ds.globalattributes["irga_type"] = irga_type
         do_EC155check(cf,ds)
     else:
@@ -313,6 +316,11 @@ def do_7500check(cf,ds):
             log.error('  qcck.do_7500check: series '+str(ThisOne)+' in LI75List not found in ds.series')
     if '7500Check' not in ds.globalattributes['Functions']:
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',7500Check'
+
+def do_li7500acheck(cf,ds):
+    msg = " Li-7500A check not implemented yet, contact the developer ..."
+    log.warning(msg)
+    return
 
 def do_EC155check(cf,ds):
     """

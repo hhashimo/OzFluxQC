@@ -1625,15 +1625,23 @@ def nc_write_series(ncFile,ds,outputlist=None,ndims=3):
     ds.globalattributes['QC_version'] = str(cfg.version_name)+' '+str(cfg.version_number)
     ds.globalattributes["start_date"] = str(ldt[0])
     ds.globalattributes["end_date"] = str(ldt[-1])
-    for item in ds.globalattributes.keys():
-        #if "int" in str(type(ds.globalattributes[item])):
-            #ds.globalattributes[item] = numpy.int32(ds.globalattributes[item])
-        #setattr(ncFile,item,ds.globalattributes[item])
+    t = time.localtime()
+    ds.globalattributes["nc_rundatetime"] = str(datetime.datetime(t[0],t[1],t[2],t[3],t[4],t[5]))
+    gattr_list = ds.globalattributes.keys()
+    gattr_list.sort()
+    flag_list = []
+    attr_list = []
+    for item in gattr_list:
+        if "Flag" in item:
+            flag_list.append(item)
+        else:
+            attr_list.append(item)
+    for item in attr_list:
         attr = str(ds.globalattributes[item])
         setattr(ncFile,item,attr.encode('ascii','ignore'))
-    t = time.localtime()
-    rundatetime = str(datetime.datetime(t[0],t[1],t[2],t[3],t[4],t[5]))
-    setattr(ncFile,'nc_rundatetime',rundatetime)
+    for item in flag_list:
+        attr = str(ds.globalattributes[item])
+        setattr(ncFile,item,attr.encode('ascii','ignore'))
     # we specify the size of the Time dimension because netCDF4 is slow to write files
     # when the Time dimension is unlimited
     if "nc_nrecs" in ds.globalattributes.keys():
