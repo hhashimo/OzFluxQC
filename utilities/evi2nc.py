@@ -37,8 +37,8 @@ modis_time = nc_file.variables["time"][:]
 modis_time_units = getattr(nc_file.variables["time"],"units")
 modis_dt =  netCDF4.num2date(modis_time,modis_time_units)
 # now we loop over the sites in the control file
-site_list = cf["Sites"].keys()
-#site_list = ["Calperum","CumberlandPlains","Gingin","GreatWesternWoodlands"]
+#site_list = cf["Sites"].keys()
+site_list = ["Calperum"]
 for site in site_list:
     # get the site information from the control file
     site_name = cf["Sites"][site]["site_name"]

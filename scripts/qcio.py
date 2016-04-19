@@ -1242,7 +1242,7 @@ def nc_concatenate(cf):
         os.rename(baseFileName,newFileName)
         # now the base file will not be overwritten
     ncFile = nc_open_write(outFileName)
-    ndims = qcutils.get_keyvaluefromcf(cf,["Options"],"NumberOfDimensions", default=3)
+    ndims = int(qcutils.get_keyvaluefromcf(cf,["Options"],"NumberOfDimensions", default=3))
     nc_write_series(ncFile,ds,ndims=ndims)
 
 def nc_split():
