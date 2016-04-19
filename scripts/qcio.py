@@ -1223,6 +1223,7 @@ def nc_concatenate(cf):
     qcck.do_qcchecks(cf,ds)
     # update the coverage statistics
     qcutils.get_coverage_individual(ds)
+    qcutils.get_coverage_groups(ds)
     # write the netCDF file
     outFileName = qcutils.get_keyvaluefromcf(cf,["Files","Out"],"ncFileName",default="out.nc")
     log.info(' Writing data to '+outFileName)
