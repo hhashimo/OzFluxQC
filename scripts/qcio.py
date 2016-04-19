@@ -1208,11 +1208,12 @@ def nc_concatenate(cf):
         if item in series_list: series_list.remove(item)
     # loop over the non-datetime data series in ds and interpolate
     # get the maximum gap length (in hours) from the control file
-    maxlen = int(qcutils.get_keyvaluefromcf(cf,["Options"],"MaxGapInterpolate",default=3))
-    # now loop over the series and do the interpolation
-    log.info(" Interpolating over fixed time gaps ("+str(maxlen)+" hour max)")
-    for item in series_list:
-        qcts.InterpolateOverMissing(ds,series=item,maxlen=maxlen)
+    maxlen = int(qcutils.get_keyvaluefromcf(cf,["Options"],"MaxGapInterpolate",default=2))
+    if maxlen!=0:
+        # now loop over the series and do the interpolation
+        log.info(" Interpolating over fixed time gaps ("+str(maxlen)+" hour max)")
+        for item in series_list:
+            qcts.InterpolateOverMissing(ds,series=item,maxlen=maxlen)
     # make sure we have all of the humidities
     qcts.CalculateHumidities(ds)
     # and make sure we have all of the meteorological variables
@@ -1638,11 +1639,21 @@ def nc_write_series(ncFile,ds,outputlist=None,ndims=3):
         else:
             attr_list.append(item)
     for item in attr_list:
-        attr = str(ds.globalattributes[item])
-        setattr(ncFile,item,attr.encode('ascii','ignore'))
+        if isinstance(ds.globalattributes[item],str):
+            attr = ds.globalattributes[item]
+        elif isinstance(ds.globalattributes[item],unicode):
+            attr = ds.globalattributes[item].encode('ascii','ignore')
+        else:
+            attr = str(ds.globalattributes[item])
+        setattr(ncFile,item,attr)
     for item in flag_list:
-        attr = str(ds.globalattributes[item])
-        setattr(ncFile,item,attr.encode('ascii','ignore'))
+        if isinstance(ds.globalattributes[item],str):
+            attr = ds.globalattributes[item]
+        elif isinstance(ds.globalattributes[item],unicode):
+            attr = ds.globalattributes[item].encode('ascii','ignore')
+        else:
+            attr = str(ds.globalattributes[item])
+        setattr(ncFile,item,attr)
     # we specify the size of the Time dimension because netCDF4 is slow to write files
     # when the Time dimension is unlimited
     if "nc_nrecs" in ds.globalattributes.keys():

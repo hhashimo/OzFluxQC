@@ -2185,20 +2185,20 @@ def GapFillUsingInterpolation(cf,ds):
         msg = " No [Drivers] or [Fluxes] section in control file"
         log.error(msg)
         return
-    maxlen = int(qcutils.get_keyvaluefromcf(cf,["Options"],"MaxGapInterpolate",default=3))
+    maxlen = int(qcutils.get_keyvaluefromcf(cf,["Options"],"MaxGapInterpolate",default=2))
     if maxlen==0:
         msg = " Gap fill by interpolation disabled in control file"
         log.info(msg)
         return
     for ThisOne in series_list:
         if "MaxGapInterpolate" in cf[section_name][ThisOne]:
-            maxlen = int(qcutils.get_keyvaluefromcf(cf,[section_name,ThisOne],"MaxGapInterpolate",default=3))
+            maxlen = int(qcutils.get_keyvaluefromcf(cf,[section_name,ThisOne],"MaxGapInterpolate",default=2))
             if maxlen==0:
                 msg = " Gap fill by interpolation disabled for "+ThisOne
                 log.info(msg)
                 continue
-        qcts.InterpolateOverMissing(ds,series=ThisOne,maxlen=3)
-    
+            qcts.InterpolateOverMissing(ds,series=ThisOne,maxlen=2)
+
 # functions for GapFillUsingSOLO
 def GapFillUsingSOLO(cf,dsa,dsb):
     '''

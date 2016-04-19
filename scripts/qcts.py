@@ -1932,12 +1932,12 @@ def InvertSign(ds,ThisOne):
     index = numpy.where(abs(ds.series[ThisOne]['Data']-float(c.missing_value))>c.eps)[0]
     ds.series[ThisOne]['Data'][index] = float(-1)*ds.series[ThisOne]['Data'][index]
 
-def InterpolateOverMissing(ds,series='',maxlen=1000):
+def InterpolateOverMissing(ds,series='',maxlen=0):
     """
     Purpose:
      Interpolate over periods of missing data.  Uses linear interpolation.
     Usage:
-     qcts.InterpolateOverMissing(ds,series=ThisOne,maxlen=3)
+     qcts.InterpolateOverMissing(ds,series=ThisOne,maxlen=0)
      where ds is the data structure
            ThisOne is a series label
            maxlen is the maximum gap length (hours) to be filled by interpolation
@@ -1946,6 +1946,8 @@ def InterpolateOverMissing(ds,series='',maxlen=1000):
     Author: PRI
     Date: September 2014
     """
+    # check to see if we need to do anything
+    if maxlen==0: return
     # check that series is in the data structure
     if series not in ds.series.keys():
         log.error("InterpolateOverMissing: series "+series+" not found in data structure")
