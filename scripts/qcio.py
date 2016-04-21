@@ -1222,6 +1222,12 @@ def nc_concatenate(cf):
     #qcts.get_synthetic_fsd(ds)
     # re-apply the quality control checks (range, diurnal and rules)
     qcck.do_qcchecks(cf,ds)
+    # update the global attributes for this level
+    if "nc_level" in ds.globalattributes.keys():
+        level = ds.globalattributes["nc_level"]
+    else:
+        level = "unknown"
+    qcutils.UpdateGlobalAttributes(cf,ds,level)
     # update the coverage statistics
     qcutils.get_coverage_individual(ds)
     qcutils.get_coverage_groups(ds)
