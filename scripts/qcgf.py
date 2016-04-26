@@ -669,7 +669,7 @@ def gfalternate_autocomplete_rewrite(ds_tower,ds_alt,alternate_info,mode="verbos
                         num_good_points = max([num_good_points,ngpts])
                         print label_tower,label_output,label_alternate,num_good_points,min_points,gap[0],gap[1]
                     print "I would gap fill ",label_tower," here from ",ldt_tower[gap[0]],ldt_tower[gap[1]]
-                    
+
 def gfalternate_createdataandstatsdict(ldt_tower,data_tower,attr_tower,alternate_info):
     """
     Purpose:
@@ -766,12 +766,10 @@ def gfalternate_createdict(cf,ds,series,ds_alt):
         else:
             ds.alternate[output]["alternate_name"] = series
         # results of best fit for plotting later on
-        ds.alternate[output]["results"] = {"startdate":[],"enddate":[],"No. points":[],"r":[],
-                                           "Bias":[],"RMSE":[],"Frac Bias":[],"NMSE":[],
-                                           "Avg (tower)":[],"Avg (alternate)":[],
-                                           "Var (tower)":[],"Var (alternate)":[],"Var ratio":[],
-                                           "Lag (uncorrected)":[],"Lag (corrected)":[],
-                                           "Slope":[],"Offset":[]}
+        ds.alternate[output]["results"] = {"startdate":[],"enddate":[],"No. points":[],"No. filled":[],
+                                           "r":[],"Bias":[],"RMSE":[],"Frac Bias":[],"NMSE":[],
+                                           "Avg (Tower)":[],"Avg (Alt)":[],
+                                           "Var (Tower)":[],"Var (Alt)":[],"Var ratio":[]}
         # create an empty series in ds if the alternate output series doesn't exist yet
         if output not in ds.series.keys():
             data,flag,attr = qcutils.MakeEmptySeries(ds,output)
@@ -993,7 +991,8 @@ def gfalternate_getcorrecteddata(ds_alternate,data_dict,stat_dict,alternate_info
         if alternate_info["fit_type"].lower()=="replace":
             gfalternate_getfitcorrecteddata(data_dict, stat_dict, alternate_info)
         else:
-            data_dict[label_output][label_alternate]["fitcorr"] = numpy.ma.masked_all_like(data_dict[label_output][label_alternate]["data"])
+            #data_dict[label_output][label_alternate]["fitcorr"] = numpy.ma.masked_all_like(data_dict[label_output][label_alternate]["data"])
+            data_dict[label_output][label_alternate]["fitcorr"] = numpy.ma.copy(data_dict[label_output][label_alternate]["data"])
             stat_dict[label_output][label_alternate]["slope"] = float(0)
             stat_dict[label_output][label_alternate]["offset"] = float(0)
             stat_dict[label_output][label_alternate]["eqnstr"] = "Too few points"
@@ -1184,16 +1183,25 @@ def gfalternate_getoutputstatistics(data_dict,stat_dict,alternate_info):
         # correlation coefficient
         r = numpy.ma.corrcoef(data_dict[label_tower]["data"],data_dict[label]["fitcorr"])
         stat_dict[label]["r"] = r[0,1]
+        # means
+        avg = numpy.ma.mean(data_dict[label_tower]["data"])
+        stat_dict[label]["Avg (Tower)"] = avg
+        avg = numpy.ma.mean(data_dict[label]["fitcorr"])
+        stat_dict[label]["Avg (Alt)"] = avg
         # variances
-        var = numpy.ma.var(data_dict[label_tower]["data"])
-        stat_dict[label]["Var (Tower)"] = var
-        var = numpy.ma.var(data_dict[label]["fitcorr"])
-        stat_dict[label]["Var (Alt)"] = var
+        var_tower = numpy.ma.var(data_dict[label_tower]["data"])
+        stat_dict[label]["Var (Tower)"] = var_tower
+        var_alt = numpy.ma.var(data_dict[label]["fitcorr"])
+        stat_dict[label]["Var (Alt)"] = var_alt
+        if var_alt!=0:
+            stat_dict[label]["Var ratio"] = var_tower/var_alt
+        else:
+            stat_dict[label]["Var ratio"] = float(c.missing_value)
         # RMSE & NMSE
         error = (data_dict[label_tower]["data"]-data_dict[label]["fitcorr"])
         rmse = numpy.ma.sqrt(numpy.ma.average(error*error))
         stat_dict[label]["RMSE"] = rmse
-        norm_rmse = rmse/(numpy.ma.maximum(data_dict[label_tower]["data"])-numpy.ma.minimum(data_dict[label_tower]["data"]))
+        norm_rmse = rmse/numpy.ma.mean(data_dict[label_tower]["data"])
         stat_dict[label]["NMSE"] = norm_rmse
         # bias & fractional bias
         stat_dict[label]["Bias"] = numpy.ma.average(error)
@@ -1532,16 +1540,20 @@ def gfalternate_main(ds_tower,ds_alt,alternate_info,label_tower_list=[]):
                 # update the data and sata dictionaries
                 stat_dict[label_output][label_alternate] = {"startdate":alternate_info["startdate"],"enddate":alternate_info["enddate"]}
                 if label_output not in data_dict[label_tower]["output_list"]:
-                    if alternate_info["gotminpoints_both"]: data_dict[label_tower]["output_list"].append(label_output)
+                    data_dict[label_tower]["output_list"].append(label_output)
+#                    if alternate_info["gotminpoints_both"]: data_dict[label_tower]["output_list"].append(label_output)
                 data_dict[label_output][label_alternate] = {"data":data_alternate,"attr":attr_alternate}
                 gfalternate_getcorrecteddata(ds_alternate,data_dict,stat_dict,alternate_info,mode=mode)
                 gfalternate_loadoutputdata(ds_tower,data_dict,alternate_info)
                 # check to see if we have alternate data for this whole period, if so there is no reason to continue
-                ind_tower = numpy.where(abs(ds_tower.series[label_output]["Data"][si_tower:ei_tower+1]-float(c.missing_value))<c.eps)[0]
-                if len(ind_tower)==0: break
+                #ind_tower = numpy.where(abs(ds_tower.series[label_output]["Data"][si_tower:ei_tower+1]-float(c.missing_value))<c.eps)[0]
+                #if len(ind_tower)==0: break
         # we have completed the loop over the alternate data for this output
         # now do the statistics, diurnal average and daily averages for this output
         gfalternate_getoutputstatistics(data_dict,stat_dict,alternate_info)
+        for label_output in label_output_list:
+            for result in ds_tower.alternate[label_output]["results"]:
+                ds_tower.alternate[label_output]["results"][result].append(stat_dict[label_output][result])
         if alternate_info["nogaps_tower"]:
             if alternate_info["show_all"]:
                 pass
@@ -1908,6 +1920,8 @@ def gfalternate_run_gui(ds_tower,ds_alt,alt_gui,alternate_info):
                           "enddate":enddate.strftime("%Y-%m-%d %H:%M")}        
     else:
         log.error("GapFillFromAlternate: unrecognised period option")
+    # write Excel spreadsheet with fit statistics
+    qcio.xl_write_AlternateStats(ds_tower)
 
 def gfalternate_run_nogui(cf,ds_tower,ds_alt,alternate_info):
     # populate the alternate_info dictionary with things that will be useful
@@ -2443,8 +2457,6 @@ def gfSOLO_done(ds,solo_gui,solo_info):
     if solo_gui.peropt.get()==1: gfSOLO_plotsummary(ds,solo_info)
     # destroy the SOLO GUI
     solo_gui.destroy()
-    # write Excel spreadsheet with fit statistics
-    qcio.xl_write_SOLOStats(ds)
     # remove the solo dictionary from the data structure
     ds.returncodes["solo"] = "normal"
 
@@ -2634,8 +2646,13 @@ def gfSOLO_plot(pd,dsa,dsb,driverlist,targetlabel,outputlabel,solo_info,si=0,ei=
     numfilled = numpy.ma.count(mod)-numpy.ma.count(obs)
     diff = mod - obs
     bias = numpy.ma.average(diff)
+    fractional_bias = bias/(0.5*(numpy.ma.average(obs+mod)))
     dsb.solo[outputlabel]["results"]["Bias"].append(bias)
+    dsb.solo[outputlabel]["results"]["Frac Bias"].append(fractional_bias)
     rmse = numpy.ma.sqrt(numpy.ma.mean((obs-mod)*(obs-mod)))
+    mean_mod = numpy.ma.mean(mod)
+    mean_obs = numpy.ma.mean(obs)
+    nmse = rmse/mean_obs
     plt.figtext(0.65,0.225,'No. points')
     plt.figtext(0.75,0.225,str(numpoints))
     dsb.solo[outputlabel]["results"]["No. points"].append(numpoints)
@@ -2663,6 +2680,7 @@ def gfSOLO_plot(pd,dsa,dsb,driverlist,targetlabel,outputlabel,solo_info,si=0,ei=
     plt.figtext(0.815,0.150,'RMSE')
     plt.figtext(0.915,0.150,str(qcutils.round2sig(rmse,sig=4)))
     dsb.solo[outputlabel]["results"]["RMSE"].append(rmse)
+    dsb.solo[outputlabel]["results"]["NMSE"].append(nmse)
     var_obs = numpy.ma.var(obs)
     plt.figtext(0.815,0.125,'Var (obs)')
     plt.figtext(0.915,0.125,'%.4g'%(var_obs))
@@ -2680,7 +2698,7 @@ def gfSOLO_plot(pd,dsa,dsb,driverlist,targetlabel,outputlabel,solo_info,si=0,ei=
     ts_axes.append(plt.axes(rect))
     ts_axes[0].plot(xdt,obs,'b.',xdt,mod,'r-')
     ts_axes[0].set_xlim(xdt[0],xdt[-1])
-    TextStr = targetlabel+'_obs ('+dsa.series[targetlabel]['Attr']['units']+')'
+    TextStr = targetlabel+'_obs ('+dsb.series[targetlabel]['Attr']['units']+')'
     ts_axes[0].text(0.05,0.85,TextStr,color='b',horizontalalignment='left',transform=ts_axes[0].transAxes)
     TextStr = outputlabel+'('+dsb.series[outputlabel]['Attr']['units']+')'
     ts_axes[0].text(0.85,0.85,TextStr,color='r',horizontalalignment='right',transform=ts_axes[0].transAxes)
@@ -2924,8 +2942,6 @@ def gfSOLO_run_gui(dsa,dsb,solo_gui,solo_info):
             solo_info["enddate"] = enddate.strftime("%Y-%m-%d %H:%M")
         # now fill any remaining gaps
         gfSOLO_autocomplete(dsa,dsb,solo_info)
-        # plot the summary statistics
-        gfSOLO_plotsummary(dsb,solo_info)
         gfSOLO_progress(solo_gui,"Finished auto (monthly) run ...")
         log.info(" GapFillUsingSOLO: Finished auto (monthly) run ...")
     elif solo_gui.peropt.get()==3:
@@ -2948,12 +2964,14 @@ def gfSOLO_run_gui(dsa,dsb,solo_gui,solo_info):
             solo_info["enddate"] = enddate.strftime("%Y-%m-%d %H:%M")
         # now fill any remaining gaps
         gfSOLO_autocomplete(dsa,dsb,solo_info)
-        # plot the summary statistics
-        gfSOLO_plotsummary(dsb,solo_info)
         gfSOLO_progress(solo_gui,"Finished auto (days) run ...")
         log.info(" GapFillUsingSOLO: Finished auto (days) run ...")
     elif solo_gui.peropt.get()==4:
         pass
+    # write Excel spreadsheet with fit statistics
+    qcio.xl_write_SOLOStats(dsb)
+    # plot the summary statistics
+    gfSOLO_plotsummary(dsb,solo_info)
 
 def gfSOLO_run_nogui(cf,dsa,dsb,solo_info):
     # populate the solo_info dictionary with things that will be useful
@@ -3044,8 +3062,6 @@ def gfSOLO_run_nogui(cf,dsa,dsb,solo_info):
             solo_info["enddate"] = enddate.strftime("%Y-%m-%d %H:%M")
         # now fill any remaining gaps
         gfSOLO_autocomplete(dsa,dsb,solo_info)
-        # plot the summary statistics
-        gfSOLO_plotsummary(dsb,solo_info)
         log.info(" GapFillUsingSOLO: Finished auto (monthly) run ...")
     elif solo_info["peropt"]==3:
         # get the start datetime entered in the SOLO GUI
@@ -3064,11 +3080,13 @@ def gfSOLO_run_nogui(cf,dsa,dsb,solo_info):
             solo_info["enddate"] = enddate.strftime("%Y-%m-%d %H:%M")
         # now fill any remaining gaps
         gfSOLO_autocomplete(dsa,dsb,solo_info)
-        # plot the summary statistics
-        gfSOLO_plotsummary(dsb,solo_info)
         log.info(" GapFillUsingSOLO: Finished auto (days) run ...")
     elif solo_info["peropt"]==4:
         pass
+    # write the SOLO fit statistics to an Excel file
+    qcio.xl_write_SOLOStats(dsb)
+    # plot the summary statistics
+    gfSOLO_plotsummary(dsb,solo_info)
 
 def gfSOLO_runseqsolo(dsa,dsb,driverlist,targetlabel,outputlabel,nRecs,si=0,ei=-1):
     '''
@@ -3134,8 +3152,9 @@ def gfSOLO_runseqsolo(dsa,dsb,driverlist,targetlabel,outputlabel,nRecs,si=0,ei=-
             dsb.series[outputlabel]['Data'][si:ei+1][goodindex] = seqdata[:,1]
             dsb.series[outputlabel]['Flag'][si:ei+1][goodindex] = numpy.int32(30)
         # set the attributes
-        for attr in dsa.series[targetlabel]["Attr"].keys():
-            dsb.series[outputlabel]["Attr"][attr] = dsa.series[targetlabel]["Attr"][attr]
+        if targetlabel in dsa.series.keys():
+            for attr in dsa.series[targetlabel]["Attr"].keys():
+                dsb.series[outputlabel]["Attr"][attr] = dsa.series[targetlabel]["Attr"][attr]
         dsb.series[outputlabel]["Attr"]["long_name"] = dsb.series[outputlabel]["Attr"]["long_name"]+", modeled by SOLO"
         return 1
     else:
