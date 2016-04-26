@@ -1899,7 +1899,9 @@ def xl_write_AlternateStats(ds):
     date_list = ["startdate","enddate"]
     # loop over the series that have been gap filled using alternate data
     d_xf = xlwt.easyxf(num_format_str='dd/mm/yyyy hh:mm')
-    for label in ds.alternate.keys():
+    label_list = ds.alternate.keys()
+    label_list.sort()
+    for label in label_list:
         # get the list of values to output with the start and end dates removed
         output_list = ds.alternate[label]["results"].keys()
         for item in date_list:
@@ -1917,7 +1919,12 @@ def xl_write_AlternateStats(ds):
             xlCol = xlCol + 1
         for output in output_list:
             xlResultsSheet.write(xlRow,xlCol,output)
-            for item in ds.alternate[label]["results"][output]:
+            # convert masked array to ndarray
+            if numpy.ma.isMA(ds.alternate[label]["results"][output]):
+                output_array = numpy.ma.filled(ds.alternate[label]["results"][output],float(c.missing_value))
+            else:
+                output_array = numpy.array(ds.alternate[label]["results"][output],copy=True)
+            for item in output_array:
                 xlRow = xlRow + 1
                 # xlwt under Anaconda seems to only allow float64!
                 xlResultsSheet.write(xlRow,xlCol,numpy.float64(item))
@@ -1941,7 +1948,9 @@ def xl_write_SOLOStats(ds):
     output_list = ["n","r_max","bias","rmse","var_obs","var_mod","m_ols","b_ols"]
     # loop over the series that have been gap filled using ACCESS data
     d_xf = xlwt.easyxf(num_format_str='dd/mm/yyyy hh:mm')
-    for label in ds.solo.keys():
+    label_list = ds.solo.keys()
+    label_list.sort()
+    for label in label_list:
         # get the list of values to output with the start and end dates removed
         output_list = ds.solo[label]["results"].keys()
         for item in date_list:
@@ -1959,7 +1968,12 @@ def xl_write_SOLOStats(ds):
             xlCol = xlCol + 1
         for output in output_list:
             xlResultsSheet.write(xlRow,xlCol,output)
-            for item in ds.solo[label]["results"][output]:
+            # convert masked array to ndarray
+            if numpy.ma.isMA(ds.solo[label]["results"][output]):
+                output_array = numpy.ma.filled(ds.solo[label]["results"][output],float(c.missing_value))
+            else:
+                output_array = numpy.array(ds.solo[label]["results"][output],copy=True)
+            for item in output_array:
                 xlRow = xlRow + 1
                 # xlwt under Anaconda seems to only allow float64!
                 xlResultsSheet.write(xlRow,xlCol,numpy.float64(item))
