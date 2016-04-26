@@ -1201,8 +1201,9 @@ def gfalternate_getoutputstatistics(data_dict,stat_dict,alternate_info):
         error = (data_dict[label_tower]["data"]-data_dict[label]["fitcorr"])
         rmse = numpy.ma.sqrt(numpy.ma.average(error*error))
         stat_dict[label]["RMSE"] = rmse
-        norm_rmse = rmse/numpy.ma.mean(data_dict[label_tower]["data"])
-        stat_dict[label]["NMSE"] = norm_rmse
+        data_range = numpy.ma.maximum(data_dict[label_tower]["data"])-numpy.ma.minimum(data_dict[label_tower]["data"])
+        nmse = rmse/data_range
+        stat_dict[label]["NMSE"] = nmse
         # bias & fractional bias
         stat_dict[label]["Bias"] = numpy.ma.average(error)
         norm_error = (error)/(0.5*(data_dict[label_tower]["data"]+data_dict[label]["fitcorr"]))
@@ -2052,6 +2053,8 @@ def gfalternate_run_nogui(cf,ds_tower,ds_alt,alternate_info):
                           "enddate":enddate.strftime("%Y-%m-%d %H:%M")}        
     else:
         log.error("GapFillFromAlternate: unrecognised period option")
+    # write Excel spreadsheet with fit statistics
+    qcio.xl_write_AlternateStats(ds_tower)
 
 #def gfalternate_startendtimesmatch(ldt_tower,ldt_alternate,alternate_info,mode="verbose"):
     #""" Checks the start and end times of the tower and alternate data."""
@@ -2652,7 +2655,8 @@ def gfSOLO_plot(pd,dsa,dsb,driverlist,targetlabel,outputlabel,solo_info,si=0,ei=
     rmse = numpy.ma.sqrt(numpy.ma.mean((obs-mod)*(obs-mod)))
     mean_mod = numpy.ma.mean(mod)
     mean_obs = numpy.ma.mean(obs)
-    nmse = rmse/mean_obs
+    data_range = numpy.ma.maximum(obs)-numpy.ma.minimum(obs)
+    nmse = rmse/data_range
     plt.figtext(0.65,0.225,'No. points')
     plt.figtext(0.75,0.225,str(numpoints))
     dsb.solo[outputlabel]["results"]["No. points"].append(numpoints)
