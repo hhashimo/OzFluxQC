@@ -167,6 +167,9 @@ def GapFillFromClimatology(ds):
     the climatology.py script.
     '''
     if "climatology" not in dir(ds): return
+    # tell the user what we are going to do
+    msg = " Reading climatology file and creating climatology series"
+    log.info(msg)
     # loop over the series to be gap filled using climatology
     cli_xlbooks = {}
     for output in ds.climatology.keys():
@@ -182,7 +185,6 @@ def GapFillFromClimatology(ds):
         label = ds.climatology[output]["label_tower"]
         method = ds.climatology[output]["method"]
         # do the gap filling
-        log.info(" Gap filling "+label+" using climatology")
         # choose the gap filling method
         if method=="monthly":
             gfClimatology_monthly(ds,label,output,cli_xlbooks)
