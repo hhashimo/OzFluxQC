@@ -181,9 +181,9 @@ def get_LL_params(ldt,Fsd,D,T,NEE,ER,LT_results,info):
                 LL_results["k"] = numpy.append(LL_results["k"],numpy.nan)
         else:
             LL_results["alpha"] = numpy.append(LL_results["alpha"],numpy.nan)
-            LL_results["alpha_low"] = numpy.append(LL_results["alpha_low"],float(-1)*alpha_low)
+            LL_results["alpha_low"] = numpy.append(LL_results["alpha_low"],numpy.nan)
             LL_results["rb"] = numpy.append(LL_results["rb"],numpy.nan)
-            LL_results["rb_low"] = numpy.append(LL_results["rb_low"],rb_low)
+            LL_results["rb_low"] = numpy.append(LL_results["rb_low"],numpy.nan)
             LL_results["rb_prior"] = numpy.append(LL_results["rb_prior"],LL_prior["rb"])
             LL_results["beta"] = numpy.append(LL_results["beta"],numpy.nan)
             LL_results["k"] = numpy.append(LL_results["k"],numpy.nan)
@@ -220,7 +220,13 @@ def get_LT_params(ldt,ER,T,info):
         if len(ERsub)>=10:
             LT_prior["rb"] = numpy.mean(ERsub)
             p0 = [LT_prior["rb"],LT_prior["E0"]]
-            popt,pcov = curve_fit(ER_LloydTaylor,Tsub,ERsub,p0=p0)
+            try:
+                popt,pcov = curve_fit(ER_LloydTaylor,Tsub,ERsub,p0=p0)
+            except RuntimeError:
+                msg = " curve_fit did not work for "+str(start_date)+" to "+str(end_date)
+                log.warning(msg)
+                LT_results["rb"] = numpy.append(LT_results["rb"],numpy.nan)
+                LT_results["E0"] = numpy.append(LT_results["E0"],numpy.nan)
             # QC results
             if popt[1]<50 or popt[1]>400:
                 if last_E0_OK:

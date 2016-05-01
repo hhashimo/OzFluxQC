@@ -216,7 +216,7 @@ def ERUsingLasslop(cf,ds):
     ustar_night = numpy.ma.masked_where(indicator_night==0,ustar)
     ER = numpy.ma.masked_where(indicator_night==0,Fc)
     # loop over the windows and get E0
-    log.info("Estimating the Lloyd-Taylor parameters")
+    log.info("Estimating the rb and E0 parameters")
     LT_results = qcrpLL.get_LT_params(ldt,ER,T_night,info)
     # interpolate parameters
     # this should have a check to make sure we are not interpolating with a small
@@ -272,7 +272,7 @@ def ERUsingLasslop(cf,ds):
     for tts_item,int_item in zip(tts_list,int_list):
         beginning = numpy.ones(days_at_beginning*ntsperday)*LL_results[int_item][0]
         middle = numpy.repeat(LL_results[int_item],info["window_offset"]*ntsperday)
-        nend = len(ldt) - (len(rb_beginning)+len(rb_middle))
+        nend = len(ldt) - (len(beginning)+len(middle))
         end = numpy.ones(nend)*LL_results[int_item][-1]
         LL_results[tts_item] = numpy.concatenate((beginning,middle,end))
     # ***
