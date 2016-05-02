@@ -1122,13 +1122,23 @@ def get_ustarthreshold_from_cf(cf,ldt):
     return ustar_dict
 
 def get_ustarthreshold_from_cpdresults(cf):
-    # do some stuff
+    """
+    Purpose:
+     Returns a dictionary containing ustar thresholds for each year read from
+     the CPD results file.  If there is no CPD results file name found in the
+     control file then return an empty dictionary
+    Usage:
+     ustar_dict = qcrp.get_ustarthreshold_from_cpdresults(cf)
+     where cf is the control file object
+           ustar_dict is a dictionary of ustar thtresholds, 1 entry per year
+    Author: PRI
+    Date: July 2015
+    """
     ustar_dict = collections.OrderedDict()
     if "cpd_filename" not in cf["Files"]:
         msg = " CPD results filename not in control file"
         log.warning(msg)
         return ustar_dict
-    
     cpd_path = cf["Files"]["file_path"]
     cpd_name = cpd_path+cf["Files"]["cpd_filename"]
     cpd_wb = xlrd.open_workbook(cpd_name)
@@ -1145,6 +1155,28 @@ def get_ustarthreshold_from_cpdresults(cf):
                 ustar_dict[year][item] = float(val)
             else:
                 ustar_dict[year][item] = float(c.missing_value)
+    return ustar_dict
+
+def get_ustar_thresholds_annual(ldt,ustar_threshold):
+    """
+    Purpose:
+     Returns a dictionary containing ustar thresholds for all years using
+     a single value enetred as the ustar_threshold argument.
+    Usage:
+     ustar_dict = qcrp.get_ustar_thresholds_annual(ldt,ustar_threshold)
+     where ldt is a list of datetime objects
+           ustar_threshold is the value to be used
+    Author: PRI
+    Date: July 2015
+    """
+    ustar_dict = collections.OrderedDict()
+    if not isinstance(ustar_threshold,float):
+        ustar_threshold = float(ustar_threshold)
+    start_year = ldt[0].year
+    end_year = ldt[-1].year
+    for year in range(start_year,end_year+1):
+        ustar_dict[year] = {}
+        ustar_dict[year]["ustar_mean"] = ustar_threshold
     return ustar_dict
 
 def L6_summary(cf,ds):

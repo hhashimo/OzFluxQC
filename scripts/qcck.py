@@ -11,7 +11,7 @@ import logging
 
 log = logging.getLogger('qc.ck')
 
-def ApplyTurbulenceFilter(cf,ds):
+def ApplyTurbulenceFilter(cf,ds,ustar_threshold=None):
     """
     Purpose:
     Usage:
@@ -25,7 +25,10 @@ def ApplyTurbulenceFilter(cf,ds):
     # time step
     ts = int(ds.globalattributes["time_step"])
     # dictionary of utar thresold values
-    ustar_dict = qcrp.get_ustar_thresholds(cf,ldt)
+    if ustar_threshold==None:
+        ustar_dict = qcrp.get_ustar_thresholds(cf,ldt)
+    else:
+        ustar_dict = qcrp.get_ustar_thresholds_annual(ldt,ustar_threshold)
     # initialise a dictionary for the indicator series
     indicators = {}
     # get data for the indicator series
