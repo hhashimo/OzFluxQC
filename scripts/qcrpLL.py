@@ -89,7 +89,10 @@ def get_LL_params(ldt,Fsd,D,T,NEE,ER,LT_results,info):
         if len(NEEsub)>=10:
             # alpha and rb from linear fit between NEE and Fsd at low light levels
             idx = numpy.where(drivers["Fsd"]<100)[0]
-            alpha_low,rb_low = numpy.polyfit(drivers["Fsd"][idx],NEEsub[idx],1)
+            if len(idx)>=2:
+                alpha_low,rb_low = numpy.polyfit(drivers["Fsd"][idx],NEEsub[idx],1)
+            else:
+                alpha_low,rb_low = numpy.nan,numpy.nan
             if len(ERsub)>=10: LL_prior["rb"] = numpy.mean(ERsub)
             for bm in [0.5,1,2]:
                 #print "Doing beta multiplier: ",bm
@@ -204,6 +207,7 @@ def get_LT_params(ldt,ER,T,info):
     mta = numpy.array([])
     LT_results = {"start_date":mta,"mid_date":mta,"end_date":mta,
                   "rb":mta,"E0":mta}
+    missed_dates = {"start_date":[],"end_date":[]}
     LT_prior = {"rb":1.0,"E0":100}
     start_date = ldt[0]
     last_date = ldt[-1]
@@ -223,10 +227,8 @@ def get_LT_params(ldt,ER,T,info):
             try:
                 popt,pcov = curve_fit(ER_LloydTaylor,Tsub,ERsub,p0=p0)
             except RuntimeError:
-                msg = " curve_fit did not work for "+str(start_date)+" to "+str(end_date)
-                log.warning(msg)
-                LT_results["rb"] = numpy.append(LT_results["rb"],numpy.nan)
-                LT_results["E0"] = numpy.append(LT_results["E0"],numpy.nan)
+                missed_dates["start_date"].append(start_date)
+                missed_dates["end_date"].append(end_date)
             # QC results
             if popt[1]<50 or popt[1]>400:
                 if last_E0_OK:
@@ -247,6 +249,12 @@ def get_LT_params(ldt,ER,T,info):
         end_date = start_date+datetime.timedelta(days=info["window_length"])
     #    start_date = end_date
     #    end_date = start_date+dateutil.relativedelta.relativedelta(years=1)
+    if len(missed_dates["start_date"])!=0:
+        msg = " No solution found for the following dates:"
+        log.warning(msg)
+        for sd,ed in zip(missed_dates["start_date"],missed_dates["end_date"]):
+            msg = "  "+str(sd)+" to "+str(ed)
+            log.warning(msg)
     return LT_results
 
 def plot_LLparams(LT_results,LL_results):

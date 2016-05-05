@@ -178,7 +178,10 @@ def ERUsingFFNET(cf,ds):
 def ERUsingLasslop(cf,ds):
     log.info("Estimating ER using Lasslop")
     # these should be read from the control file
-    info = {"window_length":30,"window_offset":5,"fsd_threshold":10}
+    series = ds.rpLL.keys()
+    info = {"window_length":int(ds.rpLL[series[0]]["window_size_days"]),
+            "window_offset":int(ds.rpLL[series[0]]["step_size_days"]),
+            "fsd_threshold":10}
     ldt = ds.series["DateTime"]["Data"]
     ts = int(ds.globalattributes["time_step"])
     info["ts"] = ts

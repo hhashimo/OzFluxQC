@@ -1219,7 +1219,7 @@ def nc_concatenate(cf):
     # and make sure we have all of the meteorological variables
     qcts.CalculateMeteorologicalVariables(ds)
     # re-calculate the synthetic Fsd
-    #qcts.get_synthetic_fsd(ds)
+    qcts.get_synthetic_fsd(ds)
     # re-apply the quality control checks (range, diurnal and rules)
     qcck.do_qcchecks(cf,ds)
     # update the global attributes for this level

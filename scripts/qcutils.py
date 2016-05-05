@@ -1335,16 +1335,21 @@ def get_missingingapfilledseries(ds):
     # clear out if there was no gap filling
     if len(gf_list)==0: return
     # loop over the series to be checked
+    gap_found = False
     for series in gf_list:
         if series not in ds.series.keys(): continue
         data,flag,attr = GetSeriesasMA(ds,series)
         idx = numpy.ma.where(data.mask==True)[0]
         if len(idx)!=0:
+            gap_found = True
             msg = " Missing points ("+str(len(idx))+") found in "+series
             log.error(msg)
             #ldt_missing = [ldt[i] for i in idx]
             #msg = " The first 10 missing data is at datetimes "+str(ldt_missing[0:9])
             #log.error(msg)
+    if not gap_found:
+        msg = " No missing values found in gap filled series"
+        log.info(msg)
 
 def get_number_from_heightstring(height):
     z = str(height)

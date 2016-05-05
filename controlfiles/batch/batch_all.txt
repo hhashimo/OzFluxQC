@@ -5,7 +5,7 @@
 #  Keys in the Files section must be unique.
 [Options]
     #levels = "['L1','L2','L3','concatenate','climatology','cpd','L4','L5','L6']"
-    levels = "['L4','L5','L6']"
+    levels = "['L6']"
 
 [Levels]
    [[concatenate]]
@@ -101,28 +101,28 @@
        20 = 'controlfiles/Tower/L4/WombatStateForest.txt'
        21 = 'controlfiles/Tower/L4/Yanco.txt'
    [[L5]]
-#       0 = 'controlfiles/Tower/L5/AdelaideRiver.txt'
+       0 = 'controlfiles/Tower/L5/AdelaideRiver.txt'
        1 = 'controlfiles/Tower/L5/Calperum.txt'
-#       2 = 'controlfiles/Tower/L5/CapeTribulation.txt'
-#       3 = 'controlfiles/Tower/L5/CowBay.txt'
+       2 = 'controlfiles/Tower/L5/CapeTribulation.txt'
+       3 = 'controlfiles/Tower/L5/CowBay.txt'
        4 = 'controlfiles/Tower/L5/CumberlandPlains.txt'
-#       5 = 'controlfiles/Tower/L5/DalyPasture.txt'
+       5 = 'controlfiles/Tower/L5/DalyPasture.txt'
        6 = 'controlfiles/Tower/L5/DalyUncleared.txt'
-#       7 = 'controlfiles/Tower/L5/DryRiver.txt'
-#       8 = 'controlfiles/Tower/L5/Emerald.txt'
+       7 = 'controlfiles/Tower/L5/DryRiver.txt'
+       8 = 'controlfiles/Tower/L5/Emerald.txt'
        9 = 'controlfiles/Tower/L5/Gingin.txt'
        10 = 'controlfiles/Tower/L5/GreatWesternWoodlands.txt'
        11 = 'controlfiles/Tower/L5/HowardSprings.txt'
-#       12 = 'controlfiles/Tower/L5/Otway.txt'
-#       13 = 'controlfiles/Tower/L5/RedDirtMelonFarm.txt'
-#       14 = 'controlfiles/Tower/L5/RiggsCreek.txt'
-#       15 = 'controlfiles/Tower/L5/RobsonCreek.txt'
-#       16 = 'controlfiles/Tower/L5/Samford.txt'
+       12 = 'controlfiles/Tower/L5/Otway.txt'
+       13 = 'controlfiles/Tower/L5/RedDirtMelonFarm.txt'
+       14 = 'controlfiles/Tower/L5/RiggsCreek.txt'
+       15 = 'controlfiles/Tower/L5/RobsonCreek.txt'
+       16 = 'controlfiles/Tower/L5/Samford.txt'
        17 = 'controlfiles/Tower/L5/SturtPlains.txt'
        18 = 'controlfiles/Tower/L5/Tumbarumba.txt'
        19 = 'controlfiles/Tower/L5/Whroo.txt'
        20 = 'controlfiles/Tower/L5/WombatStateForest.txt'
-#       21 = 'controlfiles/Tower/L5/Yanco.txt'
+       21 = 'controlfiles/Tower/L5/Yanco.txt'
    [[L6]]
        0 = 'controlfiles/Tower/L6/AdelaideRiver.txt'
        1 = 'controlfiles/Tower/L6/Calperum.txt'
