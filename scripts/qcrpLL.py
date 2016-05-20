@@ -12,6 +12,11 @@ log = logging.getLogger('qc.rpLL')
 def ER_LloydTaylor(T,rb,E0):
     return rb*numpy.exp(E0*(1/(c.Tref-c.T0)-1/(T-c.T0)))
 
+def ER_LloydTaylor_fixedE0(data,rb):
+    T = data[0]
+    E0 = data[1]
+    return rb*numpy.exp(E0*(1/(c.Tref-c.T0)-1/(T-c.T0)))
+
 def NEE_RHLRC_D(data,alpha,beta,k,D0,rb,E0):
     Fsd = data["Fsd"]
     D = data["D"]
@@ -196,7 +201,7 @@ def get_LL_params(ldt,Fsd,D,T,NEE,ER,LT_results,info):
     LL_results["D0"] = D0
     return LL_results
 
-def get_LT_params(ldt,ER,T,info):
+def get_LT_params(ldt,ER,T,info,mode="verbose"):
     """
     Purpose:
      Returns rb and E0 for the Lloyd & Taylor respiration function.
@@ -206,7 +211,7 @@ def get_LT_params(ldt,ER,T,info):
     """
     mta = numpy.array([])
     LT_results = {"start_date":mta,"mid_date":mta,"end_date":mta,
-                  "rb":mta,"E0":mta}
+                  "rb":mta,"E0":mta,"rb_prior":mta,"E0_prior":mta}
     missed_dates = {"start_date":[],"end_date":[]}
     LT_prior = {"rb":1.0,"E0":100}
     start_date = ldt[0]
@@ -229,7 +234,7 @@ def get_LT_params(ldt,ER,T,info):
             except RuntimeError:
                 missed_dates["start_date"].append(start_date)
                 missed_dates["end_date"].append(end_date)
-            # QC results
+            # QC E0 results
             if popt[1]<50 or popt[1]>400:
                 if last_E0_OK:
                     popt[1] = LT_results["E0"][-1]
@@ -238,23 +243,36 @@ def get_LT_params(ldt,ER,T,info):
                     if popt[1]<50: popt[1] = float(50)
                     if popt[1]>400: popt[1] = float(400)
                     last_E0_OK = False
+                # now recalculate rb
+                p0 = LT_prior["rb"]
+                if numpy.isnan(popt[1]): popt[1] = float(50)
+                E0 = numpy.ones(len(Tsub))*float(popt[1])
+                popt1,pcov1 = curve_fit(ER_LloydTaylor_fixedE0,[Tsub,E0],ERsub,p0=p0)
+                popt[0] = popt1[0]
             else:
                 last_E0_OK = True
+            # QC rb results
+            if popt[0]<0: popt[0] = float(0)
             LT_results["rb"] = numpy.append(LT_results["rb"],popt[0])
             LT_results["E0"] = numpy.append(LT_results["E0"],popt[1])
+            LT_results["rb_prior"] = numpy.append(LT_results["rb_prior"],numpy.mean(ERsub))
+            LT_results["E0_prior"] = numpy.append(LT_results["E0_prior"],LT_prior["E0"])
         else:
             LT_results["rb"] = numpy.append(LT_results["rb"],numpy.nan)
             LT_results["E0"] = numpy.append(LT_results["E0"],numpy.nan)
+            LT_results["rb_prior"] = numpy.append(LT_results["rb_prior"],numpy.nan)
+            LT_results["E0_prior"] = numpy.append(LT_results["E0_prior"],numpy.nan)
         start_date = start_date+datetime.timedelta(days=info["window_offset"])
         end_date = start_date+datetime.timedelta(days=info["window_length"])
     #    start_date = end_date
     #    end_date = start_date+dateutil.relativedelta.relativedelta(years=1)
-    if len(missed_dates["start_date"])!=0:
-        msg = " No solution found for the following dates:"
-        log.warning(msg)
-        for sd,ed in zip(missed_dates["start_date"],missed_dates["end_date"]):
-            msg = "  "+str(sd)+" to "+str(ed)
+    if mode=="verbose":
+        if len(missed_dates["start_date"])!=0:
+            msg = " No solution found for the following dates:"
             log.warning(msg)
+            for sd,ed in zip(missed_dates["start_date"],missed_dates["end_date"]):
+                msg = "  "+str(sd)+" to "+str(ed)
+                log.warning(msg)
     return LT_results
 
 def plot_LLparams(LT_results,LL_results):

@@ -176,6 +176,7 @@ def ERUsingFFNET(cf,ds):
                 qcrpNN.rpFFNET_run_nogui(cf,ds,FFNET_info)
 
 def ERUsingLasslop(cf,ds):
+    if "rpLL" not in dir(ds): return
     log.info("Estimating ER using Lasslop")
     # these should be read from the control file
     series = ds.rpLL.keys()
