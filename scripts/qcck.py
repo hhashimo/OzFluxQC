@@ -325,20 +325,20 @@ def do_li7500acheck(cf,ds):
     #log.warning(msg)
     #return
     '''Rejects data values for series specified in LI75List for times when the Diag_7500
-       flag is non-zero.  If the Diag_7500 flag is not present in the data structure passed
+       flag is non-zero.  If the Diag_IRGA flag is not present in the data structure passed
        to this routine, it is constructed from the QC flags of the series specified in
        LI75Lisat.  Additional checks are done for AGC_7500 (the LI-7500 AGC value),
        Ah_7500_Sd (standard deviation of absolute humidity) and Cc_7500_Sd (standard
        deviation of CO2 concentration).'''
-    if "Diag_7500" not in ds.series.keys():
-        msg = " Diag_7500 not found in data, skipping 7500 checks ..."
+    if "Diag_IRGA" not in ds.series.keys():
+        msg = " Diag_IRGA not found in data, skipping IRGA checks ..."
         log.warning(msg)
         return
     log.info(' Doing the 7500A check')
     LI75List = ['H2O_IRGA_Av','CO2_IRGA_Av','H2O_IRGA_Sd','CO2_IRGA_Sd','H2O_IRGA_Vr','CO2_IRGA_Vr',
                 'UzA','UxA','UyA','UzC','UxC','UyC']
     index = numpy.where(ds.series['Diag_7500']['Flag']!=0)
-    log.info('  7500ACheck: Diag_7500 ' + str(numpy.size(index)))
+    log.info('  7500ACheck: Diag_IRGA ' + str(numpy.size(index)))
     LI75_dependents = []
     for item in ['Signal_H2O','Signal_CO2','H2O_IRGA_Sd','CO2_IRGA_Sd','H2O_IRGA_Vr','CO2_IRGA_Vr']:
         if item in ds.series.keys(): LI75_dependents.append(item)
@@ -348,8 +348,8 @@ def do_li7500acheck(cf,ds):
         if item in ds.series.keys():
             index = numpy.where(ds.series[item]['Flag']!=0)
             log.info('  7500ACheck: '+item+' rejected '+str(numpy.size(index))+' points')
-            ds.series['Diag_7500']['Flag'] = ds.series['Diag_7500']['Flag'] + ds.series[item]['Flag']
-    index = numpy.where((ds.series['Diag_7500']['Flag']!=0))
+            ds.series['Diag_IRGA']['Flag'] = ds.series['Diag_IRGA']['Flag'] + ds.series[item]['Flag']
+    index = numpy.where((ds.series['Diag_IRGA']['Flag']!=0))
     log.info('  7500ACheck: Total ' + str(numpy.size(index)))
     for ThisOne in LI75List:
         if ThisOne in ds.series.keys():
