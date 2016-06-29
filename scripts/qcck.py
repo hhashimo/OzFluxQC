@@ -321,9 +321,44 @@ def do_7500check(cf,ds):
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',7500Check'
 
 def do_li7500acheck(cf,ds):
-    msg = " Li-7500A check not implemented yet, contact the developer ..."
-    log.warning(msg)
-    return
+    #msg = " Li-7500A check not implemented yet, contact the developer ..."
+    #log.warning(msg)
+    #return
+    '''Rejects data values for series specified in LI75List for times when the Diag_7500
+       flag is non-zero.  If the Diag_7500 flag is not present in the data structure passed
+       to this routine, it is constructed from the QC flags of the series specified in
+       LI75Lisat.  Additional checks are done for AGC_7500 (the LI-7500 AGC value),
+       Ah_7500_Sd (standard deviation of absolute humidity) and Cc_7500_Sd (standard
+       deviation of CO2 concentration).'''
+    if "Diag_7500" not in ds.series.keys():
+        msg = " Diag_7500 not found in data, skipping 7500 checks ..."
+        log.warning(msg)
+        return
+    log.info(' Doing the 7500A check')
+    LI75List = ['H2O_IRGA_Avg','CO2_IRGA_Avg','H2O_IRGA_Std','CO2_IRGA_Std',
+                'UzA','UxA','UyA','UzC','UxC','UyC']
+    index = numpy.where(ds.series['Diag_7500']['Flag']!=0)
+    log.info('  7500ACheck: Diag_7500 ' + str(numpy.size(index)))
+    LI75_dependents = []
+    for item in ['Signal_H2O','H2O_IRGA_Std','CO2_IRGA_Std','H2O_IRGA_Var','CO2_IRGA_Var']:
+        if item in ds.series.keys(): LI75_dependents.append(item)
+    if "H2O_IRGA_Std" and "H2O_IRGA_Var" in LI75_dependents: LI75_dependents.remove("H2O_IRGA_Var")
+    if "CO2_IRGA_Std" and "CO2_IRGA_Var" in LI75_dependents: LI75_dependents.remove("CO2_IRGA_Var")
+    for item in LI75_dependents:
+        if item in ds.series.keys():
+            index = numpy.where(ds.series[item]['Flag']!=0)
+            log.info('  7500ACheck: '+item+' rejected '+str(numpy.size(index))+' points')
+            ds.series['Diag_7500']['Flag'] = ds.series['Diag_7500']['Flag'] + ds.series[item]['Flag']
+    index = numpy.where((ds.series['Diag_7500']['Flag']!=0))
+    log.info('  7500ACheck: Total ' + str(numpy.size(index)))
+    for ThisOne in LI75List:
+        if ThisOne in ds.series.keys():
+            ds.series[ThisOne]['Data'][index] = numpy.float64(c.missing_value)
+            ds.series[ThisOne]['Flag'][index] = numpy.int32(4)
+        else:
+            log.error('  qcck.do_7500acheck: series '+str(ThisOne)+' in LI75List not found in ds.series')
+    if '7500ACheck' not in ds.globalattributes['Functions']:
+        ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',7500ACheck'
 
 def do_EC155check(cf,ds):
     """
@@ -340,12 +375,12 @@ def do_EC155check(cf,ds):
     # seems OK to continue
     log.info(' Doing the EC155 check')
     # list of series that depend on IRGA data quality
-    EC155_list = ['H2O_IRGA_Av','CO2_IRGA_Av','H2O_IRGA_Sd','CO2_IRGA_Sd',
-                 'UzH','UxH','UyH','UzC','UxC','UyC']
+    EC155_list = ['H2O_IRGA_Avg','CO2_IRGA_Avg','H2O_IRGA_Std','CO2_IRGA_Std',
+                 'UzA','UxA','UyA','UzH','UxH','UyH','UzC','UxC','UyC']
     index = numpy.where(ds.series['Diag_IRGA']['Flag']!=0)
     log.info('  EC155Check: Diag_IRGA rejects ' + str(numpy.size(index)))
     EC155_dependents = []
-    for item in ['Signal_H2O','Signal_CO2','H2O_IRGA_Sd','CO2_IRGA_Sd']:
+    for item in ['Signal_H2O','Signal_CO2','H2O_IRGA_Std','CO2_IRGA_Std']:
         if item in ds.series.keys(): EC155_dependents.append(item)
     for item in EC155_dependents:
         index = numpy.where(ds.series[item]['Flag']!=0)
@@ -358,7 +393,7 @@ def do_EC155check(cf,ds):
             ds.series[ThisOne]['Data'][index] = numpy.float64(c.missing_value)
             ds.series[ThisOne]['Flag'][index] = numpy.int32(4)
         else:
-            log.error(' do_EC155check: series '+str(ThisOne)+' in EC155 list not found in data structure')
+            log.warning(' do_EC155check: series '+str(ThisOne)+' in EC155 list not found in data structure')
     if 'EC155Check' not in ds.globalattributes['Functions']:
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',EC155Check'
 
