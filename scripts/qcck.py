@@ -335,15 +335,15 @@ def do_li7500acheck(cf,ds):
         log.warning(msg)
         return
     log.info(' Doing the 7500A check')
-    LI75List = ['H2O_IRGA_Avg','CO2_IRGA_Avg','H2O_IRGA_Std','CO2_IRGA_Std',
+    LI75List = ['H2O_IRGA_Av','CO2_IRGA_Av','H2O_IRGA_Sd','CO2_IRGA_Sd','H2O_IRGA_Vr','CO2_IRGA_Vr',
                 'UzA','UxA','UyA','UzC','UxC','UyC']
     index = numpy.where(ds.series['Diag_7500']['Flag']!=0)
     log.info('  7500ACheck: Diag_7500 ' + str(numpy.size(index)))
     LI75_dependents = []
-    for item in ['Signal_H2O','H2O_IRGA_Std','CO2_IRGA_Std','H2O_IRGA_Var','CO2_IRGA_Var']:
+    for item in ['Signal_H2O','Signal_CO2','H2O_IRGA_Sd','CO2_IRGA_Sd','H2O_IRGA_Vr','CO2_IRGA_Vr']:
         if item in ds.series.keys(): LI75_dependents.append(item)
-    if "H2O_IRGA_Std" and "H2O_IRGA_Var" in LI75_dependents: LI75_dependents.remove("H2O_IRGA_Var")
-    if "CO2_IRGA_Std" and "CO2_IRGA_Var" in LI75_dependents: LI75_dependents.remove("CO2_IRGA_Var")
+    if "H2O_IRGA_Sd" and "H2O_IRGA_Vr" in LI75_dependents: LI75_dependents.remove("H2O_IRGA_Vr")
+    if "CO2_IRGA_Sd" and "CO2_IRGA_Vr" in LI75_dependents: LI75_dependents.remove("CO2_IRGA_Vr")
     for item in LI75_dependents:
         if item in ds.series.keys():
             index = numpy.where(ds.series[item]['Flag']!=0)
@@ -356,7 +356,7 @@ def do_li7500acheck(cf,ds):
             ds.series[ThisOne]['Data'][index] = numpy.float64(c.missing_value)
             ds.series[ThisOne]['Flag'][index] = numpy.int32(4)
         else:
-            log.error('  qcck.do_7500acheck: series '+str(ThisOne)+' in LI75List not found in ds.series')
+            log.warning('  qcck.do_7500acheck: series '+str(ThisOne)+' in LI75List not found in ds.series')
     if '7500ACheck' not in ds.globalattributes['Functions']:
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',7500ACheck'
 
@@ -375,12 +375,12 @@ def do_EC155check(cf,ds):
     # seems OK to continue
     log.info(' Doing the EC155 check')
     # list of series that depend on IRGA data quality
-    EC155_list = ['H2O_IRGA_Avg','CO2_IRGA_Avg','H2O_IRGA_Std','CO2_IRGA_Std',
+    EC155_list = ['H2O_IRGA_Av','CO2_IRGA_Av','H2O_IRGA_Sd','CO2_IRGA_Sd','H2O_IRGA_Vr','CO2_IRGA_Vr',
                  'UzA','UxA','UyA','UzH','UxH','UyH','UzC','UxC','UyC']
     index = numpy.where(ds.series['Diag_IRGA']['Flag']!=0)
     log.info('  EC155Check: Diag_IRGA rejects ' + str(numpy.size(index)))
     EC155_dependents = []
-    for item in ['Signal_H2O','Signal_CO2','H2O_IRGA_Std','CO2_IRGA_Std']:
+    for item in ['Signal_H2O','Signal_CO2','H2O_IRGA_Sd','CO2_IRGA_Sd']:
         if item in ds.series.keys(): EC155_dependents.append(item)
     for item in EC155_dependents:
         index = numpy.where(ds.series[item]['Flag']!=0)
