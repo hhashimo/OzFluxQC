@@ -271,10 +271,10 @@ def do_IRGAcheck(cf,ds):
     # do the IRGA checks
     if irga_type.lower()=="li7500":
         ds.globalattributes["irga_type"] = irga_type
-        do_7500check(cf,ds)
+        do_li7500check(cf,ds)
     elif irga_type.lower() in ["li7500a","irgason"]:
         ds.globalattributes["irga_type"] = irga_type
-        do_7500acheck(cf,ds)
+        do_li7500acheck(cf,ds)
     elif irga_type.lower() in ["ec155","ec150","irgason"]:
         ds.globalattributes["irga_type"] = irga_type
         do_EC155check(cf,ds)
@@ -283,7 +283,7 @@ def do_IRGAcheck(cf,ds):
         log.error(msg)
         return
 
-def do_7500check(cf,ds):
+def do_li7500check(cf,ds):
     '''Rejects data values for series specified in LI75List for times when the Diag_7500
        flag is non-zero.  If the Diag_7500 flag is not present in the data structure passed
        to this routine, it is constructed from the QC flags of the series specified in
@@ -337,7 +337,7 @@ def do_li7500acheck(cf,ds):
     log.info(' Doing the 7500A check')
     LI75List = ['H2O_IRGA_Av','CO2_IRGA_Av','H2O_IRGA_Sd','CO2_IRGA_Sd','H2O_IRGA_Vr','CO2_IRGA_Vr',
                 'UzA','UxA','UyA','UzC','UxC','UyC']
-    index = numpy.where(ds.series['Diag_7500']['Flag']!=0)
+    index = numpy.where(ds.series['Diag_IRGA']['Flag']!=0)
     log.info('  7500ACheck: Diag_IRGA ' + str(numpy.size(index)))
     LI75_dependents = []
     for item in ['Signal_H2O','Signal_CO2','H2O_IRGA_Sd','CO2_IRGA_Sd','H2O_IRGA_Vr','CO2_IRGA_Vr']:
@@ -356,7 +356,8 @@ def do_li7500acheck(cf,ds):
             ds.series[ThisOne]['Data'][index] = numpy.float64(c.missing_value)
             ds.series[ThisOne]['Flag'][index] = numpy.int32(4)
         else:
-            log.warning('  qcck.do_7500acheck: series '+str(ThisOne)+' in LI75List not found in ds.series')
+            #log.warning('  qcck.do_7500acheck: series '+str(ThisOne)+' in LI75List not found in ds.series')
+            pass
     if '7500ACheck' not in ds.globalattributes['Functions']:
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',7500ACheck'
 
