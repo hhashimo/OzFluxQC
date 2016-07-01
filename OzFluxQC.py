@@ -4,6 +4,7 @@ import datetime
 import logging
 import matplotlib
 matplotlib.use('TkAgg')
+#matplotlib.use('Qt4Agg')
 import numpy
 import ntpath
 import time

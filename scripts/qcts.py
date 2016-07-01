@@ -932,6 +932,24 @@ def CoordRotation2D(cf,ds):
         if 'RelaxRotation' not in ds.globalattributes['Functions']:
             ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', RelaxRotation'
 
+def CalculateComponentsFromWsWd(ds):
+    """
+    Purpose:
+     Calculate U (positive east) and V (positive north) from wind speed and direction and
+     put the components into the data structure.
+    Usage:
+     qcts.CalculateComponentsFromWsWd(ds)
+    Author: PRI/WW/MK/EvG
+    Date: July 2016
+    """
+    Wd,Wd_flag,attr = qcutils.GetSeriesasMA(ds,"Wd")
+    Ws,Ws_flag,attr = qcutils.GetSeriesasMA(ds,"Ws")
+    u,v = qcutils.convert_WsWdtoUV(Ws,Wd)
+    u_attr = qcutils.MakeAttributeDictionary(long_name="U component of wind in meteorological coordinates (positive east)")
+    v_attr = qcutils.MakeAttributeDictionary(long_name="V component of wind in meteorological coordinates (positive north)")
+    qcutils.CreateSeries(ds,"u",u,Flag=Wd_flag,Attr=u_attr)
+    qcutils.CreateSeries(ds,"v",v,Flag=Wd_flag,Attr=v_attr)
+
 def CalculateFcStorage(cf,ds,Fc_out='Fc_storage',CO2_in='Cc'):
     """
     Calculate CO2 flux storage term in the air column beneath the CO2 instrument.  This
