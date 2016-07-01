@@ -947,8 +947,8 @@ def CalculateComponentsFromWsWd(ds):
     u,v = qcutils.convert_WsWdtoUV(Ws,Wd)
     u_attr = qcutils.MakeAttributeDictionary(long_name="U component of wind in meteorological coordinates (positive east)")
     v_attr = qcutils.MakeAttributeDictionary(long_name="V component of wind in meteorological coordinates (positive north)")
-    qcutils.CreateSeries(ds,"u",u,Flag=Wd_flag,Attr=u_attr)
-    qcutils.CreateSeries(ds,"v",v,Flag=Wd_flag,Attr=v_attr)
+    qcutils.CreateSeries(ds,"U",u,Flag=Wd_flag,Attr=u_attr)
+    qcutils.CreateSeries(ds,"V",v,Flag=Wd_flag,Attr=v_attr)
 
 def CalculateFcStorage(cf,ds,Fc_out='Fc_storage',CO2_in='Cc'):
     """
