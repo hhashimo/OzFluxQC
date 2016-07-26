@@ -1,0 +1,12 @@
+# python files
+*.pyc
+
+# log files
+logfiles
+
+# mac files
+.DS_store
+
+# exception for .gitignore
+!.gitignore
+!.gitattributes
