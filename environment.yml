@@ -1,0 +1,12 @@
+name: ozqc
+dependencies:
+  - matplotlib
+  - numpy 
+  - xlwt 
+  - xlrd 
+  - xlsxwriter
+  - netcdf4
+  - scipy
+  - dateutil
+  - configobj
+  - statsmodels
