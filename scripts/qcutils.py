@@ -1666,6 +1666,14 @@ def nxMom_nxScalar_alpha(zoL):
     alpha[stable] = 1
     return nxMom, nxScalar, alpha
 
+def path_exists(pathname,mode="verbose"):
+    if not os.path.isdir(pathname):
+        if mode=="verbose":
+            log.error(' Path '+pathname+' not found')
+        return False
+    else:
+        return True
+
 def perdelta(start, end, delta):
     """
     Yields an iterator of datetime objects from start to end with time step delta.

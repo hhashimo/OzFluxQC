@@ -932,6 +932,24 @@ def CoordRotation2D(cf,ds):
         if 'RelaxRotation' not in ds.globalattributes['Functions']:
             ds.globalattributes['Functions'] = ds.globalattributes['Functions']+', RelaxRotation'
 
+def CalculateComponentsFromWsWd(ds):
+    """
+    Purpose:
+     Calculate U (positive east) and V (positive north) from wind speed and direction and
+     put the components into the data structure.
+    Usage:
+     qcts.CalculateComponentsFromWsWd(ds)
+    Author: PRI/WW/MK/EvG
+    Date: July 2016
+    """
+    Wd,Wd_flag,attr = qcutils.GetSeriesasMA(ds,"Wd")
+    Ws,Ws_flag,attr = qcutils.GetSeriesasMA(ds,"Ws")
+    u,v = qcutils.convert_WsWdtoUV(Ws,Wd)
+    u_attr = qcutils.MakeAttributeDictionary(long_name="U component of wind in meteorological coordinates (positive east)")
+    v_attr = qcutils.MakeAttributeDictionary(long_name="V component of wind in meteorological coordinates (positive north)")
+    qcutils.CreateSeries(ds,"U",u,Flag=Wd_flag,Attr=u_attr)
+    qcutils.CreateSeries(ds,"V",v,Flag=Wd_flag,Attr=v_attr)
+
 def CalculateFcStorage(cf,ds,Fc_out='Fc_storage',CO2_in='Cc'):
     """
     Calculate CO2 flux storage term in the air column beneath the CO2 instrument.  This
@@ -1361,23 +1379,43 @@ def CalculateStandardDeviations(cf,ds):
     if 'AhAh' in ds.series.keys() and 'Ah_7500_Sd' not in ds.series.keys():
         AhAh,flag,attr = qcutils.GetSeriesasMA(ds,'AhAh')
         Ah_7500_Sd = numpy.ma.sqrt(AhAh)
-        attr = qcutils.MakeAttributeDictionary(long_name='Absolute humidity from Li-7500, standard deviation',units='g/m3')
+        attr = qcutils.MakeAttributeDictionary(long_name='Absolute humidity from IRGA, standard deviation',units='g/m3')
         qcutils.CreateSeries(ds,'Ah_7500_Sd',Ah_7500_Sd,Flag=flag,Attr=attr)
+    if 'H2O_IRGA_Vr' in ds.series.keys() and 'H2O_IRGA_Sd' not in ds.series.keys():
+        H2O_IRGA_Vr,flag,attr = qcutils.GetSeriesasMA(ds,'H2O_IRGA_Vr')
+        H2O_IRGA_Sd = numpy.ma.sqrt(H2O_IRGA_Vr)
+        attr = qcutils.MakeAttributeDictionary(long_name='Absolute humidity from IRGA, standard deviation',units='g/m3')
+        qcutils.CreateSeries(ds,'H2O_IRGA_Sd',H2O_IRGA_Sd,Flag=flag,Attr=attr)
     if 'Ah_7500_Sd' in ds.series.keys() and 'AhAh' not in ds.series.keys():
         Ah_7500_Sd,flag,attr = qcutils.GetSeriesasMA(ds,'Ah_7500_Sd')
         AhAh = Ah_7500_Sd*Ah_7500_Sd
-        attr = qcutils.MakeAttributeDictionary(long_name='Absolute humidity from Li-7500, variance',units='(g/m3)2')
+        attr = qcutils.MakeAttributeDictionary(long_name='Absolute humidity from IRGA, variance',units='(g/m3)2')
         qcutils.CreateSeries(ds,'AhAh',AhAh,Flag=flag,Attr=attr)
+    if 'H2O_IRGA_Sd' in ds.series.keys() and 'H2O_IRGA_Vr' not in ds.series.keys():
+        H2O_IRGA_Sd,flag,attr = qcutils.GetSeriesasMA(ds,'H2O_IRGA_Sd')
+        H2O_IRGA_Vr = H2O_IRGA_Sd*H2O_IRGA_Sd
+        attr = qcutils.MakeAttributeDictionary(long_name='Absolute humidity from IRGA, variance',units='(g/m3)2')
+        qcutils.CreateSeries(ds,'H2O_IRGA_Vr',H2O_IRGA_Vr,Flag=flag,Attr=attr)
     if 'CcCc' in ds.series.keys() and 'Cc_7500_Sd' not in ds.series.keys():
         CcCc,flag,attr = qcutils.GetSeriesasMA(ds,'CcCc')
         Cc_7500_Sd = numpy.ma.sqrt(CcCc)
-        attr = qcutils.MakeAttributeDictionary(long_name='CO2 concentration from Li-7500, standard deviation',units='mg/m3')
+        attr = qcutils.MakeAttributeDictionary(long_name='CO2 concentration from IRGA, standard deviation',units='mg/m3')
         qcutils.CreateSeries(ds,'Cc_7500_Sd',Cc_7500_Sd,Flag=flag,Attr=attr)
+    if 'CO2_IRGA_Sd' in ds.series.keys() and 'CO2_IRGA_Vr' not in ds.series.keys():
+        CO2_IRGA_Sd,flag,attr = qcutils.GetSeriesasMA(ds,'CO2_IRGA_Sd')
+        CO2_IRGA_Vr = CO2_IRGA_Sd*CO2_IRGA_Sd
+        attr = qcutils.MakeAttributeDictionary(long_name='CO2 concentration from IRGA, variance',units='(mg/m3)2')
+        qcutils.CreateSeries(ds,'CO2_IRGA_Vr',CO2_IRGA_Vr,Flag=flag,Attr=attr)
     if 'Cc_7500_Sd' in ds.series.keys() and 'CcCc' not in ds.series.keys():
         Cc_7500_Sd,flag,attr = qcutils.GetSeriesasMA(ds,'Cc_7500_Sd')
         CcCc = Cc_7500_Sd*Cc_7500_Sd
-        attr = qcutils.MakeAttributeDictionary(long_name='CO2 concentration from Li-7500, variance',units='(mg/m3)2')
+        attr = qcutils.MakeAttributeDictionary(long_name='CO2 concentration from IRGA, variance',units='(mg/m3)2')
         qcutils.CreateSeries(ds,'CcCc',CcCc,Flag=flag,Attr=attr)
+    if 'CO2_IRGA_Vr' in ds.series.keys() and 'CO2_IRGA_Sd' not in ds.series.keys():
+        CO2_IRGA_Vr,flag,attr = qcutils.GetSeriesasMA(ds,'CO2_IRGA_Vr')
+        CO2_IRGA_Sd = numpy.ma.sqrt(CO2_IRGA_Vr)
+        attr = qcutils.MakeAttributeDictionary(long_name='CO2 concentration from IRGA, standard deviation',units='mg/m3')
+        qcutils.CreateSeries(ds,'CO2_IRGA_Sd',CO2_IRGA_Sd,Flag=flag,Attr=attr)
     if 'Ux_Sd' in ds.series.keys() and 'UxUx' not in ds.series.keys():
         Ux_Sd,flag,attr = qcutils.GetSeriesasMA(ds,'Ux_Sd')
         UxUx = Ux_Sd*Ux_Sd

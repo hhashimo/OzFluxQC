@@ -259,6 +259,8 @@ def l4qc(cf,ds3):
     qcts.CalculateHumiditiesAfterGapFill(ds4)
     # re-calculate the meteorological variables
     qcts.CalculateMeteorologicalVariables(ds4)
+    # the Tumba rhumba
+    qcts.CalculateComponentsFromWsWd(ds4)
     # check for any missing data
     qcutils.get_missingingapfilledseries(ds4)
     # write the percentage of good data as a variable attribute

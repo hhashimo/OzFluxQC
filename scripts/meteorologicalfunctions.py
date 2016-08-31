@@ -366,4 +366,3 @@ def virtualtheta(theta,mr):
     #  Tvp - virtual potential temperature, K
     Tvp = theta * (1 + (0.61 * mr))
     return Tvp
-

@@ -271,10 +271,10 @@ def do_IRGAcheck(cf,ds):
     # do the IRGA checks
     if irga_type.lower()=="li7500":
         ds.globalattributes["irga_type"] = irga_type
-        do_7500check(cf,ds)
+        do_li7500check(cf,ds)
     elif irga_type.lower() in ["li7500a","irgason"]:
         ds.globalattributes["irga_type"] = irga_type
-        do_7500acheck(cf,ds)
+        do_li7500acheck(cf,ds)
     elif irga_type.lower() in ["ec155","ec150","irgason"]:
         ds.globalattributes["irga_type"] = irga_type
         do_EC155check(cf,ds)
@@ -283,7 +283,7 @@ def do_IRGAcheck(cf,ds):
         log.error(msg)
         return
 
-def do_7500check(cf,ds):
+def do_li7500check(cf,ds):
     '''Rejects data values for series specified in LI75List for times when the Diag_7500
        flag is non-zero.  If the Diag_7500 flag is not present in the data structure passed
        to this routine, it is constructed from the QC flags of the series specified in
@@ -321,9 +321,45 @@ def do_7500check(cf,ds):
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',7500Check'
 
 def do_li7500acheck(cf,ds):
-    msg = " Li-7500A check not implemented yet, contact the developer ..."
-    log.warning(msg)
-    return
+    #msg = " Li-7500A check not implemented yet, contact the developer ..."
+    #log.warning(msg)
+    #return
+    '''Rejects data values for series specified in LI75List for times when the Diag_7500
+       flag is non-zero.  If the Diag_IRGA flag is not present in the data structure passed
+       to this routine, it is constructed from the QC flags of the series specified in
+       LI75Lisat.  Additional checks are done for AGC_7500 (the LI-7500 AGC value),
+       Ah_7500_Sd (standard deviation of absolute humidity) and Cc_7500_Sd (standard
+       deviation of CO2 concentration).'''
+    if "Diag_IRGA" not in ds.series.keys():
+        msg = " Diag_IRGA not found in data, skipping IRGA checks ..."
+        log.warning(msg)
+        return
+    log.info(' Doing the 7500A check')
+    LI75List = ['H2O_IRGA_Av','CO2_IRGA_Av','H2O_IRGA_Sd','CO2_IRGA_Sd','H2O_IRGA_Vr','CO2_IRGA_Vr',
+                'UzA','UxA','UyA','UzC','UxC','UyC']
+    index = numpy.where(ds.series['Diag_IRGA']['Flag']!=0)
+    log.info('  7500ACheck: Diag_IRGA ' + str(numpy.size(index)))
+    LI75_dependents = []
+    for item in ['Signal_H2O','Signal_CO2','H2O_IRGA_Sd','CO2_IRGA_Sd','H2O_IRGA_Vr','CO2_IRGA_Vr']:
+        if item in ds.series.keys(): LI75_dependents.append(item)
+    if "H2O_IRGA_Sd" and "H2O_IRGA_Vr" in LI75_dependents: LI75_dependents.remove("H2O_IRGA_Vr")
+    if "CO2_IRGA_Sd" and "CO2_IRGA_Vr" in LI75_dependents: LI75_dependents.remove("CO2_IRGA_Vr")
+    for item in LI75_dependents:
+        if item in ds.series.keys():
+            index = numpy.where(ds.series[item]['Flag']!=0)
+            log.info('  7500ACheck: '+item+' rejected '+str(numpy.size(index))+' points')
+            ds.series['Diag_IRGA']['Flag'] = ds.series['Diag_IRGA']['Flag'] + ds.series[item]['Flag']
+    index = numpy.where((ds.series['Diag_IRGA']['Flag']!=0))
+    log.info('  7500ACheck: Total ' + str(numpy.size(index)))
+    for ThisOne in LI75List:
+        if ThisOne in ds.series.keys():
+            ds.series[ThisOne]['Data'][index] = numpy.float64(c.missing_value)
+            ds.series[ThisOne]['Flag'][index] = numpy.int32(4)
+        else:
+            #log.warning('  qcck.do_7500acheck: series '+str(ThisOne)+' in LI75List not found in ds.series')
+            pass
+    if '7500ACheck' not in ds.globalattributes['Functions']:
+        ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',7500ACheck'
 
 def do_EC155check(cf,ds):
     """
@@ -340,8 +376,8 @@ def do_EC155check(cf,ds):
     # seems OK to continue
     log.info(' Doing the EC155 check')
     # list of series that depend on IRGA data quality
-    EC155_list = ['H2O_IRGA_Av','CO2_IRGA_Av','H2O_IRGA_Sd','CO2_IRGA_Sd',
-                 'UzH','UxH','UyH','UzC','UxC','UyC']
+    EC155_list = ['H2O_IRGA_Av','CO2_IRGA_Av','H2O_IRGA_Sd','CO2_IRGA_Sd','H2O_IRGA_Vr','CO2_IRGA_Vr',
+                 'UzA','UxA','UyA','UzH','UxH','UyH','UzC','UxC','UyC']
     index = numpy.where(ds.series['Diag_IRGA']['Flag']!=0)
     log.info('  EC155Check: Diag_IRGA rejects ' + str(numpy.size(index)))
     EC155_dependents = []
@@ -358,7 +394,7 @@ def do_EC155check(cf,ds):
             ds.series[ThisOne]['Data'][index] = numpy.float64(c.missing_value)
             ds.series[ThisOne]['Flag'][index] = numpy.int32(4)
         else:
-            log.error(' do_EC155check: series '+str(ThisOne)+' in EC155 list not found in data structure')
+            log.warning(' do_EC155check: series '+str(ThisOne)+' in EC155 list not found in data structure')
     if 'EC155Check' not in ds.globalattributes['Functions']:
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',EC155Check'
 

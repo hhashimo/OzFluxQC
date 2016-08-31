@@ -663,6 +663,99 @@ def xl2nc(cf,InLevel):
     nc_write_series(ncFile,ds)
     return 1
 
+def ep_biomet_write_csv(cf):
+    """
+    Purpose:
+     Write a bionmet file for use with EddyPro.
+    Usage:
+     qcio.ep_biomet_write_csv(cf)
+     where:
+      cf - a control file object that specifies the input and output file
+           names and the variable mapping to use.
+    Author: PRI
+    Date: August 2016
+    """
+    # get the file names
+    ncFileName = get_infilenamefromcf(cf)
+    if not qcutils.file_exists(ncFileName,mode="verbose"): return 0
+    csvFileName = get_outfilenamefromcf(cf)
+    if not qcutils.path_exists(os.path.dirname(csvFileName),mode="verbose"): return 0
+    # open the csv file
+    csvfile = open(csvFileName,'wb')
+    writer = csv.writer(csvfile)
+    # read the netCDF file
+    ds = nc_read_series(ncFileName)
+    nrecs = int(ds.globalattributes["nc_nrecs"])
+    # get the date and time data
+    Day,flag,attr = qcutils.GetSeries(ds,'Day')
+    Month,flag,attr = qcutils.GetSeries(ds,'Month')
+    Year,flag,attr = qcutils.GetSeries(ds,'Year')
+    Hour,flag,attr = qcutils.GetSeries(ds,'Hour')
+    Minute,flag,attr = qcutils.GetSeries(ds,'Minute')
+    # get the data
+    data = ep_biomet_get_data(cf,ds)
+    # check and adjust units if required
+    # get a list of the EddyPro series to be output
+    ep_series_list = data.keys()
+    ep_series_list.sort()
+    for ep_series in ep_series_list:
+        # loop over the netCDF series names and check they exist in constants.units_synonyms dictionary
+        ncname = data[ep_series]["ncname"]
+        if ncname not in c.units_synonyms.keys():
+            msg = "No entry for "+ncname+" in cfg.units_synonyms, skipping ..."
+            log.warning(msg)
+            continue
+        if (data[ep_series]["Attr"]["units"] not in c.units_synonyms[ncname] and
+            ds.series[ncname]["Attr"]["units"] not in c.units_synonyms[ncname]):
+            msg = "Inconsistent units found for series "+ep_series+" and "+ncname
+            log.warning(msg)
+    # write the variable names to the csv file
+    row_list = ['TIMESTAMP_1']
+    for item in ep_series_list:
+        row_list.append(item)
+    writer.writerow(row_list)
+    # write the units line to the csv file
+    units_list = ["yyyy-mm-dd HHMM"]
+    for item in ep_series_list:
+        units_list.append(data[item]["units"])
+    writer.writerow(units_list)
+    # now write the data
+    for i in range(nrecs):
+        # get the datetime string
+        dtstr = '%d-%02d-%02d %02d%02d'%(Year[i],Month[i],Day[i],Hour[i],Minute[i])
+        data_list = [dtstr]
+        for ep_series in ep_series_list:
+            strfmt = data[ep_series]["fmt"]
+            if "d" in strfmt:
+                data_list.append(strfmt.format(int(round(data[ep_series]["Data"][i]))))
+            else:
+                data_list.append(strfmt.format(data[ep_series]["Data"][i]))
+        writer.writerow(data_list)
+    # close the csv file
+    csvfile.close()
+    return 1
+
+def ep_biomet_get_data(cf,ds):
+    data = {}
+    ep_series_list = cf["Variables"].keys()
+    for ep_series in ep_series_list:
+        ncname = cf["Variables"][ep_series]["ncname"]
+        if ncname not in ds.series.keys():
+            log.error("Series "+ncname+" not in netCDF file, skipping ...")
+            ep_series_list.remove(ep_series)
+            continue
+        data[ep_series] = copy.deepcopy(ds.series[ncname])
+        data[ep_series]["ncname"] = ncname
+        data[ep_series]["units"] = cf["Variables"][ep_series]["units"]
+        fmt = cf["Variables"][ep_series]["format"]
+        if "." in fmt:
+            numdec = len(fmt) - (fmt.index(".") + 1)
+            strfmt = "{0:."+str(numdec)+"f}"
+        else:
+            strfmt = "{0:d}"
+        data[ep_series]["fmt"] = strfmt
+    return data
+
 def fn_write_csv(cf):
     # get the file names
     ncFileName = get_infilenamefromcf(cf)
@@ -1095,8 +1188,8 @@ def nc_concatenate(cf):
             return
         dt_n = ds_n.series['DateTime']['Data']
         dt = ds.series['DateTime']['Data']
-        nRecs_n = len(ds_n.series['xlDateTime']['Data'])
-        nRecs = len(ds.series['xlDateTime']['Data'])
+        nRecs_n = len(ds_n.series["DateTime"]["Data"])
+        nRecs = len(ds.series["DateTime"]["Data"])
         # check that we have 'Ws' and 'Wd' series
         if "Ws" not in ds_n.series.keys():
             if "Ws_CSAT" in ds_n.series.keys():
