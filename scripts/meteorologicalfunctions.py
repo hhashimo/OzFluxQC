@@ -235,6 +235,20 @@ def RHfromabsolutehumidity(Ah,Ta):
     if WasND: RH, WasMA = MAtoSeries(RH)    
     return RH
 
+def RHfromdewpoint(Td,Ta):
+    # Relative humidity from dew point temperature
+    #  Ta is the air temperature, C
+    #  Td is the dew point temperature, C
+    #  RH is the relative humidity, %
+    # convert to masked arrays
+    Td, WasND = SeriestoMA(Td)
+    Ta, dummy = SeriestoMA(Ta)
+    # do the job
+    RH = 100*10**(7.591386*(Td/(Td+240.7263)-Ta/(Ta+240.7263)))
+    # convert back to ndarray if input is not a masked array
+    if WasND: RH, WasMA = MAtoSeries(RH)    
+    return RH
+
 def RHfromspecifichumidity(q,Ta,ps):
     # Relative humidity from specific humidity
     #  q is the specific humidity, kg/kg

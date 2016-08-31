@@ -125,6 +125,36 @@ def DateTimeFromTimeStamp(ds,TimeStamp_in):
     ds.globalattributes["nc_nrecs"] = nRecs
     return 1
     
+def DateTimeFromDateAndTimeString(ds,DateString_in,TimeString_in):
+    if DateString_in not in ds.series.keys():
+        log.error(" Requested date series "+DateString_in+" not found")
+        return 0
+    if TimeString_in not in ds.series.keys():
+        log.error(" Requested time series "+TimeString_in+" not found")
+        return 0
+    DateString = ds.series[DateString_in]["Data"]
+    TimeString = ds.series[TimeString_in]["Data"]
+    # guard against empty fields in what we assume is the datetime
+    idx = [i for i in range(len(DateString)) if len(str(DateString[i]))>0]
+    dt = [dateutil.parser.parse(str(DateString[i])+" "+str(TimeString[i])) for i in idx]
+    # we have finished with the date and time strings so delete them from the data structure
+    del ds.series[DateString_in],ds.series[TimeString_in]
+    nRecs = len(dt)
+    ds.series["DateTime"] = {}
+    ds.series["DateTime"]["Data"] = dt
+    ds.series["DateTime"]["Flag"] = numpy.zeros(len(dt),dtype=numpy.int32)
+    ds.series["DateTime"]["Attr"] = {}
+    ds.series["DateTime"]["Attr"]["long_name"] = "Datetime in local timezone"
+    ds.series["DateTime"]["Attr"]["units"] = "None"
+    # now remove any "data"" from empty lines
+    series_list = ds.series.keys()
+    if "DateTime" in series_list: series_list.remove("DateTime")
+    for item in series_list:
+        ds.series[item]["Data"] = ds.series[item]["Data"][idx]
+        ds.series[item]["Flag"] = ds.series[item]["Flag"][idx]
+    ds.globalattributes["nc_nrecs"] = nRecs
+    return 1
+
 def test(arg1,arg2):
     print "got args:",arg1,arg2
     return "that worked"
