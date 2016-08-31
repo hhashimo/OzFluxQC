@@ -133,6 +133,7 @@ class qcgui(tk.Tk):
         filemenu.add_command(label="List netCDF contents",command=self.option_not_implemented)
         fileconvertmenu = tk.Menu(menubar,tearoff=0)
         #fileconvertmenu.add_command(label="V2.7 to V2.8",command=self.do_v27tov28)
+        fileconvertmenu.add_command(label="nc to EddyPro (biomet)",command=self.do_nc2ep_biomet)
         fileconvertmenu.add_command(label="nc to FluxNet",command=self.do_nc2fn)
         fileconvertmenu.add_command(label="nc to REddyProc",command=self.do_nc2reddyproc)
         fileconvertmenu.add_command(label="nc to SMAP",command=self.do_nc2smap)
@@ -557,6 +558,22 @@ class qcgui(tk.Tk):
         self.do_progress(text='Finished saving L6 partitioned data')      # tell the user we are done
         logging.info(' Finished saving L6 partitioned data')
         logging.info("")
+
+    def do_nc2ep_biomet(self):
+        """ Calls qcio.ep_biomet_write_csv. """
+        logging.info(' Starting conversion to EddyPro biomet file')
+        self.do_progress(text='Load control file ...')
+        self.cf = qcio.load_controlfile(path='controlfiles')
+        if len(self.cf)==0: self.do_progress(text='Waiting for input ...'); return
+        self.do_progress(text='Converting nc to EddyPro biomet CSV ...')
+        return_code = qcio.ep_biomet_write_csv(self.cf)
+        if return_code==0:
+            self.do_progress(text='An error occurred, check the console ...');
+            return
+        else:
+            logging.info(' Finished conversion to EddyPro biomet format')
+            self.do_progress(text='Finished conversion to EddyPro biomet format')
+            logging.info("")
 
     def do_nc2fn(self):
         """ Calls qcio.fn_write_csv. """
