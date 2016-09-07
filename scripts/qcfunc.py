@@ -99,14 +99,23 @@ def DateTimeFromDoY(ds,Year_in,DoY_in,Hdh_in):
     ds.globalattributes["nc_nrecs"] = nRecs
     return 1
 
-def DateTimeFromTimeStamp(ds,TimeStamp_in):
+def DateTimeFromTimeStamp(ds,TimeStamp_in,fmt=""):
+    print " fmt = ",fmt
     if TimeStamp_in not in ds.series.keys():
         log.error(" Required series "+TimeStamp_in+" not found")
         return 0
     TimeStamp = ds.series[TimeStamp_in]["Data"]
     # guard against empty fields in what we assume is the datetime
     idx = [i for i in range(len(TimeStamp)) if len(str(TimeStamp[i]))>0]
-    dt = [dateutil.parser.parse(str(TimeStamp[i])) for i in idx]
+    if len(fmt)==0:
+        dt = [dateutil.parser.parse(str(TimeStamp[i])) for i in idx]
+    else:
+        yearfirst = False
+        dayfirst = False
+        if fmt.index("Y") < fmt.index("D"): yearfirst = True
+        if fmt.index("D") < fmt.index("M"): dayfirst = True
+        dt = [dateutil.parser.parse(str(TimeStamp[i]),dayfirst=dayfirst,yearfirst=yearfirst) 
+              for i in idx]
     # we have finished with the timestamp so delete it from the data structure
     del ds.series[TimeStamp_in]
     nRecs = len(dt)

@@ -656,7 +656,7 @@ def xl2nc(cf,InLevel):
     # create new variables using user defined functions
     qcts.DoFunctions(cf,ds)
     # create a series of synthetic downwelling shortwave radiation
-    #qcts.get_synthetic_fsd(ds)
+    qcts.get_synthetic_fsd(ds)
     # write the data to the netCDF file
     outfilename = get_outfilenamefromcf(cf)
     ncFile = nc_open_write(outfilename)
