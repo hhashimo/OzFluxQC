@@ -1,5 +1,10 @@
 version_name = "OzFluxQC"
-version_number = "V2.9.6b"
+version_number = "V2.9.6c"
+# V2.9.6c  - bug fix in qcfunc.DateTimeFromTimeStamp()
+#            - datetimes in non-ISO format were interpreted incorrectly
+#            - added format option to routine call to specify order
+#              in which year, month and day appear in datetime string
+#          - reinstated calculation of syntheic Fsd at L1
 # V2.9.6b  - bug fix of ustar implementation at L5
 #            - gfSOLO was picking the target data from the L4 (not filtered)
 #              data structure not the L5 (filtered) data structure so
