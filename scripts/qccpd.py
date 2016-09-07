@@ -370,7 +370,7 @@ def CPD_run(cf):
     d = {}
     f = {}
     for item in names.keys():
-        data,flag,attr = qcutils.GetSeries(ds,item)
+        data,flag,attr = qcutils.GetSeries(ds,name[item])
         d[item] = np.where(data==c.missing_value,np.nan,data)
         f[item] = flag
     # set all data to NaNs if any flag not 0 or 10
