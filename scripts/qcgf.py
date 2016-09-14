@@ -2194,29 +2194,33 @@ def gfalternate_update_alternate_info(ds_tower,alternate_info):
 
 # functions for GapFillUsingInterpolation
 def GapFillUsingInterpolation(cf,ds):
-    if "Drivers" in cf:
-        section_name = "Drivers"
-        series_list = cf[section_name].keys()
-    elif "Fluxes" in cf:
-        section_name = "Fluxes"
-        series_list = cf[section_name].keys()
-    else:
-        msg = " No [Drivers] or [Fluxes] section in control file"
-        log.error(msg)
-        return
+    """
+    Purpose:
+     Gap fill variables in the data structure using interpolation.
+     All variables in the [Variables], [Drivers] and [Fluxes] section
+     are processed.
+    Usage:
+     qcgf.GapFillUsingInterpolation(cf,ds)
+     where cf is a control file object
+           ds is a data structure
+    Author: PRI
+    Date: September 2016
+    """
+    label_list = qcutils.get_label_list_from_cf(cf)
     maxlen = int(qcutils.get_keyvaluefromcf(cf,["Options"],"MaxGapInterpolate",default=2))
     if maxlen==0:
         msg = " Gap fill by interpolation disabled in control file"
         log.info(msg)
         return
-    for ThisOne in series_list:
-        if "MaxGapInterpolate" in cf[section_name][ThisOne]:
-            maxlen = int(qcutils.get_keyvaluefromcf(cf,[section_name,ThisOne],"MaxGapInterpolate",default=2))
+    for label in label_list:
+        section = qcutils.get_cfsection(cf, series=label)
+        if "MaxGapInterpolate" in cf[section][label]:
+            maxlen = int(qcutils.get_keyvaluefromcf(cf,[section,label],"MaxGapInterpolate",default=2))
             if maxlen==0:
-                msg = " Gap fill by interpolation disabled for "+ThisOne
+                msg = " Gap fill by interpolation disabled for "+label
                 log.info(msg)
                 continue
-            qcts.InterpolateOverMissing(ds,series=ThisOne,maxlen=2)
+            qcts.InterpolateOverMissing(ds,series=label,maxlen=2)
 
 # functions for GapFillUsingSOLO
 def GapFillUsingSOLO(cf,dsa,dsb):
@@ -2458,8 +2462,12 @@ def gfSOLO_createdict(cf,ds,series):
             qcutils.CreateSeries(ds,output,data,Flag=flag,Attr=attr)
 
 def gfSOLO_done(ds,solo_gui,solo_info):
-    # plot the summary statistics if required
-    if solo_gui.peropt.get()==1: gfSOLO_plotsummary(ds,solo_info)
+    # plot the summary statistics if gap filling was done manually
+    if solo_gui.peropt.get()==1:
+        # write Excel spreadsheet with fit statistics
+        qcio.xl_write_SOLOStats(ds)
+        # plot the summary statistics
+        gfSOLO_plotsummary(ds,solo_info)
     # destroy the SOLO GUI
     solo_gui.destroy()
     # remove the solo dictionary from the data structure
@@ -2469,10 +2477,20 @@ def gfSOLO_getserieslist(cf):
     series_list = []
     if "Drivers" in cf.keys():
         for series in cf["Drivers"].keys():
-            if "GapFillUsingSOLO" in cf["Drivers"][series]: series_list.append(series)
-    if "Fluxes" in cf.keys():
+            if "GapFillUsingSOLO" in cf["Drivers"][series]:
+                series_list.append(series)
+    elif "Fluxes" in cf.keys():
         for series in cf["Fluxes"].keys():
-            if "GapFillUsingSOLO" in cf["Fluxes"][series]: series_list.append(series)
+            if "GapFillUsingSOLO" in cf["Fluxes"][series]:
+                series_list.append(series)
+    elif "Variables" in cf.keys():
+        for series in cf["Variables"].keys():
+            if "GapFillUsingSOLO" in cf["Variables"][series]:
+                series_list.append(series)
+    else:
+        series_list = []
+        msg = "No Variables, Drivers or Fluxes section found in control file"
+        log.error(msg)
     return series_list
 
 def gfSOLO_initplot(**kwargs):
@@ -2530,10 +2548,13 @@ def gfSOLO_main(dsa,dsb,solo_info,output_list=[]):
             if i!=0: plt.close(i)
     fig_num = 0
     for output in output_list:
-        # clean up the target series if required
+        # get the target series label
         series = dsb.solo[output]["label_tower"]
-        qcck.do_qcchecks_oneseries(dsb.cf,dsa,series=series)
-        qcck.do_dependencycheck(dsb.cf,dsa,series=series)
+        # clean up the target series if required
+        variable = qcutils.GetVariableAsDictionary(dsa,series)
+        qcck.ApplyQCChecks(cf,dsa,variable)
+        qcutils.CreateVariableFromDictionary(dsb,variable)
+        # check to see if we are gap filling L5 or L4
         if dsb.globalattributes["nc_level"].lower()=="l4":
             for driver in dsb.solo[output]["drivers"]:
                 for mlist in dsb.merge.keys():
@@ -2948,6 +2969,10 @@ def gfSOLO_run_gui(dsa,dsb,solo_gui,solo_info):
             solo_info["enddate"] = enddate.strftime("%Y-%m-%d %H:%M")
         # now fill any remaining gaps
         gfSOLO_autocomplete(dsa,dsb,solo_info)
+        # write Excel spreadsheet with fit statistics
+        qcio.xl_write_SOLOStats(dsb)
+        # plot the summary statistics
+        gfSOLO_plotsummary(dsb,solo_info)
         gfSOLO_progress(solo_gui,"Finished auto (monthly) run ...")
         log.info(" GapFillUsingSOLO: Finished auto (monthly) run ...")
     elif solo_gui.peropt.get()==3:
@@ -2970,14 +2995,14 @@ def gfSOLO_run_gui(dsa,dsb,solo_gui,solo_info):
             solo_info["enddate"] = enddate.strftime("%Y-%m-%d %H:%M")
         # now fill any remaining gaps
         gfSOLO_autocomplete(dsa,dsb,solo_info)
+        # write Excel spreadsheet with fit statistics
+        qcio.xl_write_SOLOStats(dsb)
+        # plot the summary statistics
+        gfSOLO_plotsummary(dsb,solo_info)
         gfSOLO_progress(solo_gui,"Finished auto (days) run ...")
         log.info(" GapFillUsingSOLO: Finished auto (days) run ...")
     elif solo_gui.peropt.get()==4:
         pass
-    # write Excel spreadsheet with fit statistics
-    qcio.xl_write_SOLOStats(dsb)
-    # plot the summary statistics
-    gfSOLO_plotsummary(dsb,solo_info)
 
 def gfSOLO_run_nogui(cf,dsa,dsb,solo_info):
     # populate the solo_info dictionary with things that will be useful

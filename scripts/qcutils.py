@@ -559,6 +559,42 @@ def CreateDatetimeRange(start,stop,step=datetime.timedelta(minutes=30)):
         start = start + step
     return result
 
+def CreateVariableFromDictionary(ds,variable):
+    """
+    Purpose:
+     Create a variable in the data structure.
+     If the variable already exists in the data structure, data values, QC flags and
+     attributes will be overwritten.
+     This utility is the prefered method for creating or updating a data series because
+     it implements a consistent method for creating series in the data structure.  Direct
+     writes to the contents of the data structure are discouraged (unless PRI wrote the code:=P).
+    Usage:
+     Fsd = qcutils.GetVariableAsDict(ds,"Fsd")
+      ... do something to Fsd here ...
+      ... and don't forget to update the QC flag ...
+      ... and the attributes ...
+     qcutils.CreateVariableFromDict(ds,Fsd)
+    Author: PRI
+    Date: September 2016
+    """
+    label = variable["Label"]
+    # create a temporary series to avoid premature overwrites
+    ds.series["_tmp_"] = {}
+    # put the data into the temporary series
+    if numpy.ma.isMA(variable["Data"]):
+        ds.series["_tmp_"]["Data"] = numpy.ma.filled(variable["Data"],
+                                                     float(c.missing_value))
+    else:
+        ds.series["_tmp_"]["Data"] = numpy.array(variable["Data"])
+    # copy or make the QC flag
+    ds.series["_tmp_"]["Flag"] = numpy.array(variable["Flag"])
+    # do the attributes
+    ds.series["_tmp_"]["Attr"] = copy.deepcopy(variable["Attr"])
+    # and copy the temporary series back to the original label
+    ds.series[unicode(label)] = copy.deepcopy(ds.series['_tmp_'])
+    # delete the temporary series
+    del ds.series['_tmp_']
+
 def file_exists(filename,mode="verbose"):
     if not os.path.exists(filename):
         if mode=="verbose":
@@ -1109,6 +1145,35 @@ def GetSeriesasMA(ds,ThisOne,si=0,ei=-1,mode="truncate"):
     Series,WasND = SeriestoMA(Series)
     return Series,Flag,Attr
 
+def GetVariableAsDictionary(ds,label,si=0,ei=-1,mode="truncate"):
+    """
+    Purpose:
+     Returns a data variable from the data structure as a dictionary.
+    Usage:
+     data,flag,attr = qcutils.GetSeriesasMA(ds,label,si=0,ei=-1)
+    where the arguments are;
+      ds    - the data structure (dict)
+      label - label of the data variable in ds (string)
+      si    - start index (integer), default 0
+      ei    - end index (integer), default -1
+    and the returned values are;
+     The data are returned as a dictionary;
+      variable["label"] - variable label in data structure
+      variable["data"] - numpy float64 masked array containing data
+      variable["flag"] - numpy int32 array containing QC flags
+      variable["attr"] - dictionary of variable attributes
+    Example:
+     The code snippet below will return the incoming shortwave data values
+     (Fsd), the associated QC flag and the variable attributes;
+      ds = qcio.nc_read_series("HowardSprings_2011_L3.nc")
+      Fsd = qcutils.GetSeriesAsDict(ds,"Fsd")
+    Author: PRI
+    """
+    data,flag,attr = GetSeries(ds,label,si=si,ei=ei,mode=mode)
+    data,WasND = SeriestoMA(data)
+    variable = {"Label":label,"Data":data,"Flag":flag,"Attr":attr}
+    return variable
+
 def GetUnitsFromds(ds, ThisOne):
     units = ds.series[ThisOne]['Attr']['units']
     return units
@@ -1304,6 +1369,27 @@ def get_keyvaluefromcf(cf,sections,key,default=None,mode="quiet"):
         if mode.lower()!="quiet": log.error(msg)
         value = default
     return value
+
+def get_label_list_from_cf(cf):
+    """
+    Purpose:
+     Returns a list of variable labels from a control file.
+    Usage:
+     label_list = qcutils.get_label_list_from_cf(cf)
+     where cf is a control file object
+           label_list is a list of variable labels referenced in the control file.
+    """
+    if "Variables" in cf:
+        label_list = cf["Variables"].keys()
+    elif "Drivers" in cf:
+        label_list = cf["Drivers"].keys()
+    elif "Fluxes" in cf:
+        label_list = cf["Fluxes"].keys()
+    else:
+        label_list = []
+        msg = "No Variables, Drivers or Fluxes section found in control file"
+        log.error(msg)
+    return label_list
 
 def get_missingingapfilledseries(ds):
     """

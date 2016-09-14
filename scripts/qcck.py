@@ -11,6 +11,72 @@ import logging
 
 log = logging.getLogger('qc.ck')
 
+def ApplyQCChecks(cf,ds,variable,mode="quiet"):
+    """
+    Purpose:
+     Apply the QC checks speified in the control file object to a single variable
+    Usage:
+     qcck.ApplyQCChecks(cf,variable)'
+     where cf is a control file object
+           variable is a variable dictionary as returned by qcutils.GetVariableAsDict()
+    Author: PRI
+    Date: September 2016
+    """
+    # do the range check
+    ApplyRangeCheckToVariable(cf,ds,variable)
+    # do the diurnal check
+    #do_diurnalcheck_variable(cf,variable)
+    # do exclude dates
+    #do_excludedates_variable(cf,variable)
+    # do exclude hours
+    #do_excludehours_variable(cf,variable)
+    return
+
+def ApplyRangeCheckToVariable(cf,ds,variable):
+    """
+    Purpose:
+    Usage:
+    Author: PRI
+    Date: September 2016
+    """
+    label = variable["Label"]
+    section = qcutils.get_cfsection(cf,series=label)
+    # check to see if RangeCheck requested for this variable
+    if "RangeCheck" not in cf[section][label]:
+        return
+    # Check to see if a lower limit has been specified
+    if "Lower" not in cf[section][label]["RangeCheck"]:
+        return
+    else:
+        attr = cf[section][label]['RangeCheck']['Lower']
+        variable["Attr"]["rangecheck_lower"] = attr
+        lower = numpy.array(ast.literal_eval(attr))
+        valid_lower = str(numpy.min(lower))
+        lower_series = lower[ds.series['Month']['Data']-1]
+        index = numpy.ma.where(variable["Data"]<lower_series)[0]
+        variable["Data"][index] = numpy.ma.masked
+        variable["Flag"][index] = numpy.int32(2)
+        valid_range = variable["Attr"]["valid_range"]
+        old_lower = valid_range.split(",")[0]
+        valid_range = valid_range.replace(old_lower,valid_lower)
+        variable["Attr"]["valid_range"] = valid_range
+    if "Upper" not in cf[section][label]["RangeCheck"]:
+        return
+    else:
+        attr = cf[section][label]['RangeCheck']['Upper']
+        variable["Attr"]["rangecheck_upper"] = attr
+        upper = numpy.array(ast.literal_eval(attr))
+        valid_upper = str(numpy.min(upper))
+        upper_series = upper[ds.series['Month']['Data']-1]
+        index = numpy.ma.where(variable["Data"]>upper_series)[0]
+        variable["Data"][index] = numpy.ma.masked
+        variable["Flag"][index] = numpy.int32(2)
+        valid_range = variable["Attr"]["valid_range"]
+        old_upper = valid_range.split(",")[1]
+        valid_range = valid_range.replace(old_upper,valid_upper)
+        variable["Attr"]["valid_range"] = valid_range
+    return
+
 def ApplyTurbulenceFilter(cf,ds,ustar_threshold=None):
     """
     Purpose:
@@ -179,27 +245,25 @@ def cliptorange(data, lower, upper):
     data = rangecheckseriesupper(data,upper)
     return data
 
-def rangecheckserieslower(data,lower):
-    if lower is None:
-        log.info(' rangecheckserieslower: no lower bound set')
-        return data
-    if numpy.ma.isMA(data):
-        data = numpy.ma.masked_where(data<lower,data)
-    else:
-        index = numpy.where((abs(data-numpy.float64(c.missing_value))>c.eps)&(data<lower))[0]
-        data[index] = numpy.float64(c.missing_value)
-    return data
-
-def rangecheckseriesupper(data,upper):
-    if upper is None:
-        log.info(' rangecheckserieslower: no upper bound set')
-        return data
-    if numpy.ma.isMA(data):
-        data = numpy.ma.masked_where(data>upper,data)
-    else:
-        index = numpy.where((abs(data-numpy.float64(c.missing_value))>c.eps)&(data>upper))[0]
-        data[index] = numpy.float64(c.missing_value)
-    return data
+def CoordinateAh7500AndFcGaps(cf,ds,Fcvar='Fc'):
+    '''Cleans up Ah_7500_Av based upon Fc gaps to for QA check on Ah_7500_Av v Ah_HMP.'''
+    if not qcutils.cfoptionskeylogical(cf,Key='CoordinateAh7500&FcGaps'): return
+    log.info(' Doing the Ah_7500 check')
+    if qcutils.cfkeycheck(cf,Base='FunctionArgs',ThisOne='AhcheckFc'):
+        Fclist = ast.literal_eval(cf['FunctionArgs']['AhcheckFc'])
+        Fcvar = Fclist[0]
+    
+    # index1  Index of bad Ah_7500_Av observations
+    index1 = numpy.where((ds.series['Ah_7500_Av']['Flag']!=0) & (ds.series['Ah_7500_Av']['Flag']!=10))
+    
+    # index2  Index of bad Fc observations
+    index2 = numpy.where((ds.series[Fcvar]['Flag']!=0) & (ds.series[Fcvar]['Flag']!=10))
+    
+    ds.series['Ah_7500_Av']['Data'][index2] = numpy.float64(c.missing_value)
+    ds.series['Ah_7500_Av']['Flag'][index2] = ds.series[Fcvar]['Flag'][index2]
+    ds.series['Ah_7500_Av']['Flag'][index1] = ds.series['Ah_7500_Av']['Flag'][index1]
+    if 'CoordinateAh7500AndFcGaps' not in ds.globalattributes['Functions']:
+        ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',CoordinateAh7500AndFcGaps'
 
 def CoordinateFluxGaps(cf,ds,Fc_in='Fc',Fe_in='Fe',Fh_in='Fh'):
     if not qcutils.cfoptionskeylogical(cf,Key='CoordinateFluxGaps'): return
@@ -246,6 +310,188 @@ def CreateNewSeries(cf,ds):
             qcts.MergeSeries(cf,ds,ThisOne,[0,10,20,30,40,50])
         if 'AverageSeries' in cf['Variables'][ThisOne].keys():
             qcts.AverageSeriesByElements(cf,ds,ThisOne)
+
+def do_CSATcheck(cf,ds):
+    '''Rejects data values for series specified in CSATList for times when the Diag_CSAT
+       flag is non-zero.  If the Diag_CSAT flag is not present in the data structure passed
+       to this routine, it is constructed from the QC flags of the series specified in
+       CSATList.'''
+    if "Diag_CSAT" not in ds.series.keys():
+        msg = " Diag_CSAT not found in data, skipping CSAT checks ..."
+        log.warning(msg)
+        return
+    log.info(' Doing the CSAT check')
+    CSAT_all = ['Ux','Uy','Uz',
+                'Ws_CSAT','Wd_CSAT','Wd_CSAT_Compass','Tv_CSAT',
+                'UzT','UxT','UyT','UzA','UxA','UyA','UzC','UxC','UyC',
+                'UxUz','UyUz','UxUy','UxUx','UyUy','UzUz']
+    CSAT_list = []
+    for item in CSAT_all:
+        if item in ds.series.keys(): CSAT_list.append(item)
+    index = numpy.where(ds.series['Diag_CSAT']['Flag']!=0)
+    log.info('  CSATCheck: Diag_CSAT ' + str(numpy.size(index)))
+    for ThisOne in CSAT_list:
+        if ThisOne in ds.series.keys():
+            ds.series[ThisOne]['Data'][index] = numpy.float64(c.missing_value)
+            ds.series[ThisOne]['Flag'][index] = numpy.int32(3)
+        else:
+            log.error('  qcck.do_CSATcheck: series '+str(ThisOne)+' in CSATList not found in ds.series')
+    if 'CSATCheck' not in ds.globalattributes['Functions']:
+        ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',CSATCheck'
+
+def do_dependencycheck(cf,ds,section='',series='',code=23,mode="quiet"):
+    if len(section)==0 and len(series)==0: return
+    if len(section)==0: section = qcutils.get_cfsection(cf,series=series,mode='quiet')
+    if "DependencyCheck" not in cf[section][series].keys(): return
+    if "Source" not in cf[section][series]["DependencyCheck"]:
+        msg = " DependencyCheck: keyword Source not found for series "+series+", skipping ..."
+        log.error(msg)
+        return
+    if mode=="verbose":
+        msg = " Doing DependencyCheck for "+series
+        log.info(msg)
+    # get the precursor source list from the control file
+    source_list = ast.literal_eval(cf[section][series]["DependencyCheck"]["Source"])
+    # get the data
+    dependent_data,dependent_flag,dependent_attr = qcutils.GetSeriesasMA(ds,series)
+    # loop over the precursor source list
+    for item in source_list:
+        # check the precursor is in the data structure
+        if item not in ds.series.keys():
+            msg = " DependencyCheck: "+series+" precursor series "+item+" not found, skipping ..."
+            continue
+        # get the precursor data
+        precursor_data,precursor_flag,precursor_attr = qcutils.GetSeriesasMA(ds,item)
+        # mask the dependent data where the precurso is masked
+        dependent_data = numpy.ma.masked_where(numpy.ma.getmaskarray(precursor_data)==True,dependent_data)
+        # get an index of masked precursor data
+        index = numpy.ma.where(numpy.ma.getmaskarray(precursor_data)==True)[0]
+        # set the dependent QC flag
+        dependent_flag[index] = numpy.int32(code)
+    # put the data back into the data structure
+    if series=="Fc":
+        pass
+    dependent_attr["DependencyCheck_source"] = str(source_list)
+    qcutils.CreateSeries(ds,series,dependent_data,Flag=dependent_flag,Attr=dependent_attr)
+    if 'do_dependencychecks' not in ds.globalattributes['Functions']:
+        ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',do_dependencychecks'
+
+def do_diurnalcheck(cf,ds,section='',series='',code=5):
+    if 'DiurnalCheck' not in cf[section][series].keys(): return
+    if 'NumSd' not in cf[section][series]['DiurnalCheck'].keys(): return
+    dt = float(ds.globalattributes['time_step'])
+    n = int((60./dt) + 0.5)             #Number of timesteps per hour
+    nInts = int((1440.0/dt)+0.5)        #Number of timesteps per day
+    Av = numpy.array([c.missing_value]*nInts,dtype=numpy.float64)
+    Sd = numpy.array([c.missing_value]*nInts,dtype=numpy.float64)
+    NSd = numpy.array(eval(cf[section][series]['DiurnalCheck']['NumSd']),dtype=float)
+    for m in range(1,13):
+        mindex = numpy.where(ds.series['Month']['Data']==m)[0]
+        if len(mindex)!=0:
+            lHdh = ds.series['Hdh']['Data'][mindex]
+            l2ds = ds.series[series]['Data'][mindex]
+            for i in range(nInts):
+                li = numpy.where(abs(lHdh-(float(i)/float(n))<c.eps)&(l2ds!=float(c.missing_value)))
+                if numpy.size(li)!=0:
+                    Av[i] = numpy.mean(l2ds[li])
+                    Sd[i] = numpy.std(l2ds[li])
+                else:
+                    Av[i] = float(c.missing_value)
+                    Sd[i] = float(c.missing_value)
+            Lwr = Av - NSd[m-1]*Sd
+            Upr = Av + NSd[m-1]*Sd
+            hindex = numpy.array(n*lHdh,int)
+            index = numpy.where(((l2ds!=float(c.missing_value))&(l2ds<Lwr[hindex]))|
+                                ((l2ds!=float(c.missing_value))&(l2ds>Upr[hindex])))[0] + mindex[0]
+            ds.series[series]['Data'][index] = numpy.float64(c.missing_value)
+            ds.series[series]['Flag'][index] = numpy.int32(code)
+            ds.series[series]['Attr']['diurnalcheck_numsd'] = cf[section][series]['DiurnalCheck']['NumSd']
+    if 'DiurnalCheck' not in ds.globalattributes['Functions']:
+        ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',DiurnalCheck'
+
+def do_EC155check(cf,ds):
+    """
+    Purpose:
+    Usage:
+    Author: PRI
+    Date: September 2015
+    """
+    # check to see if we have a Diag_IRGA series to work with
+    if "Diag_IRGA" not in ds.series.keys():
+        msg = " Diag_IRGA not found in data, skipping IRGA checks ..."
+        log.warning(msg)
+        return
+    # seems OK to continue
+    log.info(' Doing the EC155 check')
+    # list of series that depend on IRGA data quality
+    EC155_list = ['H2O_IRGA_Av','CO2_IRGA_Av','H2O_IRGA_Sd','CO2_IRGA_Sd','H2O_IRGA_Vr','CO2_IRGA_Vr',
+                 'UzA','UxA','UyA','UzH','UxH','UyH','UzC','UxC','UyC']
+    index = numpy.where(ds.series['Diag_IRGA']['Flag']!=0)
+    log.info('  EC155Check: Diag_IRGA rejects ' + str(numpy.size(index)))
+    EC155_dependents = []
+    for item in ['Signal_H2O','Signal_CO2','H2O_IRGA_Sd','CO2_IRGA_Sd']:
+        if item in ds.series.keys(): EC155_dependents.append(item)
+    for item in EC155_dependents:
+        index = numpy.where(ds.series[item]['Flag']!=0)
+        log.info('  EC155Check: '+item+' rejected '+str(numpy.size(index))+' points')
+        ds.series['Diag_IRGA']['Flag'] = ds.series['Diag_IRGA']['Flag'] + ds.series[item]['Flag']
+    index = numpy.where((ds.series['Diag_IRGA']['Flag']!=0))
+    log.info('  EC155Check: Total rejected ' + str(numpy.size(index)))
+    for ThisOne in EC155_list:
+        if ThisOne in ds.series.keys():
+            ds.series[ThisOne]['Data'][index] = numpy.float64(c.missing_value)
+            ds.series[ThisOne]['Flag'][index] = numpy.int32(4)
+        else:
+            log.warning(' do_EC155check: series '+str(ThisOne)+' in EC155 list not found in data structure')
+    if 'EC155Check' not in ds.globalattributes['Functions']:
+        ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',EC155Check'
+
+def do_excludedates(cf,ds,section='',series='',code=6):
+    if 'ExcludeDates' not in cf[section][series].keys(): return
+    ldt = ds.series['DateTime']['Data']
+    ExcludeList = cf[section][series]['ExcludeDates'].keys()
+    NumExclude = len(ExcludeList)
+    for i in range(NumExclude):
+        ExcludeDateList = ast.literal_eval(cf[section][series]['ExcludeDates'][str(i)])
+        try:
+            si = ldt.index(datetime.datetime.strptime(ExcludeDateList[0],'%Y-%m-%d %H:%M'))
+        except ValueError:
+            si = 0
+        try:
+            ei = ldt.index(datetime.datetime.strptime(ExcludeDateList[1],'%Y-%m-%d %H:%M')) + 1
+        except ValueError:
+            ei = -1
+        ds.series[series]['Data'][si:ei] = numpy.float64(c.missing_value)
+        ds.series[series]['Flag'][si:ei] = numpy.int32(code)
+        ds.series[series]['Attr']['ExcludeDates_'+str(i)] = cf[section][series]['ExcludeDates'][str(i)]
+    if 'ExcludeDates' not in ds.globalattributes['Functions']:
+        ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',ExcludeDates'
+
+def do_excludehours(cf,ds,section='',series='',code=7):
+    if 'ExcludeHours' not in cf[section][series].keys(): return
+    ldt = ds.series['DateTime']['Data']
+    ExcludeList = cf[section][series]['ExcludeHours'].keys()
+    NumExclude = len(ExcludeList)
+    for i in range(NumExclude):
+        ExcludeHourList = ast.literal_eval(cf[section][series]['ExcludeHours'][str(i)])
+        try:
+            si = ldt.index(datetime.datetime.strptime(ExcludeHourList[0],'%Y-%m-%d %H:%M'))
+        except ValueError:
+            si = 0
+        try:
+            ei = ldt.index(datetime.datetime.strptime(ExcludeHourList[1],'%Y-%m-%d %H:%M')) + 1
+        except ValueError:
+            ei = -1
+        for j in range(len(ExcludeHourList[2])):
+            ExHr = datetime.datetime.strptime(ExcludeHourList[2][j],'%H:%M').hour
+            ExMn = datetime.datetime.strptime(ExcludeHourList[2][j],'%H:%M').minute
+            index = numpy.where((ds.series['Hour']['Data'][si:ei]==ExHr)&
+                                (ds.series['Minute']['Data'][si:ei]==ExMn))[0] + si
+            ds.series[series]['Data'][index] = numpy.float64(c.missing_value)
+            ds.series[series]['Flag'][index] = numpy.int32(code)
+            ds.series[series]['Attr']['ExcludeHours_'+str(i)] = cf[section][series]['ExcludeHours'][str(i)]
+    if 'ExcludeHours' not in ds.globalattributes['Functions']:
+        ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',ExcludeHours'
 
 def do_IRGAcheck(cf,ds):
     """
@@ -361,208 +607,6 @@ def do_li7500acheck(cf,ds):
     if '7500ACheck' not in ds.globalattributes['Functions']:
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',7500ACheck'
 
-def do_EC155check(cf,ds):
-    """
-    Purpose:
-    Usage:
-    Author: PRI
-    Date: September 2015
-    """
-    # check to see if we have a Diag_IRGA series to work with
-    if "Diag_IRGA" not in ds.series.keys():
-        msg = " Diag_IRGA not found in data, skipping IRGA checks ..."
-        log.warning(msg)
-        return
-    # seems OK to continue
-    log.info(' Doing the EC155 check')
-    # list of series that depend on IRGA data quality
-    EC155_list = ['H2O_IRGA_Av','CO2_IRGA_Av','H2O_IRGA_Sd','CO2_IRGA_Sd','H2O_IRGA_Vr','CO2_IRGA_Vr',
-                 'UzA','UxA','UyA','UzH','UxH','UyH','UzC','UxC','UyC']
-    index = numpy.where(ds.series['Diag_IRGA']['Flag']!=0)
-    log.info('  EC155Check: Diag_IRGA rejects ' + str(numpy.size(index)))
-    EC155_dependents = []
-    for item in ['Signal_H2O','Signal_CO2','H2O_IRGA_Sd','CO2_IRGA_Sd']:
-        if item in ds.series.keys(): EC155_dependents.append(item)
-    for item in EC155_dependents:
-        index = numpy.where(ds.series[item]['Flag']!=0)
-        log.info('  EC155Check: '+item+' rejected '+str(numpy.size(index))+' points')
-        ds.series['Diag_IRGA']['Flag'] = ds.series['Diag_IRGA']['Flag'] + ds.series[item]['Flag']
-    index = numpy.where((ds.series['Diag_IRGA']['Flag']!=0))
-    log.info('  EC155Check: Total rejected ' + str(numpy.size(index)))
-    for ThisOne in EC155_list:
-        if ThisOne in ds.series.keys():
-            ds.series[ThisOne]['Data'][index] = numpy.float64(c.missing_value)
-            ds.series[ThisOne]['Flag'][index] = numpy.int32(4)
-        else:
-            log.warning(' do_EC155check: series '+str(ThisOne)+' in EC155 list not found in data structure')
-    if 'EC155Check' not in ds.globalattributes['Functions']:
-        ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',EC155Check'
-
-def CoordinateAh7500AndFcGaps(cf,ds,Fcvar='Fc'):
-    '''Cleans up Ah_7500_Av based upon Fc gaps to for QA check on Ah_7500_Av v Ah_HMP.'''
-    if not qcutils.cfoptionskeylogical(cf,Key='CoordinateAh7500&FcGaps'): return
-    log.info(' Doing the Ah_7500 check')
-    if qcutils.cfkeycheck(cf,Base='FunctionArgs',ThisOne='AhcheckFc'):
-        Fclist = ast.literal_eval(cf['FunctionArgs']['AhcheckFc'])
-        Fcvar = Fclist[0]
-    
-    # index1  Index of bad Ah_7500_Av observations
-    index1 = numpy.where((ds.series['Ah_7500_Av']['Flag']!=0) & (ds.series['Ah_7500_Av']['Flag']!=10))
-    
-    # index2  Index of bad Fc observations
-    index2 = numpy.where((ds.series[Fcvar]['Flag']!=0) & (ds.series[Fcvar]['Flag']!=10))
-    
-    ds.series['Ah_7500_Av']['Data'][index2] = numpy.float64(c.missing_value)
-    ds.series['Ah_7500_Av']['Flag'][index2] = ds.series[Fcvar]['Flag'][index2]
-    ds.series['Ah_7500_Av']['Flag'][index1] = ds.series['Ah_7500_Av']['Flag'][index1]
-    if 'CoordinateAh7500AndFcGaps' not in ds.globalattributes['Functions']:
-        ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',CoordinateAh7500AndFcGaps'
-
-def do_CSATcheck(cf,ds):
-    '''Rejects data values for series specified in CSATList for times when the Diag_CSAT
-       flag is non-zero.  If the Diag_CSAT flag is not present in the data structure passed
-       to this routine, it is constructed from the QC flags of the series specified in
-       CSATList.'''
-    if "Diag_CSAT" not in ds.series.keys():
-        msg = " Diag_CSAT not found in data, skipping CSAT checks ..."
-        log.warning(msg)
-        return
-    log.info(' Doing the CSAT check')
-    CSAT_all = ['Ux','Uy','Uz',
-                'Ws_CSAT','Wd_CSAT','Wd_CSAT_Compass','Tv_CSAT',
-                'UzT','UxT','UyT','UzA','UxA','UyA','UzC','UxC','UyC',
-                'UxUz','UyUz','UxUy','UxUx','UyUy','UzUz']
-    CSAT_list = []
-    for item in CSAT_all:
-        if item in ds.series.keys(): CSAT_list.append(item)
-    index = numpy.where(ds.series['Diag_CSAT']['Flag']!=0)
-    log.info('  CSATCheck: Diag_CSAT ' + str(numpy.size(index)))
-    for ThisOne in CSAT_list:
-        if ThisOne in ds.series.keys():
-            ds.series[ThisOne]['Data'][index] = numpy.float64(c.missing_value)
-            ds.series[ThisOne]['Flag'][index] = numpy.int32(3)
-        else:
-            log.error('  qcck.do_CSATcheck: series '+str(ThisOne)+' in CSATList not found in ds.series')
-    if 'CSATCheck' not in ds.globalattributes['Functions']:
-        ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',CSATCheck'
-
-def do_dependencycheck(cf,ds,section='',series='',code=23,mode="quiet"):
-    if len(section)==0 and len(series)==0: return
-    if len(section)==0: section = qcutils.get_cfsection(cf,series=series,mode='quiet')
-    if "DependencyCheck" not in cf[section][series].keys(): return
-    if "Source" not in cf[section][series]["DependencyCheck"]:
-        msg = " DependencyCheck: keyword Source not found for series "+series+", skipping ..."
-        log.error(msg)
-        return
-    if mode=="verbose":
-        msg = " Doing DependencyCheck for "+series
-        log.info(msg)
-    # get the precursor source list from the control file
-    source_list = ast.literal_eval(cf[section][series]["DependencyCheck"]["Source"])
-    # get the data
-    dependent_data,dependent_flag,dependent_attr = qcutils.GetSeriesasMA(ds,series)
-    # loop over the precursor source list
-    for item in source_list:
-        # check the precursor is in the data structure
-        if item not in ds.series.keys():
-            msg = " DependencyCheck: "+series+" precursor series "+item+" not found, skipping ..."
-            continue
-        # get the precursor data
-        precursor_data,precursor_flag,precursor_attr = qcutils.GetSeriesasMA(ds,item)
-        # mask the dependent data where the precurso is masked
-        dependent_data = numpy.ma.masked_where(numpy.ma.getmaskarray(precursor_data)==True,dependent_data)
-        # get an index of masked precursor data
-        index = numpy.ma.where(numpy.ma.getmaskarray(precursor_data)==True)[0]
-        # set the dependent QC flag
-        dependent_flag[index] = numpy.int32(code)
-    # put the data back into the data structure
-    if series=="Fc":
-        pass
-    dependent_attr["DependencyCheck_source"] = str(source_list)
-    qcutils.CreateSeries(ds,series,dependent_data,Flag=dependent_flag,Attr=dependent_attr)
-    if 'do_dependencychecks' not in ds.globalattributes['Functions']:
-        ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',do_dependencychecks'
-
-def do_diurnalcheck(cf,ds,section='',series='',code=5):
-    if 'DiurnalCheck' not in cf[section][series].keys(): return
-    if 'NumSd' not in cf[section][series]['DiurnalCheck'].keys(): return
-    dt = float(ds.globalattributes['time_step'])
-    n = int((60./dt) + 0.5)             #Number of timesteps per hour
-    nInts = int((1440.0/dt)+0.5)        #Number of timesteps per day
-    Av = numpy.array([c.missing_value]*nInts,dtype=numpy.float64)
-    Sd = numpy.array([c.missing_value]*nInts,dtype=numpy.float64)
-    NSd = numpy.array(eval(cf[section][series]['DiurnalCheck']['NumSd']),dtype=float)
-    for m in range(1,13):
-        mindex = numpy.where(ds.series['Month']['Data']==m)[0]
-        if len(mindex)!=0:
-            lHdh = ds.series['Hdh']['Data'][mindex]
-            l2ds = ds.series[series]['Data'][mindex]
-            for i in range(nInts):
-                li = numpy.where(abs(lHdh-(float(i)/float(n))<c.eps)&(l2ds!=float(c.missing_value)))
-                if numpy.size(li)!=0:
-                    Av[i] = numpy.mean(l2ds[li])
-                    Sd[i] = numpy.std(l2ds[li])
-                else:
-                    Av[i] = float(c.missing_value)
-                    Sd[i] = float(c.missing_value)
-            Lwr = Av - NSd[m-1]*Sd
-            Upr = Av + NSd[m-1]*Sd
-            hindex = numpy.array(n*lHdh,int)
-            index = numpy.where(((l2ds!=float(c.missing_value))&(l2ds<Lwr[hindex]))|
-                                ((l2ds!=float(c.missing_value))&(l2ds>Upr[hindex])))[0] + mindex[0]
-            ds.series[series]['Data'][index] = numpy.float64(c.missing_value)
-            ds.series[series]['Flag'][index] = numpy.int32(code)
-            ds.series[series]['Attr']['diurnalcheck_numsd'] = cf[section][series]['DiurnalCheck']['NumSd']
-    if 'DiurnalCheck' not in ds.globalattributes['Functions']:
-        ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',DiurnalCheck'
-
-def do_excludedates(cf,ds,section='',series='',code=6):
-    if 'ExcludeDates' not in cf[section][series].keys(): return
-    ldt = ds.series['DateTime']['Data']
-    ExcludeList = cf[section][series]['ExcludeDates'].keys()
-    NumExclude = len(ExcludeList)
-    for i in range(NumExclude):
-        ExcludeDateList = ast.literal_eval(cf[section][series]['ExcludeDates'][str(i)])
-        try:
-            si = ldt.index(datetime.datetime.strptime(ExcludeDateList[0],'%Y-%m-%d %H:%M'))
-        except ValueError:
-            si = 0
-        try:
-            ei = ldt.index(datetime.datetime.strptime(ExcludeDateList[1],'%Y-%m-%d %H:%M')) + 1
-        except ValueError:
-            ei = -1
-        ds.series[series]['Data'][si:ei] = numpy.float64(c.missing_value)
-        ds.series[series]['Flag'][si:ei] = numpy.int32(code)
-        ds.series[series]['Attr']['ExcludeDates_'+str(i)] = cf[section][series]['ExcludeDates'][str(i)]
-    if 'ExcludeDates' not in ds.globalattributes['Functions']:
-        ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',ExcludeDates'
-
-def do_excludehours(cf,ds,section='',series='',code=7):
-    if 'ExcludeHours' not in cf[section][series].keys(): return
-    ldt = ds.series['DateTime']['Data']
-    ExcludeList = cf[section][series]['ExcludeHours'].keys()
-    NumExclude = len(ExcludeList)
-    for i in range(NumExclude):
-        ExcludeHourList = ast.literal_eval(cf[section][series]['ExcludeHours'][str(i)])
-        try:
-            si = ldt.index(datetime.datetime.strptime(ExcludeHourList[0],'%Y-%m-%d %H:%M'))
-        except ValueError:
-            si = 0
-        try:
-            ei = ldt.index(datetime.datetime.strptime(ExcludeHourList[1],'%Y-%m-%d %H:%M')) + 1
-        except ValueError:
-            ei = -1
-        for j in range(len(ExcludeHourList[2])):
-            ExHr = datetime.datetime.strptime(ExcludeHourList[2][j],'%H:%M').hour
-            ExMn = datetime.datetime.strptime(ExcludeHourList[2][j],'%H:%M').minute
-            index = numpy.where((ds.series['Hour']['Data'][si:ei]==ExHr)&
-                                (ds.series['Minute']['Data'][si:ei]==ExMn))[0] + si
-            ds.series[series]['Data'][index] = numpy.float64(c.missing_value)
-            ds.series[series]['Flag'][index] = numpy.int32(code)
-            ds.series[series]['Attr']['ExcludeHours_'+str(i)] = cf[section][series]['ExcludeHours'][str(i)]
-    if 'ExcludeHours' not in ds.globalattributes['Functions']:
-        ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',ExcludeHours'
-
 def do_linear(cf,ds):
     level = ds.globalattributes['nc_level']
     for ThisOne in cf['Variables'].keys():
@@ -661,3 +705,25 @@ def do_qcchecks_oneseries(cf,ds,section='',series=''):
 def do_winddirectioncorrection(cf,ds,section='',series=''):
     if 'CorrectWindDirection' not in cf[section][series].keys(): return
     qcts.CorrectWindDirection(cf,ds,series)
+
+def rangecheckserieslower(data,lower):
+    if lower is None:
+        log.info(' rangecheckserieslower: no lower bound set')
+        return data
+    if numpy.ma.isMA(data):
+        data = numpy.ma.masked_where(data<lower,data)
+    else:
+        index = numpy.where((abs(data-numpy.float64(c.missing_value))>c.eps)&(data<lower))[0]
+        data[index] = numpy.float64(c.missing_value)
+    return data
+
+def rangecheckseriesupper(data,upper):
+    if upper is None:
+        log.info(' rangecheckserieslower: no upper bound set')
+        return data
+    if numpy.ma.isMA(data):
+        data = numpy.ma.masked_where(data>upper,data)
+    else:
+        index = numpy.where((abs(data-numpy.float64(c.missing_value))>c.eps)&(data>upper))[0]
+        data[index] = numpy.float64(c.missing_value)
+    return data

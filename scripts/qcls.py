@@ -44,8 +44,8 @@ def l2qc(cf,ds1):
         """
     # make a copy of the L1 data
     ds2 = copy.deepcopy(ds1)
-    ds2.globalattributes['nc_level'] = 'L2'
-    ds2.globalattributes['EPDversion'] = sys.version
+    # set some attributes for this level    
+    qcutils.UpdateGlobalAttributes(cf,ds2,"L2")
     ds2.globalattributes['Functions'] = ''
     # put the control file name into the global attributes
     ds2.globalattributes['controlfile_name'] = cf['controlfile_name']
@@ -107,8 +107,8 @@ def l3qc(cf,ds2):
         """
     # make a copy of the L2 data
     ds3 = copy.deepcopy(ds2)
-    ds3.globalattributes['nc_level'] = 'L3'
-    ds3.globalattributes['EPDversion'] = sys.version
+    # set some attributes for this level    
+    qcutils.UpdateGlobalAttributes(cf,ds3,"L3")
     # initialise the global attribute to document the functions used
     ds3.globalattributes['Functions'] = ''
     # put the control file name into the global attributes
@@ -285,7 +285,8 @@ def l5qc(cf,ds4):
     # re-apply the quality control checks (range, diurnal and rules)
     qcck.do_qcchecks(cf,ds5)
     # now do the flux gap filling methods
-    for ThisOne in cf["Fluxes"].keys():
+    label_list = qcutils.get_label_list_from_cf(cf)
+    for ThisOne in label_list:
         # parse the control file for information on how the user wants to do the gap filling
         qcgf.GapFillParseControlFile(cf,ds5,ThisOne,ds_alt)
     # *** start of the section that does the gap filling of the fluxes ***
