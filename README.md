@@ -52,3 +52,12 @@ To update an OzFluxQC installation done by "git", follow these steps:
 * 2. Type "git pull origin master" at the command prompt in the OzFluxQC directory.  This will update the OzFluxQC installation.
 
 #Running OzFluxQC
+The simplest way to run OzFluxQC is from the command line.
+
+To run OzFluxQC, follow these steps:
+* 1. Open a command line window or terminal session and use the "cd" command to navigate to the OzFluxQC directory.
+* 2. Type "python OzFluxQC.py" at the command prompt.
+* 3. After a short time, the OzFluixQC GUI will appear.  This can take a couple of minutes when the program is run for the first time.
+
+#Using OzFluxQC
+Coming soon ...
