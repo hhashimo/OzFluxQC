@@ -1,8 +1,3 @@
-"""
-    QC Data Function Module
-    Used to perform the tasks queued by qcls.py
-    """
-
 import sys
 import ast
 import constants as c
@@ -1281,11 +1276,10 @@ def LowPassFilterSws(cf,ds,Sws_out='Sws_LP',Sws_in='Sws',npoles=5,co_ny=0.05):
     Sws_LP = filtfilt(b,a,Sws)
     attr = qcutils.MakeAttributeDictionary(long_name=attr,units='cm3 water/cm3 soil',standard_name='soil_moisture_content')
     qcutils.CreateSeries(ds,outvar,Sws_out,FList=[invar],Attr=attr)
-    
 
 def do_attributes(cf,ds):
     """
-        Import attriubes in xl2nc control file to netCDF dataset.  Included
+        Import attriubes in L1 control file to netCDF dataset.  Included
         global and variable attributes.  Also attach flag definitions to global
         meta-data for reference.
         

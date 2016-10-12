@@ -17,41 +17,6 @@ import xlwt
 
 log = logging.getLogger('qc.clim')
 
-#def do_2dinterpolation(array_2d):
-    #"""
-    #Takes a 2d array as input and;
-     #1) tiles this into a 3 x 3 space (9 repeats of the original 2d array in 3 columns and 3 rows)
-     #2) removes the missing data (c.missing_value) from the tiled array
-     #3) does a bi-linear interpolation to replace the the missing data
-     #4) returns the central tile
-     #The effect is to replace missing data in the original 2d array with data from a bi-linear
-     #interpolation, the tiling repeats the original array along its boundaries to avoid problems
-     #at the array edges.
-     #PRI's original version
-    #"""
-    #WasMA = False
-    #if numpy.ma.isMA(array_2d):
-        #WasMA = True
-        #array_2d = numpy.ma.filled(array_2d,float(c.missing_value))
-    ## tile the 2d array into a 3 by 3 array
-    #array_2d_3x3=numpy.tile(array_2d,(3,3))
-    ## get the dimensions of the tiled array
-    #nmn=numpy.shape(array_2d_3x3)[1]
-    #mni=numpy.arange(0,nmn)
-    #nhr=numpy.shape(array_2d_3x3)[0]
-    #hri=numpy.arange(0,nhr)
-    #mn,hr=numpy.meshgrid(mni,hri)
-    #array_2d_3x3_1d=numpy.reshape(array_2d_3x3,numpy.shape(array_2d_3x3)[0]*numpy.shape(array_2d_3x3)[1])
-    #mn_1d=numpy.reshape(mn,numpy.shape(mn)[0]*numpy.shape(mn)[1])
-    #hr_1d=numpy.reshape(hr,numpy.shape(hr)[0]*numpy.shape(hr)[1])
-    #index=numpy.where(array_2d_3x3_1d!=c.missing_value)
-    #array_2d_3x3i=griddata(mn_1d[index],hr_1d[index],array_2d_3x3_1d[index],mni,hri,interp="linear")
-    #array_2di=array_2d_3x3i[nhr/3:2*nhr/3,nmn/3:2*nmn/3]
-    ##array_2di=numpy.ma.filled(array_2d_3x3i[nhr/3:2*nhr/3,nmn/3:2*nmn/3],0)
-    #if WasMA:
-        #array_2di = numpy.ma.masked_where(abs(array_2di-numpy.float64(c.missing_value))<c.eps,array_2di)
-        #array_2d = numpy.ma.masked_where(abs(array_2d-numpy.float64(c.missing_value))<c.eps,array_2d)
-    #return array_2di
 def do_2dinterpolation(array_2d):
     """
     Takes a 2d array as input and;

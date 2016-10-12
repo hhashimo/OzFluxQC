@@ -16,7 +16,7 @@ def ApplyQCChecks(cf,ds,variable,mode="quiet"):
     Purpose:
      Apply the QC checks speified in the control file object to a single variable
     Usage:
-     qcck.ApplyQCChecks(cf,variable)'
+     qcck.ApplyQCChecks(cf,variable)
      where cf is a control file object
            variable is a variable dictionary as returned by qcutils.GetVariableAsDict()
     Author: PRI

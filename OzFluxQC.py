@@ -82,7 +82,7 @@ class qcgui(tk.Tk):
         L3Label = tk.Label(self.org_frame,text='L3: Process')
         L3Label.grid(row=0,column=4,columnspan=2)
         # things in the second row of the GUI
-        doL1Button = tk.Button (self.org_frame, text="Read L1 file", command=self.do_xl2nc )
+        doL1Button = tk.Button (self.org_frame, text="Read L1 file", command=self.do_l1qc )
         doL1Button.grid(row=1,column=0,columnspan=2)
         doL2Button = tk.Button (self.org_frame, text="Do L2 QA/QC", command=self.do_l2qc )
         doL2Button.grid(row=1,column=2,columnspan=2)
@@ -145,7 +145,7 @@ class qcgui(tk.Tk):
         menubar.add_cascade(label="File",menu=filemenu)
         # now the "Run" menu
         runmenu = tk.Menu(menubar,tearoff=0)
-        runmenu.add_command(label="Read L1 file",command=self.do_xl2nc)
+        runmenu.add_command(label="Read L1 file",command=self.do_l1qc)
         runmenu.add_command(label="Do L2 QA/QC",command=self.do_l2qc)
         runmenu.add_command(label="Do L3 processing",command=self.do_l3qc)
         runmenu.add_command(label="Do L4 gap fill (drivers)",command=self.do_l4qc)
@@ -278,7 +278,28 @@ class qcgui(tk.Tk):
 
     def do_helpcontents(self):
         tkMessageBox.showinfo("Obi Wan says ...","Read the source, Luke!")
-        
+    
+    def do_l1qc(self):
+        """
+        Calls qcls.l1qc
+        """
+        logging.info(" Starting L1 processing ...")
+        self.do_progress(text='Load L1 Control File ...')
+        cf = qcio.load_controlfile(path='controlfiles')
+        if len(cf)==0:
+            logging.info( " L1: no control file chosen")
+            self.do_progress(text='Waiting for input ...')
+            return
+        self.do_progress(text='Doing L1 ...')
+        ds1 = qcls.l1qc(cf)
+        outfilename = qcio.get_outfilenamefromcf(cf)
+        if len(outfilename)==0: self.do_progress(text='An error occurred, check the console ...'); return
+        ncFile = qcio.nc_open_write(outfilename)
+        qcio.nc_write_series(ncFile,ds1)
+        self.do_progress(text='Finished L1')
+        logging.info(' Finished L1')
+        logging.info("")
+
     def do_l2qc(self):
         """
             Call qcls.l2qc function

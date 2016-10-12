@@ -1,5 +1,16 @@
 version_name = "OzFluxQC"
-version_number = "V2.9.6c"
+version_number = "V2.9.6d"
+# V2.9.6d  - bug fix in gfSOLO_main
+#            - variable was being pulled from L4 data structure prior
+#              to running QC checks before gap filling so any u* filtering
+#              at L5 was lost
+#            - variable now pulled from L5 data structure
+#            - bug introduced shortly after return from Berlin in August 2016
+#          - rationalised code that calls L1 processing
+#            - implemented qcls.l1qc()
+#            - call for L1 processing and API for call now follows calling
+#              and API for L2 to L6
+#            - done to make implementation of Kepler verson easier
 # V2.9.6c  - bug fix in qcfunc.DateTimeFromTimeStamp()
 #            - datetimes in non-ISO format were interpreted incorrectly
 #            - added format option to routine call to specify order

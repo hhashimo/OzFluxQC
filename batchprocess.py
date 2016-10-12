@@ -49,7 +49,7 @@ for level in level_list:
             cfname = cf_batch["Levels"][level][i]
             logging.info('Starting L1 processing with '+cfname)
             cf = qcio.get_controlfilecontents(cfname)
-            qcio.xl2nc(cf,'L1')
+            qcio.l1qc(cf)
             logging.info('Finished L1 processing with '+cfname)
             logging.info('')
     elif level.lower()=="l2":

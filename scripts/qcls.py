@@ -1,20 +1,10 @@
-"""
-    OzFlux QC v2.1.2 26 October 2012
-"""
-#    Version History:
-#    <<v1.0: 21 July 2011, code diversion reconciliation>>
-#    <<v1.4 30 Sep 2011, final version arrising from OzFlux Black Mountain data workshop>>
-#    <<v1.9.9a 8 June 2012, version arrising from conclusion of OzFlux UTS data workshop>>
-#    <<v2.0    July 2012, version arrising from merge of PI and JC code after Methven workshop>>
-#    <<v2.1.1  September 2012, various PI modifications (see ChangeLog.txt)>>
-#    <<v2.1.2 (current) October 2012, changes to metadata, fn2nc for Tumba (see ChangeLog.txt)>>
-
 import sys
 import logging
 import ast
 import constants as c
 import copy
 import numpy
+import os
 import qcck
 import qcgf
 import qcio
@@ -26,6 +16,52 @@ import xlrd
 import meteorologicalfunctions as mf
 
 log = logging.getLogger('qc.ls')
+
+def l1qc(cf):
+    # get the data series from the Excel file
+    in_filename = qcio.get_infilenamefromcf(cf)
+    if not qcutils.file_exists(in_filename,mode="quiet"):
+        msg = " Input file "+in_filename+" not found ..."
+        log.error(msg)
+        return qcio.DataStructure(object)
+    file_name,file_extension = os.path.splitext(in_filename)
+    if "csv" in file_extension.lower():
+        ds1 = qcio.csv_read_series(cf)
+        if ds1==0: return ds1
+        # get a series of Excel datetime from the Python datetime objects
+        qcutils.get_xldatefromdatetime(ds1)
+    else:
+        ds1 = qcio.xl_read_series(cf)
+        if ds1==0: return ds1
+        # get a series of Python datetime objects from the Excel datetime
+        qcutils.get_datetimefromxldate(ds1)
+    # get the netCDF attributes from the control file
+    qcts.do_attributes(cf,ds1)
+    # round the Python datetime to the nearest second
+    qcutils.round_datetime(ds1,mode="nearest_second")
+    #check for gaps in the Python datetime series and fix if present
+    fixtimestepmethod = qcutils.get_keyvaluefromcf(cf,["options"],"FixTimeStepMethod",default="round")
+    if qcutils.CheckTimeStep(ds1): qcutils.FixTimeStep(ds1,fixtimestepmethod=fixtimestepmethod)
+    # recalculate the Excel datetime
+    qcutils.get_xldatefromdatetime(ds1)
+    # get the Year, Month, Day etc from the Python datetime
+    qcutils.get_ymdhmsfromdatetime(ds1)
+    # write the processing level to a global attribute
+    ds1.globalattributes['nc_level'] = str("L1")
+    # get the start and end date from the datetime series unless they were
+    # given in the control file
+    if 'start_date' not in ds1.globalattributes.keys():
+        ds1.globalattributes['start_date'] = str(ds1.series['DateTime']['Data'][0])
+    if 'end_date' not in ds1.globalattributes.keys():
+        ds1.globalattributes['end_date'] = str(ds1.series['DateTime']['Data'][-1])
+    # calculate variances from standard deviations and vice versa
+    qcts.CalculateStandardDeviations(cf,ds1)
+    # create new variables using user defined functions
+    qcts.DoFunctions(cf,ds1)
+    # create a series of synthetic downwelling shortwave radiation
+    qcts.get_synthetic_fsd(ds1)
+
+    return ds1
 
 def l2qc(cf,ds1):
     """
@@ -293,7 +329,7 @@ def l5qc(cf,ds4):
     # apply the turbulence filter (if requested)
     qcck.ApplyTurbulenceFilter(cf,ds5)
     # fill short gaps using interpolation
-    qcgf.GapFillUsingInterpolation(cf,ds5)
+    #qcgf.GapFillUsingInterpolation(cf,ds5)
     # do the gap filling using SOLO
     qcgf.GapFillUsingSOLO(cf,ds4,ds5)
     if ds5.returncodes["solo"]=="quit": return ds5
