@@ -49,7 +49,10 @@ for level in level_list:
             cfname = cf_batch["Levels"][level][i]
             logging.info('Starting L1 processing with '+cfname)
             cf = qcio.get_controlfilecontents(cfname)
-            qcio.l1qc(cf)
+            ds1 = qcls.l1qc(cf)
+            outfilename = qcio.get_outfilenamefromcf(cf)
+            ncFile = qcio.nc_open_write(outfilename)
+            qcio.nc_write_series(ncFile,ds1)
             logging.info('Finished L1 processing with '+cfname)
             logging.info('')
     elif level.lower()=="l2":

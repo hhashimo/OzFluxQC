@@ -2067,7 +2067,7 @@ def MassmanStandard(cf,ds,Ta_in='Ta',Ah_in='Ah',ps_in='ps',ustar_in='ustar',usta
     lLong = CSATarm - (numpy.ma.cos(numpy.deg2rad(angle)) * IRGAarm)
     # *** Massman_1stpass starts here ***
     #  The code for the first and second passes is very similar.  It would be useful to make them the
-    #  same and put into a loop to reduce the nu,ber of lines in this function.
+    #  same and put into a loop to reduce the number of lines in this function.
     # calculate ustar and Monin-Obukhov length from rotated but otherwise uncorrected covariances
     Ta,f,a = qcutils.GetSeriesasMA(ds,Ta_in)
     Ah,f,a = qcutils.GetSeriesasMA(ds,Ah_in)
