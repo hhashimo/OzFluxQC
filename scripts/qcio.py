@@ -192,7 +192,11 @@ def csv_read_series(cf):
     # get the header and units lines
     for i in range(1,first_data_row):
         line = csv_reader.next()
-        if i==header_row: header = line
+        if i==header_row:
+            header = line
+            for i in range(len(header)):
+                if "*" in header[i]:
+                    header[i] = header[i].replace("*","star")
         if units_row!=-1:
             if i==units_row: units = line
     csv_file.close()
@@ -203,6 +207,8 @@ def csv_read_series(cf):
     for item in cf["Variables"].keys():
         if "csv" in cf["Variables"][item].keys():
             opt = qcutils.get_keyvaluefromcf(cf,["Variables",item,"csv"],"name",default="")
+            if "*" in opt:
+                opt = opt.replace("*","star")
             if opt in header:
                 csv_varnames[item] = str(opt)
         elif "xl" in cf["Variables"][item].keys():
