@@ -8,6 +8,7 @@ from scipy.interpolate import griddata
 import matplotlib.pyplot as plt
 import numpy
 import time
+import qcck
 import qcio
 import qcplot
 import qcts
@@ -385,33 +386,39 @@ def compare_eddypro():
     dt_ep = ds_ep.series['DateTime']['Data']
     dt_of = ds_of.series['DateTime']['Data']
     
-    si = dt_of.index(dt_ep[0])
-    ei = dt_of.index(dt_ep[-1])
+    start_datetime = max([dt_ep[0],dt_of[0]])
+    end_datetime = min([dt_ep[-1],dt_of[-1]])
     
-    us_of,f,a = qcutils.GetSeriesasMA(ds_of,'ustar',si=si,ei=ei)
-    us_ep,f,a = qcutils.GetSeriesasMA(ds_ep,'ustar')
-    Fh_of,f,a = qcutils.GetSeriesasMA(ds_of,'Fh',si=si,ei=ei)
-    Fh_ep,f,a = qcutils.GetSeriesasMA(ds_ep,'Fh')
-    Fe_of,f,a = qcutils.GetSeriesasMA(ds_of,'Fe',si=si,ei=ei)
-    Fe_ep,f,a = qcutils.GetSeriesasMA(ds_ep,'Fe')
-    Fc_of,f,a = qcutils.GetSeriesasMA(ds_of,'Fc',si=si,ei=ei)
-    Fc_ep,f,a = qcutils.GetSeriesasMA(ds_ep,'Fc')
+    si_of = qcutils.GetDateIndex(dt_of, str(start_datetime), ts=30, default=0, match='exact')
+    ei_of = qcutils.GetDateIndex(dt_of, str(end_datetime), ts=30, default=len(dt_of), match='exact')
+    si_ep = qcutils.GetDateIndex(dt_ep, str(start_datetime), ts=30, default=0, match='exact')
+    ei_ep = qcutils.GetDateIndex(dt_ep, str(end_datetime), ts=30, default=len(dt_ep), match='exact')
     
-    us_of.mask = numpy.ma.mask_or(us_of.mask,us_ep.mask)
-    us_ep.mask = numpy.ma.mask_or(us_of.mask,us_ep.mask)
-    Fh_of.mask = numpy.ma.mask_or(Fh_of.mask,Fh_ep.mask)
-    Fh_ep.mask = numpy.ma.mask_or(Fh_of.mask,Fh_ep.mask)
-    Fe_of.mask = numpy.ma.mask_or(Fe_of.mask,Fe_ep.mask)
-    Fe_ep.mask = numpy.ma.mask_or(Fe_of.mask,Fe_ep.mask)
-    Fc_of.mask = numpy.ma.mask_or(Fc_of.mask,Fc_ep.mask)
-    Fc_ep.mask = numpy.ma.mask_or(Fc_of.mask,Fc_ep.mask)
-    
+    us_of = qcutils.GetVariableAsDictionary(ds_of,'ustar',si=si_of,ei=ei_of)
+    us_ep = qcutils.GetVariableAsDictionary(ds_ep,'ustar',si=si_ep,ei=ei_ep)
+    Fh_of = qcutils.GetVariableAsDictionary(ds_of,'Fh',si=si_of,ei=ei_of)
+    Fh_ep = qcutils.GetVariableAsDictionary(ds_ep,'Fh',si=si_ep,ei=ei_ep)
+    Fe_of = qcutils.GetVariableAsDictionary(ds_of,'Fe',si=si_of,ei=ei_of)
+    Fe_ep = qcutils.GetVariableAsDictionary(ds_ep,'Fe',si=si_ep,ei=ei_ep)
+    Fc_of = qcutils.GetVariableAsDictionary(ds_of,'Fc',si=si_of,ei=ei_of)
+    Fc_ep = qcutils.GetVariableAsDictionary(ds_ep,'Fc',si=si_ep,ei=ei_ep)
+    # copy the range check values from the OFQC attributes to the EP attributes
+    for of, ep in zip([us_of, Fh_of, Fe_of, Fc_of], [us_ep, Fh_ep, Fe_ep, Fc_ep]):
+        for item in ["rangecheck_upper", "rangecheck_lower"]:
+            if item in of["Attr"]:
+                ep["Attr"][item] = of["Attr"][item]
+    # apply QC to the EddyPro data
+    qcck.ApplyRangeCheckToVariable(us_ep)
+    qcck.ApplyRangeCheckToVariable(Fc_ep)
+    qcck.ApplyRangeCheckToVariable(Fe_ep)
+    qcck.ApplyRangeCheckToVariable(Fh_ep)
+    # plot the comparison
     plt.ion()
     fig = plt.figure(1,figsize=(8,8))
-    qcplot.xyplot(us_ep,us_of,sub=[2,2,1],regr=1,xlabel='u*_EP (m/s)',ylabel='u*_OF (m/s)')
-    qcplot.xyplot(Fh_ep,Fh_of,sub=[2,2,2],regr=1,xlabel='Fh_EP (W/m2)',ylabel='Fh_OF (W/m2)')
-    qcplot.xyplot(Fe_ep,Fe_of,sub=[2,2,3],regr=1,xlabel='Fe_EP (W/m2)',ylabel='Fe_OF (W/m2)')
-    qcplot.xyplot(Fc_ep,Fc_of,sub=[2,2,4],regr=1,xlabel='Fc_EP (umol/m2/s)',ylabel='Fc_OF (umol/m2/s)')
+    qcplot.xyplot(us_ep["Data"],us_of["Data"],sub=[2,2,1],regr=1,xlabel='u*_EP (m/s)',ylabel='u*_OF (m/s)')
+    qcplot.xyplot(Fh_ep["Data"],Fh_of["Data"],sub=[2,2,2],regr=1,xlabel='Fh_EP (W/m2)',ylabel='Fh_OF (W/m2)')
+    qcplot.xyplot(Fe_ep["Data"],Fe_of["Data"],sub=[2,2,3],regr=1,xlabel='Fe_EP (W/m2)',ylabel='Fe_OF (W/m2)')
+    qcplot.xyplot(Fc_ep["Data"],Fc_of["Data"],sub=[2,2,4],regr=1,xlabel='Fc_EP (umol/m2/s)',ylabel='Fc_OF (umol/m2/s)')
     plt.tight_layout()
     plt.draw()
     plt.ioff()

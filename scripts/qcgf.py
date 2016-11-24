@@ -2552,7 +2552,8 @@ def gfSOLO_main(dsa,dsb,solo_info,output_list=[]):
         series = dsb.solo[output]["label_tower"]
         # clean up the target series if required
         variable = qcutils.GetVariableAsDictionary(dsb, series)
-        qcck.ApplyQCChecks(cf, dsb, variable)
+        qcck.UpdateVariableAttributes_QC(cf, variable)
+        qcck.ApplyQCChecks(variable)
         qcutils.CreateVariableFromDictionary(dsb, variable)
         # check to see if we are gap filling L5 or L4
         if dsb.globalattributes["nc_level"].lower()=="l4":

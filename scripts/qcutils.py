@@ -1169,9 +1169,10 @@ def GetVariableAsDictionary(ds,label,si=0,ei=-1,mode="truncate"):
       Fsd = qcutils.GetSeriesAsDict(ds,"Fsd")
     Author: PRI
     """
+    ldt,flag,attr = GetSeries(ds,"DateTime",si=si,ei=ei,mode=mode)
     data,flag,attr = GetSeries(ds,label,si=si,ei=ei,mode=mode)
     data,WasND = SeriestoMA(data)
-    variable = {"Label":label,"Data":data,"Flag":flag,"Attr":attr}
+    variable = {"Label":label,"Data":data,"Flag":flag,"Attr":attr,"DateTime":numpy.array(ldt)}
     return variable
 
 def GetUnitsFromds(ds, ThisOne):
@@ -1672,16 +1673,21 @@ def MakeAttributeDictionary(**kwargs):
     Author: PRI
     Date: Back in the day
     """
-    default_list = ['ancillary_variables','height','instrument','serial_number','standard_name','long_name','units']
+    default_list = ["ancillary_variables","height","instrument","long_name","serial_number","standard_name",
+                    "units","valid_range"]
     attr = {}
     for item in kwargs:
         if isinstance(item, dict):
             for entry in item: attr[entry] = item[entry]
         else:
-            attr[item] = kwargs.get(item,'not defined')
+            attr[item] = kwargs.get(item,"not defined")
         if item in default_list: default_list.remove(item)
     if len(default_list)!=0:
-        for item in default_list: attr[item] = 'not defined'
+        for item in default_list:
+            if item == "valid_range":
+                attr[item] = str(c.small_value)+","+str(c.large_value)
+            else:
+                attr[item] = "not defined"
     attr["missing_value"] = c.missing_value
     return copy.deepcopy(attr)
 

@@ -320,22 +320,33 @@ def read_eddypro_full(csvname):
             Fc_flag_list.append(float(row[Fc_flag_col]))
         n = n + 1
     nRecs = len(adatetime)
+    ds.globalattributes["nc_nrecs"] = nRecs
     ds.series['DateTime'] = {}
     ds.series['DateTime']['Data'] = adatetime
     qcutils.round_datetime(ds,mode="nearest_timestep")
-    ds.series['ustar'] = {}
-    ds.series['ustar']['Data'] = numpy.array(us_data_list,dtype=numpy.float64)
-    ds.series['ustar']['Flag'] = numpy.array(us_flag_list,dtype=numpy.int32)
-    ds.series['Fh'] = {}
-    ds.series['Fh']['Data'] = numpy.array(Fh_data_list,dtype=numpy.float64)
-    ds.series['Fh']['Flag'] = numpy.array(Fh_flag_list,dtype=numpy.int32)
-    ds.series['Fe'] = {}
-    ds.series['Fe']['Data'] = numpy.array(Fe_data_list,dtype=numpy.float64)
-    ds.series['Fe']['Flag'] = numpy.array(Fe_flag_list,dtype=numpy.int32)
-    ds.series['Fc'] = {}
-    ds.series['Fc']['Data'] = numpy.array(Fc_data_list,dtype=numpy.float64)
-    ds.series['Fc']['Flag'] = numpy.array(Fc_flag_list,dtype=numpy.int32)
-    ds.globalattributes["nc_nrecs"] = nRecs
+    qcutils.get_ymdhmsfromdatetime(ds)
+    
+    variable = {"Label":"ustar"}
+    variable["Data"] = numpy.array(us_data_list,dtype=numpy.float64)
+    variable["Flag"] = numpy.array(us_flag_list,dtype=numpy.int32)
+    variable["Attr"] = qcutils.MakeAttributeDictionary()
+    qcutils.CreateVariableFromDictionary(ds, variable)
+    variable = {"Label":"Fh"}
+    variable["Data"] = numpy.array(Fh_data_list,dtype=numpy.float64)
+    variable["Flag"] = numpy.array(Fh_flag_list,dtype=numpy.int32)
+    variable["Attr"] = qcutils.MakeAttributeDictionary()
+    qcutils.CreateVariableFromDictionary(ds, variable)
+    variable = {"Label":"Fe"}
+    variable["Data"] = numpy.array(Fe_data_list,dtype=numpy.float64)
+    variable["Flag"] = numpy.array(Fe_flag_list,dtype=numpy.int32)
+    variable["Attr"] = qcutils.MakeAttributeDictionary()
+    qcutils.CreateVariableFromDictionary(ds, variable)
+    variable = {"Label":"Fc"}
+    variable["Data"] = numpy.array(Fc_data_list,dtype=numpy.float64)
+    variable["Flag"] = numpy.array(Fc_flag_list,dtype=numpy.int32)
+    variable["Attr"] = qcutils.MakeAttributeDictionary()
+    qcutils.CreateVariableFromDictionary(ds, variable)
+
     return ds
 
 def reddyproc_write_csv(ncFileName):

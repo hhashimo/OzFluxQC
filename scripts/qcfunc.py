@@ -100,7 +100,6 @@ def DateTimeFromDoY(ds,Year_in,DoY_in,Hdh_in):
     return 1
 
 def DateTimeFromTimeStamp(ds,TimeStamp_in,fmt=""):
-    print " fmt = ",fmt
     if TimeStamp_in not in ds.series.keys():
         log.error(" Required series "+TimeStamp_in+" not found")
         return 0

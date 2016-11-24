@@ -11,19 +11,18 @@ import logging
 
 log = logging.getLogger('qc.ck')
 
-def ApplyQCChecks(cf,ds,variable,mode="quiet"):
+def ApplyQCChecks(variable):
     """
     Purpose:
      Apply the QC checks speified in the control file object to a single variable
     Usage:
-     qcck.ApplyQCChecks(cf,variable)
-     where cf is a control file object
-           variable is a variable dictionary as returned by qcutils.GetVariableAsDict()
+     qcck.ApplyQCChecks(variable)
+     where variable is a variable dictionary as returned by qcutils.GetVariableAsDict()
     Author: PRI
     Date: September 2016
     """
     # do the range check
-    ApplyRangeCheckToVariable(cf,ds,variable)
+    ApplyRangeCheckToVariable(variable)
     # do the diurnal check
     #do_diurnalcheck_variable(cf,variable)
     # do exclude dates
@@ -32,27 +31,21 @@ def ApplyQCChecks(cf,ds,variable,mode="quiet"):
     #do_excludehours_variable(cf,variable)
     return
 
-def ApplyRangeCheckToVariable(cf,ds,variable):
+def ApplyRangeCheckToVariable(variable):
     """
     Purpose:
     Usage:
     Author: PRI
     Date: September 2016
     """
-    label = variable["Label"]
-    section = qcutils.get_cfsection(cf,series=label)
-    # check to see if RangeCheck requested for this variable
-    if "RangeCheck" not in cf[section][label]:
-        return
+    dt = variable["DateTime"]
     # Check to see if a lower limit has been specified
-    if "Lower" not in cf[section][label]["RangeCheck"]:
-        return
-    else:
-        attr = cf[section][label]['RangeCheck']['Lower']
-        variable["Attr"]["rangecheck_lower"] = attr
-        lower = numpy.array(ast.literal_eval(attr))
+    if "rangecheck_lower" in variable["Attr"]:
+        attr = variable["Attr"]["rangecheck_lower"]
+        lower = numpy.array(eval(attr))
         valid_lower = str(numpy.min(lower))
-        lower_series = lower[ds.series['Month']['Data']-1]
+        month = numpy.array([dt[i].month for i in range(0,len(dt))])
+        lower_series = lower[month-1]
         index = numpy.ma.where(variable["Data"]<lower_series)[0]
         variable["Data"][index] = numpy.ma.masked
         variable["Flag"][index] = numpy.int32(2)
@@ -60,14 +53,12 @@ def ApplyRangeCheckToVariable(cf,ds,variable):
         old_lower = valid_range.split(",")[0]
         valid_range = valid_range.replace(old_lower,valid_lower)
         variable["Attr"]["valid_range"] = valid_range
-    if "Upper" not in cf[section][label]["RangeCheck"]:
-        return
-    else:
-        attr = cf[section][label]['RangeCheck']['Upper']
-        variable["Attr"]["rangecheck_upper"] = attr
-        upper = numpy.array(ast.literal_eval(attr))
+    if "rangecheck_upper" in variable["Attr"]:
+        attr = variable["Attr"]["rangecheck_upper"]
+        upper = numpy.array(eval(attr))
         valid_upper = str(numpy.min(upper))
-        upper_series = upper[ds.series['Month']['Data']-1]
+        month = numpy.array([dt[i].month for i in range(0,len(dt))])
+        upper_series = upper[month-1]
         index = numpy.ma.where(variable["Data"]>upper_series)[0]
         variable["Data"][index] = numpy.ma.masked
         variable["Flag"][index] = numpy.int32(2)
@@ -727,3 +718,23 @@ def rangecheckseriesupper(data,upper):
         index = numpy.where((abs(data-numpy.float64(c.missing_value))>c.eps)&(data>upper))[0]
         data[index] = numpy.float64(c.missing_value)
     return data
+
+def UpdateVariableAttributes_QC(cf, variable):
+    """
+    Purpose:
+    Usage:
+    Side effects:
+    Author: PRI
+    Date: November 2016
+    """
+    label = variable["Label"]
+    section = qcutils.get_cfsection(cf,series=label,mode='quiet')
+    if label not in cf[section]:
+        return
+    if "RangeCheck" not in cf[section][label]:
+        return
+    if "Lower" in cf[section][label]["RangeCheck"]:
+        variable["Attr"]["rangecheck_lower"] = cf[section][label]["RangeCheck"]["Lower"]
+    if "Upper" in cf[section][label]["RangeCheck"]:
+        variable["Attr"]["rangecheck_upper"] = cf[section][label]["RangeCheck"]["Upper"]
+    return
