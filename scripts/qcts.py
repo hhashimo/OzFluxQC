@@ -2114,10 +2114,14 @@ def MassmanStandard(cf,ds,Ta_in='Ta',Ah_in='Ah',ps_in='ps',ustar_in='ustar',usta
     fxMom = nxMom * u / zmd
     fxScalar = nxScalar * u / zmd
     # compute spectral filters
-    tao_eMom = ((c.lwVert / (5.7 * u)) ** 2) + ((c.lwHor / (2.8 * u)) ** 2)
-    tao_ewT = ((c.lwVert / (8.4 * u)) ** 2) + ((c.lTv / (4.0 * u)) ** 2)
-    tao_ewIRGA = ((c.lwVert / (8.4 * u)) ** 2) + ((c.lIRGA / (4.0 * u)) ** 2) \
-                 + ((lLat / (1.1 * u)) ** 2) + ((lLong / (1.05 * u)) ** 2)
+    tao_eMom = numpy.ma.sqrt(((c.lwVert / (5.7 * u)) ** 2) + ((c.lwHor / (2.8 * u)) ** 2))
+    tao_ewT = numpy.ma.sqrt(((c.lwVert / (8.4 * u)) ** 2) + ((c.lTv / (4.0 * u)) ** 2))
+    tao_ewIRGA = numpy.ma.sqrt(((c.lwVert / (8.4 * u)) ** 2) +
+                               ((c.lIRGA / (4.0 * u)) ** 2) +
+                               ((0.2+0.4*c.dIRGA/c.lIRGA)*(c.lIRGA/u)) + 
+                               (c.tau_bw ** 2) +
+                               ((lLat / (1.1 * u)) ** 2) +
+                               ((lLong / (1.05 * u)) ** 2))
     tao_b = c.Tb / 2.8
     # calculate coefficients
     bMom = qcutils.bp(fxMom,tao_b)

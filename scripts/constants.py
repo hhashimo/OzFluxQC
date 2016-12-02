@@ -29,10 +29,11 @@ Pi = 3.14159   # Pi
 sb = 5.6704E-8 # Stefan-Boltzman constant, W/m2/K4
 Tref = 15.0    # reference temperature in the Lloyd-Taylor respiration equation, C
 T0   = -46.02  # zero temp[erature in the Lloyd-Taylor respiration equation, C
-lwVert = 0.1       # vertical path length of CSAT3, m
+lwVert = 0.115       # vertical path length of CSAT3, m
 lwHor = 0.058      # horizontal path length of CSAT3, m
-lTv = 0.1155      # path length of sonic virtual temperature, m
-lIRGA = 0.125 # path length of LI7500 IRGA
+lTv = 0.115      # path length of sonic virtual temperature, m
+dIRGA = 0.0095 # path diameter of LI7500 IRGA
+lIRGA = 0.127  # path length of LI7500 IRGA
 Tb = 1800      # 30-min period, in seconds
 C2K = 273.15   # convert degrees celsius to kelvin
 # dictionary of site names and time zones
