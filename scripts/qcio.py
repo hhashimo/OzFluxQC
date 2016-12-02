@@ -37,7 +37,7 @@ class DataStructure(object):
         self.globalattributes["Functions"] = ""
         self.mergeserieslist = []
         self.averageserieslist = []
-        self.returncodes = {}
+        self.returncodes = {"value":0,"message":"OK"}
 
 def convert_v27tov28():
     """ Convert V2.7 (1D) netCDF files to V2.8 (3D). """
@@ -161,21 +161,31 @@ def csv_read_series(cf):
     Author: PRI
     Date: September 2015
     """
+    # get a data structure
+    ds = DataStructure()
     # return if [[[Function]]] not in [[DateTime]]
     if "DateTime" not in cf["Variables"]:
-        log.error("No [[DateTime]] section in control file ...")
-        return 0
+        msg = "No [[DateTime]] section in control file ..."
+        log.error(msg)
+        ds.returncodes = {"value":1,"message":msg}
+        return ds
     if "Function" not in cf["Variables"]["DateTime"]:
-        log.error("No [[[Function]]] section in [[DateTime]] section ...")
-        return 0
+        msg = "No [[[Function]]] section in [[DateTime]] section ..."
+        log.error(msg)
+        ds.returncodes = {"value":1,"message":msg}
+        return ds
     # get the filename, return if missing or doesn't exist
     csv_filename = get_infilenamefromcf(cf)
     if len(csv_filename)==0:
-        log.error(' in_filename not found in control file')
-        return 0
+        msg = ' in_filename not found in control file'
+        log.error(msg)
+        ds.returncodes = {"value":1,"message":msg}
+        return ds
     if not os.path.exists(csv_filename):
-        log.error(' Input file '+csv_filename+' specified in control file not found')
-        return 0
+        msg = ' Input file '+csv_filename+' specified in control file not found'
+        log.error(msg)
+        ds.returncodes = {"value":1,"message":msg}
+        return ds
     # get the header row, first data row and units row
     opt = qcutils.get_keyvaluefromcf(cf,["Files"],"in_firstdatarow",default=2)
     first_data_row = int(opt)
@@ -234,8 +244,6 @@ def csv_read_series(cf):
     data = numpy.genfromtxt(csv_filename,delimiter=dialect.delimiter,skip_header=skip,
                             names=header,usecols=col_list,missing_values=missing_values,
                             filling_values=filling_values,dtype=None)
-    # get a data structure
-    ds = DataStructure()
     # get the variables and put them into the data structure
     # we'll deal with DateTime and xlDateTime separately
     for item in ["xlDateTime","DateTime"]:
@@ -261,6 +269,7 @@ def csv_read_series(cf):
     s = os.stat(csv_filename)
     t = time.localtime(s.st_mtime)
     ds.globalattributes['csv_moddatetime'] = str(datetime.datetime(t[0],t[1],t[2],t[3],t[4],t[5]))
+    ds.returncodes = {"value":0,"message":"OK"}
     return ds
 
 def nc_2xls(ncfilename,outputlist=None):
@@ -1009,7 +1018,8 @@ def get_seriesstats(cf,ds):
     level = ds.globalattributes['nc_level']
     out_filename = get_outfilenamefromcf(cf)
     xl_filename = out_filename.replace('.nc','_FlagStats.xls')
-    log.info(' Writing flag stats to Excel file '+xl_filename)
+    file_name = os.path.split(xl_filename)
+    log.info(' Writing flag stats to '+file_name[1])
     xlFile = xlwt.Workbook()
     xlFlagSheet = xlFile.add_sheet('Flag')
     # get the flag statistics
@@ -1719,7 +1729,8 @@ def nc_open_write(ncFullName,nctype='NETCDF4'):
     Author: PRI
     Date: Back in the day
     """
-    log.info(' Opening netCDF file '+ncFullName+' for writing')
+    file_name = os.path.split(ncFullName)
+    log.info(' Opening netCDF file '+file_name[1])
     try:
         ncFile = netCDF4.Dataset(ncFullName,'w',format=nctype)
     except:
@@ -1936,18 +1947,23 @@ def xl_read_series(cf):
     # get the filename
     FileName = get_infilenamefromcf(cf)
     if len(FileName)==0:
-        log.error(' in_filename not found in control file')
+        msg = " in_filename not found in control file"
+        log.error(msg)
+        ds.returncodes = {"value":1,"message":msg}
         return ds
     if not os.path.exists(FileName):
-        log.error(' Input file '+FileName+' specified in control file not found')
+        msg = ' Input file '+FileName+' specified in control file not found'
+        log.error(msg)
+        ds.returncodes = {"value":1,"message":msg}
         return ds
     # convert from Excel row number to xlrd row number
     FirstDataRow = int(qcutils.get_keyvaluefromcf(cf,["Files"],"in_firstdatarow")) - 1
     HeaderRow = int(qcutils.get_keyvaluefromcf(cf,["Files"],"in_headerrow")) - 1
     # get the Excel workbook object.
-    log.info(" Opening and reading Excel file "+FileName)
+    file_name = os.path.split(FileName)
+    log.info(" Reading Excel file "+file_name[1])
     xlBook = xlrd.open_workbook(FileName)
-    log.info(" Opened and read Excel file "+FileName)
+    #log.info(" Opened and read Excel file "+FileName)
     ds.globalattributes['featureType'] = 'timeseries'
     ds.globalattributes['xl_filename'] = FileName
     ds.globalattributes['xl_datemode'] = str(xlBook.datemode)
@@ -1992,6 +2008,7 @@ def xl_read_series(cf):
         else:
             log.error('  xl_read_series: key "xl" not found in control file entry for '+ThisOne)
     ds.globalattributes['nc_nrecs'] = str(len(ds.series['xlDateTime']['Data']))
+    ds.returncodes = {"value":0,"message":"OK"}
     return ds
 
 def xl_write_AlternateStats(ds):

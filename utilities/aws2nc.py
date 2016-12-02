@@ -22,7 +22,7 @@ log = qcutils.startlog('aws2nc','../logfiles/aws2nc.log')
 cf = {"Options":{"FixTimeStepMethod":"round"}}
 
 # get the site information and the AWS stations to use
-xlname = "/mnt/OzFlux/AWS/AWS_Locations.xls"
+xlname = "/home/peter/OzFlux/BoM/AWS_Locations.xls"
 wb = xlrd.open_workbook(xlname)
 sheet = wb.sheet_by_name("OzFlux")
 xl_row = 10
@@ -43,15 +43,16 @@ for n in range(xl_row,sheet.nrows):
             bom_sites_info[str(xlrow[0])][str(int(xlrow[i+1]))]["elevation"] = xlrow[i+4]
             bom_sites_info[str(xlrow[0])][str(int(xlrow[i+1]))]["distance"] = xlrow[i+5]
 
-in_path = "/mnt/OzFlux/AWS/Current/"
-out_path = "/mnt/OzFlux/Sites/"
+in_path = "/home/peter/OzFlux/BoM/AWS/Current/"
+out_path = "/home/peter/OzFlux/Sites/"
 in_filename = in_path+"HM01X_Data*.csv"
 file_list = sorted(glob.glob(in_filename))
 
-site_list = bom_sites_info.keys()
+#site_list = bom_sites_info.keys()
 #site_list = ["Tumbarumba"]
 #site_list = ["Great Western Woodlands"]
 #site_list = ["Otway"]
+site_list = ["Dwellingup"]
 for site_name in sorted(site_list):
     log.info("Starting site: "+site_name)
     sname = site_name.replace(" ","")

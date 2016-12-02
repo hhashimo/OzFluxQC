@@ -1191,9 +1191,11 @@ def xyplot(x,y,sub=[1,1,1],regr=0,thru0=0,title=None,xlabel=None,ylabel=None,fna
         xfit = numpy.ma.array([numpy.ma.minimum(x),numpy.ma.maximum(x)])
         yfit = numpy.polyval(coefs,xfit)
         r = numpy.ma.corrcoef(x,y)
-        eqnstr = 'y = %.3fx + %.3f, r = %.3f'%(coefs[0],coefs[1],r[0][1])
+        eqnstr = 'y = %.3fx + %.3f (OLS)'%(coefs[0],coefs[1])
         plt.plot(xfit,yfit,'r--',linewidth=3)
-        plt.text(0.5,0.925,eqnstr,fontsize=8,horizontalalignment='center',transform=ax.transAxes)
+        plt.text(0.5,0.93,eqnstr,fontsize=8,horizontalalignment='center',transform=ax.transAxes)
+        eqnstr = 'r = %.3f'%(r[0][1])
+        plt.text(0.5,0.89,eqnstr,fontsize=8,horizontalalignment='center',transform=ax.transAxes)
     elif regr==2:
         mask = (x.mask)|(y.mask)
         x.mask = mask
@@ -1203,9 +1205,12 @@ def xyplot(x,y,sub=[1,1,1],regr=0,thru0=0,title=None,xlabel=None,ylabel=None,fna
         y_nm = numpy.ma.compressed(y)
         if len(y_nm)!=0 or len(x_nm)!=0:
             resrlm = sm.RLM(y_nm,x_nm,M=sm.robust.norms.TukeyBiweight()).fit()
-            eqnstr = 'y = %.3fx + %.3f'%(resrlm.params[0],resrlm.params[1])
+            r = numpy.corrcoef(numpy.ma.compressed(x),numpy.ma.compressed(y))
+            eqnstr = 'y = %.3fx + %.3f (RLM)'%(resrlm.params[0],resrlm.params[1])
             plt.plot(x_nm[:,0],resrlm.fittedvalues,'r--',linewidth=3)
-            plt.text(0.5,0.9,eqnstr,fontsize=8,horizontalalignment='center',transform=ax.transAxes)
+            plt.text(0.5,0.93,eqnstr,fontsize=8,horizontalalignment='center',transform=ax.transAxes)
+            eqnstr = 'r = %.3f'%(r[0][1])
+            plt.text(0.5,0.89,eqnstr,fontsize=8,horizontalalignment='center',transform=ax.transAxes)
         else:
             log.info("xyplot: nothing to plot!")
     if thru0!=0:

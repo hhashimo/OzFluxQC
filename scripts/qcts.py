@@ -2038,7 +2038,8 @@ def MassmanStandard(cf,ds,Ta_in='Ta',Ah_in='Ah',ps_in='ps',ustar_in='ustar',usta
        The steps involved are as follows:
         1) calculate ustar and L using rotated but otherwise uncorrected covariances
        """
-    if not qcutils.cfoptionskeylogical(cf,Key='MassmanCorrection'): return
+    #if not qcutils.cfoptionskeylogical(cf,Key='Massman'):
+        #return
     if 'Massman' not in cf:
         log.info(' Massman section not found in control file, no corrections applied')
         return
@@ -2060,11 +2061,28 @@ def MassmanStandard(cf,ds,Ta_in='Ta',Ah_in='Ah',ps_in='ps',ustar_in='ustar',usta
         wC_out = MOut[8]
     log.info(' Correcting for flux loss from spectral attenuation')
     zmd = float(cf['Massman']['zmd'])             # z-d for site
-    angle = float(cf['Massman']['angle'])         # CSAT3-IRGA separation angle
-    CSATarm = float(cf['Massman']['CSATarm'])     # CSAT3 mounting distance
-    IRGAarm = float(cf['Massman']['IRGAarm'])     # IRGA mounting distance
-    lLat = numpy.ma.sin(numpy.deg2rad(angle)) * IRGAarm
-    lLong = CSATarm - (numpy.ma.cos(numpy.deg2rad(angle)) * IRGAarm)
+    if ("angle" in cf["Massman"] and
+        "CSATarm" in cf["Massman"] and
+        "IRGAarm" in cf["Massman"]):
+        # this is the original definition of lateral and longitudinal separation
+        # as coded by James
+        angle = float(cf['Massman']['angle'])         # CSAT3-IRGA separation angle
+        CSATarm = float(cf['Massman']['CSATarm'])     # CSAT3 mounting distance
+        IRGAarm = float(cf['Massman']['IRGAarm'])     # IRGA mounting distance
+        lLat = numpy.ma.sin(numpy.deg2rad(angle)) * IRGAarm
+        lLong = CSATarm - (numpy.ma.cos(numpy.deg2rad(angle)) * IRGAarm)
+    elif ("north_separation" in cf["Massman"] and
+          "east_separation" in cf["Massman"]):
+        # the following is the definition of lateral and longitudinal separation
+        # used in EddyPro, it is not equivalent to the one used above
+        nsep = numpy.float(cf["Massman"]["north_separation"])
+        esep = numpy.float(cf["Massman"]["east_separation"])
+        lLat = numpy.sqrt(nsep*nsep + esep*esep)
+        lLong = numpy.float(0)
+    else:
+        msg = " Required separation information not found in Massman section of control file"
+        log.error(msg)
+        return
     # *** Massman_1stpass starts here ***
     #  The code for the first and second passes is very similar.  It would be useful to make them the
     #  same and put into a loop to reduce the number of lines in this function.

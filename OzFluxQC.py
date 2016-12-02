@@ -292,13 +292,16 @@ class qcgui(tk.Tk):
             return
         self.do_progress(text='Doing L1 ...')
         ds1 = qcls.l1qc(cf)
-        outfilename = qcio.get_outfilenamefromcf(cf)
-        if len(outfilename)==0: self.do_progress(text='An error occurred, check the console ...'); return
-        ncFile = qcio.nc_open_write(outfilename)
-        qcio.nc_write_series(ncFile,ds1)
-        self.do_progress(text='Finished L1')
-        logging.info(' Finished L1')
-        logging.info("")
+        if ds1.returncodes["value"] == 0:
+            outfilename = qcio.get_outfilenamefromcf(cf)
+            ncFile = qcio.nc_open_write(outfilename)
+            qcio.nc_write_series(ncFile,ds1)
+            self.do_progress(text='Finished L1')
+            logging.info(' Finished L1')
+            logging.info("")
+        else:
+            msg = 'An error occurred, check the console ...'
+            self.do_progress(text=msg)
 
     def do_l2qc(self):
         """

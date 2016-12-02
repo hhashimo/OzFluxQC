@@ -23,16 +23,20 @@ def l1qc(cf):
     if not qcutils.file_exists(in_filename,mode="quiet"):
         msg = " Input file "+in_filename+" not found ..."
         log.error(msg)
-        return qcio.DataStructure(object)
+        ds1 = qcio.DataStructure()
+        ds1.returncodes = {"value":1,"message":msg}
+        return ds1
     file_name,file_extension = os.path.splitext(in_filename)
     if "csv" in file_extension.lower():
         ds1 = qcio.csv_read_series(cf)
-        if ds1==0: return ds1
+        if ds1.returncodes["value"] != 0:
+            return ds1
         # get a series of Excel datetime from the Python datetime objects
         qcutils.get_xldatefromdatetime(ds1)
     else:
         ds1 = qcio.xl_read_series(cf)
-        if ds1==0: return ds1
+        if ds1.returncodes["value"] != 0:
+            return ds1
         # get a series of Python datetime objects from the Excel datetime
         qcutils.get_datetimefromxldate(ds1)
     # get the netCDF attributes from the control file

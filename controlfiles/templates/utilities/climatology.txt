@@ -1,7 +1,6 @@
 [Files]
     file_path = ../Sites/<site_name>/Data/Processed/<year>/
     in_filename = <site_name>_<year>_L3.nc
-    out_filename = Climatology_<year>.xls
 
 [Variables]
     [[Ta]]
