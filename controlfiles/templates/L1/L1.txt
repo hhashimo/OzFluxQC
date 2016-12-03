@@ -1,29 +1,14 @@
-# AAHYWEH
-# Control file for choosing data from the L1 Excel spreadsheet and writing it to a netCDF file.
-#
-# TEMPLATE VERSION
-#  To convert this template to a version that works for data output by the standard OzFlux
-#  data logger program:
-#   1) Replace the following place holders with values for your site:
-#      <site_name> - the name of the site
-#      <year>      - the year of the data
-#      <latitude>  - the latitude of the site, decimal degrees
-#      <longitude> - the longitude of the site, decimal degrees
-#      <height>    - the height of the measurement (above ground), m
-#      <depth>     - the depth of the measurement (below ground), cm for depths <= 1m, m for depths > 1m
-#      <letter>    - the letter used to distinguish sensors at the same depth or height
-#   2) Fill out the global and variable attributes
-#
-# [Files] - contains paths, file names and location of data in file
-# [Global] - global attributes to be written into the netCDF file
-# [Variables] - data to extract from Excel spreadsheet and write to netCDF file
-#
-[Files]
-    file_path = ../Sites/<site_name>/Data/Processed/<year>/
-    in_filename = <site_name>_<year>_L1.xls
-    in_headerrow  = 2
-    in_firstdatarow = 5
-    out_filename = <site_name>_<year>_L1.nc
+[files]
+    file_path = /home/peter/Data/WombatStateForest/Data/10Hz/Run02/
+    [[biomet]]
+        biomet_file_name = eddypro_WSF_02_biomet_2016-08-26T224958_adv.csv
+        header_row  = 1
+        first_data_row = 3
+    [[eddypro]]
+        eddypro_file_name = eddypro_WSF_02_full_output_2016-08-26T224958_adv.csv
+        header_row  = 2
+        first_data_row = 4
+    out_filename = WombatStateForest_L1.nc
 
 [Global]
     acknowledgement = """This work used eddy covariance data collected by the TERN-OzFlux facility. OzFlux

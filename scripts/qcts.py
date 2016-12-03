@@ -2043,22 +2043,22 @@ def MassmanStandard(cf,ds,Ta_in='Ta',Ah_in='Ah',ps_in='ps',ustar_in='ustar',usta
     if 'Massman' not in cf:
         log.info(' Massman section not found in control file, no corrections applied')
         return
-    if qcutils.cfkeycheck(cf,Base='FunctionArgs',ThisOne='MassmanVars'):
-        MArgs = ast.literal_eval(cf['FunctionArgs']['MassmanVars'])
-        Ta_in = MArgs[0]
-        Ah_in = MArgs[1]
-        ps_in = MArgs[2]
-    if qcutils.cfkeycheck(cf,Base='FunctionArgs',ThisOne='MassmanOuts'):
-        MOut = ast.literal_eval(cf['FunctionArgs']['MassmanOuts'])
-        ustar_in = MOut[0]
-        ustar_out = MOut[1]
-        L_in = MOut[2]
-        L_out = MOut[3]
-        uw_out = MOut[4]
-        vw_out = MOut[5]
-        wT_out = MOut[6]
-        wA_out = MOut[7]
-        wC_out = MOut[8]
+    #if qcutils.cfkeycheck(cf,Base='FunctionArgs',ThisOne='MassmanVars'):
+        #MArgs = ast.literal_eval(cf['FunctionArgs']['MassmanVars'])
+        #Ta_in = MArgs[0]
+        #Ah_in = MArgs[1]
+        #ps_in = MArgs[2]
+    #if qcutils.cfkeycheck(cf,Base='FunctionArgs',ThisOne='MassmanOuts'):
+        #MOut = ast.literal_eval(cf['FunctionArgs']['MassmanOuts'])
+        #ustar_in = MOut[0]
+        #ustar_out = MOut[1]
+        #L_in = MOut[2]
+        #L_out = MOut[3]
+        #uw_out = MOut[4]
+        #vw_out = MOut[5]
+        #wT_out = MOut[6]
+        #wA_out = MOut[7]
+        #wC_out = MOut[8]
     log.info(' Correcting for flux loss from spectral attenuation')
     zmd = float(cf['Massman']['zmd'])             # z-d for site
     if ("angle" in cf["Massman"] and
@@ -2114,14 +2114,24 @@ def MassmanStandard(cf,ds,Ta_in='Ta',Ah_in='Ah',ps_in='ps',ustar_in='ustar',usta
     fxMom = nxMom * u / zmd
     fxScalar = nxScalar * u / zmd
     # compute spectral filters
+    tau_sonic_law_4scalar = c.lwVert / (8.4 * u)
+    tau_sonic_laT_4scalar = c.lTv / (4.0 * u)
+    tau_irga_la = (c.lIRGA / (4.0 * u))
+    tau_irga_va = (0.2+0.4*c.dIRGA/c.lIRGA)*(c.lIRGA/u)
+    tau_irga_bw = 0.016
+    tau_irga_lat = (lLat / (1.1 * u))
+    tau_irga_lon = (lLong / (1.05 * u))
+    
     tao_eMom = numpy.ma.sqrt(((c.lwVert / (5.7 * u)) ** 2) + ((c.lwHor / (2.8 * u)) ** 2))
-    tao_ewT = numpy.ma.sqrt(((c.lwVert / (8.4 * u)) ** 2) + ((c.lTv / (4.0 * u)) ** 2))
-    tao_ewIRGA = numpy.ma.sqrt(((c.lwVert / (8.4 * u)) ** 2) +
-                               ((c.lIRGA / (4.0 * u)) ** 2) +
-                               ((0.2+0.4*c.dIRGA/c.lIRGA)*(c.lIRGA/u)) + 
-                               (c.tau_bw ** 2) +
-                               ((lLat / (1.1 * u)) ** 2) +
-                               ((lLong / (1.05 * u)) ** 2))
+    tao_ewT = numpy.ma.sqrt((tau_sonic_law_4scalar ** 2) + (tau_sonic_laT_4scalar ** 2))
+    
+    tao_ewIRGA = numpy.ma.sqrt((tau_sonic_law_4scalar ** 2) +
+                               (tau_irga_la ** 2) +
+                               (tau_irga_va ** 2) + 
+                               (tau_irga_bw ** 2) +
+                               (tau_irga_lat ** 2) +
+                               (tau_irga_lon ** 2))
+
     tao_b = c.Tb / 2.8
     # calculate coefficients
     bMom = qcutils.bp(fxMom,tao_b)
