@@ -1,5 +1,7 @@
 version_name = "OzFluxQC"
-version_number = "V2.9.6d"
+version_number = "V2.9.6e"
+# V2.9.6e  - bug fix in qcts.MassmanStandard()
+#            - fixed calculation of effective time constant
 # V2.9.6d  - bug fix in gfSOLO_main
 #            - variable was being pulled from L4 data structure prior
 #              to running QC checks before gap filling so any u* filtering
