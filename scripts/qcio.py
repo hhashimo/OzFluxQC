@@ -1148,28 +1148,38 @@ def nc_concatenate(cf):
                  "Year","Month","Day","Hour","Minute","Second",
                  "Hdh","Ddd","time"]:
         if item in series_list: series_list.remove(item)
+
     # loop over the data series and calculate fraction of data present
-    for item in series_list:
-        data,flag,attr = qcutils.GetSeriesasMA(ds_n,item)
-        idx = numpy.ma.where(data.mask==False)
-        cond_idx[idx] = cond_idx[idx] + 1
-    cond_idx = cond_idx/len(series_list)
-    # find the first element where more than 50% data is present
-    idx = numpy.where(cond_idx>=0.50)[0]
-    # skip if enough data is present from the start of the file
-    if len(idx)!=0 and idx[0]!=0:
-        si = idx[0]
-        msg = " Start date truncated from "+str(dt[0])
-        msg = msg+" to "+str(dt[si])
-        log.warning(msg)
-        # update the relevent global attributes
-        ds_n.globalattributes["start_date"] = dt[si]
-        ds_n.globalattributes["nc_nrecs"] = len(dt[si:])
-        # now loop over the data series and truncate
-        series_list = ds_n.series.keys()
+    opt = qcutils.get_keyvaluefromcf(cf,["Options"],"Truncate",default="Yes")
+    if opt.lower() == "yes":
+        default_list = ["Ah","Cc","Fa","Fg","Fld","Flu","Fn","Fsd","Fsu","ps","Sws","Ta","Ts","Ws","Wd","Precip"]
+        series_list = qcutils.get_keyvaluefromcf(cf,["Options"],"SeriesToCheck",default=default_list)
+        if isinstance(series_list, basestring):
+            series_list = ast.literal_eval(series_list)
         for item in series_list:
-            ds_n.series[item]["Data"] = ds_n.series[item]["Data"][si:]
-            ds_n.series[item]["Flag"] = ds_n.series[item]["Flag"][si:]
+            data,flag,attr = qcutils.GetSeriesasMA(ds_n,item)
+            idx = numpy.ma.where(data.mask==False)
+            cond_idx[idx] = cond_idx[idx] + 1
+        cond_idx = cond_idx/len(series_list)
+        # find the first element where more than 50% data is present
+        opt = qcutils.get_keyvaluefromcf(cf,["Options"],"TruncateThreshold",default="50")
+        threshold = float(opt)/float(100)
+        idx = numpy.where(cond_idx>=threshold)[0]
+        # skip if enough data is present from the start of the file
+        if len(idx)!=0 and idx[0]!=0:
+            si = idx[0]
+            msg = " Start date truncated from "+str(dt[0])
+            msg = msg+" to "+str(dt[si])
+            log.warning(msg)
+            # update the relevent global attributes
+            ds_n.globalattributes["start_date"] = dt[si]
+            ds_n.globalattributes["nc_nrecs"] = len(dt[si:])
+            # now loop over the data series and truncate
+            series_list = ds_n.series.keys()
+            for item in series_list:
+                ds_n.series[item]["Data"] = ds_n.series[item]["Data"][si:]
+                ds_n.series[item]["Flag"] = ds_n.series[item]["Flag"][si:]
+
     # check that we have 'Ws' and 'Wd' series
     if "Ws" not in ds_n.series.keys():
         if "Ws_CSAT" in ds_n.series.keys():
@@ -1287,30 +1297,39 @@ def nc_concatenate(cf):
                  #"Year","Month","Day","Hour","Minute","Second",
                  #"Hdh","Ddd","time"]:
         #if item in series_list: series_list.remove(item)
+
     # loop over the data series and calculate fraction of data present
-    series_list = ["Ah","Cc","Fa","Fg","Fld","Flu","Fn","Fsd","Fsu","ps","Sws","Ta","Ts","Ws","Wd","Precip"]
-    for item in series_list:
-        data,flag,attr = qcutils.GetSeriesasMA(ds,item)
-        idx = numpy.where(numpy.ma.getmaskarray(data)==False)
-        cond_idx[idx] = cond_idx[idx] + 1
-    cond_idx = cond_idx/len(series_list)
-    # find the last element where more than 50% data is present
-    idx = numpy.where(cond_idx>=0.50)[0]
-    # skip if data is present to the end of the file
-    if len(idx)!=0 and idx[-1]!=len(dt)-1:
-        ei = idx[-1]
-        msg = " End date truncated from "+str(dt[-1])
-        msg = msg+" to "+str(dt[ei])
-        log.warning(msg)
-        # update the relevent global attributes
-        ds.globalattributes["end_date"] = dt[ei]
-        # now loop over the data series and truncate
-        series_list = ds.series.keys()
+    opt = qcutils.get_keyvaluefromcf(cf,["Options"],"Truncate",default="Yes")
+    if opt.lower() == "yes":
+        default_list = ["Ah","Cc","Fa","Fg","Fld","Flu","Fn","Fsd","Fsu","ps","Sws","Ta","Ts","Ws","Wd","Precip"]
+        series_list = qcutils.get_keyvaluefromcf(cf,["Options"],"SeriesToCheck",default=default_list)
+        if isinstance(series_list, basestring):
+            series_list = ast.literal_eval(series_list)
         for item in series_list:
-            ds.series[item]["Data"] = ds.series[item]["Data"][:ei+1]
-            ds.series[item]["Flag"] = ds.series[item]["Flag"][:ei+1]
-    # update the number of records
-    ds.globalattributes["nc_nrecs"] = len(ds.series["DateTime"]["Data"])
+            data,flag,attr = qcutils.GetSeriesasMA(ds,item)
+            idx = numpy.where(numpy.ma.getmaskarray(data)==False)
+            cond_idx[idx] = cond_idx[idx] + 1
+        cond_idx = cond_idx/len(series_list)
+        # find the last element where more than 50% data is present
+        opt = qcutils.get_keyvaluefromcf(cf,["Options"],"TruncateThreshold",default="50")
+        threshold = float(opt)/float(100)
+        idx = numpy.where(cond_idx>=threshold)[0]
+        # skip if data is present to the end of the file
+        if len(idx)!=0 and idx[-1]!=len(dt)-1:
+            ei = idx[-1]
+            msg = " End date truncated from "+str(dt[-1])
+            msg = msg+" to "+str(dt[ei])
+            log.warning(msg)
+            # update the relevent global attributes
+            ds.globalattributes["end_date"] = dt[ei]
+            # now loop over the data series and truncate
+            series_list = ds.series.keys()
+            for item in series_list:
+                ds.series[item]["Data"] = ds.series[item]["Data"][:ei+1]
+                ds.series[item]["Flag"] = ds.series[item]["Flag"][:ei+1]
+        # update the number of records
+        ds.globalattributes["nc_nrecs"] = len(ds.series["DateTime"]["Data"])
+
     # now sort out any time gaps
     if qcutils.CheckTimeStep(ds):
         fixtimestepmethod = qcutils.get_keyvaluefromcf(cf,["Options"],"FixTimeStepMethod",default="round")

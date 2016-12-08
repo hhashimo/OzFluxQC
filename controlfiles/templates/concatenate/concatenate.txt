@@ -1,7 +1,10 @@
 [Options]
-    NumberOfDimensions = 3                       # number of dimensions for output netCDF file
-    MaxGapInterpolate  = 3                       # maximum gap length (hours) for filling by interpolation
-    FixTimeStepMethod  = round                   # interpolate/round
+    NumberOfDimensions = 3             # number of dimensions for output netCDF file
+    MaxGapInterpolate  = 3             # maximum gap length (hours) for filling by interpolation
+    FixTimeStepMethod  = round         # interpolate/round
+    Truncate = Yes                     # Yes/No, truncate beginning and end if data missing
+    TruncateThreshold = 50             # %, truncate if less data than threshold
+    SeriesToCheck = "['Ah','Cc','Fa','Fg','Fld','Flu','Fn','Fsd','Fsu','ps','Sws','Ta','Ts','Ws','Wd','Precip']"
 
 [Files]
     [[Out]]
