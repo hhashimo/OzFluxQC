@@ -245,8 +245,11 @@ def plot_fingerprint(cf):
             plt.xticks([0,6,12,18,24])
             plt.xlabel(label)
             if n!= 0: plt.setp(ax.get_yticklabels(), visible=False)
-        if "plot_path" in cf["Files"]:
-            plot_path = cf["Files"]["plot_path"]+"fingerprint/"
+        if "Files" in cf:
+            if "plot_path" in cf["Files"]:
+                plot_path = cf["Files"]["plot_path"]+"fingerprint/"
+            else:
+                plot_path = "plots/"
         else:
             plot_path = "plots/"
         if not os.path.exists(plot_path): os.makedirs(plot_path)
