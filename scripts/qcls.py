@@ -153,6 +153,8 @@ def l3qc(cf,ds2):
     ds3.globalattributes['Functions'] = ''
     # put the control file name into the global attributes
     ds3.globalattributes['controlfile_name'] = cf['controlfile_name']
+    # check to see if we have any imports
+    qcgf.ImportSeries(cf,ds3)
     # correct measured soil water content using empirical relationship to collected samples
     qcts.CorrectSWC(cf,ds3)
     # apply linear corrections to the data

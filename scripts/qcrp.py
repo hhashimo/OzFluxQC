@@ -32,11 +32,15 @@ def CalculateET(ds):
     Date: June 2015
     """
     ts = int(ds.globalattributes["time_step"])
-    Fe,flag,attr = qcutils.GetSeriesasMA(ds,"Fe")
-    ET = Fe*ts*60/c.Lv
-    attr["long_name"] = "Evapo-transpiration calculated from latent heat flux"
-    attr["units"] = "mm"
-    qcutils.CreateSeries(ds,"ET",ET,Flag=flag,Attr=attr)
+    series_list = ds.series.keys()
+    Fe_list = [item for item in series_list if "Fe" in item]
+    for label in Fe_list:
+        suffix = label[len("Fe")+label.find("Fe"):]
+        Fe,flag,attr = qcutils.GetSeriesasMA(ds,label)
+        ET = Fe*ts*60/c.Lv
+        attr["long_name"] = "Evapo-transpiration calculated from latent heat flux"
+        attr["units"] = "mm"
+        qcutils.CreateSeries(ds,"ET"+suffix,ET,Flag=flag,Attr=attr)
 
 def CalculateNEE(cf,ds):
     """
@@ -1422,7 +1426,9 @@ def L6_summary_createseriesdict(cf,ds):
         series_dict["daily"][item]["format"] = "0.00"
         series_dict["cumulative"][item]["operator"] = "sum"
         series_dict["cumulative"][item]["format"] = "0.00"
-    sdl["h2o"] = ["ET","Precip"]
+    sdl["ET"] = [item for item in ds.series.keys() if "ET" in item]
+    sdl["Precip"] = [item for item in ds.series.keys() if "Precip" in item]
+    sdl["h2o"] = sdl["ET"]+sdl["Precip"]
     for item in sdl["h2o"]:
         series_dict["daily"][item] = {"operator":"sum","format":"0.00"}
         series_dict["cumulative"][item] = {"operator":"sum","format":"0.00"}
