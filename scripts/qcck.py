@@ -98,6 +98,10 @@ def ApplyTurbulenceFilter(cf,ds,ustar_threshold=None):
     if opt["turbulence_filter"].lower()=="ustar":
         # indicators["turbulence"] = 1 ==> turbulent, indicators["turbulence"] = 0 ==> not turbulent
         indicators["turbulence"] = qcrp.get_turbulence_indicator_ustar(ldt,ustar,ustar_dict,ts)
+    elif opt["turbulence_filter"].lower()=="ustar_evg":
+        # indicators["turbulence"] = 1 ==> turbulent, indicators["turbulence"] = 0 ==> not turbulent
+        ind_day = qcrp.get_day_indicator(cf,Fsd,Fsd_syn,sa)
+        indicators["turbulence"] = qcrp.get_turbulence_indicator_ustar_evg(ldt,ind_day,ustar,ustar_dict,ts)
     elif opt["turbulence_filter"].lower()=="l":
         #indicators["turbulence] = get_turbulence_indicator_l(ldt,L,z,d,zmdonL_threshold)
         indicators["turbulence"] = numpy.ones(len(ldt))
@@ -195,7 +199,7 @@ def ApplyTurbulenceFilter_checks(cf,ds):
         opt["OK"] = False
         return opt
     # check to see if filter type can be handled
-    if opt["turbulence_filter"].lower() not in ["ustar","l"]:
+    if opt["turbulence_filter"].lower() not in ["ustar","ustar_evg","l"]:
         msg = " Unrecognised turbulence filter option ("
         msg = msg+opt["turbulence_filter"]+"), no filter applied"
         log.error(msg)

@@ -333,7 +333,7 @@ def cpd_main(cf):
     output_stats_df.to_excel(xlwriter,sheet_name=xlsheet)    
     xlwriter.save()
     # close any open plot windows if we are doing batch processing
-    print d["call_mode"]
+    #print d["call_mode"]
     if d["call_mode"]!="interactive": plt.close('all')
     
     log.info(' CPD analysis complete!')

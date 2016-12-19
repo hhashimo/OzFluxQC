@@ -32,11 +32,15 @@ def CalculateET(ds):
     Date: June 2015
     """
     ts = int(ds.globalattributes["time_step"])
-    Fe,flag,attr = qcutils.GetSeriesasMA(ds,"Fe")
-    ET = Fe*ts*60/c.Lv
-    attr["long_name"] = "Evapo-transpiration calculated from latent heat flux"
-    attr["units"] = "mm"
-    qcutils.CreateSeries(ds,"ET",ET,Flag=flag,Attr=attr)
+    series_list = ds.series.keys()
+    Fe_list = [item for item in series_list if "Fe" in item]
+    for label in Fe_list:
+        suffix = label[len("Fe")+label.find("Fe"):]
+        Fe,flag,attr = qcutils.GetSeriesasMA(ds,label)
+        ET = Fe*ts*60/c.Lv
+        attr["long_name"] = "Evapo-transpiration calculated from latent heat flux"
+        attr["units"] = "mm"
+        qcutils.CreateSeries(ds,"ET"+suffix,ET,Flag=flag,Attr=attr)
 
 def CalculateNEE(cf,ds):
     """
@@ -1089,6 +1093,65 @@ def get_turbulence_indicator_ustar(ldt,ustar,ustar_dict,ts):
         inds[si:ei][idx] = numpy.int32(1)
     return turbulence_indicator
 
+def get_turbulence_indicator_ustar_evg(ldt,ind_day,ustar,ustar_dict,ts):
+    """
+    Purpose:
+     Returns a dictionary containing an indicator series and some attributes.
+     The indicator series is 1 when ustar is above the threshold after sunset
+     and remains 1 until ustar falls below the threshold after which it remains
+     0 until the following evening.
+    Usage:
+     indicators["turbulence"] = get_turbulence_indicator_ustar_evg(ldt,ind_day,ustar,ustar_dict,ts)
+     where;
+      ldt is a list of datetimes
+      ind_day is a day/night indicator
+      ustar is a series of ustar values (ndarray)
+      ustar_dict is a dictionary of ustar thresholds returned by qcrp.get_ustar_thresholds
+      ts is the time step for ustar
+    and;
+     indicators["turbulence"] is a dictionary containing
+      indicators["turbulence"]["values"] is the indicator series
+      indicators["turbulence"]["attr"] are the attributes
+    Author: PRI
+    Date: December 2016
+    """
+    # differentiate the day/night indicator series
+    dinds = numpy.ediff1d(ind_day, to_begin=0)
+    # get the list of years
+    year_list = ustar_dict.keys()
+    year_list.sort()
+    # now loop over the years in the data to apply the ustar threshold
+    turbulence_indicator = {"values":numpy.zeros(len(ldt),dtype=numpy.int32),
+                            "attr":{}}
+    inds = turbulence_indicator["values"]
+    attr = turbulence_indicator["attr"]
+    attr["turbulence_filter"] = "ustar"
+    for year in year_list:
+        start_date = str(year)+"-01-01 00:30"
+        if ts==60: start_date = str(year)+"-01-01 01:00"
+        end_date = str(int(year)+1)+"-01-01 00:00"
+        # get the ustar threshold
+        ustar_threshold = float(ustar_dict[year]["ustar_mean"])
+        attr["ustar_threshold_"+str(year)] = str(ustar_threshold)
+        # get the start and end datetime indices
+        si = qcutils.GetDateIndex(ldt,start_date,ts=ts,default=0,match='exact')
+        ei = qcutils.GetDateIndex(ldt,end_date,ts=ts,default=len(ldt),match='exact')
+        ustar_sub = ustar[si:ei+1]
+        inds_sub = inds[si:ei+1]
+        dinds_sub = dinds[si:ei+1]
+        # get the indicator series
+        idx = numpy.where(dinds_sub<-0.5)[0]
+        for i in idx:
+            n = i
+            while ustar_sub[n]>=0.65:
+                inds_sub[n] = 1
+                n = n+1
+                if n>=len(ldt):
+                    break
+        inds[si:ei+1] = inds_sub
+    turbulence_indicator["values"] = inds
+    return turbulence_indicator
+
 def get_ustarthreshold_from_cf(cf,ldt):
     """
     Purpose:
@@ -1422,7 +1485,9 @@ def L6_summary_createseriesdict(cf,ds):
         series_dict["daily"][item]["format"] = "0.00"
         series_dict["cumulative"][item]["operator"] = "sum"
         series_dict["cumulative"][item]["format"] = "0.00"
-    sdl["h2o"] = ["ET","Precip"]
+    sdl["ET"] = [item for item in ds.series.keys() if "ET" in item]
+    sdl["Precip"] = [item for item in ds.series.keys() if "Precip" in item]
+    sdl["h2o"] = sdl["ET"]+sdl["Precip"]
     for item in sdl["h2o"]:
         series_dict["daily"][item] = {"operator":"sum","format":"0.00"}
         series_dict["cumulative"][item] = {"operator":"sum","format":"0.00"}
