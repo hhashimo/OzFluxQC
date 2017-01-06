@@ -94,14 +94,22 @@ def ApplyTurbulenceFilter(cf,ds,ustar_threshold=None):
     if "solar_altitude" not in ds.series.keys(): qcts.get_synthetic_fsd(ds)
     Fsd_syn,f,a = qcutils.GetSeriesasMA(ds,"Fsd_syn")
     sa,f,a = qcutils.GetSeriesasMA(ds,"solar_altitude")
+    # get the day/night indicator series
+    # indicators["day"] = 1 ==> day time, indicators["day"] = 0 ==> night time
+    indicators["day"] = qcrp.get_day_indicator(cf,Fsd,Fsd_syn,sa)
+    ind_day = indicators["day"]["values"]
     # get the turbulence indicator series
     if opt["turbulence_filter"].lower()=="ustar":
         # indicators["turbulence"] = 1 ==> turbulent, indicators["turbulence"] = 0 ==> not turbulent
         indicators["turbulence"] = qcrp.get_turbulence_indicator_ustar(ldt,ustar,ustar_dict,ts)
     elif opt["turbulence_filter"].lower()=="ustar_evg":
-        # indicators["turbulence"] = 1 ==> turbulent, indicators["turbulence"] = 0 ==> not turbulent
-        ind_day = qcrp.get_day_indicator(cf,Fsd,Fsd_syn,sa)
-        indicators["turbulence"] = qcrp.get_turbulence_indicator_ustar_evg(ldt,ind_day,ustar,ustar_dict,ts)
+        # ustar >= threshold ==> ind_ustar = 1, ustar < threshold == ind_ustar = 0
+        indicators["ustar"] = qcrp.get_turbulence_indicator_ustar(ldt,ustar,ustar_dict,ts)
+        ind_ustar = indicators["ustar"]["values"]
+        # ustar >= threshold during day AND ustar has been >= threshold since sunset ==> indicators["turbulence"] = 1
+        # indicators["turbulence"] = 0 during night once ustar has dropped below threshold even if it
+        # increases above the threshold later in the night
+        indicators["turbulence"] = qcrp.get_turbulence_indicator_ustar_evg(ldt,ind_day,ind_ustar,ustar,ustar_dict,ts)
     elif opt["turbulence_filter"].lower()=="l":
         #indicators["turbulence] = get_turbulence_indicator_l(ldt,L,z,d,zmdonL_threshold)
         indicators["turbulence"] = numpy.ones(len(ldt))
@@ -114,11 +122,14 @@ def ApplyTurbulenceFilter(cf,ds,ustar_threshold=None):
         return
     # initialise the final indicator series as the turbulence indicator
     # subsequent filters will modify the final indicator series
-    indicators["final"] = indicators["turbulence"].copy()
-    # get the day/night indicator series
-    # indicators["day"] = 1 ==> day time, indicators["day"] = 0 ==> night time
-    indicators["day"] = qcrp.get_day_indicator(cf,Fsd,Fsd_syn,sa)
+    # we must use copy.deepcopy() otherwise the "values" array will only
+    # be copied by reference not value.  Damn Python's default of copy by reference!
+    indicators["final"] = copy.deepcopy(indicators["turbulence"])
+    # check to see if the user wants to accept all day time observations
+    # regardless of ustar value
     if opt["accept_day_times"].lower()=="yes":
+        # if yes, then we force the final indicator to be 1
+        # if ustar is below the threshold during the day.
         idx = numpy.where(indicators["day"]["values"]==1)[0]
         indicators["final"]["values"][idx] = numpy.int(1)
         indicators["final"]["attr"].update(indicators["day"]["attr"])

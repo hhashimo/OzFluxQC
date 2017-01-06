@@ -11,7 +11,7 @@
 [Options]
     MaxGapInterpolate   = 0
     FilterList          = "['Fc']"
-    TurbulenceFilter    = ustar  # ustar/L/none, type of turbulence filter
+    TurbulenceFilter    = ustar  # ustar/ustar_evg/L/none, type of turbulence filter
     DayNightFilter      = Fsd    # Fsd/sa/none, Fsd ==> use Fsd, sa ==> use solar altitude
     UseFsdsyn_threshold = No     # Yes/No, include Fsd_syn in the day/night filter
     AcceptDayTimes      = Yes    # Yes/No, accept all day time values (including ustar<threshold)

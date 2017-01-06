@@ -309,7 +309,7 @@ def optimise_annual_Eo(data_dict, params_dict, configs_dict, year_index_dict):
     if len(Eo_pass_keys) != len(yearsEo_dict):
         if len(Eo_nan_fail_keys) == len(yearsEo_dict):
             log.error(" Could not find any values of Eo for any years! Exiting...")
-            sys.exit()
+            raise RuntimeError
         elif len(Eo_pass_keys) != 0:
             Eo_mean = numpy.array([yearsEo_dict[i] for i in Eo_pass_keys]).mean()
             all_fail_keys = Eo_range_fail_keys + Eo_nan_fail_keys

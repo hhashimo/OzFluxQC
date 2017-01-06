@@ -769,8 +769,9 @@ def GetERFromFc2(cf,ds):
     """
     Purpose:
      Get the observed ecosystem respiration from measurements of Fc by
-     filtering out daytime periods and periods when ustar is less than
-     a threshold value.
+     filtering out daytime periods.  Note that the removal of low tubulence
+     periods has been done by qcck.ApplyTurbulenceFilter() before this
+     routine is called.
      The Fsd threshold for determining day time and night time and the
      ustar threshold are set in the [Params] section of the L5 control
      file.
@@ -958,7 +959,6 @@ def get_evening_indicator(cf,Fsd,Fsd_syn,sa,ts):
     """
     evening_indicator = {"values":numpy.zeros(len(Fsd),dtype=numpy.int32),
                          "attr":{}}
-    inds = evening_indicator["values"]
     attr = evening_indicator["attr"]
     opt = qcutils.get_keyvaluefromcf(cf,["Options"],"EveningFilterLength",default="0")
     num_hours = int(opt)
@@ -972,7 +972,7 @@ def get_evening_indicator(cf,Fsd,Fsd_syn,sa,ts):
     ntsperhour = int(0.5+float(60)/float(ts))
     shift = num_hours*ntsperhour
     day_indicator_shifted = numpy.roll(day_indicator["values"], shift)
-    inds = night_indicator["values"]*day_indicator_shifted
+    evening_indicator["values"] = night_indicator["values"]*day_indicator_shifted
     attr["evening_filter_length"] = num_hours
     return evening_indicator
 
@@ -1056,6 +1056,7 @@ def get_turbulence_indicator_ustar(ldt,ustar,ustar_dict,ts):
      Returns a dictionary containing an indicator series and some attributes.
      The indicator series is 1 when ustar is above the threshold and 0 when
      ustar is below the threshold.
+     By default, all day time observations are accepted regardless of ustar value.
     Usage:
      indicators["turbulence"] = get_turbulence_indicator_ustar(ldt,ustar,ustar_dict,ts)
      where;
@@ -1073,8 +1074,7 @@ def get_turbulence_indicator_ustar(ldt,ustar,ustar_dict,ts):
     year_list = ustar_dict.keys()
     year_list.sort()
     # now loop over the years in the data to apply the ustar threshold
-    turbulence_indicator = {"values":numpy.zeros(len(ldt),dtype=numpy.int32),
-                            "attr":{}}
+    turbulence_indicator = {"values":numpy.zeros(len(ldt)),"attr":{}}
     inds = turbulence_indicator["values"]
     attr = turbulence_indicator["attr"]
     attr["turbulence_filter"] = "ustar"
@@ -1093,13 +1093,16 @@ def get_turbulence_indicator_ustar(ldt,ustar,ustar_dict,ts):
         inds[si:ei][idx] = numpy.int32(1)
     return turbulence_indicator
 
-def get_turbulence_indicator_ustar_evg(ldt,ind_day,ustar,ustar_dict,ts):
+def get_turbulence_indicator_ustar_evg(ldt,ind_day,ind_ustar,ustar,ustar_dict,ts):
     """
     Purpose:
      Returns a dictionary containing an indicator series and some attributes.
      The indicator series is 1 when ustar is above the threshold after sunset
      and remains 1 until ustar falls below the threshold after which it remains
      0 until the following evening.
+     By default, all day time observations are accepted regardless of ustar value.
+     Based on a ustar filter scheme designed by Eva van Gorsel for use at the
+     Tumbarumba site.
     Usage:
      indicators["turbulence"] = get_turbulence_indicator_ustar_evg(ldt,ind_day,ustar,ustar_dict,ts)
      where;
@@ -1112,44 +1115,38 @@ def get_turbulence_indicator_ustar_evg(ldt,ind_day,ustar,ustar_dict,ts):
      indicators["turbulence"] is a dictionary containing
       indicators["turbulence"]["values"] is the indicator series
       indicators["turbulence"]["attr"] are the attributes
-    Author: PRI
+    Author: PRI, EVG, WW
     Date: December 2016
     """
-    # differentiate the day/night indicator series
+    # differentiate the day/night indicator series, we will
+    # use this value to indicate the transition from day to night
     dinds = numpy.ediff1d(ind_day, to_begin=0)
     # get the list of years
     year_list = ustar_dict.keys()
     year_list.sort()
     # now loop over the years in the data to apply the ustar threshold
-    turbulence_indicator = {"values":numpy.zeros(len(ldt),dtype=numpy.int32),
-                            "attr":{}}
-    inds = turbulence_indicator["values"]
+    # ustar >= threshold ==> ind_ustar = 1 else ind_ustar = 0
+    turbulence_indicator = {"values":ind_ustar,"attr":{}}
     attr = turbulence_indicator["attr"]
-    attr["turbulence_filter"] = "ustar"
-    for year in year_list:
-        start_date = str(year)+"-01-01 00:30"
-        if ts==60: start_date = str(year)+"-01-01 01:00"
-        end_date = str(int(year)+1)+"-01-01 00:00"
-        # get the ustar threshold
-        ustar_threshold = float(ustar_dict[year]["ustar_mean"])
-        attr["ustar_threshold_"+str(year)] = str(ustar_threshold)
-        # get the start and end datetime indices
-        si = qcutils.GetDateIndex(ldt,start_date,ts=ts,default=0,match='exact')
-        ei = qcutils.GetDateIndex(ldt,end_date,ts=ts,default=len(ldt),match='exact')
-        ustar_sub = ustar[si:ei+1]
-        inds_sub = inds[si:ei+1]
-        dinds_sub = dinds[si:ei+1]
-        # get the indicator series
-        idx = numpy.where(dinds_sub<-0.5)[0]
-        for i in idx:
-            n = i
-            while ustar_sub[n]>=0.65:
-                inds_sub[n] = 1
-                n = n+1
-                if n>=len(ldt):
-                    break
-        inds[si:ei+1] = inds_sub
-    turbulence_indicator["values"] = inds
+    attr["turbulence_filter"] = "ustar_evg"
+    # get an array of ustar threshold values
+    year = numpy.array([ldt[i].year for i in range(len(ldt))])
+    ustar_threshold = numpy.zeros(len(ldt))
+    for yr in year_list:
+        idx = numpy.where(year==int(yr))[0]
+        ustar_threshold[idx] = float(ustar_dict[yr]["ustar_mean"])
+        attr["ustar_threshold_"+str(yr)] = str(ustar_dict[yr]["ustar_mean"])
+    # get the indicator series
+    ind_evg = ind_day.copy()
+    idx = numpy.where(dinds<-0.5)[0]
+    for i in idx:
+        n = i
+        while ustar[n]>=ustar_threshold[n]:
+            ind_evg[n] = 1
+            n = n+1
+            if n>=len(ldt):
+                break
+    turbulence_indicator["values"] = turbulence_indicator["values"]*ind_evg
     return turbulence_indicator
 
 def get_ustarthreshold_from_cf(cf,ldt):
