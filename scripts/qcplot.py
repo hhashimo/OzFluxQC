@@ -1208,6 +1208,8 @@ def xyplot(x,y,sub=[1,1,1],regr=0,thru0=0,title=None,xlabel=None,ylabel=None,fna
         y_nm = numpy.ma.compressed(y)
         if len(y_nm)!=0 or len(x_nm)!=0:
             resrlm = sm.RLM(y_nm,x_nm,M=sm.robust.norms.TukeyBiweight()).fit()
+            if numpy.isnan(resrlm.params[0]):
+                resrlm = sm.RLM(y_nm,x_nm,M=sm.robust.norms.TrimmedMean()).fit()
             r = numpy.corrcoef(numpy.ma.compressed(x),numpy.ma.compressed(y))
             eqnstr = 'y = %.3fx + %.3f (RLM)'%(resrlm.params[0],resrlm.params[1])
             plt.plot(x_nm[:,0],resrlm.fittedvalues,'r--',linewidth=3)
