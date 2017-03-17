@@ -1,5 +1,7 @@
 version_name = "OzFluxQC"
-version_number = "V2.9.6e"
+version_number = "V2.9.6f"
+# V2.9.6f  - re-write of qcio.xl_read_series() to trap different
+#            number of rows on different worksheets
 # V2.9.6e  - bug fix in qcts.MassmanStandard()
 #            - fixed calculation of effective time constant
 # V2.9.6d  - bug fix in gfSOLO_main

@@ -1975,18 +1975,24 @@ def xl_read_series(cf):
         log.error(msg)
         ds.returncodes = {"value":1,"message":msg}
         return ds
+    label_list = cf['Variables'].keys()
+    if "xlDateTime" not in label_list:
+        msg = " No xlDateTime section found in control file"
+        log.error(msg)
+        ds.returncodes = {"value":1,"message":msg}
+        return ds
     # convert from Excel row number to xlrd row number
-    FirstDataRow = int(qcutils.get_keyvaluefromcf(cf,["Files"],"in_firstdatarow")) - 1
-    HeaderRow = int(qcutils.get_keyvaluefromcf(cf,["Files"],"in_headerrow")) - 1
+    first_data_row = int(qcutils.get_keyvaluefromcf(cf,["Files"],"in_firstdatarow")) - 1
+    header_row = int(qcutils.get_keyvaluefromcf(cf,["Files"],"in_headerrow")) - 1
     # get the Excel workbook object.
     file_name = os.path.split(FileName)
     log.info(" Reading Excel file "+file_name[1])
-    xlBook = xlrd.open_workbook(FileName)
+    xl_book = xlrd.open_workbook(FileName)
     #log.info(" Opened and read Excel file "+FileName)
     ds.globalattributes['featureType'] = 'timeseries'
     ds.globalattributes['xl_filename'] = FileName
-    ds.globalattributes['xl_datemode'] = str(xlBook.datemode)
-    xlsheet_names = [x.lower() for x in xlBook.sheet_names()]
+    ds.globalattributes['xl_datemode'] = str(xl_book.datemode)
+    xlsheet_names = [x.lower() for x in xl_book.sheet_names()]
     # Get the Excel file modification date and time, these will be
     # written to the netCDF file to uniquely identify the version
     # of the Excel file used to create this netCDF file.
@@ -1995,40 +2001,87 @@ def xl_read_series(cf):
     ds.globalattributes['xl_moddatetime'] = str(datetime.datetime(t[0],t[1],t[2],t[3],t[4],t[5]))
     # Loop over the variables defined in the 'Variables' section of the
     # configuration file.
-    for ThisOne in cf['Variables'].keys():
-        if "Function" in cf['Variables'][ThisOne].keys(): continue
-        if 'xl' in cf['Variables'][ThisOne].keys():
-            if 'sheet' in cf['Variables'][ThisOne]['xl'].keys():
-                xlsheet_name = cf['Variables'][ThisOne]['xl']['sheet']
-                if xlsheet_name.lower() in xlsheet_names:
-                    log.info(' Getting data for '+ThisOne+' from spreadsheet')
-                    xlsheet_index = xlsheet_names.index(xlsheet_name.lower())
-                    ActiveSheet = xlBook.sheet_by_index(xlsheet_index)
-                    HeaderList = [x.lower() for x in ActiveSheet.row_values(HeaderRow)]
-                    if cf['Variables'][ThisOne]['xl']['name'].lower() in HeaderList:
-                        LastDataRow = int(ActiveSheet.nrows)
-                        ds.series[unicode(ThisOne)] = {}
-                        xlCol = HeaderList.index(cf['Variables'][ThisOne]['xl']['name'].lower())
-                        Values = ActiveSheet.col_values(xlCol)[FirstDataRow:LastDataRow]
-                        Types = ActiveSheet.col_types(xlCol)[FirstDataRow:LastDataRow]
-                        ds.series[ThisOne]['Data'] = numpy.ones(len(Values),dtype=numpy.float64)*float(c.missing_value)
-                        ds.series[ThisOne]['Flag'] = numpy.ones(len(Values),dtype=numpy.int32)
-                        # we could use "where" and get rid of this for loop
-                        for i in range(len(Values)):
-                            if (Types[i]==3) or (Types[i]==2): #xlType=3 means a date/time value, xlType=2 means a number
-                                ds.series[ThisOne]['Data'][i] = numpy.float64(Values[i])
-                                ds.series[ThisOne]['Flag'][i] = numpy.int32(0)
-                    else:
-                        log.error('  xl_read_series: series '+ThisOne+' not found in xl file')
-                else:
-                    log.error('  xl_read_series: sheet '+xlsheet_name+' not found in xl file')
+    # We do the xlDateTime variable first so as to set the default number of records
+    if xl_check_cf_section(cf, "xlDateTime"):
+        xlsheet_name = cf["Variables"]["xlDateTime"]["xl"]["sheet"]
+        if xlsheet_name.lower() in xlsheet_names:
+            xlsheet_index = xlsheet_names.index(xlsheet_name.lower())
+            active_sheet = xl_book.sheet_by_index(xlsheet_index)
+            header_list = [x.lower() for x in active_sheet.row_values(header_row)]
+            if cf["Variables"]["xlDateTime"]["xl"]["name"].lower() in header_list:
+                log.info(" Getting xlDateTime from sheet "+xlsheet_name)
+                last_data_row = int(active_sheet.nrows)
+                ds.series[unicode("xlDateTime")] = {}
+                xl_col = header_list.index(cf["Variables"]["xlDateTime"]["xl"]["name"].lower())
+                values = active_sheet.col_values(xl_col)[first_data_row:last_data_row]
+                types = active_sheet.col_types(xl_col)[first_data_row:last_data_row]
+                nrecs = len(values)
+                ds.series["xlDateTime"]["Data"] = numpy.ones(nrecs,dtype=numpy.float64)*float(c.missing_value)
+                ds.series["xlDateTime"]["Flag"] = numpy.ones(nrecs,dtype=numpy.int32)
+                for i in range(nrecs):
+                    if (types[i]==3) or (types[i]==2):
+                        ds.series["xlDateTime"]["Data"][i] = numpy.float64(values[i])
+                        ds.series["xlDateTime"]["Flag"][i] = numpy.int32(0)
+                ds.globalattributes['nc_nrecs'] = str(nrecs)
             else:
-                log.error('  xl_read_series: key "sheet" not found in control file entry for '+ThisOne)
+                log.error("  xlDateTime not found on sheet "+xlsheet_name)
         else:
-            log.error('  xl_read_series: key "xl" not found in control file entry for '+ThisOne)
-    ds.globalattributes['nc_nrecs'] = str(len(ds.series['xlDateTime']['Data']))
+            log.error("  Sheet "+xlsheet_name+" (xlDateTime) not found in Excel workbook")
+    # remove xlDateTime from the list of series to be read
+    if "xlDateTime" in label_list:
+        label_list.remove("xlDateTime")
+    # and now loop over the series to be read from the Excel file
+    for label in label_list:
+        if xl_check_cf_section(cf, label):
+            xlsheet_name = cf["Variables"][label]["xl"]["sheet"]
+            if xlsheet_name.lower() in xlsheet_names:
+                xlsheet_index = xlsheet_names.index(xlsheet_name.lower())
+                active_sheet = xl_book.sheet_by_index(xlsheet_index)
+                header_list = [x.lower() for x in active_sheet.row_values(header_row)]
+                if cf["Variables"][label]["xl"]["name"].lower() in header_list:
+                    log.info(" Getting "+label+" from sheet "+xlsheet_name)
+                    last_data_row = int(active_sheet.nrows)
+                    if last_data_row-first_data_row == nrecs:
+                        ds.series[unicode(label)] = {}
+                        xl_col = header_list.index(cf["Variables"][label]["xl"]["name"].lower())
+                        values = active_sheet.col_values(xl_col)[first_data_row:last_data_row]
+                        types = active_sheet.col_types(xl_col)[first_data_row:last_data_row]
+                        nrecs = len(values)
+                        ds.series[label]["Data"] = numpy.ones(nrecs,dtype=numpy.float64)*float(c.missing_value)
+                        ds.series[label]["Flag"] = numpy.ones(nrecs,dtype=numpy.int32)
+                        for i in range(nrecs):
+                            if (types[i]==3) or (types[i]==2):
+                                ds.series[label]["Data"][i] = numpy.float64(values[i])
+                                ds.series[label]["Flag"][i] = numpy.int32(0)
+                    else:
+                        log.error("  "+label+" on sheet "+xlsheet_name+" is the wrong length")
+                        continue
+                else:
+                    log.error("  "+label+" not found on sheet "+xlsheet_name)
+            else:
+                log.error("  Sheet "+xlsheet_name+" ("+label+") not found in Excel workbook")
     ds.returncodes = {"value":0,"message":"OK"}
     return ds
+
+def xl_check_cf_section(cf, label):
+    """
+    Purpose:
+     Helper logical for checking L1 control file entries.
+    Usage:
+    Author: PRI
+    Date: March 2017
+    """
+    if "Function" in cf["Variables"][label].keys():
+        result = False
+    elif "xl" not in cf["Variables"][label].keys():
+        log.error("  Key 'xl' not found in control file entry for "+label)
+        result = False
+    elif "sheet" not in cf["Variables"][label]["xl"].keys():
+        log.error("  Key 'sheet' not found in control file entry for "+label)
+        result = False
+    else:
+        result = True
+    return result
 
 def xl_write_AlternateStats(ds):
     if "alternate" not in dir(ds): return
