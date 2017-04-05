@@ -26,7 +26,7 @@ if len(sys.argv)==1:
 if sys.argv[1].lower()=="australia":
     erai_info["area"] = "-10/110/-45/155"
     target_directory = "/mnt/OzFlux/ERAI/"
-    start_year = 2014
+    start_year = 2000
     end_year = 2016
 elif sys.argv[1].lower()=="usa":
     erai_info["area"] = "70/229.5/30/300"
