@@ -170,7 +170,9 @@ def l3qc(cf,ds2):
     qcts.CalculateHumidities(ds3)
     # merge the 7500 CO2 concentration
     qcts.MergeSeries(cf,ds3,'Cc',[0,10],convert_units=True)
-    qcutils.CheckUnits(ds3,"Cc","mg/m3",convert_units=True)
+    # PRI - disable CO2 units conversion from whatever to mg/m3
+    #     - this step is, as far as I can see, redundant, see qcts.Fc_WPL()
+    #qcutils.CheckUnits(ds3,"Cc","mg/m3",convert_units=True)
     # add relevant meteorological values to L3 data
     qcts.CalculateMeteorologicalVariables(ds3)
     # check to see if the user wants to use the fluxes in the L2 file

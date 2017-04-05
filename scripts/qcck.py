@@ -375,8 +375,6 @@ def do_dependencycheck(cf,ds,section='',series='',code=23,mode="quiet"):
         # set the dependent QC flag
         dependent_flag[index] = numpy.int32(code)
     # put the data back into the data structure
-    if series=="Fc":
-        pass
     dependent_attr["DependencyCheck_source"] = str(source_list)
     qcutils.CreateSeries(ds,series,dependent_data,Flag=dependent_flag,Attr=dependent_attr)
     if 'do_dependencychecks' not in ds.globalattributes['Functions']:
