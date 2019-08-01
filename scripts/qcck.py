@@ -43,28 +43,26 @@ def ApplyRangeCheckToVariable(variable):
     if "rangecheck_lower" in variable["Attr"]:
         attr = variable["Attr"]["rangecheck_lower"]
         lower = numpy.array(eval(attr))
-        valid_lower = str(numpy.min(lower))
+        valid_lower = numpy.min(lower)
         month = numpy.array([dt[i].month for i in range(0,len(dt))])
         lower_series = lower[month-1]
         index = numpy.ma.where(variable["Data"]<lower_series)[0]
         variable["Data"][index] = numpy.ma.masked
         variable["Flag"][index] = numpy.int32(2)
         valid_range = variable["Attr"]["valid_range"]
-        old_lower = valid_range.split(",")[0]
-        valid_range = valid_range.replace(old_lower,valid_lower)
+        valid_range = [valid_lower, valid_range[1]]
         variable["Attr"]["valid_range"] = valid_range
     if "rangecheck_upper" in variable["Attr"]:
         attr = variable["Attr"]["rangecheck_upper"]
         upper = numpy.array(eval(attr))
-        valid_upper = str(numpy.min(upper))
+        valid_upper = numpy.min(upper)
         month = numpy.array([dt[i].month for i in range(0,len(dt))])
         upper_series = upper[month-1]
         index = numpy.ma.where(variable["Data"]>upper_series)[0]
         variable["Data"][index] = numpy.ma.masked
         variable["Flag"][index] = numpy.int32(2)
         valid_range = variable["Attr"]["valid_range"]
-        old_upper = valid_range.split(",")[1]
-        valid_range = valid_range.replace(old_upper,valid_upper)
+        valid_range = [valid_range[0],valid_upper]
         variable["Attr"]["valid_range"] = valid_range
     return
 
@@ -646,7 +644,7 @@ def do_rangecheck(cf,ds,section='',series='',code=2):
         ds.series[series]['Data'][index] = numpy.float64(c.missing_value)
         ds.series[series]['Flag'][index] = numpy.int32(code)
         ds.series[series]['Attr']['rangecheck_upper'] = cf[section][series]['RangeCheck']['Upper']
-        ds.series[series]['Attr']['valid_range'] = str(valid_lower)+','+str(valid_upper)
+        ds.series[series]['Attr']['valid_range'] = [valid_lower,valid_upper]
     if 'RangeCheck' not in ds.globalattributes['Functions']:
         ds.globalattributes['Functions'] = ds.globalattributes['Functions']+',RangeCheck'
 
