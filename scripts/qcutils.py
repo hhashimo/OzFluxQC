@@ -1685,7 +1685,7 @@ def MakeAttributeDictionary(**kwargs):
     if len(default_list)!=0:
         for item in default_list:
             if item == "valid_range":
-                attr[item] = str(c.small_value)+","+str(c.large_value)
+                attr[item] = [c.small_value),c.large_value]
             else:
                 attr[item] = "not defined"
     attr["missing_value"] = c.missing_value
